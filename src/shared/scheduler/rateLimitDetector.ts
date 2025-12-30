@@ -1,0 +1,164 @@
+import type { RateLimitInfo } from './types';
+
+export class RateLimitDetector {
+  private limits: Map<string, RateLimitInfo> = new Map();
+  private globalLimit: RateLimitInfo | null = null;
+
+  parseHeaders(headers: Record<string, string>, endpoint: string): RateLimitInfo | null {
+    const limit = headers['x-rate-limit-limit'];
+    const remaining = headers['x-rate-limit-remaining'];
+    const reset = headers['x-rate-limit-reset'];
+
+    if (!limit || !remaining || !reset) {
+      console.log('[RateLimitDetector] Missing rate limit headers for', endpoint);
+      return null;
+    }
+
+    const info: RateLimitInfo = {
+      limit: parseInt(limit, 10),
+      remaining: parseInt(remaining, 10),
+      reset: parseInt(reset, 10),
+      endpoint,
+      timestamp: Date.now(),
+    };
+
+    this.limits.set(endpoint, info);
+
+    if (!this.globalLimit || info.remaining < this.globalLimit.remaining) {
+      this.globalLimit = info;
+    }
+
+    console.log('[RateLimitDetector] Rate limit updated:', {
+      endpoint,
+      remaining: info.remaining,
+      limit: info.limit,
+      resetIn: this.getSecondsUntilReset(info),
+    });
+
+    return info;
+  }
+
+  getMostRestrictive(): RateLimitInfo | null {
+    this.cleanExpiredLimits();
+    return this.globalLimit;
+  }
+
+  getForEndpoint(endpoint: string): RateLimitInfo | null {
+    const info = this.limits.get(endpoint);
+    if (!info) return null;
+
+    if (this.isExpired(info)) {
+      this.limits.delete(endpoint);
+      return null;
+    }
+
+    return info;
+  }
+
+  isApproachingLimit(thresholdPercent: number = 10): boolean {
+    const info = this.getMostRestrictive();
+    if (!info) return false;
+
+    const percentRemaining = (info.remaining / info.limit) * 100;
+    const approaching = percentRemaining <= thresholdPercent;
+
+    if (approaching) {
+      console.warn('[RateLimitDetector] Approaching rate limit:', {
+        remaining: info.remaining,
+        limit: info.limit,
+        percentRemaining: percentRemaining.toFixed(1) + '%',
+        resetIn: this.getSecondsUntilReset(info),
+      });
+    }
+
+    return approaching;
+  }
+
+  isLimitExceeded(): boolean {
+    const info = this.getMostRestrictive();
+    if (!info) return false;
+    return info.remaining <= 0;
+  }
+
+  getSecondsUntilReset(info?: RateLimitInfo): number {
+    const limit = info || this.getMostRestrictive();
+    if (!limit) return 0;
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const secondsUntilReset = Math.max(0, limit.reset - nowSeconds);
+    return secondsUntilReset;
+  }
+
+  getMillisecondsUntilReset(info?: RateLimitInfo): number {
+    return this.getSecondsUntilReset(info) * 1000;
+  }
+
+  getRecommendedWaitTime(thresholdPercent: number = 10): number {
+    if (!this.isApproachingLimit(thresholdPercent)) {
+      return 0;
+    }
+
+    const info = this.getMostRestrictive();
+    if (!info) return 0;
+
+    if (info.remaining <= 0) {
+      return this.getMillisecondsUntilReset(info);
+    }
+
+    const secondsUntilReset = this.getSecondsUntilReset(info);
+    const requestsRemaining = info.remaining;
+
+    const safeDelaySeconds = secondsUntilReset / Math.max(requestsRemaining, 1);
+    const safeDelayMs = Math.ceil(safeDelaySeconds * 1000);
+
+    return Math.max(safeDelayMs, 1000);
+  }
+
+  private isExpired(info: RateLimitInfo): boolean {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    return nowSeconds >= info.reset;
+  }
+
+  private cleanExpiredLimits(): void {
+    for (const [endpoint, info] of this.limits.entries()) {
+      if (this.isExpired(info)) {
+        this.limits.delete(endpoint);
+      }
+    }
+
+    if (this.globalLimit && this.isExpired(this.globalLimit)) {
+      this.globalLimit = null;
+    }
+
+    if (this.limits.size > 0) {
+      let mostRestrictive: RateLimitInfo | null = null;
+      for (const info of this.limits.values()) {
+        if (!mostRestrictive || info.remaining < mostRestrictive.remaining) {
+          mostRestrictive = info;
+        }
+      }
+      this.globalLimit = mostRestrictive;
+    }
+  }
+
+  reset(): void {
+    this.limits.clear();
+    this.globalLimit = null;
+    console.log('[RateLimitDetector] Reset all rate limit tracking');
+  }
+
+  getState(): {
+    globalLimit: RateLimitInfo | null;
+    endpointLimits: Array<{ endpoint: string; info: RateLimitInfo }>;
+  } {
+    this.cleanExpiredLimits();
+
+    return {
+      globalLimit: this.globalLimit,
+      endpointLimits: Array.from(this.limits.entries()).map(([endpoint, info]) => ({
+        endpoint,
+        info,
+      })),
+    };
+  }
+}

@@ -1,0 +1,114 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+interface UseSearchWithDropdownOptions<T> {
+  searchFn: (query: string) => Promise<T[]>;
+  debounceMs?: number;
+  minQueryLength?: number;
+  onSelect?: (item: T) => void;
+  filterFn?: (results: T[]) => T[];
+  disabled?: boolean;
+}
+
+interface UseSearchWithDropdownReturn<T> {
+  query: string;
+  setQuery: (q: string) => void;
+  results: T[];
+  isSearching: boolean;
+  showDropdown: boolean;
+  setShowDropdown: (show: boolean) => void;
+  selectItem: (item: T) => void;
+  clearSearch: () => void;
+  selectedItem: T | null;
+  setSelectedItem: (item: T | null) => void;
+}
+
+export function useSearchWithDropdown<T>({
+  searchFn,
+  debounceMs = 300,
+  minQueryLength = 2,
+  onSelect,
+  filterFn,
+  disabled = false,
+}: UseSearchWithDropdownOptions<T>): UseSearchWithDropdownReturn<T> {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<T[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<T | null>(null);
+
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (disabled || query.length < minQueryLength || selectedItem) {
+      setResults([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        let searchResults = await searchFn(query);
+
+        if (filterFn) {
+          searchResults = filterFn(searchResults);
+        }
+
+        if (isMounted.current) {
+          setResults(searchResults);
+          setShowDropdown(searchResults.length > 0);
+        }
+      } catch (error) {
+        console.error('[useSearchWithDropdown] Search error:', error);
+        if (isMounted.current) {
+          setResults([]);
+          setShowDropdown(false);
+        }
+      } finally {
+        if (isMounted.current) {
+          setIsSearching(false);
+        }
+      }
+    }, debounceMs);
+
+    return () => clearTimeout(timer);
+  }, [query, debounceMs, minQueryLength, searchFn, filterFn, disabled, selectedItem]);
+
+  const selectItem = useCallback(
+    (item: T) => {
+      setSelectedItem(item);
+      setShowDropdown(false);
+      setResults([]);
+      onSelect?.(item);
+    },
+    [onSelect],
+  );
+
+  const clearSearch = useCallback(() => {
+    setQuery('');
+    setResults([]);
+    setShowDropdown(false);
+    setSelectedItem(null);
+  }, []);
+
+  return {
+    query,
+    setQuery,
+    results,
+    isSearching,
+    showDropdown,
+    setShowDropdown,
+    selectItem,
+    clearSearch,
+    selectedItem,
+    setSelectedItem,
+  };
+}
+
+export default useSearchWithDropdown;

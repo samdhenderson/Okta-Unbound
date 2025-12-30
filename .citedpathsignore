@@ -1,0 +1,13 @@
+# Paths this repo deliberately does not carry. See the workshop for them.
+# Read by scripts/check-cited-paths.mjs; an unlisted broken citation
+# still fails the gate.
+CLAUDE.md
+AGENTS.md
+CONVENTIONS.md
+SESSION.md
+NIGHTLY.md
+DEBT.md
+IMPROVEMENTS.md
+docs/reel.md
+typedoc.json
+.github/workflows/deploy-pages.yml
