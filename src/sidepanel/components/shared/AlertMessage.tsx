@@ -5,9 +5,16 @@ export interface AlertMessageData {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface AlertAction {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'danger';
+}
+
 interface AlertMessageProps {
   message: AlertMessageData;
   onDismiss?: () => void;
+  action?: AlertAction;
   className?: string;
 }
 
@@ -34,7 +41,12 @@ const typeStyles = {
   },
 };
 
-const AlertMessage: React.FC<AlertMessageProps> = ({ message, onDismiss, className = '' }) => {
+const AlertMessage: React.FC<AlertMessageProps> = ({
+  message,
+  onDismiss,
+  action,
+  className = '',
+}) => {
   const styles = typeStyles[message.type];
 
   return (
@@ -81,6 +93,22 @@ const AlertMessage: React.FC<AlertMessageProps> = ({ message, onDismiss, classNa
         </svg>
 
         <span className={`text-sm ${styles.text}`}>{message.text}</span>
+
+        {action && (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className={`ml-3 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              action.variant === 'danger'
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : message.type === 'error'
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {action.label}
+          </button>
+        )}
       </div>
 
       {onDismiss && (

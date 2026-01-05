@@ -76,7 +76,7 @@ const App: React.FC = () => {
 
   return (
     <SchedulerProvider>
-      <div className="sidebar-container">
+      <div className="sidebar-container pb-14">
         <Header status={connectionStatus} />
 
         <ContextBanner
