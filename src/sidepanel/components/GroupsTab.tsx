@@ -8,9 +8,10 @@ import ScrollableList from './shared/ScrollableList';
 import { useOktaApi } from '../hooks/useOktaApi';
 import type { GroupSummary, LinkedGroup } from '../../shared/types';
 import GroupListItem from './groups/GroupListItem';
-import GroupCollections from './groups/GroupCollections';
+import GroupCollections, { type GroupCollection } from './groups/GroupCollections';
 import BulkOperations from './groups/BulkOperations';
 import GroupComparison from './groups/GroupComparison';
+import GroupExportModal from './groups/GroupExportModal';
 import { applyStalenessScore } from '../../shared/utils/stalenessCalculator';
 
 interface GroupsTabProps {
@@ -33,6 +34,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [sizeFilter, setSizeFilter] = useState<string>('');
   const [stalenessFilter, setStalenessFilter] = useState<string>('');
+  const [pushGroupFilter, setPushGroupFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<
     'name' | 'memberCount' | 'lastUpdated' | 'stalenessScore' | 'lastMembershipUpdated'
   >('name');
@@ -44,6 +46,11 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showLoadOptionsModal, setShowLoadOptionsModal] = useState(false);
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportGroups, setExportGroups] = useState<GroupSummary[]>([]);
+  const [exportType, setExportType] = useState<'selection' | 'collection'>('selection');
+  const [exportCollectionName, setExportCollectionName] = useState('');
 
   const api = useOktaApi({
     targetTabId,
@@ -408,6 +415,22 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
     setSelectedGroupIds(new Set(groupIds));
   };
 
+  const pushGroupApps = useMemo(() => {
+    const appsMap = new Map<string, string>();
+    groups.forEach((group) => {
+      if (group.isPushGroup && group.linkedGroups) {
+        group.linkedGroups.forEach((lg) => {
+          if (lg.sourceAppId && !appsMap.has(lg.sourceAppId)) {
+            appsMap.set(lg.sourceAppId, lg.sourceAppName || lg.name || 'Unknown App');
+          }
+        });
+      }
+    });
+    return Array.from(appsMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [groups]);
+
   const filteredGroups = useMemo(() => {
     if (searchMode === 'live') {
       return liveSearchResults; // Already filtered by API
@@ -461,6 +484,12 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
       });
     }
 
+    if (pushGroupFilter) {
+      filtered = filtered.filter(
+        (g) => g.isPushGroup && g.linkedGroups?.some((lg) => lg.sourceAppId === pushGroupFilter),
+      );
+    }
+
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'name':
@@ -491,53 +520,45 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
     typeFilter,
     sizeFilter,
     stalenessFilter,
+    pushGroupFilter,
     sortBy,
   ]);
 
-  const exportMultiGroupMembers = async () => {
+  const handleExportSelection = useCallback(() => {
     if (selectedGroupIds.size === 0) {
       alert('Please select at least one group');
       return;
     }
+    const selected = groups.filter((g) => selectedGroupIds.has(g.id));
+    setExportGroups(selected);
+    setExportType('selection');
+    setExportCollectionName('');
+    setShowExportModal(true);
+  }, [selectedGroupIds, groups]);
 
-    try {
-      const allMembers: any[] = [];
-      const userGroupMap = new Map<string, string[]>();
-
-      for (const groupId of Array.from(selectedGroupIds)) {
-        const group = groups.find((g) => g.id === groupId);
-        const members = await api.getAllGroupMembers(groupId);
-
-        members.forEach((member: any) => {
-          if (!userGroupMap.has(member.id)) {
-            userGroupMap.set(member.id, []);
-            allMembers.push(member);
-          }
-          userGroupMap.get(member.id)!.push(group?.name || groupId);
-        });
+  const handleExportCollection = useCallback(
+    (collection: GroupCollection) => {
+      const collectionGroups = groups.filter((g) => collection.groupIds.includes(g.id));
+      if (collectionGroups.length === 0) {
+        alert(
+          'No groups found in collection. Some groups may have been deleted or cache may be stale.',
+        );
+        return;
       }
+      setExportGroups(collectionGroups);
+      setExportType('collection');
+      setExportCollectionName(collection.name);
+      setShowExportModal(true);
+    },
+    [groups],
+  );
 
-      let csv = 'User ID,Email,First Name,Last Name,Status,Groups\n';
-      allMembers.forEach((user) => {
-        const groupsList = userGroupMap.get(user.id)?.join('; ') || '';
-        csv += `${user.id},"${user.profile.email}","${user.profile.firstName}","${user.profile.lastName}",${user.status},"${groupsList}"\n`;
-      });
-
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `multi-group-export-${selectedGroupIds.size}-groups-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      alert(`Exported ${allMembers.length} unique users from ${selectedGroupIds.size} groups`);
-    } catch (err) {
-      alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    }
-  };
+  const handleFetchMembers = useCallback(
+    async (groupId: string) => {
+      return await api.getAllGroupMembers(groupId);
+    },
+    [api],
+  );
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
@@ -715,6 +736,21 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
                     <option value="active">Active Groups</option>
                   </select>
 
+                  {pushGroupApps.length > 0 && (
+                    <select
+                      value={pushGroupFilter}
+                      onChange={(e) => setPushGroupFilter(e.target.value)}
+                      className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#007dc1]/30 focus:border-[#007dc1] transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                      <option value="">All Push Groups</option>
+                      {pushGroupApps.map((app) => (
+                        <option key={app.id} value={app.id}>
+                          {app.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as any)}
@@ -751,7 +787,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
                         variant="secondary"
                         size="sm"
                         icon="download"
-                        onClick={exportMultiGroupMembers}
+                        onClick={handleExportSelection}
                       >
                         Export ({selectedGroupIds.size})
                       </Button>
@@ -819,6 +855,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
                 <GroupCollections
                   selectedGroupIds={Array.from(selectedGroupIds)}
                   onLoadCollection={handleLoadCollection}
+                  onExportCollection={handleExportCollection}
                 />
               </div>
             )}
@@ -877,6 +914,16 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
           </Button>
         </div>
       </Modal>
+
+      <GroupExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        groups={exportGroups}
+        targetTabId={targetTabId}
+        exportType={exportType}
+        collectionName={exportCollectionName}
+        onFetchMembers={handleFetchMembers}
+      />
     </div>
   );
 };
