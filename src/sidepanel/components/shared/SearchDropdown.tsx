@@ -38,14 +38,14 @@ function SearchDropdown<T>({
   if (selectedItem && renderSelected) {
     return (
       <div className="space-y-1">
-        {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
-        <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+        {label && <label className="block text-sm font-medium text-neutral-700">{label}</label>}
+        <div className="flex items-center justify-between p-3 bg-neutral-50 border border-neutral-200 rounded-md">
           <div className="flex-1 min-w-0">{renderSelected(selectedItem)}</div>
           {onClear && (
             <button
               type="button"
               onClick={onClear}
-              className="ml-2 p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-full hover:bg-gray-200"
+              className="ml-2 p-1 text-neutral-400 hover:text-neutral-600 transition-colors rounded-full hover:bg-neutral-200"
               title="Clear selection"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -59,18 +59,18 @@ function SearchDropdown<T>({
             </button>
           )}
         </div>
-        {hint && <p className="text-xs text-gray-500">{hint}</p>}
+        {hint && <p className="text-xs text-neutral-500">{hint}</p>}
       </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
+      {label && <label className="block text-sm font-medium text-neutral-700">{label}</label>}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
           <svg
-            className="h-5 w-5 text-gray-400"
+            className="h-5 w-5 text-neutral-400"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -87,7 +87,7 @@ function SearchDropdown<T>({
         <input
           ref={inputRef}
           type="text"
-          className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007dc1]/30 focus:border-[#007dc1] transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="w-full pl-10 pr-10 py-2.5 bg-white border border-neutral-200 rounded-md text-sm placeholder-neutral-400 focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary transition-all duration-100 disabled:bg-neutral-100 disabled:cursor-not-allowed"
           placeholder={placeholder}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
@@ -96,14 +96,14 @@ function SearchDropdown<T>({
 
         {isSearching && (
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-            <div className="w-4 h-4 border-2 border-gray-200 border-t-[#007dc1] rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-neutral-200 border-t-primary rounded-full animate-spin" />
           </div>
         )}
 
         {!isSearching && query && onClear && (
           <button
             type="button"
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-600 transition-colors"
             onClick={onClear}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -118,12 +118,12 @@ function SearchDropdown<T>({
         )}
 
         {showDropdown && results.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-50 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-60 overflow-auto">
             {results.map((item, index) => (
               <button
                 key={index}
                 type="button"
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                className="w-full px-4 py-3 text-left hover:bg-neutral-50 border-b border-neutral-100 last:border-b-0 transition-colors"
                 onClick={() => onSelect(item)}
               >
                 {renderResult(item)}
@@ -132,7 +132,7 @@ function SearchDropdown<T>({
           </div>
         )}
       </div>
-      {hint && <p className="text-xs text-gray-500">{hint}</p>}
+      {hint && <p className="text-xs text-neutral-500">{hint}</p>}
     </div>
   );
 }

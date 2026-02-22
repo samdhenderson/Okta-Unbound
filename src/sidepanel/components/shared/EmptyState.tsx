@@ -25,13 +25,18 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <div className={`text-center py-12 px-6 ${className}`}>
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 mb-4">
-        <Icon type={icon} size="xl" className="text-blue-600" />
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-light mb-4">
+        <Icon type={icon} size="xl" className="text-primary-text" />
       </div>
 
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">{title}</h3>
+      <h3
+        className="text-xl font-semibold text-neutral-900 mb-2"
+        style={{ fontFamily: 'var(--font-heading)' }}
+      >
+        {title}
+      </h3>
 
-      <p className="text-gray-600 max-w-md mx-auto mb-6">{description}</p>
+      <p className="text-neutral-600 max-w-md mx-auto mb-6">{description}</p>
 
       {actions && actions.length > 0 && (
         <div className="flex gap-3 justify-center">

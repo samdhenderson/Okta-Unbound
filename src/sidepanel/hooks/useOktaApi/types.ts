@@ -5,36 +5,9 @@ import type {
   UserStatus,
   AuditLogEntry,
   OktaApp,
-  UserAppAssignment,
-  GroupAppAssignment,
-  CreateAppAssignmentRequest,
-  AssignmentConversionRequest,
-  AssignmentConversionResult,
-  BulkAppAssignmentRequest,
-  BulkAppAssignmentResult,
-  AppAssignmentSecurityAnalysis,
-  AssignmentRecommenderResult,
-  AppProfileSchema,
 } from '../../../shared/types';
 
-export type {
-  MessageRequest,
-  MessageResponse,
-  OktaUser,
-  UserStatus,
-  AuditLogEntry,
-  OktaApp,
-  UserAppAssignment,
-  GroupAppAssignment,
-  CreateAppAssignmentRequest,
-  AssignmentConversionRequest,
-  AssignmentConversionResult,
-  BulkAppAssignmentRequest,
-  BulkAppAssignmentResult,
-  AppAssignmentSecurityAnalysis,
-  AssignmentRecommenderResult,
-  AppProfileSchema,
-};
+export type { MessageRequest, MessageResponse, OktaUser, UserStatus, AuditLogEntry, OktaApp };
 
 export interface OperationCallbacks {
   onResult?: (message: string, type: 'info' | 'success' | 'warning' | 'error') => void;

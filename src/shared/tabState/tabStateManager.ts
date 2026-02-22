@@ -3,11 +3,6 @@ import type {
   AllTabStates,
   BaseTabState,
   RulesTabState,
-  UsersTabState,
-  GroupsTabState,
-  DashboardTabState,
-  OperationsTabState,
-  SecurityTabState,
   StatePersistOptions,
   StoredStateMetadata,
 } from './types';
@@ -114,15 +109,7 @@ export class TabStateManager {
   }
 
   static async getAllTabStates(): Promise<Partial<AllTabStates>> {
-    const tabNames: TabName[] = [
-      'dashboard',
-      'operations',
-      'rules',
-      'users',
-      'security',
-      'groups',
-      'undo',
-    ];
+    const tabNames: TabName[] = ['overview', 'rules', 'users', 'groups', 'history'];
     const states: Partial<AllTabStates> = {};
 
     for (const tabName of tabNames) {
@@ -251,82 +238,4 @@ export async function saveRulesTabState(state: Partial<RulesTabState>): Promise<
     ...state,
   };
   await TabStateManager.saveTabState('rules', newState);
-}
-
-export async function saveUsersTabState(state: Partial<UsersTabState>): Promise<void> {
-  const currentState = await TabStateManager.loadTabState<UsersTabState>('users');
-  const newState: UsersTabState = {
-    lastVisited: Date.now(),
-    scrollPosition: 0,
-    searchQuery: '',
-    statusFilter: '',
-    sortBy: 'name',
-    sortDirection: 'asc',
-    selectedUserIds: [],
-    expandedUserId: null,
-    ...currentState,
-    ...state,
-  };
-  await TabStateManager.saveTabState('users', newState);
-}
-
-export async function saveGroupsTabState(state: Partial<GroupsTabState>): Promise<void> {
-  const currentState = await TabStateManager.loadTabState<GroupsTabState>('groups');
-  const newState: GroupsTabState = {
-    lastVisited: Date.now(),
-    scrollPosition: 0,
-    viewMode: 'browse',
-    searchQuery: '',
-    typeFilter: '',
-    sizeFilter: '',
-    sortBy: 'name',
-    selectedGroupIds: [],
-    cachedGroups: null,
-    cacheTimestamp: null,
-    ...currentState,
-    ...state,
-  };
-  await TabStateManager.saveTabState('groups', newState);
-}
-
-export async function saveDashboardTabState(state: Partial<DashboardTabState>): Promise<void> {
-  const currentState = await TabStateManager.loadTabState<DashboardTabState>('dashboard');
-  const newState: DashboardTabState = {
-    lastVisited: Date.now(),
-    scrollPosition: 0,
-    activeWidget: null,
-    expandedSections: [],
-    ...currentState,
-    ...state,
-  };
-  await TabStateManager.saveTabState('dashboard', newState);
-}
-
-export async function saveOperationsTabState(state: Partial<OperationsTabState>): Promise<void> {
-  const currentState = await TabStateManager.loadTabState<OperationsTabState>('operations');
-  const newState: OperationsTabState = {
-    lastVisited: Date.now(),
-    scrollPosition: 0,
-    selectedOperation: null,
-    lastOperation: null,
-    outputLog: [],
-    ...currentState,
-    ...state,
-  };
-  await TabStateManager.saveTabState('operations', newState);
-}
-
-export async function saveSecurityTabState(state: Partial<SecurityTabState>): Promise<void> {
-  const currentState = await TabStateManager.loadTabState<SecurityTabState>('security');
-  const newState: SecurityTabState = {
-    lastVisited: Date.now(),
-    scrollPosition: 0,
-    activeView: 'findings',
-    selectedFindings: [],
-    cachedFindings: null,
-    cacheTimestamp: null,
-    ...currentState,
-    ...state,
-  };
-  await TabStateManager.saveTabState('security', newState);
 }

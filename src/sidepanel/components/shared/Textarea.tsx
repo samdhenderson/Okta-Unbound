@@ -28,11 +28,11 @@ const Textarea: React.FC<TextareaProps> = ({
   const textareaClasses = `
     px-3 py-2 text-sm
     border rounded-md
-    transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-[#007dc1]/30
-    disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
+    transition-all duration-100
+    focus:outline-2 focus:outline-offset-2 focus:outline-primary
+    disabled:bg-neutral-50 disabled:text-neutral-500 disabled:cursor-not-allowed
     resize-vertical
-    ${error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-[#007dc1]'}
+    ${error ? 'border-danger focus:border-danger' : 'border-neutral-300 focus:border-primary'}
     ${fullWidth ? 'w-full' : ''}
   `
     .trim()
@@ -40,7 +40,7 @@ const Textarea: React.FC<TextareaProps> = ({
 
   return (
     <div className={`${fullWidth ? 'w-full' : ''} ${className}`}>
-      {label && <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>}
+      {label && <label className="block text-sm font-medium text-neutral-700 mb-2">{label}</label>}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -50,7 +50,7 @@ const Textarea: React.FC<TextareaProps> = ({
         className={textareaClasses}
         style={{ fontFamily: 'var(--font-primary)' }}
       />
-      {hint && !error && <p className="mt-1 text-xs text-gray-500">{hint}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
       {error && (
         <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">

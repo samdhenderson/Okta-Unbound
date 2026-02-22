@@ -6,10 +6,8 @@ import TabNavigation, { type TabType } from './components/TabNavigation';
 import OverviewTab from './components/OverviewTab';
 import RulesTab from './components/RulesTab';
 import UsersTab from './components/UsersTab';
-import SecurityTab from './components/SecurityTab';
 import GroupsTab from './components/GroupsTab';
-import AppsTab from './components/AppsTab';
-import UndoPanel from './components/UndoPanel';
+import AuditLogViewer from './components/AuditLogViewer';
 import LoadingBar from './components/LoadingBar';
 import SchedulerStatusBar from './components/SchedulerStatusBar';
 import { useGroupContext } from './hooks/useGroupContext';
@@ -34,10 +32,14 @@ const App: React.FC = () => {
         switch (savedTab) {
           case 'dashboard':
           case 'operations':
-            migratedTab = 'overview'; // Both dashboard and operations → overview
+            migratedTab = 'overview';
             break;
           case 'undo':
-            migratedTab = 'history'; // undo → history
+            migratedTab = 'history';
+            break;
+          case 'security':
+          case 'apps':
+            migratedTab = 'overview';
             break;
           default:
             migratedTab = savedTab as TabType;
@@ -66,17 +68,9 @@ const App: React.FC = () => {
     chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'rules' });
   };
 
-  useEffect(() => {
-    console.log('[App] Component mounted');
-  }, []);
-
-  useEffect(() => {
-    console.log('[App] Group context updated:', { groupInfo, connectionStatus, error });
-  }, [groupInfo, connectionStatus, error]);
-
   return (
     <SchedulerProvider>
-      <div className="sidebar-container pb-14">
+      <div className="flex flex-col h-screen overflow-y-auto pb-14">
         <Header status={connectionStatus} />
 
         <ContextBanner
@@ -122,42 +116,22 @@ const App: React.FC = () => {
             onNavigateToRule={handleNavigateToRule}
           />
         )}
-        {activeTab === 'security' && (
-          <SecurityTab
-            groupId={groupInfo?.groupId}
-            groupName={groupInfo?.groupName}
-            targetTabId={targetTabId ?? null}
-          />
-        )}
         {activeTab === 'groups' && (
           <GroupsTab targetTabId={targetTabId ?? null} oktaOrigin={oktaOrigin ?? undefined} />
-        )}
-        {activeTab === 'apps' && (
-          <AppsTab
-            groupId={groupInfo?.groupId}
-            groupName={groupInfo?.groupName}
-            targetTabId={targetTabId ?? null}
-            oktaOrigin={oktaOrigin ?? undefined}
-          />
         )}
         {activeTab === 'history' && (
           <div
             className="tab-content active"
             style={{ fontFamily: 'var(--font-primary)', padding: 0 }}
           >
-            <PageHeader
-              title="Operation History"
-              subtitle="View audit trail and reverse recent actions"
-              icon="list"
-            />
+            <PageHeader title="Audit Log" subtitle="View history of actions performed" />
             <div className="max-w-7xl mx-auto px-6 py-6">
-              <UndoPanel targetTabId={targetTabId ?? undefined} />
+              <AuditLogViewer />
             </div>
           </div>
         )}
 
         <LoadingBar />
-
         <SchedulerStatusBar />
       </div>
     </SchedulerProvider>

@@ -80,40 +80,6 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
     }
   };
 
-  const findUserAcrossGroups = async (query: string): Promise<any> => {
-    try {
-      const userResponse = await coreApi.makeApiRequest(
-        `/api/v1/users?q=${encodeURIComponent(query)}&limit=1`,
-      );
-      if (!userResponse.success || !userResponse.data || userResponse.data.length === 0) {
-        throw new Error('User not found');
-      }
-
-      const user = userResponse.data[0];
-
-      let allGroups: any[] = [];
-      let nextUrl: string | null = `/api/v1/users/${user.id}/groups?limit=200`;
-
-      while (nextUrl) {
-        const groupsResponse = await coreApi.makeApiRequest(nextUrl);
-        if (!groupsResponse.success) break;
-
-        allGroups = allGroups.concat(groupsResponse.data || []);
-
-        nextUrl = parseNextLink(groupsResponse.headers?.link);
-      }
-
-      return {
-        user,
-        groups: allGroups,
-      };
-    } catch (error) {
-      throw new Error(
-        `Failed to find user: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    }
-  };
-
   const searchGroups = async (
     query: string,
   ): Promise<Array<{ id: string; name: string; description: string; type: string }>> => {
@@ -166,7 +132,6 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
     getAllGroups,
     getGroupMemberCount,
     getGroupRulesForGroup,
-    findUserAcrossGroups,
     searchGroups,
     getGroupById,
   };

@@ -23,7 +23,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 }) => {
   const spinner = (
     <div
-      className={`inline-block animate-spin rounded-full border-gray-200 border-t-blue-600 ${sizeClasses[size]} ${className}`}
+      className={`inline-block animate-spin rounded-full border-neutral-200 border-t-primary ${sizeClasses[size]} ${className}`}
       role="status"
       aria-label="Loading"
     />
@@ -37,7 +37,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     <div className={`${centered ? 'flex items-center justify-center py-12' : ''}`}>
       <div className="text-center">
         {spinner}
-        {message && <p className="mt-4 text-gray-600 text-sm">{message}</p>}
+        {message && <p className="mt-4 text-neutral-600 text-sm">{message}</p>}
       </div>
     </div>
   );

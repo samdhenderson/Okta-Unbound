@@ -1,8 +1,7 @@
-export type TabName =
-  'dashboard' | 'operations' | 'rules' | 'users' | 'security' | 'groups' | 'undo';
+export type TabName = 'overview' | 'rules' | 'users' | 'groups' | 'history';
 
 export interface BaseTabState {
-  lastVisited: number; // Timestamp
+  lastVisited: number;
   scrollPosition: number;
 }
 
@@ -24,7 +23,6 @@ export interface UsersTabState extends BaseTabState {
 }
 
 export interface GroupsTabState extends BaseTabState {
-  viewMode: 'browse' | 'search' | 'bulk' | 'compare';
   searchQuery: string;
   typeFilter: string;
   sizeFilter: string;
@@ -34,45 +32,25 @@ export interface GroupsTabState extends BaseTabState {
   cacheTimestamp: number | null;
 }
 
-export interface DashboardTabState extends BaseTabState {
-  activeWidget: string | null;
-  expandedSections: string[];
-}
-
-export interface OperationsTabState extends BaseTabState {
-  selectedOperation: string | null;
-  lastOperation: string | null;
-  outputLog: string[];
-}
-
-export interface SecurityTabState extends BaseTabState {
-  activeView: 'findings' | 'orphaned' | 'stale';
-  selectedFindings: string[];
-  cachedFindings: any[] | null;
-  cacheTimestamp: number | null;
-}
-
-export interface UndoTabState extends BaseTabState {
+export interface HistoryTabState extends BaseTabState {
   expandedEntryId: string | null;
 }
 
 export interface AllTabStates {
-  dashboard: DashboardTabState | null;
-  operations: OperationsTabState | null;
+  overview: BaseTabState | null;
   rules: RulesTabState | null;
   users: UsersTabState | null;
-  security: SecurityTabState | null;
   groups: GroupsTabState | null;
-  undo: UndoTabState | null;
+  history: HistoryTabState | null;
 }
 
 export interface StatePersistOptions {
-  ttl?: number; // How long state is valid (ms), null = forever
-  skipCache?: boolean; // Don't persist cached data (rules, groups, etc.)
+  ttl?: number;
+  skipCache?: boolean;
 }
 
 export interface StoredStateMetadata {
-  version: number; // Schema version for migrations
+  version: number;
   lastUpdated: number;
   expiresAt: number | null;
 }

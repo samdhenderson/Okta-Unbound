@@ -158,6 +158,30 @@ export function createUserOperations(coreApi: CoreApi) {
     }
   };
 
+  const suspendUser = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await coreApi.makeApiRequest(
+      `/api/v1/users/${userId}/lifecycle/suspend`,
+      'POST',
+    );
+    return { success: result.success, error: result.error };
+  };
+
+  const unsuspendUser = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await coreApi.makeApiRequest(
+      `/api/v1/users/${userId}/lifecycle/unsuspend`,
+      'POST',
+    );
+    return { success: result.success, error: result.error };
+  };
+
+  const resetPassword = async (userId: string): Promise<{ success: boolean; error?: string }> => {
+    const result = await coreApi.makeApiRequest(
+      `/api/v1/users/${userId}/lifecycle/reset_password?sendEmail=true`,
+      'POST',
+    );
+    return { success: result.success, error: result.error };
+  };
+
   return {
     getUserLastLogin,
     getUserAppAssignments,
@@ -165,5 +189,8 @@ export function createUserOperations(coreApi: CoreApi) {
     getUserGroupMemberships,
     searchUsers,
     getUserById,
+    suspendUser,
+    unsuspendUser,
+    resetPassword,
   };
 }

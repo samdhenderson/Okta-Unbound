@@ -28,7 +28,7 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
     <div className="relative">
       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
         <svg
-          className="h-5 w-5 text-gray-400"
+          className="h-5 w-5 text-neutral-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -44,14 +44,14 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
       <input
         ref={inputRef}
         type="text"
-        className="w-full pl-11 pr-12 py-3 bg-white border border-gray-200 rounded-lg text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#007dc1]/30 focus:border-[#007dc1] transition-all duration-200 shadow-sm hover:shadow"
+        className="w-full pl-11 pr-12 py-3 bg-white border border-neutral-200 rounded-md text-sm placeholder-neutral-400 focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary transition-all duration-100 shadow-sm hover:shadow"
         placeholder={placeholder}
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
       />
       {showClearButton && (
         <button
-          className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-400 hover:text-neutral-600 transition-colors"
           onClick={handleClear}
           title="Clear search"
           type="button"
@@ -68,7 +68,7 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
       )}
       {isSearching && (
         <div className="absolute inset-y-0 right-12 flex items-center pr-3">
-          <div className="w-4 h-4 border-2 border-gray-200 border-t-[#007dc1] rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-neutral-200 border-t-primary rounded-full animate-spin" />
         </div>
       )}
     </div>

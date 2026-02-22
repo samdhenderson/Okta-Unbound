@@ -97,14 +97,8 @@ export interface RuleActions {
 }
 
 export interface RuleConflict {
-  rule1: {
-    id: string;
-    name: string;
-  };
-  rule2: {
-    id: string;
-    name: string;
-  };
+  rule1: { id: string; name: string };
+  rule2: { id: string; name: string };
   reason: string;
   severity: 'high' | 'medium' | 'low';
   affectedGroups: string[];
@@ -118,7 +112,7 @@ export interface FormattedRule {
   conditionExpression?: string;
   groupIds: string[];
   groupNames?: string[];
-  allGroupNamesMap?: Record<string, string>; // Map of all group IDs (in conditions and targets) to names
+  allGroupNamesMap?: Record<string, string>;
   userAttributes: string[];
   created: string;
   lastUpdated: string;
@@ -163,7 +157,6 @@ export interface GroupMembership {
   group: OktaGroup;
   membershipType: 'DIRECT' | 'RULE_BASED' | 'UNKNOWN';
   rule?: OktaGroupRule;
-  addedDate?: string;
 }
 
 export interface MessageRequest {
@@ -194,7 +187,7 @@ export interface MessageRequest {
   query?: string;
   userId?: string;
   ruleId?: string;
-  groupIds?: string[]; // For multi-group operations
+  groupIds?: string[];
 }
 
 export interface MessageResponse<T = any> extends ApiResponse<T> {
@@ -212,49 +205,22 @@ export interface RuleStats {
   conflicts: number;
 }
 
-export interface ApiCostEstimate {
-  description: string;
-  totalRequests: number;
-  breakdown: {
-    fetch: number;
-    modify: number;
-  };
-  isExact: boolean;
-}
-
 export interface ProgressCallback {
   (current: number, total: number, message?: string): void;
 }
 
 export type ResultType = 'info' | 'success' | 'warning' | 'error';
 
-export type { UndoAction, UndoActionMetadata, UndoHistory, UndoResult } from './undoTypes';
-
-export interface GroupHealthMetrics {
-  totalUsers: number;
-  statusBreakdown: Record<UserStatus, number>;
-  membershipSources: { direct: number; ruleBased: number };
-  riskScore: number; // 0-100
-  riskFactors: string[];
-  lastCleanup: Date | null;
-  daysSinceCleanup: number | null;
-  trends: { membershipChange30d: number; newUsersThisWeek: number };
-}
-
-export interface DashboardCache {
-  metrics: GroupHealthMetrics;
-  timestamp: number;
-  groupId: string;
-}
+export type { UndoAction, UndoActionMetadata, UndoHistory } from './undoTypes';
 
 export interface AuditLogEntry {
-  id: string; // UUID
+  id: string;
   timestamp: Date;
   action: 'remove_users' | 'add_users' | 'export' | 'activate_rule' | 'deactivate_rule';
   groupId: string;
   groupName: string;
-  performedBy: string; // Okta user email from session
-  affectedUsers: string[]; // User IDs (not emails for privacy)
+  performedBy: string;
+  affectedUsers: string[];
   result: 'success' | 'partial' | 'failed';
   details: {
     usersSucceeded: number;
@@ -285,76 +251,7 @@ export interface AuditStats {
 
 export interface AuditSettings {
   enabled: boolean;
-  retentionDays: number; // 30, 60, 90, 180, 365
-}
-
-export interface OrphanedAccount {
-  userId: string;
-  email: string;
-  status: UserStatus;
-  lastLogin: Date | null;
-  daysSinceLogin: number | null;
-  neverLoggedIn: boolean;
-  groupMemberships: number;
-  appAssignments: number;
-  orphanReason:
-    'never_logged_in' | 'inactive_90d' | 'inactive_180d' | 'no_apps' | 'deprovisioned_in_groups';
-  riskLevel: 'critical' | 'high' | 'medium' | 'low';
-  addedToGroupDate?: Date;
-  membershipSource: 'direct' | 'rule-based';
-  firstName: string;
-  lastName: string;
-}
-
-export interface StaleGroupMembership {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  userCreatedDate: Date | null;
-  daysSinceCreated: number | null;
-  source: 'direct' | 'rule-based';
-  lastAppUsage: Date | null;
-  shouldReview: boolean;
-  matchesRules: boolean; // Whether user still matches current group rules
-}
-
-export interface SecurityPosture {
-  overallScore: number; // 0-100
-  findings: SecurityFinding[];
-  recommendations: SecurityRecommendation[];
-  lastScanDate: Date;
-  groupId: string;
-  groupName: string;
-}
-
-export interface SecurityFinding {
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  category: 'orphaned_accounts' | 'stale_memberships' | 'rule_conflicts' | 'permission_anomalies';
-  count: number;
-  description: string;
-  affectedUsers?: string[];
-}
-
-export interface SecurityRecommendation {
-  title: string;
-  description: string;
-  priority: 'high' | 'medium' | 'low';
-  actionable: boolean;
-  relatedFinding?: string;
-}
-
-export interface SecurityScanCache {
-  posture: SecurityPosture;
-  orphanedAccounts: OrphanedAccount[];
-  staleMemberships: StaleGroupMembership[];
-  timestamp: number;
-  groupId: string;
-}
-
-export interface OktaUserWithLastLogin extends OktaUser {
-  lastLogin?: string | null;
-  created?: string;
+  retentionDays: number;
 }
 
 export interface GroupSummary {
@@ -364,63 +261,23 @@ export interface GroupSummary {
   type: GroupType;
   memberCount: number;
   lastUpdated?: Date;
+  lastMembershipUpdated?: Date;
   hasRules: boolean;
   ruleCount: number;
-  healthScore?: number;
-  selected?: boolean; // for multi-select UI
-  sourceAppId?: string; // For APP_GROUP: the source app ID
-  sourceAppName?: string; // For APP_GROUP: the source app name
-  linkedGroups?: LinkedGroup[]; // For merged display: linked OKTA/APP groups
-  isPushGroup?: boolean; // True if this OKTA_GROUP has linked APP_GROUPs
-  created?: Date;
-  lastMembershipUpdated?: Date;
-  stalenessScore?: number; // 0-100 (higher = more stale)
-  stalenessReasons?: string[]; // Why group is considered stale
-  isStale?: boolean; // True if staleness score > threshold
-}
-
-export interface LinkedGroup {
-  id: string;
-  name: string;
-  type: GroupType;
+  selected?: boolean;
   sourceAppId?: string;
   sourceAppName?: string;
-  memberCount: number;
-}
-
-export interface GroupCollection {
-  id: string;
-  name: string;
-  description: string;
-  groupIds: string[];
-  createdAt: Date;
-  lastUsed: Date;
-}
-
-export interface CrossGroupAnalysis {
-  totalGroups: number;
-  totalUniqueUsers: number;
-  usersInMultipleGroups: number;
-  groupOverlaps: GroupOverlap[];
-  userDistribution: Map<string, string[]>; // userId -> groupIds
-}
-
-export interface GroupOverlap {
-  group1: GroupSummary;
-  group2: GroupSummary;
-  sharedUsers: number;
-  uniqueToGroup1: number;
-  uniqueToGroup2: number;
+  created?: Date;
 }
 
 export interface BulkOperation {
   id: string;
-  type: 'remove_user' | 'add_user' | 'cleanup_inactive' | 'export_all' | 'security_scan';
+  type: 'remove_user' | 'add_user' | 'cleanup_inactive' | 'export_all';
   targetGroups: string[];
   status: 'pending' | 'running' | 'completed' | 'failed';
   progress: number;
   results: BulkOperationResult[];
-  config?: any; // Operation-specific configuration
+  config?: any;
 }
 
 export interface BulkOperationResult {
@@ -441,10 +298,6 @@ export interface GroupsCache {
   timestamp: number;
 }
 
-export interface CollectionsCache {
-  collections: GroupCollection[];
-}
-
 export interface OktaApp {
   id: string;
   name: string;
@@ -453,384 +306,4 @@ export interface OktaApp {
   created: string;
   lastUpdated: string;
   signOnMode?: string;
-  features?: string[];
-  settings?: {
-    app?: Record<string, any>;
-    notifications?: Record<string, any>;
-    signOn?: Record<string, any>;
-    [key: string]: any;
-  };
-  credentials?: {
-    scheme?: string;
-    userNameTemplate?: Record<string, any>;
-    [key: string]: any;
-  };
-  _links?: Record<string, any>;
-}
-
-export interface AppAssignment {
-  id: string;
-  appId: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'DEPROVISIONED';
-  created: string;
-  lastUpdated: string;
-  statusChanged?: string;
-  scope: 'USER' | 'GROUP';
-  profile?: Record<string, any>;
-  credentials?: {
-    scheme?: string;
-    userName?: string;
-    password?: string;
-    [key: string]: any;
-  };
-  _embedded?: {
-    app?: OktaApp;
-    user?: OktaUser;
-    group?: OktaGroup;
-  };
-  _links?: Record<string, any>;
-}
-
-export interface UserAppAssignment extends AppAssignment {
-  scope: 'USER';
-  userId?: string;
-  externalId?: string;
-  syncState?: 'DISABLED' | 'OUT_OF_SYNC' | 'SYNCING' | 'SYNCHRONIZED' | 'ERROR';
-  lastSync?: string;
-  passwordChanged?: string;
-}
-
-export interface GroupAppAssignment extends AppAssignment {
-  scope: 'GROUP';
-  groupId?: string;
-  priority: number; // Priority of the group assignment (lower = higher priority)
-  profile?: Record<string, any>;
-}
-
-export interface AppWithAssignments extends OktaApp {
-  userAssignments?: number;
-  groupAssignments?: number;
-  totalAssignments?: number;
-}
-
-export interface AppSummary extends OktaApp {
-  userAssignmentCount: number;
-  groupAssignmentCount: number;
-  totalAssignmentCount: number;
-
-  appType:
-    | 'SAML_2_0'
-    | 'SAML_1_1'
-    | 'OPENID_CONNECT'
-    | 'WS_FEDERATION'
-    | 'SWA'
-    | 'BROWSER_PLUGIN'
-    | 'BOOKMARK'
-    | 'API_SERVICE'
-    | 'OTHER';
-
-  provisioningStatus: 'ENABLED' | 'DISABLED' | 'NOT_SUPPORTED';
-  provisioningType?: 'SCIM' | 'PROFILE_MASTERING' | 'IMPORT';
-
-  pushGroupsEnabled: boolean;
-  pushGroupsCount?: number;
-  pushGroupsErrors?: number;
-
-  certStatus?: 'ACTIVE' | 'EXPIRING_SOON' | 'EXPIRED' | 'NOT_APPLICABLE';
-  certExpiresAt?: string;
-  certDaysRemaining?: number;
-
-  lastUserAssigned?: string;
-  lastGroupAssigned?: string;
-  hasActiveUsers: boolean;
-  hasInactiveUsers: boolean;
-}
-
-export interface CreateAppAssignmentRequest {
-  id?: string; // User ID or Group ID
-  scope?: 'USER' | 'GROUP';
-  profile?: Record<string, any>;
-  credentials?: {
-    userName?: string;
-    password?: string;
-    [key: string]: any;
-  };
-  priority?: number; // For group assignments
-}
-
-export interface AssignmentConversionRequest {
-  userId: string;
-  targetGroupId: string;
-  appIds: string[]; // Apps to convert
-  removeUserAssignment: boolean; // Whether to remove original user assignment
-  mergeStrategy: 'preserve_user' | 'prefer_user' | 'prefer_default'; // How to handle profile differences
-}
-
-export interface AssignmentConversionResult {
-  appId: string;
-  appName: string;
-  success: boolean;
-  userAssignment?: UserAppAssignment;
-  groupAssignment?: GroupAppAssignment;
-  profileChanges?: ProfileComparison;
-  error?: string;
-  userAssignmentRemoved?: boolean;
-}
-
-export interface ProfileComparison {
-  userProfile: Record<string, any>;
-  groupProfile: Record<string, any>;
-  differences: ProfileDifference[];
-  credentialsHandled: boolean;
-  hasArrayFields?: boolean;
-  hasNestedObjects?: boolean;
-}
-
-export interface ProfileDifference {
-  field: string;
-  userValue: any;
-  groupValue: any;
-  merged?: any; // The value that was actually used
-}
-
-export interface BulkAppAssignmentRequest {
-  groupIds: string[];
-  appIds: string[];
-  priority?: number;
-  profile?: Record<string, any>; // Default profile for all assignments
-  perAppProfiles?: Record<string, Record<string, any>>; // App-specific profiles
-}
-
-export interface BulkAppAssignmentResult {
-  totalOperations: number;
-  successful: number;
-  failed: number;
-  results: AppAssignmentOperationResult[];
-}
-
-export interface AppAssignmentOperationResult {
-  groupId: string;
-  groupName: string;
-  appId: string;
-  appName: string;
-  success: boolean;
-  assignment?: GroupAppAssignment;
-  error?: string;
-}
-
-export interface UserAppAssignmentView {
-  userId: string;
-  userEmail: string;
-  userName: string;
-  apps: AppAssignmentDetail[];
-  totalApps: number;
-  directAssignments: number;
-  groupBasedAssignments: number;
-}
-
-export interface GroupAppAssignmentView {
-  groupId: string;
-  groupName: string;
-  apps: AppAssignmentDetail[];
-  totalApps: number;
-  assignmentsByPriority: Map<number, number>;
-}
-
-export interface AppAssignmentDetail {
-  app: OktaApp;
-  assignment: AppAssignment;
-  assignmentType: 'direct' | 'group' | 'rule';
-  sourceGroups?: GroupInfo[]; // For group-based assignments
-  profileSchema?: AppProfileSchema;
-  hasCustomProfile: boolean;
-  hasCredentials: boolean;
-}
-
-export interface AppProfileSchema {
-  definitions?: Record<string, any>;
-  properties?: Record<string, AppProfileProperty>;
-  required?: string[];
-  type?: string;
-}
-
-export interface AppProfileProperty {
-  title?: string;
-  type?: string;
-  description?: string;
-  required?: boolean;
-  minLength?: number;
-  maxLength?: number;
-  enum?: any[];
-  format?: string;
-  permissions?: Array<{
-    principal: string;
-    action: string;
-  }>;
-  [key: string]: any;
-}
-
-export interface AppAssignmentSecurityAnalysis {
-  groupId?: string;
-  userId?: string;
-  findings: AppSecurityFinding[];
-  overProvisionedUsers: OverProvisionedUser[];
-  orphanedAppAssignments: OrphanedAppAssignment[];
-  redundantAssignments: RedundantAssignment[];
-  assignmentTypeDistribution: AssignmentTypeDistribution;
-  totalAppsAnalyzed: number;
-  riskScore: number; // 0-100
-}
-
-export interface AppSecurityFinding {
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  category: 'over_provisioned' | 'orphaned' | 'redundant' | 'missing_group' | 'stale_credential';
-  title: string;
-  description: string;
-  affectedUsers: string[];
-  affectedApps: string[];
-  recommendation: string;
-}
-
-export interface OverProvisionedUser {
-  userId: string;
-  userEmail: string;
-  userName: string;
-  directAppAssignments: number;
-  groupBasedAppAssignments: number;
-  appsWithBothTypes: string[]; // Apps where user has both direct and group assignment
-  suggestedRemoval: string[]; // App IDs that should be removed (direct assignment)
-}
-
-export interface OrphanedAppAssignment {
-  userId: string;
-  userEmail: string;
-  userName: string;
-  userStatus: UserStatus;
-  appId: string;
-  appName: string;
-  assignment: UserAppAssignment;
-  reason: 'user_deprovisioned' | 'user_inactive' | 'no_group_membership' | 'never_used';
-  daysSinceLastUse?: number;
-  recommendRemoval: boolean;
-}
-
-export interface RedundantAssignment {
-  userId: string;
-  userEmail: string;
-  userName: string;
-  appId: string;
-  appName: string;
-  directAssignment: UserAppAssignment;
-  groupAssignments: Array<{
-    group: OktaGroup;
-    assignment: GroupAppAssignment;
-  }>;
-  profileDifferences: boolean;
-  credentialsDifferent: boolean;
-  recommendation: 'remove_direct' | 'remove_group' | 'keep_both';
-}
-
-export interface AssignmentTypeDistribution {
-  totalAssignments: number;
-  directAssignments: number;
-  groupAssignments: number;
-  ruleBasedAssignments: number;
-  percentageDirect: number;
-  percentageGroup: number;
-  percentageRule: number;
-}
-
-export interface AppAssignmentRecommendation {
-  appId: string;
-  appName: string;
-  currentDirectAssignments: number;
-  recommendedGroupAssignments: RecommendedGroupAssignment[];
-  coverageAnalysis: CoverageAnalysis;
-  estimatedReduction: number; // Percentage of direct assignments that could be replaced
-  implementationPriority: 'high' | 'medium' | 'low';
-}
-
-export interface RecommendedGroupAssignment {
-  group: OktaGroup;
-  matchingUsers: number;
-  percentageOfAppUsers: number;
-  confidence: number; // 0-100, based on how many app users are in this group
-  suggestedProfile?: Record<string, any>; // Recommended profile based on common user profiles
-  suggestedPriority: number;
-  rationale: string;
-}
-
-export interface CoverageAnalysis {
-  totalAppUsers: number;
-  usersCoveredByRecommendations: number;
-  percentageCovered: number;
-  usersStillNeedingDirectAssignment: string[];
-  groupOverlaps: Array<{
-    groups: string[];
-    userCount: number;
-  }>;
-}
-
-export interface AssignmentRecommenderResult {
-  recommendations: AppAssignmentRecommendation[];
-  overallStats: {
-    totalAppsAnalyzed: number;
-    totalDirectAssignments: number;
-    potentialGroupAssignments: number;
-    estimatedAssignmentReduction: number;
-    estimatedMaintenanceReduction: number; // Percentage
-  };
-  topRecommendations: AppAssignmentRecommendation[]; // Top 10 by priority
-}
-
-export type AppMessageAction =
-  | 'getUserApps'
-  | 'getGroupApps'
-  | 'getAppUsers'
-  | 'getAppGroups'
-  | 'getAppDetails'
-  | 'assignUserToApp'
-  | 'assignGroupToApp'
-  | 'removeUserFromApp'
-  | 'removeGroupFromApp'
-  | 'getUserAppAssignment'
-  | 'getGroupAppAssignment'
-  | 'updateUserAppAssignment'
-  | 'updateGroupAppAssignment'
-  | 'convertUserToGroupAssignment'
-  | 'bulkAssignGroupsToApps'
-  | 'analyzeAppSecurity'
-  | 'getAppAssignmentRecommendations'
-  | 'getAppSchema';
-
-export interface AppMessageRequest extends Omit<MessageRequest, 'action'> {
-  action: MessageRequest['action'] | AppMessageAction;
-  appId?: string;
-  appIds?: string[];
-  assignmentData?: CreateAppAssignmentRequest;
-  conversionRequest?: AssignmentConversionRequest;
-  bulkAssignmentRequest?: BulkAppAssignmentRequest;
-  includeSchema?: boolean;
-  expand?: string; // For expanding related resources
-}
-
-export type AppAuditAction =
-  | 'assign_user_to_app'
-  | 'assign_group_to_app'
-  | 'remove_user_from_app'
-  | 'remove_group_from_app'
-  | 'convert_assignment'
-  | 'bulk_app_assignment'
-  | 'app_security_scan';
-
-export interface AppAuditLogEntry extends Omit<AuditLogEntry, 'action'> {
-  action: AuditLogEntry['action'] | AppAuditAction;
-  appId?: string;
-  appName?: string;
-  affectedApps?: string[]; // For bulk operations
-  conversionDetails?: {
-    sourceType: 'user' | 'group';
-    targetType: 'user' | 'group';
-    assignmentsConverted: number;
-  };
 }

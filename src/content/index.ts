@@ -745,7 +745,7 @@ async function handleSearchGroups(query: string): Promise<MessageResponse> {
     const trimmedQuery = query.trim();
 
     const qParam = encodeURIComponent(trimmedQuery);
-    const searchUrl = `/api/v1/groups?q=${qParam}&limit=20`;
+    const searchUrl = `/api/v1/groups?q=${qParam}&limit=20&expand=stats`;
 
     console.log('[Content] Searching groups with q parameter:', searchUrl);
     const response = await handleMakeApiRequest(searchUrl, 'GET');
