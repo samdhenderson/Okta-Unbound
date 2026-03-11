@@ -55,11 +55,12 @@ export class RateLimitDetector {
     return info;
   }
 
-  isApproachingLimit(thresholdPercent: number = 10): boolean {
+  isApproachingLimit(thresholdPercent: number = 10, inFlightCount: number = 0): boolean {
     const info = this.getMostRestrictive();
     if (!info) return false;
 
-    const percentRemaining = (info.remaining / info.limit) * 100;
+    const effectiveRemaining = Math.max(0, info.remaining - inFlightCount);
+    const percentRemaining = (effectiveRemaining / info.limit) * 100;
     const approaching = percentRemaining <= thresholdPercent;
 
     if (approaching) {
@@ -93,8 +94,8 @@ export class RateLimitDetector {
     return this.getSecondsUntilReset(info) * 1000;
   }
 
-  getRecommendedWaitTime(thresholdPercent: number = 10): number {
-    if (!this.isApproachingLimit(thresholdPercent)) {
+  getRecommendedWaitTime(thresholdPercent: number = 10, inFlightCount: number = 0): number {
+    if (!this.isApproachingLimit(thresholdPercent, inFlightCount)) {
       return 0;
     }
 

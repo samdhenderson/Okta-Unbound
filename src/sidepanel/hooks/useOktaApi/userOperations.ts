@@ -43,13 +43,18 @@ export function createUserOperations(coreApi: CoreApi) {
     onProgress?: (current: number, total: number) => void,
   ): Promise<Map<string, any>> => {
     const userDetailsMap = new Map<string, any>();
-    const batchSize = 10; // Process 10 users concurrently
+    const batchSize = 3; // Match scheduler maxConcurrent
 
     for (let i = 0; i < userIds.length; i += batchSize) {
       const batch = userIds.slice(i, i + batchSize);
       const batchPromises = batch.map(async (userId) => {
         try {
-          const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`);
+          const response = await coreApi.makeApiRequest(
+            `/api/v1/users/${userId}`,
+            'GET',
+            undefined,
+            'low',
+          );
           if (response.success && response.data) {
             return { userId, data: response.data };
           }
@@ -68,10 +73,6 @@ export function createUserOperations(coreApi: CoreApi) {
       });
 
       onProgress?.(Math.min(i + batchSize, userIds.length), userIds.length);
-
-      if (i + batchSize < userIds.length) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
     }
 
     return userDetailsMap;

@@ -1,0 +1,84 @@
+import type { CoreApi } from './core';
+import type { PushGroupMapping, GroupSummary } from '../../../shared/types';
+import { parseNextLink } from './utilities';
+
+export function createPushGroupOperations(coreApi: CoreApi) {
+  const getAppPushGroupMappings = async (
+    appId: string,
+    appName?: string,
+  ): Promise<PushGroupMapping[]> => {
+    const mappings: PushGroupMapping[] = [];
+    let nextUrl: string | null = `/api/v1/apps/${appId}/groups?limit=200`;
+
+    try {
+      while (nextUrl) {
+        const response = await coreApi.makeApiRequest(nextUrl, 'GET', undefined, 'low');
+        if (!response.success || !response.data) break;
+
+        for (const assignment of response.data) {
+          mappings.push({
+            mappingId:
+              assignment.id ||
+              `${appId}_${assignment._links?.group?.href?.split('/').pop() || 'unknown'}`,
+            sourceUserGroupId: assignment._links?.group?.href?.split('/').pop() || '',
+            targetGroupName: assignment.profile?.name || assignment.profile?.groupName || '',
+            status: assignment.priority !== undefined ? 'ACTIVE' : 'INACTIVE',
+            appId,
+            appName,
+          });
+        }
+
+        nextUrl = parseNextLink(response.headers?.link);
+      }
+    } catch (error) {
+      console.error(`[pushGroupOps] Failed to fetch push mappings for app ${appId}:`, error);
+    }
+
+    return mappings;
+  };
+
+  const applyPushGroupMappings = async (
+    groups: GroupSummary[],
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<GroupSummary[]> => {
+    const appIds = new Map<string, string>(); // appId -> appName
+    for (const group of groups) {
+      if (group.type === 'APP_GROUP' && group.sourceAppId) {
+        appIds.set(group.sourceAppId, group.sourceAppName || group.sourceAppId);
+      }
+    }
+
+    if (appIds.size === 0) return groups;
+
+    const allMappings: PushGroupMapping[] = [];
+    let processed = 0;
+    const total = appIds.size;
+
+    for (const [appId, appName] of appIds) {
+      const mappings = await getAppPushGroupMappings(appId, appName);
+      allMappings.push(...mappings);
+      processed++;
+      onProgress?.(processed, total);
+    }
+
+    const mappingsByGroup = new Map<string, PushGroupMapping[]>();
+    for (const mapping of allMappings) {
+      const existing = mappingsByGroup.get(mapping.sourceUserGroupId) || [];
+      existing.push(mapping);
+      mappingsByGroup.set(mapping.sourceUserGroupId, existing);
+    }
+
+    return groups.map((group) => {
+      const pushMappings = mappingsByGroup.get(group.id);
+      if (pushMappings && pushMappings.length > 0) {
+        return { ...group, pushMappings };
+      }
+      return group;
+    });
+  };
+
+  return {
+    getAppPushGroupMappings,
+    applyPushGroupMappings,
+  };
+}

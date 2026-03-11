@@ -254,6 +254,36 @@ export interface AuditSettings {
   retentionDays: number;
 }
 
+export interface PushGroupMapping {
+  mappingId: string;
+  sourceUserGroupId: string;
+  targetGroupName: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'UNLINKED';
+  appId: string;
+  appName?: string;
+}
+
+export interface StalenessInfo {
+  score: number; // 0-100 (100 = most stale)
+  factors: string[];
+}
+
+export interface GroupComparisonResult {
+  groups: Array<{ id: string; name: string; memberCount: number }>;
+  intersection: string[]; // user IDs in ALL groups
+  uniqueMembers: Record<string, string[]>; // groupId -> user IDs only in that group
+  totalUniqueUsers: number;
+}
+
+export interface GroupCollection {
+  id: string;
+  name: string;
+  description?: string;
+  groupIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface GroupSummary {
   id: string;
   name: string;
@@ -268,6 +298,8 @@ export interface GroupSummary {
   sourceAppId?: string;
   sourceAppName?: string;
   created?: Date;
+  pushMappings?: PushGroupMapping[];
+  staleness?: StalenessInfo;
 }
 
 export interface BulkOperation {
