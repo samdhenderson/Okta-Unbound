@@ -134,7 +134,7 @@ export function createGroupCleanupOperations(
           }
         }
 
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
 
       apiCallsMade += deprovisionedUsers.length;

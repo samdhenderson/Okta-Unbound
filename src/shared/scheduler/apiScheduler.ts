@@ -11,9 +11,9 @@ import type {
 } from './types';
 
 const DEFAULT_CONFIG: SchedulerConfig = {
-  maxConcurrent: 3, // Conservative: max 3 parallel requests
+  maxConcurrent: 5, // Max 5 parallel requests
   minRemainingThreshold: 10, // Cooldown when <10% remaining
-  cooldownDuration: 60000, // 60 seconds cooldown
+  cooldownDuration: 30000, // 30 seconds cooldown fallback
   retryDelay: 2000, // 2 second base retry delay
   maxRetries: 2, // Retry up to 2 times
   requestTimeout: 30000, // 30 second timeout per request
@@ -109,7 +109,7 @@ export class ApiScheduler {
 
     this.processingInterval = setInterval(() => {
       this.processQueue();
-    }, 100);
+    }, 50);
 
     console.log('[ApiScheduler] Started processing loop');
   }
@@ -270,7 +270,10 @@ export class ApiScheduler {
     if (!info) return;
 
     const resetWaitTime = this.rateLimitDetector.getMillisecondsUntilReset(info);
-    const cooldownDuration = Math.max(this.config.cooldownDuration, resetWaitTime);
+    const cooldownDuration =
+      resetWaitTime > 0
+        ? Math.min(this.config.cooldownDuration, resetWaitTime)
+        : this.config.cooldownDuration;
 
     this.cooldownEndsAt = Date.now() + cooldownDuration;
     this.metrics.cooldownEvents++;

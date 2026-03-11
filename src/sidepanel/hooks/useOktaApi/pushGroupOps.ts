@@ -50,16 +50,20 @@ export function createPushGroupOperations(coreApi: CoreApi) {
 
     if (appIds.size === 0) return groups;
 
-    const allMappings: PushGroupMapping[] = [];
+    const appEntries = Array.from(appIds.entries());
+    const total = appEntries.length;
     let processed = 0;
-    const total = appIds.size;
 
-    for (const [appId, appName] of appIds) {
-      const mappings = await getAppPushGroupMappings(appId, appName);
-      allMappings.push(...mappings);
-      processed++;
-      onProgress?.(processed, total);
-    }
+    const mappingResults = await Promise.all(
+      appEntries.map(async ([appId, appName]) => {
+        const mappings = await getAppPushGroupMappings(appId, appName);
+        processed++;
+        onProgress?.(processed, total);
+        return mappings;
+      }),
+    );
+
+    const allMappings = mappingResults.flat();
 
     const mappingsByGroup = new Map<string, PushGroupMapping[]>();
     for (const mapping of allMappings) {
