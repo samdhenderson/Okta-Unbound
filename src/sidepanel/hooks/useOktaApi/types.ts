@@ -5,9 +5,22 @@ import type {
   UserStatus,
   AuditLogEntry,
   OktaApp,
+  OktaFactor,
+  MemberMfaResult,
+  MfaScanStatus,
 } from '../../../shared/types';
 
-export type { MessageRequest, MessageResponse, OktaUser, UserStatus, AuditLogEntry, OktaApp };
+export type {
+  MessageRequest,
+  MessageResponse,
+  OktaUser,
+  UserStatus,
+  AuditLogEntry,
+  OktaApp,
+  OktaFactor,
+  MemberMfaResult,
+  MfaScanStatus,
+};
 
 export interface OperationCallbacks {
   onResult?: (message: string, type: 'info' | 'success' | 'warning' | 'error') => void;

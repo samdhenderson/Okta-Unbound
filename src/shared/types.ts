@@ -51,6 +51,23 @@ export type UserStatus =
   | 'LOCKED_OUT'
   | 'PASSWORD_EXPIRED';
 
+export interface OktaFactor {
+  id: string;
+  factorType: string; // e.g. "push", "signed_nonce", "token:software:totp", "sms", "webauthn"
+  provider: string; // e.g. "OKTA", "GOOGLE", "FIDO"
+  status: string; // "ACTIVE" | "PENDING_ACTIVATION" | "NOT_SETUP" | ...
+}
+
+export type MfaScanStatus = 'idle' | 'confirming' | 'scanning' | 'complete' | 'error';
+
+export interface MemberMfaResult {
+  userId: string;
+  factors: OktaFactor[];
+  enrolled: boolean; // has >=1 ACTIVE non-password factor
+  factorCount: number; // number of ACTIVE non-password factors
+  factorLabels: string[]; // unique friendly labels of ACTIVE factors (e.g. "SMS", "Okta Verify (Fastpass)")
+}
+
 export interface OktaGroup {
   id: string;
   type: GroupType;

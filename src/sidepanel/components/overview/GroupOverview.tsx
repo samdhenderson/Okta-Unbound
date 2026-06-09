@@ -7,7 +7,8 @@ import LoadingSpinner from '../shared/LoadingSpinner';
 import Modal from '../shared/Modal';
 import StatCard from './shared/StatCard';
 import QuickActionsPanel, { type ActionSection } from './shared/QuickActionsPanel';
-import type { OktaUser } from '../../../shared/types';
+import MemberExplorer from './members/MemberExplorer';
+import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../shared/types';
 
 interface GroupOverviewProps {
   groupId: string;
@@ -31,6 +32,8 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
   const [idCopied, setIdCopied] = useState(false);
+  const [mfaResults, setMfaResults] = useState<Map<string, MemberMfaResult> | null>(null);
+  const [scanStatus, setScanStatus] = useState<MfaScanStatus>('idle');
 
   const handleResult = useCallback(
     (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
@@ -50,6 +53,7 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
     getAllGroupMembers,
     removeDeprovisioned,
     exportMembers,
+    scanGroupMfa,
     isLoading: isApiLoading,
   } = useOktaApi({
     targetTabId,
@@ -59,10 +63,14 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
 
   const apiRef = useRef(getAllGroupMembers);
   apiRef.current = getAllGroupMembers;
+  const scanMfaRef = useRef(scanGroupMfa);
+  scanMfaRef.current = scanGroupMfa;
 
   const loadMembers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+    setMfaResults(null);
+    setScanStatus('idle');
     try {
       const result = await apiRef.current(groupId);
       setMembers(result || []);
@@ -114,6 +122,28 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
     }
   };
 
+  const runMfaScan = useCallback(async () => {
+    setScanStatus('scanning');
+    startProgress('MFA Scan', `Scanning factors for ${members.length} members...`, members.length);
+    try {
+      const result = await scanMfaRef.current(
+        members.map((m) => m.id),
+        (current, total) =>
+          updateProgress(current, total, `Scanned ${current}/${total} members`, current),
+      );
+      setMfaResults(result);
+      setScanStatus('complete');
+    } catch (err) {
+      console.error('[GroupOverview] MFA scan failed:', err);
+      setScanStatus('error');
+    } finally {
+      completeProgress();
+    }
+  }, [members, startProgress, updateProgress, completeProgress]);
+
+  const requestMfaConfirm = useCallback(() => setScanStatus('confirming'), []);
+  const cancelMfaConfirm = useCallback(() => setScanStatus('idle'), []);
+
   if (isLoading && members.length === 0) {
     return <LoadingSpinner size="lg" message="Loading group members..." centered />;
   }
@@ -164,13 +194,6 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
           onClick: () => onTabChange('rules'),
           tooltip: 'View group rules affecting this group',
         },
-        {
-          label: 'Search Members',
-          icon: 'user',
-          variant: 'ghost',
-          onClick: () => onTabChange('users'),
-          tooltip: 'Search and view individual members',
-        },
       ],
     },
   ];
@@ -195,6 +218,16 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
       </div>
 
       <QuickActionsPanel sections={actionSections} />
+
+      <MemberExplorer
+        members={members}
+        mfaResults={mfaResults}
+        scanStatus={scanStatus}
+        onRunScan={runMfaScan}
+        onRequestConfirm={requestMfaConfirm}
+        onCancelConfirm={cancelMfaConfirm}
+        oktaOrigin={oktaOrigin}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         {oktaOrigin && (
