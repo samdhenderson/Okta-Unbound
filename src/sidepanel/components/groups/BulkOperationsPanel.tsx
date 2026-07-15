@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import Button from '../shared/Button';
+import { Button, IconButton, Input } from '../shared';
 import type { GroupSummary, BulkOperationResult } from '../../../shared/types';
 
 type BulkOpType = 'cleanup_inactive' | 'export_all' | 'remove_user';
@@ -114,10 +114,7 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
             {selectedGroups.length} group{selectedGroups.length !== 1 ? 's' : ''} selected
           </p>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 text-neutral-400 hover:text-neutral-700 rounded-md hover:bg-neutral-100 transition-colors"
-        >
+        <IconButton label="Close" onClick={onClose} variant="ghost" size="sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
@@ -126,7 +123,7 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
               d="M6 18L18 6M6 6l12 12"
             />
           </svg>
-        </button>
+        </IconButton>
       </div>
 
       {!running && !results && (
@@ -167,12 +164,11 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
 
           {showRemoveInput && (
             <div className="flex gap-2 mt-2">
-              <input
-                type="text"
+              <Input
                 placeholder="Enter user ID to remove..."
                 value={removeUserId}
-                onChange={(e) => setRemoveUserId(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-neutral-200 rounded-md focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary"
+                onChange={setRemoveUserId}
+                className="flex-1"
                 autoFocus
               />
               <Button

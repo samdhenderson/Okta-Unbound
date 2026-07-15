@@ -1,7 +1,7 @@
 import React, { useState, useCallback, memo } from 'react';
 import type { FormattedRule } from '../../shared/types';
 import { timeAgo } from '../../shared/ruleUtils';
-import Button from './shared/Button';
+import { Button, IconButton } from './shared';
 
 interface RuleCardProps {
   rule: FormattedRule;
@@ -88,7 +88,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
         bg-white rounded-md border transition-all duration-100 overflow-hidden
         ${rule.affectsCurrentGroup ? 'border-primary' : 'border-neutral-200'}
         ${isHighlighted ? 'ring-2 ring-primary ring-offset-2' : ''}
-        hover:shadow-sm
+        hover:border-neutral-300
       `}
         style={{ fontFamily: 'var(--font-primary)' }}
       >
@@ -120,9 +120,11 @@ const RuleCard: React.FC<RuleCardProps> = memo(
               <p className="text-sm text-neutral-600 truncate">{rule.condition}</p>
             </div>
           </div>
-          <button
-            className="text-neutral-400 hover:text-neutral-600 transition-colors duration-100 p-2 rounded-md hover:bg-neutral-50 shrink-0"
-            type="button"
+          <IconButton
+            label={isExpanded ? 'Collapse' : 'Expand'}
+            variant="ghost"
+            size="md"
+            className="shrink-0"
           >
             <svg
               className={`w-4 h-4 transition-transform duration-100 ${isExpanded ? 'rotate-90' : ''}`}
@@ -132,13 +134,13 @@ const RuleCard: React.FC<RuleCardProps> = memo(
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </button>
+          </IconButton>
         </div>
 
         {isExpanded && (
           <div className="px-4 pb-4 pt-2 space-y-4 bg-neutral-50 border-t border-neutral-100">
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">
+              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-2">
                 WHEN
               </div>
               <div className="p-3 bg-white rounded-md border border-neutral-200">
@@ -153,7 +155,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
 
             {rule.userAttributes.length > 0 && (
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-2">
                   USES ATTRIBUTES
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -171,7 +173,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
 
             {rule.groupIds.length > 0 && (
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-neutral-600 mb-2">
+                <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-2">
                   THEN ADD TO GROUPS
                 </div>
                 <div className="flex flex-wrap gap-2">

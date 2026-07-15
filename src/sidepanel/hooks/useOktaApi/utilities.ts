@@ -15,11 +15,11 @@ export function parseNextLink(linkHeader?: string): string | null {
 }
 
 export function deepMergeProfiles(
-  baseProfile: Record<string, any>,
-  overrideProfile: Record<string, any>,
+  baseProfile: Record<string, unknown>,
+  overrideProfile: Record<string, unknown>,
   arrayStrategy: 'merge' | 'replace' = 'replace',
-): Record<string, any> {
-  const result: Record<string, any> = { ...baseProfile };
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...baseProfile };
 
   for (const [key, overrideValue] of Object.entries(overrideProfile)) {
     const baseValue = result[key];
@@ -39,7 +39,11 @@ export function deepMergeProfiles(
       typeof baseValue === 'object' &&
       !Array.isArray(baseValue)
     ) {
-      result[key] = deepMergeProfiles(baseValue || {}, overrideValue, arrayStrategy);
+      result[key] = deepMergeProfiles(
+        (baseValue as Record<string, unknown> | null) || {},
+        overrideValue as Record<string, unknown>,
+        arrayStrategy,
+      );
     } else {
       result[key] = overrideValue;
     }

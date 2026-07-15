@@ -1,9 +1,8 @@
 import type { OktaUser, MemberMfaResult } from '../../../../shared/types';
 
-export type Dimension =
-  'department' | 'title' | 'manager' | 'city' | 'state' | 'countryCode' | 'status' | 'mfa';
+export type Dimension = string;
 
-export type ProfileDimension = Exclude<Dimension, 'mfa'>;
+export type ProfileDimension = string;
 
 export const PROFILE_DIMENSIONS: ProfileDimension[] = [
   'status',
@@ -15,18 +14,9 @@ export const PROFILE_DIMENSIONS: ProfileDimension[] = [
   'countryCode',
 ];
 
-export const COMPOSITION_DIMENSIONS: ProfileDimension[] = [
-  'department',
-  'title',
-  'manager',
-  'city',
-  'state',
-  'countryCode',
-];
-
 export type SortField = 'name' | 'status' | 'factors';
 
-export const DIMENSION_TITLES: Record<ProfileDimension, string> = {
+export const DIMENSION_TITLES: Record<string, string> = {
   status: 'Status',
   department: 'Department',
   title: 'Title',
@@ -34,7 +24,68 @@ export const DIMENSION_TITLES: Record<ProfileDimension, string> = {
   city: 'City',
   state: 'State / Region',
   countryCode: 'Country',
+  zipCode: 'Zip / Postal code',
+  costCenter: 'Cost center',
+  userType: 'User type',
+  employeeType: 'Employee type',
+  division: 'Division',
+  organization: 'Organization',
+  locale: 'Locale',
+  timezone: 'Timezone',
+  preferredLanguage: 'Preferred language',
 };
+
+export const EXCLUDED_ATTRIBUTES = new Set<string>([
+  'login',
+  'email',
+  'secondEmail',
+  'firstName',
+  'lastName',
+  'middleName',
+  'displayName',
+  'nickName',
+  'name',
+  'honorificPrefix',
+  'honorificSuffix',
+  'mobilePhone',
+  'primaryPhone',
+  'streetAddress',
+  'postalAddress',
+  'profileUrl',
+  'employeeNumber',
+  'managerId',
+  'id',
+]);
+
+const PREFERRED_ATTRIBUTE_ORDER = [
+  'department',
+  'title',
+  'manager',
+  'division',
+  'organization',
+  'userType',
+  'employeeType',
+  'costCenter',
+  'city',
+  'state',
+  'countryCode',
+];
+
+export function humanizeAttributeKey(key: string): string {
+  const spaced = key
+    .replace(/[_-]+/g, ' ')
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+    .replace(/([a-zA-Z])(\d)/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  if (!spaced) return key;
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+export function dimensionTitle(dim: string): string {
+  return DIMENSION_TITLES[dim] ?? humanizeAttributeKey(dim);
+}
 
 export const NONE_VALUE = '__none__';
 export const OTHER_VALUE = '__other__';
@@ -52,10 +103,15 @@ export interface MemberFilter {
   label: string;
 }
 
+function coerceScalar(raw: unknown): string {
+  if (typeof raw === 'string') return raw.trim();
+  if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw);
+  return '';
+}
+
 export function getMemberDimensionValue(user: OktaUser, dim: ProfileDimension): string {
   if (dim === 'status') return user.status || '';
-  const raw = user.profile?.[dim];
-  return typeof raw === 'string' ? raw.trim() : '';
+  return coerceScalar(user.profile?.[dim]);
 }
 
 function mapToRows(counts: Map<string, number>, total: number, maxRows: number): BreakdownRow[] {
@@ -128,6 +184,84 @@ export function computeAllBreakdowns(
     result[dim] = mapToRows(maps[dim], total, maxRows);
   }
   return result;
+}
+
+export interface AttributeSummary {
+  key: string; // profile attribute key
+  label: string; // display title
+  distinct: number; // count of distinct non-empty values
+  populated: number; // members with a non-empty value
+  total: number; // total members
+  fillRate: number; // 0-100, populated / total
+  rows: BreakdownRow[]; // top values (+ "Other" / "(none)") for the summary bar
+}
+
+export interface DiscoverOptions {
+  maxRows?: number;
+  minPopulated?: number;
+  uniqueRatio?: number;
+}
+
+export function discoverAttributeBreakdowns(
+  members: OktaUser[],
+  options: DiscoverOptions = {},
+): AttributeSummary[] {
+  const { maxRows = 6, minPopulated = 10, uniqueRatio = 0.9 } = options;
+  const total = members.length;
+
+  const counts = new Map<string, Map<string, number>>();
+  for (const member of members) {
+    const profile = member.profile;
+    if (!profile) continue;
+    for (const key in profile) {
+      if (EXCLUDED_ATTRIBUTES.has(key)) continue;
+      const value = coerceScalar(profile[key]);
+      if (value === '') continue; // never materialize keys that are only ever empty
+      let map = counts.get(key);
+      if (!map) {
+        map = new Map();
+        counts.set(key, map);
+      }
+      map.set(value, (map.get(value) || 0) + 1);
+    }
+  }
+
+  const summaries: AttributeSummary[] = [];
+  for (const [key, map] of counts) {
+    const distinct = map.size;
+    let populated = 0;
+    for (const c of map.values()) populated += c;
+
+    if (populated >= minPopulated && distinct >= populated * uniqueRatio) continue;
+
+    const withMissing = new Map(map);
+    const missing = total - populated;
+    if (missing > 0) withMissing.set('', missing);
+
+    summaries.push({
+      key,
+      label: dimensionTitle(key),
+      distinct,
+      populated,
+      total,
+      fillRate: total > 0 ? (populated / total) * 100 : 0,
+      rows: mapToRows(withMissing, total, maxRows),
+    });
+  }
+
+  const preferredRank = (k: string) => {
+    const i = PREFERRED_ATTRIBUTE_ORDER.indexOf(k);
+    return i === -1 ? Number.POSITIVE_INFINITY : i;
+  };
+  summaries.sort((a, b) => {
+    const ra = preferredRank(a.key);
+    const rb = preferredRank(b.key);
+    if (ra !== rb) return ra - rb;
+    if (b.fillRate !== a.fillRate) return b.fillRate - a.fillRate;
+    return a.label.localeCompare(b.label);
+  });
+
+  return summaries;
 }
 
 export function memberMatchesMfaValue(result: MemberMfaResult | undefined, value: string): boolean {

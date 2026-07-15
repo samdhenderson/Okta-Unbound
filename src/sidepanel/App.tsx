@@ -21,7 +21,7 @@ const App: React.FC = () => {
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const { groupInfo, connectionStatus, targetTabId, error, isLoading, oktaOrigin } =
     useGroupContext();
-  const { pageType, userInfo, appInfo } = useOktaPageContext();
+  const { pageType, userInfo, appInfo } = useOktaPageContext(activeTab === 'overview');
 
   useEffect(() => {
     chrome.storage.local.get([SELECTED_TAB_KEY], (result) => {
@@ -70,7 +70,7 @@ const App: React.FC = () => {
 
   return (
     <SchedulerProvider>
-      <div className="flex flex-col h-screen overflow-y-auto pb-14">
+      <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
         <Header status={connectionStatus} />
 
         <ContextBanner

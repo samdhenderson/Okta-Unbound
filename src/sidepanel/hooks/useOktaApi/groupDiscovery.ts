@@ -1,12 +1,16 @@
 import type { CoreApi } from './core';
+import type { OktaGroup, OktaGroupRule, FormattedRule } from '../../../shared/types';
 import { RulesCache } from '../../../shared/rulesCache';
 import { parseNextLink } from './utilities';
+import { createLogger } from '../../../shared/utils/logger';
+
+const log = createLogger('useOktaApi');
 
 export function createGroupDiscoveryOperations(coreApi: CoreApi) {
   const getAllGroups = async (
     onProgress?: (loaded: number, total: number) => void,
-  ): Promise<any[]> => {
-    const allGroups: any[] = [];
+  ): Promise<OktaGroup[]> => {
+    const allGroups: OktaGroup[] = [];
     let nextUrl: string | null = '/api/v1/groups?limit=200&expand=stats';
 
     while (nextUrl) {
@@ -47,35 +51,37 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
 
       return 0;
     } catch (error) {
-      console.error(`[useOktaApi] Failed to get member count for group ${groupId}:`, error);
+      log.error(`Failed to get member count for group ${groupId}:`, error);
       return 0;
     }
   };
 
-  const getGroupRulesForGroup = async (groupId: string): Promise<any[]> => {
+  const getGroupRulesForGroup = async (
+    groupId: string,
+  ): Promise<FormattedRule[] | OktaGroupRule[]> => {
     try {
       const cachedRules = await RulesCache.getRulesForGroup(groupId);
       if (cachedRules.length > 0 || (await RulesCache.isFresh())) {
-        console.log(`[useOktaApi] Using cached rules for group ${groupId}:`, cachedRules.length);
+        log.debug(`Using cached rules for group ${groupId}:`, cachedRules.length);
         return cachedRules;
       }
 
-      console.log(`[useOktaApi] Cache miss - fetching all rules for group ${groupId}`);
+      log.debug(`Cache miss - fetching all rules for group ${groupId}`);
       const response = await coreApi.makeApiRequest('/api/v1/groups/rules?limit=200');
       if (!response.success) {
         return [];
       }
 
-      const allRules = response.data || [];
+      const allRules: OktaGroupRule[] = response.data || [];
 
-      const groupRules = allRules.filter((rule: any) => {
+      const groupRules = allRules.filter((rule) => {
         const targetGroupIds = rule.actions?.assignUserToGroups?.groupIds || [];
         return targetGroupIds.includes(groupId);
       });
 
       return groupRules;
     } catch (error) {
-      console.error(`[useOktaApi] Failed to get rules for group ${groupId}:`, error);
+      log.error(`Failed to get rules for group ${groupId}:`, error);
       return [];
     }
   };
@@ -93,7 +99,7 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       );
 
       if (response.success && response.data) {
-        return response.data.map((group: any) => ({
+        return response.data.map((group: OktaGroup) => ({
           id: group.id,
           name: group.profile?.name || group.id,
           description: group.profile?.description || '',
@@ -102,7 +108,7 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       }
       return [];
     } catch (error) {
-      console.error('[useOktaApi] searchGroups error:', error);
+      log.error('searchGroups error:', error);
       return [];
     }
   };
@@ -123,7 +129,7 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       }
       return null;
     } catch (error) {
-      console.error('[useOktaApi] getGroupById error:', error);
+      log.error('getGroupById error:', error);
       return null;
     }
   };

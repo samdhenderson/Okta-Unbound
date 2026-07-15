@@ -1,3 +1,4 @@
+import { createLogger } from '../utils/logger';
 import type {
   TabName,
   AllTabStates,
@@ -6,6 +7,8 @@ import type {
   StatePersistOptions,
   StoredStateMetadata,
 } from './types';
+
+const log = createLogger('TabStateManager');
 
 const STORAGE_KEY_PREFIX = 'tab_state_';
 const STATE_VERSION = 1;
@@ -34,12 +37,12 @@ export class TabStateManager {
 
     try {
       await chrome.storage.local.set({ [storageKey]: storageValue });
-      console.log(`[TabStateManager] Saved state for tab: ${tabName}`, {
+      log.debug(`Saved state for tab: ${tabName}`, {
         ttl: ttl ? `${ttl / 1000}s` : 'forever',
         expiresAt: metadata.expiresAt ? new Date(metadata.expiresAt).toISOString() : 'never',
       });
     } catch (error) {
-      console.error(`[TabStateManager] Failed to save state for tab: ${tabName}`, error);
+      log.error(`Failed to save state for tab: ${tabName}`, error);
     }
   }
 
@@ -48,23 +51,24 @@ export class TabStateManager {
 
     try {
       const result = await chrome.storage.local.get([storageKey]);
-      const stored = result[storageKey] as any;
+      const stored = result[storageKey] as
+        ({ _metadata: StoredStateMetadata } & Record<string, unknown>) | undefined;
 
       if (!stored || typeof stored !== 'object') {
-        console.log(`[TabStateManager] No state found for tab: ${tabName}`);
+        log.debug(`No state found for tab: ${tabName}`);
         return null;
       }
 
       const metadata: StoredStateMetadata = stored._metadata;
 
       if (metadata.version !== STATE_VERSION) {
-        console.warn(`[TabStateManager] State version mismatch for tab: ${tabName}. Clearing.`);
+        log.warn(`State version mismatch for tab: ${tabName}. Clearing.`);
         await this.clearTabState(tabName);
         return null;
       }
 
       if (metadata.expiresAt && Date.now() > metadata.expiresAt) {
-        console.log(`[TabStateManager] State expired for tab: ${tabName}`);
+        log.debug(`State expired for tab: ${tabName}`);
         await this.clearTabState(tabName);
         return null;
       }
@@ -72,13 +76,13 @@ export class TabStateManager {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { _metadata, ...state } = stored;
 
-      console.log(`[TabStateManager] Loaded state for tab: ${tabName}`, {
+      log.debug(`Loaded state for tab: ${tabName}`, {
         age: `${Math.round((Date.now() - metadata.lastUpdated) / 1000)}s`,
       });
 
-      return state as T;
+      return state as unknown as T;
     } catch (error) {
-      console.error(`[TabStateManager] Failed to load state for tab: ${tabName}`, error);
+      log.error(`Failed to load state for tab: ${tabName}`, error);
       return null;
     }
   }
@@ -88,9 +92,9 @@ export class TabStateManager {
 
     try {
       await chrome.storage.local.remove([storageKey]);
-      console.log(`[TabStateManager] Cleared state for tab: ${tabName}`);
+      log.debug(`Cleared state for tab: ${tabName}`);
     } catch (error) {
-      console.error(`[TabStateManager] Failed to clear state for tab: ${tabName}`, error);
+      log.error(`Failed to clear state for tab: ${tabName}`, error);
     }
   }
 
@@ -101,25 +105,25 @@ export class TabStateManager {
 
       if (tabStateKeys.length > 0) {
         await chrome.storage.local.remove(tabStateKeys);
-        console.log(`[TabStateManager] Cleared ${tabStateKeys.length} tab states`);
+        log.debug(`Cleared ${tabStateKeys.length} tab states`);
       }
     } catch (error) {
-      console.error('[TabStateManager] Failed to clear all tab states', error);
+      log.error('Failed to clear all tab states', error);
     }
   }
 
   static async getAllTabStates(): Promise<Partial<AllTabStates>> {
     const tabNames: TabName[] = ['overview', 'rules', 'users', 'groups', 'history'];
-    const states: Partial<AllTabStates> = {};
+    const states: Partial<Record<TabName, BaseTabState>> = {};
 
     for (const tabName of tabNames) {
       const state = await this.loadTabState(tabName);
       if (state) {
-        (states as any)[tabName] = state;
+        states[tabName] = state;
       }
     }
 
-    return states;
+    return states as unknown as Partial<AllTabStates>;
   }
 
   static async updateScrollPosition(tabName: TabName, scrollPosition: number): Promise<void> {
@@ -151,7 +155,7 @@ export class TabStateManager {
 
       for (const [key, value] of Object.entries(allKeys)) {
         if (key.startsWith(STORAGE_KEY_PREFIX) && value && typeof value === 'object') {
-          const metadata = (value as any)._metadata as StoredStateMetadata | undefined;
+          const metadata = (value as { _metadata?: StoredStateMetadata })._metadata;
           if (metadata && metadata.expiresAt && now > metadata.expiresAt) {
             keysToRemove.push(key);
           }
@@ -160,10 +164,10 @@ export class TabStateManager {
 
       if (keysToRemove.length > 0) {
         await chrome.storage.local.remove(keysToRemove);
-        console.log(`[TabStateManager] Cleaned up ${keysToRemove.length} expired states`);
+        log.debug(`Cleaned up ${keysToRemove.length} expired states`);
       }
     } catch (error) {
-      console.error('[TabStateManager] Failed to cleanup expired states', error);
+      log.error('Failed to cleanup expired states', error);
     }
   }
 
@@ -172,7 +176,7 @@ export class TabStateManager {
 
     try {
       const result = await chrome.storage.local.get([storageKey]);
-      const stored = result[storageKey] as any;
+      const stored = result[storageKey] as { _metadata?: StoredStateMetadata } | undefined;
 
       if (!stored || !stored._metadata) {
         return null;
@@ -180,7 +184,7 @@ export class TabStateManager {
 
       return Date.now() - stored._metadata.lastUpdated;
     } catch (error) {
-      console.error(`[TabStateManager] Failed to get state age for tab: ${tabName}`, error);
+      log.error(`Failed to get state age for tab: ${tabName}`, error);
       return null;
     }
   }
@@ -203,7 +207,7 @@ export class TabStateManager {
 
       const states = tabStateEntries.map(([key, value]) => {
         const tabName = key.replace(STORAGE_KEY_PREFIX, '');
-        const metadata = (value as any)._metadata as StoredStateMetadata;
+        const metadata = (value as { _metadata?: StoredStateMetadata })._metadata;
         const size = JSON.stringify(value).length;
         const age = metadata ? Date.now() - metadata.lastUpdated : 0;
 
@@ -218,7 +222,7 @@ export class TabStateManager {
         states,
       };
     } catch (error) {
-      console.error('[TabStateManager] Failed to get storage info', error);
+      log.error('Failed to get storage info', error);
       return { totalStates: 0, totalBytes: 0, states: [] };
     }
   }

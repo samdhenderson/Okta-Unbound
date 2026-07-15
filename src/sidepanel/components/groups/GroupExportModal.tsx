@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Modal from '../shared/Modal';
 import Button from '../shared/Button';
+import { Checkbox } from '../shared';
 import type { GroupSummary, OktaUser } from '../../../shared/types';
 import {
   escapeCSV,
@@ -9,6 +10,9 @@ import {
   sanitizeFilename,
   getDateForFilename,
 } from '../../../shared/utils/csvUtils';
+import { createLogger } from '../../../shared/utils/logger';
+
+const log = createLogger('GroupExportModal');
 
 interface ExportColumn {
   id: string;
@@ -152,7 +156,7 @@ const GroupExportModal: React.FC<GroupExportModalProps> = ({
               ]);
             });
           } catch (err) {
-            console.error(`Failed to fetch members for group ${group.name}:`, err);
+            log.error(`Failed to fetch members for group ${group.id}:`, err);
             memberRows.push([
               escapeCSV(group.id),
               escapeCSV(group.name),
@@ -177,7 +181,7 @@ const GroupExportModal: React.FC<GroupExportModalProps> = ({
       setExportProgress(null);
       onClose();
     } catch (err) {
-      console.error('Export failed:', err);
+      log.error('Export failed:', err);
       alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setIsExporting(false);
@@ -222,18 +226,13 @@ const GroupExportModal: React.FC<GroupExportModalProps> = ({
           <h4 className="text-sm font-medium text-neutral-700 mb-3">Select columns to include:</h4>
           <div className="grid grid-cols-2 gap-2">
             {columns.map((col) => (
-              <label
+              <Checkbox
                 key={col.id}
-                className="flex items-center gap-2 p-2 rounded-md hover:bg-neutral-50 cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={col.enabled}
-                  onChange={() => toggleColumn(col.id)}
-                  className="w-4 h-4 text-primary border-neutral-300 rounded focus:outline-2 focus:outline-offset-2 focus:outline-primary"
-                />
-                <span className="text-sm text-neutral-700">{col.label}</span>
-              </label>
+                checked={col.enabled}
+                onChange={() => toggleColumn(col.id)}
+                label={col.label}
+                className="p-2 rounded-md hover:bg-neutral-50 transition-colors"
+              />
             ))}
           </div>
         </div>
@@ -241,21 +240,13 @@ const GroupExportModal: React.FC<GroupExportModalProps> = ({
         <div className="border-t border-neutral-200" />
 
         <div>
-          <label className="flex items-start gap-3 p-3 rounded-md border border-neutral-200 hover:border-neutral-300 cursor-pointer transition-colors">
-            <input
-              type="checkbox"
-              checked={includeMemberList}
-              onChange={(e) => setIncludeMemberList(e.target.checked)}
-              className="w-4 h-4 mt-0.5 text-primary border-neutral-300 rounded focus:outline-2 focus:outline-offset-2 focus:outline-primary"
-            />
-            <div>
-              <span className="text-sm font-medium text-neutral-700">Include member list</span>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                Generates a second CSV file with member details (Group ID, Group Name, User ID,
-                Email, First Name, Last Name, Status)
-              </p>
-            </div>
-          </label>
+          <Checkbox
+            checked={includeMemberList}
+            onChange={setIncludeMemberList}
+            label={<span className="font-medium">Include member list</span>}
+            description="Generates a second CSV file with member details (Group ID, Group Name, User ID, Email, First Name, Last Name, Status)"
+            className="p-3 rounded-md border border-neutral-200 hover:border-neutral-300 transition-colors"
+          />
         </div>
 
         {exportProgress && (

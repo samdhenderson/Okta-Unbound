@@ -1,3 +1,7 @@
+import { createLogger } from './utils/logger';
+
+const log = createLogger('Cache');
+
 export interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -5,7 +9,7 @@ export interface CacheEntry<T> {
 }
 
 export interface CacheOptions {
-  ttl?: number; // Time to live in milliseconds (default: 5 minutes)
+  ttl?: number;
 }
 
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
@@ -26,9 +30,9 @@ export async function setCacheEntry<T>(
 
   try {
     await chrome.storage.local.set({ [key]: entry });
-    console.log(`[Cache] Set entry for key: ${key}, expires in ${ttl}ms`);
+    log.debug(`Set entry for key: ${key}, expires in ${ttl}ms`);
   } catch (error) {
-    console.error('[Cache] Failed to set entry:', error);
+    log.error('Failed to set entry:', error);
   }
 }
 
@@ -38,22 +42,22 @@ export async function getCacheEntry<T>(key: string): Promise<T | null> {
     const entry = result[key] as CacheEntry<T> | undefined;
 
     if (!entry) {
-      console.log(`[Cache] No entry found for key: ${key}`);
+      log.debug(`No entry found for key: ${key}`);
       return null;
     }
 
     const now = Date.now();
 
     if (now > entry.expiresAt) {
-      console.log(`[Cache] Entry expired for key: ${key}`);
+      log.debug(`Entry expired for key: ${key}`);
       await chrome.storage.local.remove([key]);
       return null;
     }
 
-    console.log(`[Cache] Cache hit for key: ${key}`);
+    log.debug(`Cache hit for key: ${key}`);
     return entry.data;
   } catch (error) {
-    console.error('[Cache] Failed to get entry:', error);
+    log.error('Failed to get entry:', error);
     return null;
   }
 }

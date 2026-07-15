@@ -1,6 +1,10 @@
 import type { CoreApi } from './core';
-import type { OktaFactor, MemberMfaResult } from '../../../shared/types';
+import type { OktaFactor, MemberMfaResult, OktaUser } from '../../../shared/types';
 import { summarizeFactors } from '../../../shared/utils/mfaUtils';
+import { parseNextLink } from './utilities';
+import { createLogger } from '../../../shared/utils/logger';
+
+const log = createLogger('useOktaApi');
 
 export function createUserOperations(coreApi: CoreApi) {
   const getUserLastLogin = async (userId: string): Promise<Date | null> => {
@@ -11,7 +15,7 @@ export function createUserOperations(coreApi: CoreApi) {
       }
       return null;
     } catch (error) {
-      console.error(`[useOktaApi] Failed to get last login for user ${userId}:`, error);
+      log.error(`Failed to get last login for user ${userId}:`, error);
       return null;
     }
   };
@@ -35,16 +39,40 @@ export function createUserOperations(coreApi: CoreApi) {
       }
       return 0;
     } catch (error) {
-      console.error(`[useOktaApi] Failed to get app assignments for user ${userId}:`, error);
+      log.error(`Failed to get app assignments for user ${userId}:`, error);
       return 0;
     }
+  };
+
+  const getUserApps = async (userId: string): Promise<Array<{ id: string; label: string }>> => {
+    const apps: Array<{ id: string; label: string }> = [];
+    let nextUrl: string | null = `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=200`;
+
+    try {
+      while (nextUrl) {
+        const response = await coreApi.makeApiRequest(nextUrl);
+        if (!response.success || !response.data) {
+          break;
+        }
+
+        for (const app of response.data) {
+          apps.push({ id: app.id, label: app.label || app.name || app.id });
+        }
+
+        nextUrl = parseNextLink(response.headers?.link);
+      }
+    } catch (error) {
+      log.error(`Failed to list apps for user ${userId}:`, error);
+    }
+
+    return apps;
   };
 
   const batchGetUserDetails = async (
     userIds: string[],
     onProgress?: (current: number, total: number) => void,
-  ): Promise<Map<string, any>> => {
-    const userDetailsMap = new Map<string, any>();
+  ): Promise<Map<string, OktaUser>> => {
+    const userDetailsMap = new Map<string, OktaUser>();
     const batchSize = 3; // Match scheduler maxConcurrent
 
     for (let i = 0; i < userIds.length; i += batchSize) {
@@ -62,7 +90,7 @@ export function createUserOperations(coreApi: CoreApi) {
           }
           return { userId, data: null };
         } catch (error) {
-          console.error(`[useOktaApi] Failed to fetch user ${userId}:`, error);
+          log.error(`Failed to fetch user ${userId}:`, error);
           return { userId, data: null };
         }
       });
@@ -102,7 +130,7 @@ export function createUserOperations(coreApi: CoreApi) {
               response.success && Array.isArray(response.data) ? response.data : [];
             return { userId, factors };
           } catch (error) {
-            console.error(`[useOktaApi] Failed to fetch factors for user ${userId}:`, error);
+            log.error(`Failed to fetch factors for user ${userId}:`, error);
             return { userId, factors: [] as OktaFactor[] };
           }
         }),
@@ -126,7 +154,7 @@ export function createUserOperations(coreApi: CoreApi) {
       }
       return 0;
     } catch (error) {
-      console.error(`[useOktaApi] Failed to get group memberships for user ${userId}:`, error);
+      log.error(`Failed to get group memberships for user ${userId}:`, error);
       return 0;
     }
   };
@@ -153,7 +181,7 @@ export function createUserOperations(coreApi: CoreApi) {
       );
 
       if (response.success && response.data) {
-        return response.data.map((user: any) => ({
+        return response.data.map((user: OktaUser) => ({
           id: user.id,
           email: user.profile?.email || '',
           firstName: user.profile?.firstName || '',
@@ -164,7 +192,7 @@ export function createUserOperations(coreApi: CoreApi) {
       }
       return [];
     } catch (error) {
-      console.error('[useOktaApi] searchUsers error:', error);
+      log.error('searchUsers error:', error);
       return [];
     }
   };
@@ -194,7 +222,7 @@ export function createUserOperations(coreApi: CoreApi) {
       }
       return null;
     } catch (error) {
-      console.error('[useOktaApi] getUserById error:', error);
+      log.error('getUserById error:', error);
       return null;
     }
   };
@@ -226,6 +254,7 @@ export function createUserOperations(coreApi: CoreApi) {
   return {
     getUserLastLogin,
     getUserAppAssignments,
+    getUserApps,
     batchGetUserDetails,
     scanGroupMfa,
     getUserGroupMemberships,

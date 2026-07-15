@@ -33,6 +33,44 @@ describe('useOktaApi', () => {
     vi.restoreAllMocks();
   });
 
+  describe('referential stability', () => {
+    it('keeps every returned operation identity-stable across re-renders', () => {
+      const stableOnResult = vi.fn();
+      const stableOnProgress = vi.fn();
+
+      const { result, rerender } = renderHook(() =>
+        useOktaApi({ targetTabId, onResult: stableOnResult, onProgress: stableOnProgress }),
+      );
+
+      const first = result.current;
+      rerender();
+      rerender();
+      const second = result.current;
+
+      expect(second.searchGroups).toBe(first.searchGroups);
+
+      const operations = Object.keys(first).filter(
+        (key) => typeof first[key as keyof typeof first] === 'function',
+      ) as Array<keyof typeof first>;
+      const unstable = operations.filter((key) => second[key] !== first[key]);
+      expect(unstable).toEqual([]);
+
+      expect(second).toBe(first);
+    });
+
+    it('rebuilds operations when targetTabId changes', () => {
+      const { result, rerender } = renderHook(
+        ({ tabId }) => useOktaApi({ targetTabId: tabId, onResult: mockOnResult }),
+        { initialProps: { tabId: 123 } },
+      );
+
+      const before = result.current.searchGroups;
+      rerender({ tabId: 456 });
+
+      expect(result.current.searchGroups).not.toBe(before);
+    });
+  });
+
   describe('sendMessage', () => {
     it('should send message to target tab', async () => {
       const mockResponse: MessageResponse = {

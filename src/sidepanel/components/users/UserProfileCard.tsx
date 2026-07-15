@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import type { OktaUser } from '../../../shared/types';
 import CollapsibleSection from '../shared/CollapsibleSection';
+import { IconButton } from '../shared';
+import { formatDateShort, getRelativeTime } from '../../../shared/utils/dateFormat';
+import { getCustomProfileFields } from '../../../shared/utils/profileFields';
 
 interface UserProfileCardProps {
   user: OktaUser;
   groupCount?: number;
   showCollapsibleSections?: boolean;
   oktaOrigin?: string | null;
+  afterCard?: React.ReactNode;
 }
 
 const UserProfileCard: React.FC<UserProfileCardProps> = ({
@@ -14,6 +18,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   groupCount = 0,
   showCollapsibleSections = true,
   oktaOrigin,
+  afterCard,
 }) => {
   const [idCopied, setIdCopied] = useState(false);
 
@@ -49,36 +54,6 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const getRelativeTime = (dateString: string): string | null => {
-    try {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-      if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-      return `${Math.floor(diffDays / 365)} years ago`;
-    } catch {
-      return null;
-    }
-  };
-
   const hasOrgInfo =
     user.profile.title ||
     user.profile.department ||
@@ -100,7 +75,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-md border border-neutral-200 overflow-hidden">
         <div className="p-6 bg-white">
           <div className="flex items-start gap-5">
             <div className="shrink-0 w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold shadow-sm ring-4 ring-primary-highlight">
@@ -163,42 +138,48 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
         <div className="px-6 py-4 bg-neutral-50 border-t border-neutral-200 grid grid-cols-3 gap-4 text-sm">
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-neutral-600 mb-1">Last Login</span>
+            <span className="text-xs font-medium text-neutral-600 mb-1">Last Login</span>
             <span className="text-neutral-900 font-medium">
               {user.lastLogin
-                ? getRelativeTime(user.lastLogin) || formatDate(user.lastLogin)
+                ? getRelativeTime(user.lastLogin) || formatDateShort(user.lastLogin)
                 : 'Never'}
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-neutral-600 mb-1">Created</span>
+            <span className="text-xs font-medium text-neutral-600 mb-1">Created</span>
             <span className="text-neutral-900 font-medium">
-              {user.created ? getRelativeTime(user.created) || formatDate(user.created) : 'Unknown'}
+              {user.created
+                ? getRelativeTime(user.created) || formatDateShort(user.created)
+                : 'Unknown'}
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-semibold text-neutral-600 mb-1">Groups</span>
+            <span className="text-xs font-medium text-neutral-600 mb-1">Groups</span>
             <span className="text-neutral-900 font-medium">{groupCount}</span>
           </div>
         </div>
       </div>
+
+      {afterCard}
 
       {showCollapsibleSections && (
         <div className="space-y-4">
           <CollapsibleSection title="Account Details" defaultOpen={false}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div className="p-3 bg-white rounded-md border border-neutral-200">
-                <span className="text-xs font-semibold text-neutral-600 mb-1 block">Login</span>
+                <span className="text-xs font-medium text-neutral-600 mb-1 block">Login</span>
                 <span className="text-sm text-neutral-900 block">{user.profile.login}</span>
               </div>
               <div className="p-3 bg-white rounded-md border border-neutral-200">
-                <span className="text-xs font-semibold text-neutral-600 mb-1 block">User ID</span>
+                <span className="text-xs font-medium text-neutral-600 mb-1 block">User ID</span>
                 <div className="flex items-center gap-1.5">
                   <span className="font-mono text-xs text-neutral-900 truncate">{user.id}</span>
-                  <button
+                  <IconButton
+                    label={idCopied ? 'Copied!' : 'Copy ID'}
                     onClick={handleCopyId}
-                    className="shrink-0 p-0.5 text-neutral-400 hover:text-primary-text rounded transition-colors duration-100"
-                    title={idCopied ? 'Copied!' : 'Copy ID'}
+                    variant="ghost"
+                    size="sm"
+                    className="shrink-0"
                   >
                     {idCopied ? (
                       <svg
@@ -229,12 +210,12 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                         />
                       </svg>
                     )}
-                  </button>
+                  </IconButton>
                 </div>
               </div>
               {user.profile.secondEmail && (
                 <div className="p-3 bg-white rounded-md border border-neutral-200">
-                  <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                  <span className="text-xs font-medium text-neutral-600 mb-1 block">
                     Secondary Email
                   </span>
                   <span className="text-sm text-neutral-900 block">{user.profile.secondEmail}</span>
@@ -242,41 +223,39 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               )}
               {user.activated && (
                 <div className="p-3 bg-white rounded-md border border-neutral-200">
-                  <span className="text-xs font-semibold text-neutral-600 mb-1 block">
-                    Activated
-                  </span>
+                  <span className="text-xs font-medium text-neutral-600 mb-1 block">Activated</span>
                   <span className="text-sm text-neutral-900 block">
-                    {formatDate(user.activated)}
+                    {formatDateShort(user.activated)}
                   </span>
                 </div>
               )}
               {user.statusChanged && (
                 <div className="p-3 bg-white rounded-md border border-neutral-200">
-                  <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                  <span className="text-xs font-medium text-neutral-600 mb-1 block">
                     Status Changed
                   </span>
                   <span className="text-sm text-neutral-900 block">
-                    {formatDate(user.statusChanged)}
+                    {formatDateShort(user.statusChanged)}
                   </span>
                 </div>
               )}
               {user.passwordChanged && (
                 <div className="p-3 bg-white rounded-md border border-neutral-200">
-                  <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                  <span className="text-xs font-medium text-neutral-600 mb-1 block">
                     Password Changed
                   </span>
                   <span className="text-sm text-neutral-900 block">
-                    {formatDate(user.passwordChanged)}
+                    {formatDateShort(user.passwordChanged)}
                   </span>
                 </div>
               )}
               {user.lastUpdated && (
                 <div className="p-3 bg-white rounded-md border border-neutral-200">
-                  <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                  <span className="text-xs font-medium text-neutral-600 mb-1 block">
                     Profile Updated
                   </span>
                   <span className="text-sm text-neutral-900 block">
-                    {formatDate(user.lastUpdated)}
+                    {formatDateShort(user.lastUpdated)}
                   </span>
                 </div>
               )}
@@ -288,13 +267,13 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 {user.profile.title && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">Title</span>
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">Title</span>
                     <span className="text-sm text-neutral-900 block">{user.profile.title}</span>
                   </div>
                 )}
                 {user.profile.department && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
                       Department
                     </span>
                     <span className="text-sm text-neutral-900 block">
@@ -304,7 +283,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 )}
                 {user.profile.division && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
                       Division
                     </span>
                     <span className="text-sm text-neutral-900 block">{user.profile.division}</span>
@@ -312,7 +291,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 )}
                 {user.profile.organization && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
                       Organization
                     </span>
                     <span className="text-sm text-neutral-900 block">
@@ -322,15 +301,13 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 )}
                 {user.profile.manager && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
-                      Manager
-                    </span>
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">Manager</span>
                     <span className="text-sm text-neutral-900 block">{user.profile.manager}</span>
                   </div>
                 )}
                 {user.profile.costCenter && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
                       Cost Center
                     </span>
                     <span className="text-sm text-neutral-900 block">
@@ -340,7 +317,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 )}
                 {user.profile.employeeNumber && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
                       Employee #
                     </span>
                     <span className="text-sm text-neutral-900 block">
@@ -350,7 +327,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 )}
                 {user.profile.userType && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
                       User Type
                     </span>
                     <span className="text-sm text-neutral-900 block">{user.profile.userType}</span>
@@ -365,7 +342,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 {user.profile.primaryPhone && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">Phone</span>
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">Phone</span>
                     <span className="text-sm text-neutral-900 block">
                       {user.profile.primaryPhone}
                     </span>
@@ -373,9 +350,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                 )}
                 {user.profile.mobilePhone && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
-                      Mobile
-                    </span>
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">Mobile</span>
                     <span className="text-sm text-neutral-900 block">
                       {user.profile.mobilePhone}
                     </span>
@@ -386,9 +361,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
                   user.profile.state ||
                   user.profile.zipCode) && (
                   <div className="p-3 bg-white rounded-md border border-neutral-200 md:col-span-2">
-                    <span className="text-xs font-semibold text-neutral-600 mb-1 block">
-                      Address
-                    </span>
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">Address</span>
                     <span className="text-sm text-neutral-900 block">
                       {[
                         user.profile.streetAddress,
@@ -405,6 +378,52 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
               </div>
             </CollapsibleSection>
           )}
+
+          {(user.profile.locale || user.profile.timezone) && (
+            <CollapsibleSection title="Preferences" defaultOpen={false}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                {user.profile.locale && (
+                  <div className="p-3 bg-white rounded-md border border-neutral-200">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">Locale</span>
+                    <span className="text-sm text-neutral-900 block">{user.profile.locale}</span>
+                  </div>
+                )}
+                {user.profile.timezone && (
+                  <div className="p-3 bg-white rounded-md border border-neutral-200">
+                    <span className="text-xs font-medium text-neutral-600 mb-1 block">
+                      Timezone
+                    </span>
+                    <span className="text-sm text-neutral-900 block">{user.profile.timezone}</span>
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
+          )}
+
+          {(() => {
+            const customFields = getCustomProfileFields(user.profile);
+
+            if (customFields.length === 0) return null;
+
+            return (
+              <CollapsibleSection
+                title="Custom Attributes"
+                defaultOpen={false}
+                itemCount={customFields.length}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  {customFields.map(([key, value]) => (
+                    <div className="p-3 bg-white rounded-md border border-neutral-200" key={key}>
+                      <span className="text-xs font-medium text-neutral-600 mb-1 block">{key}</span>
+                      <span className="text-sm text-neutral-900 block">
+                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleSection>
+            );
+          })()}
         </div>
       )}
     </div>

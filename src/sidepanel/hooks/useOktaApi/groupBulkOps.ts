@@ -1,5 +1,11 @@
 import type { CoreApi } from './core';
 import type { OktaUser } from './types';
+import type { BulkOperation, BulkOperationResult } from '../../../shared/types';
+import type { RequestResult } from '../../../shared/scheduler/types';
+
+interface BulkGroupResult extends BulkOperationResult {
+  members?: OktaUser[];
+}
 
 export function createGroupBulkOperations(
   coreApi: CoreApi,
@@ -8,14 +14,14 @@ export function createGroupBulkOperations(
     groupName: string,
     user: OktaUser,
     skipUndoLog?: boolean,
-  ) => Promise<any>,
+  ) => Promise<RequestResult>,
   getAllGroupMembers: (groupId: string) => Promise<OktaUser[]>,
 ) {
   const executeBulkOperation = async (
-    operation: any,
+    operation: BulkOperation,
     onProgress?: (current: number, total: number, currentGroupName: string) => void,
-  ): Promise<any[]> => {
-    const results: any[] = [];
+  ): Promise<BulkGroupResult[]> => {
+    const results: BulkGroupResult[] = [];
     const totalGroups = operation.targetGroups.length;
 
     for (let i = 0; i < totalGroups; i++) {
@@ -27,7 +33,12 @@ export function createGroupBulkOperations(
 
         onProgress?.(i + 1, totalGroups, groupName);
 
-        let result: any = { groupId, groupName, status: 'success', itemsProcessed: 0 };
+        const result: BulkGroupResult = {
+          groupId,
+          groupName,
+          status: 'success',
+          itemsProcessed: 0,
+        };
 
         switch (operation.type) {
           case 'cleanup_inactive': {

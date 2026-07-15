@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from './shared';
 import { useScheduler } from '../contexts/SchedulerContext';
 
 const SchedulerStatusBar: React.FC = () => {
@@ -26,17 +27,17 @@ const SchedulerStatusBar: React.FC = () => {
   const getStatusColor = (): string => {
     switch (state.status) {
       case 'idle':
-        return '#22c55e'; // Green-500 - ready/idle
+        return 'var(--color-success)'; // ready/idle
       case 'processing':
-        return '#2196f3'; // Blue
+        return 'var(--color-info)';
       case 'throttled':
-        return '#ff9800'; // Orange
+        return 'var(--color-warning)';
       case 'cooldown':
-        return '#f44336'; // Red
+        return 'var(--color-danger)';
       case 'paused':
-        return '#9e9e9e'; // Gray
+        return 'var(--color-neutral-500)';
       default:
-        return '#666';
+        return 'var(--color-neutral-600)';
     }
   };
 
@@ -138,13 +139,14 @@ const SchedulerStatusBar: React.FC = () => {
         )}
 
         {state.queueLength > 0 && (
-          <button
-            onClick={async () => {
+          <Button
+            variant="danger"
+            size="sm"
+            onClick={() => {
               if (confirm(`Cancel ${state.queueLength} pending API requests?`)) {
-                await clearQueue();
+                void clearQueue();
               }
             }}
-            className="px-3 py-1.5 bg-danger hover:bg-danger-text text-white text-xs font-bold rounded-md transition-all duration-100 flex items-center gap-1.5"
             title="Cancel all pending requests"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -156,7 +158,7 @@ const SchedulerStatusBar: React.FC = () => {
               />
             </svg>
             <span>Cancel</span>
-          </button>
+          </Button>
         )}
       </div>
     </div>

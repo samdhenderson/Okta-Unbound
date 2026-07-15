@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { UseOktaApiOptions } from './useOktaApi/types';
 import { createCoreApi } from './useOktaApi/core';
 import { createGroupMemberOperations } from './useOktaApi/groupMembers';
@@ -29,23 +29,36 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
     }
   }, [isCancelled]);
 
-  const coreApi = createCoreApi(targetTabId, checkCancelled, { onResult, onProgress });
-
-  const groupMemberOps = createGroupMemberOperations(coreApi);
-  const groupCleanupOps = createGroupCleanupOperations(coreApi, groupMemberOps.removeUserFromGroup);
-  const groupBulkOps = createGroupBulkOperations(
-    coreApi,
-    groupMemberOps.removeUserFromGroup,
-    groupMemberOps.getAllGroupMembers,
+  const coreApi = useMemo(
+    () => createCoreApi(targetTabId, checkCancelled, { onResult, onProgress }),
+    [targetTabId, checkCancelled, onResult, onProgress],
   );
-  const groupDiscoveryOps = createGroupDiscoveryOperations(coreApi);
-  const userOps = createUserOperations(coreApi);
-  const exportOps = createExportOperations(coreApi);
-  const pushGroupOps = createPushGroupOperations(coreApi);
-  const groupAnalysisOps = createGroupAnalysisOperations(groupMemberOps.getAllGroupMembers);
 
-  const wrapOperation = useCallback((fn: (...args: any[]) => Promise<void>) => {
-    return async (...args: any[]) => {
+  const groupMemberOps = useMemo(() => createGroupMemberOperations(coreApi), [coreApi]);
+  const groupCleanupOps = useMemo(
+    () => createGroupCleanupOperations(coreApi, groupMemberOps.removeUserFromGroup),
+    [coreApi, groupMemberOps],
+  );
+  const groupBulkOps = useMemo(
+    () =>
+      createGroupBulkOperations(
+        coreApi,
+        groupMemberOps.removeUserFromGroup,
+        groupMemberOps.getAllGroupMembers,
+      ),
+    [coreApi, groupMemberOps],
+  );
+  const groupDiscoveryOps = useMemo(() => createGroupDiscoveryOperations(coreApi), [coreApi]);
+  const userOps = useMemo(() => createUserOperations(coreApi), [coreApi]);
+  const exportOps = useMemo(() => createExportOperations(coreApi), [coreApi]);
+  const pushGroupOps = useMemo(() => createPushGroupOperations(coreApi), [coreApi]);
+  const groupAnalysisOps = useMemo(
+    () => createGroupAnalysisOperations(groupMemberOps.getAllGroupMembers),
+    [groupMemberOps],
+  );
+
+  const wrapOperation = useCallback(<A extends unknown[]>(fn: (...args: A) => Promise<void>) => {
+    return async (...args: A) => {
       setIsCancelled(false);
       const controller = new AbortController();
       setAbortController(controller);
@@ -60,42 +73,69 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
     };
   }, []);
 
-  return {
-    isLoading,
-    isCancelled,
-    cancelOperation,
+  const removeDeprovisioned = useMemo(
+    () => wrapOperation(groupCleanupOps.removeDeprovisioned),
+    [wrapOperation, groupCleanupOps],
+  );
+  const exportMembers = useMemo(
+    () => wrapOperation(exportOps.exportMembers),
+    [wrapOperation, exportOps],
+  );
 
-    makeApiRequest: coreApi.makeApiRequest,
+  return useMemo(
+    () => ({
+      isLoading,
+      isCancelled,
+      cancelOperation,
 
-    getAllGroupMembers: groupMemberOps.getAllGroupMembers,
-    removeUserFromGroup: groupMemberOps.removeUserFromGroup,
-    addUserToGroup: groupMemberOps.addUserToGroup,
-    removeDeprovisioned: wrapOperation(groupCleanupOps.removeDeprovisioned),
-    getAllGroups: groupDiscoveryOps.getAllGroups,
-    getGroupMemberCount: groupDiscoveryOps.getGroupMemberCount,
-    getGroupRulesForGroup: groupDiscoveryOps.getGroupRulesForGroup,
-    executeBulkOperation: groupBulkOps.executeBulkOperation,
-    searchGroups: groupDiscoveryOps.searchGroups,
-    getGroupById: groupDiscoveryOps.getGroupById,
+      makeApiRequest: coreApi.makeApiRequest,
 
-    getUserLastLogin: userOps.getUserLastLogin,
-    getUserAppAssignments: userOps.getUserAppAssignments,
-    batchGetUserDetails: userOps.batchGetUserDetails,
-    scanGroupMfa: userOps.scanGroupMfa,
-    getUserGroupMemberships: userOps.getUserGroupMemberships,
-    searchUsers: userOps.searchUsers,
-    getUserById: userOps.getUserById,
-    suspendUser: userOps.suspendUser,
-    unsuspendUser: userOps.unsuspendUser,
-    resetPassword: userOps.resetPassword,
+      getAllGroupMembers: groupMemberOps.getAllGroupMembers,
+      removeUserFromGroup: groupMemberOps.removeUserFromGroup,
+      addUserToGroup: groupMemberOps.addUserToGroup,
+      removeDeprovisioned,
+      getAllGroups: groupDiscoveryOps.getAllGroups,
+      getGroupMemberCount: groupDiscoveryOps.getGroupMemberCount,
+      getGroupRulesForGroup: groupDiscoveryOps.getGroupRulesForGroup,
+      executeBulkOperation: groupBulkOps.executeBulkOperation,
+      searchGroups: groupDiscoveryOps.searchGroups,
+      getGroupById: groupDiscoveryOps.getGroupById,
 
-    exportMembers: wrapOperation(exportOps.exportMembers),
+      getUserLastLogin: userOps.getUserLastLogin,
+      getUserAppAssignments: userOps.getUserAppAssignments,
+      getUserApps: userOps.getUserApps,
+      batchGetUserDetails: userOps.batchGetUserDetails,
+      scanGroupMfa: userOps.scanGroupMfa,
+      getUserGroupMemberships: userOps.getUserGroupMemberships,
+      searchUsers: userOps.searchUsers,
+      getUserById: userOps.getUserById,
+      suspendUser: userOps.suspendUser,
+      unsuspendUser: userOps.unsuspendUser,
+      resetPassword: userOps.resetPassword,
 
-    getAppPushGroupMappings: pushGroupOps.getAppPushGroupMappings,
-    applyPushGroupMappings: pushGroupOps.applyPushGroupMappings,
+      exportMembers,
 
-    compareGroups: groupAnalysisOps.compareGroups,
-    searchUserAcrossGroups: groupAnalysisOps.searchUserAcrossGroups,
-    calculateStaleness: groupAnalysisOps.calculateStaleness,
-  };
+      getAppPushGroupMappings: pushGroupOps.getAppPushGroupMappings,
+      applyPushGroupMappings: pushGroupOps.applyPushGroupMappings,
+
+      compareGroups: groupAnalysisOps.compareGroups,
+      searchUserAcrossGroups: groupAnalysisOps.searchUserAcrossGroups,
+      calculateStaleness: groupAnalysisOps.calculateStaleness,
+    }),
+    [
+      isLoading,
+      isCancelled,
+      cancelOperation,
+      coreApi,
+      groupMemberOps,
+      groupDiscoveryOps,
+      groupBulkOps,
+      userOps,
+      exportOps,
+      pushGroupOps,
+      groupAnalysisOps,
+      removeDeprovisioned,
+      exportMembers,
+    ],
+  );
 }

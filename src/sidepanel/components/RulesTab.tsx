@@ -13,6 +13,9 @@ import { auditStore } from '../../shared/storage/auditStore';
 import { RulesCache } from '../../shared/rulesCache';
 import { TabStateManager, saveRulesTabState } from '../../shared/tabState/tabStateManager';
 import type { RulesTabState } from '../../shared/tabState/types';
+import { createLogger } from '../../shared/utils/logger';
+
+const log = createLogger('RulesTab');
 
 interface RulesTabProps {
   targetTabId?: number;
@@ -46,7 +49,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
       try {
         const savedState = await TabStateManager.loadTabState<RulesTabState>('rules');
         if (savedState) {
-          console.log('[RulesTab] Loaded persisted state from TabStateManager');
+          log.debug('Loaded persisted state from TabStateManager');
           if (savedState.cachedRules) setRules(savedState.cachedRules);
           if (savedState.cachedStats) setStats(savedState.cachedStats);
           if (savedState.lastFetchTime) setLastFetchTime(savedState.lastFetchTime);
@@ -59,7 +62,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           }
         }
       } catch (err) {
-        console.error('[RulesTab] Failed to load persisted state:', err);
+        log.error('Failed to load persisted state:', err);
       }
     };
 
@@ -70,7 +73,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
 
   useEffect(() => {
     if (selectedRuleId && rules.length > 0) {
-      console.log('[RulesTab] Navigating to rule:', selectedRuleId);
+      log.debug('Navigating to rule:', selectedRuleId);
 
       const ruleElement = document.querySelector(`[data-rule-id="${selectedRuleId}"]`);
       if (ruleElement) {
@@ -79,7 +82,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           onRuleSelected?.();
         }, 2000);
       } else {
-        console.warn('[RulesTab] Rule not found in DOM:', selectedRuleId);
+        log.warn('Rule not found in DOM:', selectedRuleId);
       }
     }
   }, [selectedRuleId, rules, onRuleSelected]);
@@ -94,7 +97,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
         activeFilter,
         scrollPosition: window.scrollY,
       }).catch((err) => {
-        console.error('[RulesTab] Failed to persist state:', err);
+        log.error('Failed to persist state:', err);
       });
     }
   }, [rules, stats, lastFetchTime, searchQuery, activeFilter]);
@@ -119,7 +122,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
     setApiCost(null);
 
     try {
-      console.log('[RulesTab] Fetching rules from tab:', targetTabId);
+      log.debug('Fetching rules from tab:', targetTabId);
 
       startProgress('Loading Rules', 'Loading group rules...', 1);
 
@@ -128,7 +131,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
       if (!force) {
         const cached = await RulesCache.get();
         if (cached) {
-          console.log('[RulesTab] Using cached rules from global cache');
+          log.debug('Using cached rules from global cache');
           setRules(cached.rules);
           setStats(cached.stats);
           setLastFetchTime(new Date(cached.timestamp).toISOString());
@@ -144,7 +147,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
         action: 'fetchGroupRules',
       });
 
-      console.log('[RulesTab] Received response:', response);
+      log.debug('Received response:', { success: response.success });
 
       if (response.success) {
         const rulesCount = response.rules?.length || 0;
@@ -164,7 +167,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
         apiRequestCount = 1;
         setApiCost(apiRequestCount);
 
-        console.log('[RulesTab] Loaded rules successfully:', {
+        log.debug('Loaded rules successfully:', {
           count: response.rules?.length,
           stats: response.stats,
           apiCost: apiRequestCount,
@@ -175,12 +178,12 @@ const RulesTab: React.FC<RulesTabProps> = ({
         }, 1000);
       } else {
         setError(response.error || 'Failed to fetch rules');
-        console.error('[RulesTab] Error fetching rules:', response.error);
+        log.error('Error fetching rules:', response.error);
         completeProgress();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to communicate with Okta tab');
-      console.error('[RulesTab] Exception:', err);
+      log.error('Exception:', err);
       completeProgress();
     } finally {
       setIsLoading(false);
@@ -194,7 +197,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
     let currentUserEmail = 'unknown@unknown.com';
 
     try {
-      console.log('[RulesTab] Activating rule:', ruleId);
+      log.debug('Activating rule:', ruleId);
 
       try {
         const userResponse = await chrome.tabs.sendMessage(targetTabId, {
@@ -206,7 +209,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
         }
       } catch (err) {
-        console.error('[RulesTab] Failed to get current user:', err);
+        log.error('Failed to get current user:', err);
       }
 
       const rule = rules.find((r) => r.id === ruleId);
@@ -243,7 +246,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           },
         };
         auditStore.logOperation(auditEntry).catch((err) => {
-          console.error('[RulesTab] Failed to log audit entry:', err);
+          log.error('Failed to log audit entry:', err);
         });
 
         await handleLoadRules();
@@ -268,12 +271,12 @@ const RulesTab: React.FC<RulesTabProps> = ({
           },
         };
         auditStore.logOperation(auditEntry).catch((err) => {
-          console.error('[RulesTab] Failed to log audit entry:', err);
+          log.error('Failed to log audit entry:', err);
         });
       }
     } catch (err: any) {
       setError(err.message || 'Failed to activate rule');
-      console.error('[RulesTab] Activation error:', err);
+      log.error('Activation error:', err);
 
       const rule = rules.find((r) => r.id === ruleId);
       const groupIds = rule?.groupIds || [];
@@ -296,7 +299,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
         },
       };
       auditStore.logOperation(auditEntry).catch((e) => {
-        console.error('[RulesTab] Failed to log audit entry:', e);
+        log.error('Failed to log audit entry:', e);
       });
     }
   };
@@ -308,7 +311,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
     let currentUserEmail = 'unknown@unknown.com';
 
     try {
-      console.log('[RulesTab] Deactivating rule:', ruleId);
+      log.debug('Deactivating rule:', ruleId);
 
       try {
         const userResponse = await chrome.tabs.sendMessage(targetTabId, {
@@ -320,7 +323,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
         }
       } catch (err) {
-        console.error('[RulesTab] Failed to get current user:', err);
+        log.error('Failed to get current user:', err);
       }
 
       const rule = rules.find((r) => r.id === ruleId);
@@ -357,7 +360,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           },
         };
         auditStore.logOperation(auditEntry).catch((err) => {
-          console.error('[RulesTab] Failed to log audit entry:', err);
+          log.error('Failed to log audit entry:', err);
         });
 
         await handleLoadRules();
@@ -382,12 +385,12 @@ const RulesTab: React.FC<RulesTabProps> = ({
           },
         };
         auditStore.logOperation(auditEntry).catch((err) => {
-          console.error('[RulesTab] Failed to log audit entry:', err);
+          log.error('Failed to log audit entry:', err);
         });
       }
     } catch (err: any) {
       setError(err.message || 'Failed to deactivate rule');
-      console.error('[RulesTab] Deactivation error:', err);
+      log.error('Deactivation error:', err);
 
       const rule = rules.find((r) => r.id === ruleId);
       const groupIds = rule?.groupIds || [];
@@ -410,7 +413,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
         },
       };
       auditStore.logOperation(auditEntry).catch((e) => {
-        console.error('[RulesTab] Failed to log audit entry:', e);
+        log.error('Failed to log audit entry:', e);
       });
     }
   };
@@ -488,29 +491,34 @@ const RulesTab: React.FC<RulesTabProps> = ({
         )}
 
         {error && (
-          <AlertMessage message={{ text: error, type: 'error' }} onDismiss={() => setError(null)} />
+          <AlertMessage
+            message={{ text: error, type: 'danger' }}
+            onDismiss={() => setError(null)}
+          />
         )}
 
         {rules.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-md border border-neutral-200 p-4 bg-white">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-600">
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
                 Total Rules
               </p>
               <p className="text-2xl font-bold text-neutral-900 mt-1">{stats.total}</p>
             </div>
             <div className="rounded-md border border-neutral-200 p-4 bg-white">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-600">Active</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
+                Active
+              </p>
               <p className="text-2xl font-bold text-success mt-1">{stats.active}</p>
             </div>
             <div className="rounded-md border border-neutral-200 p-4 bg-white">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-600">
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
                 Inactive
               </p>
               <p className="text-2xl font-bold text-neutral-600 mt-1">{stats.inactive}</p>
             </div>
             <div className="rounded-md border border-neutral-200 p-4 bg-white">
-              <p className="text-xs font-bold uppercase tracking-wider text-neutral-600">
+              <p className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
                 Conflicts
               </p>
               <p className="text-2xl font-bold text-warning mt-1">{stats.conflicts}</p>

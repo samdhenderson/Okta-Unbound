@@ -1,4 +1,5 @@
 import React from 'react';
+import { isOktaUrl } from '@/shared/utils/oktaUrl';
 
 type PageType = 'group' | 'user' | 'app' | 'admin' | 'unknown';
 
@@ -21,13 +22,7 @@ const ContextBanner: React.FC<ContextBannerProps> = ({
     if (!entityId || !pageType || pageType === 'admin' || pageType === 'unknown') return;
 
     chrome.tabs.query({ currentWindow: true }, (tabs) => {
-      const oktaTab = tabs.find(
-        (tab) =>
-          tab.url &&
-          (tab.url.includes('okta.com') ||
-            tab.url.includes('oktapreview.com') ||
-            tab.url.includes('okta-emea.com')),
-      );
+      const oktaTab = tabs.find((tab) => isOktaUrl(tab.url));
 
       if (oktaTab && oktaTab.url) {
         const origin = new URL(oktaTab.url).origin;
@@ -102,13 +97,13 @@ const ContextBanner: React.FC<ContextBannerProps> = ({
         };
       case 'user':
         return {
-          primary: '#9333ea',
-          dark: '#7e22ce',
+          primary: 'var(--color-accent)',
+          dark: 'var(--color-accent-dark)',
         };
       case 'app':
         return {
           primary: 'var(--color-success)',
-          dark: '#127a40',
+          dark: 'var(--color-success-text)',
         };
       case 'admin':
         return {

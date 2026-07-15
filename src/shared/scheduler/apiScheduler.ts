@@ -1,3 +1,4 @@
+import { createLogger } from '../utils/logger';
 import { RateLimitDetector } from './rateLimitDetector';
 import type {
   QueuedRequest,
@@ -9,6 +10,8 @@ import type {
   RequestResult,
   RateLimitInfo,
 } from './types';
+
+const log = createLogger('ApiScheduler');
 
 const DEFAULT_CONFIG: SchedulerConfig = {
   maxConcurrent: 5, // Max 5 parallel requests
@@ -22,6 +25,13 @@ const DEFAULT_CONFIG: SchedulerConfig = {
 export class ApiScheduler {
   private queue: QueuedRequest[] = [];
   private activeRequests: Map<string, QueuedRequest> = new Map();
+  private coalescableGets: Map<
+    string,
+    {
+      request: QueuedRequest;
+      waiters: Array<{ resolve: (r: RequestResult) => void; reject: (e: Error) => void }>;
+    }
+  > = new Map();
   private rateLimitDetector: RateLimitDetector;
   private config: SchedulerConfig;
   private status: SchedulerStatus = 'idle';
@@ -35,6 +45,7 @@ export class ApiScheduler {
     failedRequests: 0,
     retriedRequests: 0,
     cacheHits: 0,
+    coalescedRequests: 0,
     averageWaitTime: 0,
     averageExecutionTime: 0,
     cooldownEvents: 0,
@@ -48,7 +59,7 @@ export class ApiScheduler {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.rateLimitDetector = new RateLimitDetector();
 
-    console.log('[ApiScheduler] Initialized with config:', this.config);
+    log.debug('Initialized with config:', this.config);
 
     this.startProcessing();
   }
@@ -56,10 +67,23 @@ export class ApiScheduler {
   async scheduleRequest(
     endpoint: string,
     method: string,
-    body: any | undefined,
+    body: unknown,
     tabId: number,
     priority: RequestPriority = 'normal',
   ): Promise<RequestResult> {
+    const dedupKey = this.getGetDedupKey(method, endpoint);
+
+    if (dedupKey) {
+      const existing = this.coalescableGets.get(dedupKey);
+      if (existing) {
+        this.metrics.coalescedRequests++;
+        log.debug('Coalescing duplicate GET onto in-flight request:', {
+          endpoint: endpoint.split('?')[0],
+        });
+        return new Promise((resolve, reject) => existing.waiters.push({ resolve, reject }));
+      }
+    }
+
     return new Promise((resolve, reject) => {
       const request: QueuedRequest = {
         id: this.generateRequestId(),
@@ -75,18 +99,40 @@ export class ApiScheduler {
         maxRetries: this.config.maxRetries,
       };
 
+      if (dedupKey) {
+        const entry: {
+          request: QueuedRequest;
+          waiters: Array<{ resolve: (r: RequestResult) => void; reject: (e: Error) => void }>;
+        } = { request, waiters: [] };
+        this.coalescableGets.set(dedupKey, entry);
+        request.resolve = (result: RequestResult) => {
+          this.coalescableGets.delete(dedupKey);
+          resolve(result);
+          entry.waiters.forEach((w) => w.resolve(result));
+        };
+        request.reject = (error: Error) => {
+          this.coalescableGets.delete(dedupKey);
+          reject(error);
+          entry.waiters.forEach((w) => w.reject(error));
+        };
+      }
+
       this.addToQueue(request);
       this.metrics.totalRequests++;
       this.notifyStateChange();
 
-      console.log('[ApiScheduler] Scheduled request:', {
+      log.debug('Scheduled request:', {
         id: request.id,
-        endpoint,
+        endpoint: endpoint.split('?')[0],
         method,
         priority,
         queueLength: this.queue.length,
       });
     });
+  }
+
+  private getGetDedupKey(method: string, endpoint: string): string | null {
+    return method.toUpperCase() === 'GET' ? `GET ${endpoint}` : null;
   }
 
   private addToQueue(request: QueuedRequest): void {
@@ -111,7 +157,7 @@ export class ApiScheduler {
       this.processQueue();
     }, 50);
 
-    console.log('[ApiScheduler] Started processing loop');
+    log.debug('Started processing loop');
   }
 
   stop(): void {
@@ -119,7 +165,7 @@ export class ApiScheduler {
       clearInterval(this.processingInterval);
       this.processingInterval = null;
     }
-    console.log('[ApiScheduler] Stopped processing loop');
+    log.debug('Stopped processing loop');
   }
 
   private async processQueue(): Promise<void> {
@@ -132,7 +178,7 @@ export class ApiScheduler {
       this.updateStatus('cooldown');
       return;
     } else if (this.cooldownEndsAt) {
-      console.log('[ApiScheduler] Cooldown ended, resuming processing');
+      log.debug('Cooldown ended, resuming processing');
       this.cooldownEndsAt = null;
     }
 
@@ -166,9 +212,9 @@ export class ApiScheduler {
     const startTime = Date.now();
 
     try {
-      console.log('[ApiScheduler] Executing request:', {
+      log.debug('Executing request:', {
         id: request.id,
-        endpoint: request.endpoint,
+        endpoint: request.endpoint.split('?')[0],
         method: request.method,
         attempt: request.retryCount + 1,
       });
@@ -190,13 +236,13 @@ export class ApiScheduler {
       this.activeRequests.delete(request.id);
       request.resolve(result);
 
-      console.log('[ApiScheduler] Request completed:', {
+      log.debug('Request completed:', {
         id: request.id,
         success: result.success,
         executionTime: `${executionTime}ms`,
       });
     } catch (error) {
-      console.error('[ApiScheduler] Request failed:', {
+      log.error('Request failed:', {
         id: request.id,
         error: error instanceof Error ? error.message : 'Unknown error',
         attempt: request.retryCount + 1,
@@ -239,13 +285,13 @@ export class ApiScheduler {
     });
   }
 
-  private async retryRequest(request: QueuedRequest, _error: any): Promise<void> {
+  private async retryRequest(request: QueuedRequest, _error: unknown): Promise<void> {
     request.retryCount++;
     this.metrics.retriedRequests++;
 
     const backoffDelay = this.config.retryDelay * Math.pow(2, request.retryCount - 1);
 
-    console.log('[ApiScheduler] Retrying request:', {
+    log.debug('Retrying request:', {
       id: request.id,
       attempt: request.retryCount + 1,
       maxRetries: request.maxRetries,
@@ -278,7 +324,7 @@ export class ApiScheduler {
     this.cooldownEndsAt = Date.now() + cooldownDuration;
     this.metrics.cooldownEvents++;
 
-    console.warn('[ApiScheduler] Entering cooldown mode:', {
+    log.warn('Entering cooldown mode:', {
       remaining: info.remaining,
       limit: info.limit,
       cooldownDuration: `${Math.ceil(cooldownDuration / 1000)}s`,
@@ -292,18 +338,18 @@ export class ApiScheduler {
   pause(): void {
     this.isPaused = true;
     this.updateStatus('paused');
-    console.log('[ApiScheduler] Paused');
+    log.debug('Paused');
   }
 
   resume(): void {
     this.isPaused = false;
-    console.log('[ApiScheduler] Resumed');
+    log.debug('Resumed');
   }
 
   private updateStatus(status: SchedulerStatus): void {
     if (this.status !== status) {
       this.status = status;
-      console.log('[ApiScheduler] Status changed:', status);
+      log.debug('Status changed:', status);
     }
   }
 
@@ -335,7 +381,7 @@ export class ApiScheduler {
       try {
         listener(state);
       } catch (error) {
-        console.error('[ApiScheduler] Error in state listener:', error);
+        log.error('Error in state listener:', error);
       }
     });
   }
@@ -357,7 +403,7 @@ export class ApiScheduler {
   clearQueue(): void {
     const queueLength = this.queue.length;
     this.queue = [];
-    console.log(`[ApiScheduler] Cleared ${queueLength} requests from queue`);
+    log.debug(`Cleared ${queueLength} requests from queue`);
     this.notifyStateChange();
   }
 
@@ -368,11 +414,12 @@ export class ApiScheduler {
       failedRequests: 0,
       retriedRequests: 0,
       cacheHits: 0,
+      coalescedRequests: 0,
       averageWaitTime: 0,
       averageExecutionTime: 0,
       cooldownEvents: 0,
       throttleEvents: 0,
     };
-    console.log('[ApiScheduler] Metrics reset');
+    log.debug('Metrics reset');
   }
 }

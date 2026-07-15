@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { IconButton } from '../shared';
 
 interface UserSearchBarProps {
   searchQuery: string;
@@ -26,7 +27,10 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
 
   return (
     <div className="relative">
-      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+      <div
+        className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"
+        aria-hidden="true"
+      >
         <svg
           className="h-5 w-5 text-neutral-400"
           fill="none"
@@ -44,17 +48,18 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
       <input
         ref={inputRef}
         type="text"
-        className="w-full pl-11 pr-12 py-3 bg-white border border-neutral-200 rounded-md text-sm placeholder-neutral-400 focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary transition-all duration-100 shadow-sm hover:shadow"
+        className="w-full pl-11 pr-12 py-3 bg-white border border-neutral-200 rounded-md text-sm placeholder-neutral-400 focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary transition-all duration-100"
         placeholder={placeholder}
         value={searchQuery}
         onChange={(e) => onSearchChange(e.target.value)}
       />
       {showClearButton && (
-        <button
-          className="absolute inset-y-0 right-0 pr-4 flex items-center text-neutral-400 hover:text-neutral-600 transition-colors"
+        <IconButton
+          label="Clear search"
+          className="absolute right-2 top-1/2 -translate-y-1/2"
           onClick={handleClear}
-          title="Clear search"
-          type="button"
+          variant="ghost"
+          size="sm"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -64,7 +69,7 @@ const UserSearchBar: React.FC<UserSearchBarProps> = ({
               d="M6 18L18 6M6 6l12 12"
             />
           </svg>
-        </button>
+        </IconButton>
       )}
       {isSearching && (
         <div className="absolute inset-y-0 right-12 flex items-center pr-3">

@@ -2,8 +2,12 @@ import { auditStore } from '../shared/storage/auditStore';
 import { ApiScheduler } from '../shared/scheduler/apiScheduler';
 import { TabStateManager } from '../shared/tabState/tabStateManager';
 import type { SchedulerState } from '../shared/scheduler/types';
+import { createLogger } from '../shared/utils/logger';
+import { isOktaUrl as isOktaUrlShared } from '../shared/utils/oktaUrl';
 
-console.log('[Background] Service worker started');
+const log = createLogger('Background');
+
+log.info('Service worker started');
 
 const globalScheduler = new ApiScheduler({
   maxConcurrent: 5,
@@ -14,7 +18,7 @@ const globalScheduler = new ApiScheduler({
   requestTimeout: 30000,
 });
 
-console.log('[Background] Global API scheduler initialized');
+log.info('Global API scheduler initialized');
 
 globalScheduler.onStateChange((state: SchedulerState) => {
   chrome.runtime
@@ -30,14 +34,14 @@ globalScheduler.onStateChange((state: SchedulerState) => {
 setInterval(
   () => {
     TabStateManager.cleanupExpiredStates().catch((err) => {
-      console.error('[Background] Failed to cleanup expired tab states:', err);
+      log.error('Failed to cleanup expired tab states', err);
     });
   },
   60 * 60 * 1000,
 );
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  console.log('[Background] Received message:', request.action);
+  log.debug('Received message', { action: request.action });
 
   switch (request.action) {
     case 'scheduleApiRequest':
@@ -143,13 +147,15 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 });
 
 chrome.runtime.onInstalled.addListener((details) => {
+  const version = chrome.runtime.getManifest().version;
+
   if (details.reason === 'install') {
-    console.log('[Background] Extension installed successfully');
+    log.info('Extension installed successfully');
 
     chrome.storage.sync.set({
-      version: '0.3.0',
+      version,
       operationDelay: 100,
-      defaultView: 'operations',
+      defaultView: 'overview',
     });
 
     setupAuditRetentionAlarm();
@@ -157,7 +163,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
   if (details.reason === 'update') {
     const previousVersion = details.previousVersion;
-    console.log(`[Background] Extension updated from ${previousVersion} to 0.3.0`);
+    log.info(`Extension updated from ${previousVersion} to ${version}`);
 
     setupAuditRetentionAlarm();
   }
@@ -175,11 +181,11 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 chrome.action.onClicked.addListener((tab) => {
-  console.log('[Background] Extension icon clicked for tab:', tab.id);
+  log.debug('Extension icon clicked', { tabId: tab.id });
 
   if (tab.url && isOktaUrl(tab.url)) {
     chrome.sidePanel.open({ windowId: tab.windowId });
-    console.log('[Background] Side panel opened');
+    log.debug('Side panel opened');
   } else {
     chrome.notifications.create({
       type: 'basic',
@@ -187,14 +193,14 @@ chrome.action.onClicked.addListener((tab) => {
       title: 'Okta Unbound',
       message: 'Please navigate to an Okta page to use this extension.',
     });
-    console.log('[Background] Notification shown - not on Okta page');
+    log.debug('Notification shown - not on Okta page');
   }
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'openSidebar' && tab?.windowId) {
     chrome.sidePanel.open({ windowId: tab.windowId });
-    console.log('[Background] Side panel opened from context menu');
+    log.debug('Side panel opened from context menu');
   }
 });
 
@@ -203,7 +209,7 @@ function setupAuditRetentionAlarm(): void {
     periodInMinutes: 24 * 60, // Every 24 hours
     when: getNextMidnight(),
   });
-  console.log('[Background] Audit retention alarm created');
+  log.debug('Audit retention alarm created');
 }
 
 function getNextMidnight(): number {
@@ -214,7 +220,7 @@ function getNextMidnight(): number {
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'auditRetentionCleanup') {
-    console.log('[Background] Running audit retention cleanup...');
+    log.debug('Running audit retention cleanup');
 
     try {
       const settings = await auditStore.getSettings();
@@ -222,19 +228,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
       await auditStore.clearOldLogs(retentionDays);
 
-      console.log(
-        `[Background] Audit retention cleanup completed (${retentionDays} days retention)`,
-      );
+      log.debug('Audit retention cleanup completed', { retentionDays });
     } catch (error) {
-      console.error('[Background] Audit retention cleanup failed:', error);
+      log.error('Audit retention cleanup failed', error);
     }
   }
 });
 
 function isOktaUrl(url: string): boolean {
-  return (
-    url.includes('okta.com') || url.includes('oktapreview.com') || url.includes('okta-emea.com')
-  );
+  return isOktaUrlShared(url);
 }
 
 setupAuditRetentionAlarm();

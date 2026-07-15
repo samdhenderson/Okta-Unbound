@@ -1,4 +1,7 @@
+import { createLogger } from './logger';
 import type { UserStatus } from '../types';
+
+const log = createLogger('statusNormalizer');
 
 const STATUS_MAP: Record<string, UserStatus> = {
   ACTIVE: 'ACTIVE',
@@ -46,7 +49,7 @@ const DEFAULT_STATUS: UserStatus = 'ACTIVE';
 
 export function normalizeUserStatus(statusValue: unknown, context?: string): UserStatus {
   if (statusValue == null) {
-    console.warn(`[statusNormalizer] Status is null/undefined${context ? ` for ${context}` : ''}`);
+    log.warn(`Status is null/undefined${context ? ` for ${context}` : ''}`);
     return DEFAULT_STATUS;
   }
 
@@ -61,31 +64,26 @@ export function normalizeUserStatus(statusValue: unknown, context?: string): Use
       }
     }
 
-    console.warn(
-      `[statusNormalizer] Status is object without recognizable property${context ? ` for ${context}` : ''}`,
-      statusValue,
-    );
+    log.warn(`Status is object without recognizable property${context ? ` for ${context}` : ''}`, {
+      keys: Object.keys(obj),
+    });
     return DEFAULT_STATUS;
   }
 
   if (typeof statusValue !== 'string') {
-    console.warn(
-      `[statusNormalizer] Status is not a string${context ? ` for ${context}` : ''}`,
-      typeof statusValue,
-      statusValue,
-    );
+    log.warn(`Status is not a string${context ? ` for ${context}` : ''}`, typeof statusValue);
     return DEFAULT_STATUS;
   }
 
   if (!statusValue.trim()) {
-    console.warn(`[statusNormalizer] Status is empty string${context ? ` for ${context}` : ''}`);
+    log.warn(`Status is empty string${context ? ` for ${context}` : ''}`);
     return DEFAULT_STATUS;
   }
 
   let cleanStatus = statusValue;
   if (statusValue.includes('<') && statusValue.includes('>')) {
     cleanStatus = statusValue.replace(/<[^>]*>/g, '').trim();
-    console.debug(`[statusNormalizer] Extracted from HTML: "${statusValue}" => "${cleanStatus}"`);
+    log.debug(`Extracted from HTML: "${statusValue}" => "${cleanStatus}"`);
   }
 
   const normalizedKey = cleanStatus.trim().toUpperCase().replace(/\s+/g, '_');
@@ -93,8 +91,8 @@ export function normalizeUserStatus(statusValue: unknown, context?: string): Use
   const result = STATUS_MAP[normalizedKey];
 
   if (!result) {
-    console.warn(
-      `[statusNormalizer] Unknown status after normalization: "${normalizedKey}" from original: "${statusValue}"${context ? ` for ${context}` : ''}`,
+    log.warn(
+      `Unknown status after normalization: "${normalizedKey}" from original: "${statusValue}"${context ? ` for ${context}` : ''}`,
     );
     return DEFAULT_STATUS;
   }

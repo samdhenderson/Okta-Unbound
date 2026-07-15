@@ -50,15 +50,9 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
-  lg: 'px-4 py-3 text-base',
-};
-
-const sizeHeights: Record<ButtonSize, string> = {
-  sm: '36px',
-  md: '40px',
-  lg: '56px',
+  sm: 'px-3 py-1.5 text-xs min-h-9', // 36px
+  md: 'px-4 py-2 text-sm min-h-10', // 40px
+  lg: 'px-4 py-3 text-base min-h-14', // 56px
 };
 
 const Button: React.FC<ButtonProps> = ({
@@ -95,7 +89,7 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       className={`${baseClasses} ${className}`}
       title={title}
-      style={{ fontFamily: 'var(--font-heading)', minHeight: sizeHeights[size] }}
+      style={{ fontFamily: 'var(--font-heading)' }}
     >
       {loading && (
         <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">

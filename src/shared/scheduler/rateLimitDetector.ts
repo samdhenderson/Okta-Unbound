@@ -1,4 +1,7 @@
+import { createLogger } from '../utils/logger';
 import type { RateLimitInfo } from './types';
+
+const log = createLogger('RateLimitDetector');
 
 export class RateLimitDetector {
   private limits: Map<string, RateLimitInfo> = new Map();
@@ -10,7 +13,7 @@ export class RateLimitDetector {
     const reset = headers['x-rate-limit-reset'];
 
     if (!limit || !remaining || !reset) {
-      console.log('[RateLimitDetector] Missing rate limit headers for', endpoint);
+      log.debug('Missing rate limit headers for', endpoint.split('?')[0]);
       return null;
     }
 
@@ -28,8 +31,8 @@ export class RateLimitDetector {
       this.globalLimit = info;
     }
 
-    console.log('[RateLimitDetector] Rate limit updated:', {
-      endpoint,
+    log.debug('Rate limit updated:', {
+      endpoint: endpoint.split('?')[0],
       remaining: info.remaining,
       limit: info.limit,
       resetIn: this.getSecondsUntilReset(info),
@@ -64,7 +67,7 @@ export class RateLimitDetector {
     const approaching = percentRemaining <= thresholdPercent;
 
     if (approaching) {
-      console.warn('[RateLimitDetector] Approaching rate limit:', {
+      log.warn('Approaching rate limit:', {
         remaining: info.remaining,
         limit: info.limit,
         percentRemaining: percentRemaining.toFixed(1) + '%',
@@ -145,7 +148,7 @@ export class RateLimitDetector {
   reset(): void {
     this.limits.clear();
     this.globalLimit = null;
-    console.log('[RateLimitDetector] Reset all rate limit tracking');
+    log.debug('Reset all rate limit tracking');
   }
 
   getState(): {

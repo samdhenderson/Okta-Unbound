@@ -1,9 +1,13 @@
 import type { CoreApi } from './core';
 import type { OktaUser, AuditLogEntry } from './types';
+import type { RequestResult } from '../../../shared/scheduler/types';
 import type { BulkUserInfo } from '../../../shared/undoTypes';
 import { logBulkRemoveAction } from '../../../shared/undoManager';
 import { auditStore } from '../../../shared/storage/auditStore';
 import { parseNextLink } from './utilities';
+import { createLogger } from '../../../shared/utils/logger';
+
+const log = createLogger('useOktaApi');
 
 async function fetchAllMembers(
   coreApi: CoreApi,
@@ -40,7 +44,7 @@ export function createGroupCleanupOperations(
     groupName: string,
     user: OktaUser,
     skipUndoLog?: boolean,
-  ) => Promise<any>,
+  ) => Promise<RequestResult>,
 ) {
   const removeDeprovisioned = async (groupId: string) => {
     const startTime = Date.now();
@@ -176,7 +180,7 @@ export function createGroupCleanupOperations(
           },
         };
         auditStore.logOperation(auditEntry).catch((err) => {
-          console.error('[useOktaApi] Failed to log audit entry:', err);
+          log.error('Failed to log audit entry:', err);
         });
       }
     }

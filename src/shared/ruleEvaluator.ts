@@ -1,4 +1,7 @@
+import { createLogger } from './utils/logger';
 import type { OktaUser } from './types';
+
+const log = createLogger('RuleEvaluator');
 
 export function evaluateRuleExpression(expression: string, user: OktaUser): boolean {
   if (!expression || !expression.trim()) return false;
@@ -20,7 +23,7 @@ export function evaluateRuleExpression(expression: string, user: OktaUser): bool
     });
 
     expr = expr.replace(/isMemberOfGroup\s*\(([^)]+)\)/g, (_match, _args) => {
-      console.warn(
+      log.warn(
         'isMemberOfGroup is not fully supported in client-side evaluation without group list context',
       );
       return 'false';
@@ -29,7 +32,7 @@ export function evaluateRuleExpression(expression: string, user: OktaUser): bool
     const result = new Function(`return ${expr}`);
     return Boolean(result());
   } catch (err) {
-    console.warn(`Failed to evaluate expression: "${expression}"`, err);
+    log.warn(`Failed to evaluate expression: "${expression}"`, err);
     return false;
   }
 }

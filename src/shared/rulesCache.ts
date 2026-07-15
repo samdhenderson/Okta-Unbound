@@ -1,4 +1,7 @@
-import type { FormattedRule, OktaGroupRule } from './types';
+import { createLogger } from './utils/logger';
+import type { FormattedRule, OktaGroupRule, RuleConflict } from './types';
+
+const log = createLogger('RulesCache');
 
 interface RulesCacheEntry {
   rules: FormattedRule[];
@@ -9,7 +12,7 @@ interface RulesCacheEntry {
     inactive: number;
     conflicts: number;
   };
-  conflicts: any[];
+  conflicts: RuleConflict[];
   timestamp: number;
   ttl: number;
 }
@@ -29,12 +32,12 @@ class RulesCache {
 
       const now = Date.now();
       if (now > cached.timestamp + cached.ttl) {
-        console.log('[RulesCache] Cache expired');
+        log.debug('Cache expired');
         await this.clear();
         return null;
       }
 
-      console.log('[RulesCache] Using cached rules:', {
+      log.debug('Using cached rules:', {
         count: cached.rules.length,
         age: Math.round((now - cached.timestamp) / 1000) + 's',
         expiresIn: Math.round((cached.timestamp + cached.ttl - now) / 1000) + 's',
@@ -42,7 +45,7 @@ class RulesCache {
 
       return cached;
     } catch (error) {
-      console.error('[RulesCache] Failed to get cache:', error);
+      log.error('Failed to get cache:', error);
       return null;
     }
   }
@@ -51,7 +54,7 @@ class RulesCache {
     rules: FormattedRule[],
     rawRules: OktaGroupRule[],
     stats: RulesCacheEntry['stats'],
-    conflicts: any[],
+    conflicts: RuleConflict[],
     ttl: number = this.DEFAULT_TTL,
   ): Promise<void> {
     try {
@@ -65,18 +68,18 @@ class RulesCache {
       };
 
       await chrome.storage.local.set({ [this.CACHE_KEY]: entry });
-      console.log('[RulesCache] Cached', rules.length, 'rules for', ttl / 1000, 'seconds');
+      log.debug('Cached', rules.length, 'rules for', ttl / 1000, 'seconds');
     } catch (error) {
-      console.error('[RulesCache] Failed to set cache:', error);
+      log.error('Failed to set cache:', error);
     }
   }
 
   static async clear(): Promise<void> {
     try {
       await chrome.storage.local.remove(this.CACHE_KEY);
-      console.log('[RulesCache] Cache cleared');
+      log.debug('Cache cleared');
     } catch (error) {
-      console.error('[RulesCache] Failed to clear cache:', error);
+      log.error('Failed to clear cache:', error);
     }
   }
 
@@ -116,7 +119,7 @@ class RulesCache {
 
       return Date.now() - cached.timestamp;
     } catch (error) {
-      console.error('[RulesCache] Failed to get cache age:', error);
+      log.error('Failed to get cache age:', error);
       return null;
     }
   }

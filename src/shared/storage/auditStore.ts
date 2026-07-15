@@ -1,5 +1,8 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { createLogger } from '../utils/logger';
 import type { AuditLogEntry, AuditFilters, AuditStats, AuditSettings } from '../types';
+
+const log = createLogger('AuditStore');
 
 interface AuditDB extends DBSchema {
   operations: {
@@ -53,7 +56,7 @@ class AuditStore {
     try {
       const settings = await this.getSettings();
       if (!settings.enabled) {
-        console.log('[AuditStore] Audit logging is disabled, skipping log entry');
+        log.debug('Audit logging is disabled, skipping log entry');
         return;
       }
 
@@ -65,9 +68,9 @@ class AuditStore {
       };
 
       await db.add(STORE_NAME, entryToStore);
-      console.log('[AuditStore] Logged operation:', entry.action, entry.id);
+      log.debug('Logged operation:', entry.action, entry.id);
     } catch (error) {
-      console.error('[AuditStore] Failed to log operation:', error);
+      log.error('Failed to log operation:', error);
     }
   }
 
@@ -109,7 +112,7 @@ class AuditStore {
 
       return results;
     } catch (error) {
-      console.error('[AuditStore] Failed to get history:', error);
+      log.error('Failed to get history:', error);
       return [];
     }
   }
@@ -143,7 +146,7 @@ class AuditStore {
       const csvContent = header + rows.join('\n');
       return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     } catch (error) {
-      console.error('[AuditStore] Failed to export audit log:', error);
+      log.error('Failed to export audit log:', error);
       throw error;
     }
   }
@@ -163,9 +166,9 @@ class AuditStore {
       }
       await tx.done;
 
-      console.log(`[AuditStore] Cleared ${oldEntries.length} old log entries`);
+      log.debug(`Cleared ${oldEntries.length} old log entries`);
     } catch (error) {
-      console.error('[AuditStore] Failed to clear old logs:', error);
+      log.error('Failed to clear old logs:', error);
     }
   }
 
@@ -211,7 +214,7 @@ class AuditStore {
         lastWeekOperations,
       };
     } catch (error) {
-      console.error('[AuditStore] Failed to get stats:', error);
+      log.error('Failed to get stats:', error);
       return {
         totalOperations: 0,
         operationsByType: {},
@@ -230,7 +233,7 @@ class AuditStore {
 
       return settings || { enabled: true, retentionDays: 90 };
     } catch (error) {
-      console.error('[AuditStore] Failed to get settings:', error);
+      log.error('Failed to get settings:', error);
       return { enabled: true, retentionDays: 90 };
     }
   }
@@ -240,9 +243,9 @@ class AuditStore {
       const db = await this.getDB();
       const storedSettings = { ...settings, id: 'default' as const };
       await db.put(SETTINGS_STORE, storedSettings);
-      console.log('[AuditStore] Updated settings:', settings);
+      log.debug('Updated settings:', settings);
     } catch (error) {
-      console.error('[AuditStore] Failed to update settings:', error);
+      log.error('Failed to update settings:', error);
       throw error;
     }
   }
@@ -251,9 +254,9 @@ class AuditStore {
     try {
       const db = await this.getDB();
       await db.clear(STORE_NAME);
-      console.log('[AuditStore] Cleared all audit logs');
+      log.info('Cleared all audit logs');
     } catch (error) {
-      console.error('[AuditStore] Failed to clear all logs:', error);
+      log.error('Failed to clear all logs:', error);
       throw error;
     }
   }
@@ -269,7 +272,7 @@ class AuditStore {
       }
       return { used: 0, quota: 0 };
     } catch (error) {
-      console.error('[AuditStore] Failed to get storage usage:', error);
+      log.error('Failed to get storage usage:', error);
       return { used: 0, quota: 0 };
     }
   }

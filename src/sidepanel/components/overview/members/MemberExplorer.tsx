@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../../shared/types';
+import Button from '../../shared/Button';
 import MemberSearchBar from './MemberSearchBar';
 import MemberFilterPanel from './MemberFilterPanel';
+import CopyMembersModal from './CopyMembersModal';
 import CompositionReports from './CompositionReports';
 import BreakdownDetailsModal from './BreakdownDetailsModal';
 import MfaScanPanel from './MfaScanPanel';
@@ -10,14 +12,13 @@ import {
   type BreakdownRow,
   type Dimension,
   type MemberFilter,
-  type ProfileDimension,
   type SortField,
-  computeAllBreakdowns,
   computeDimensionBreakdown,
+  discoverAttributeBreakdowns,
   filterMembers,
   sortMembers,
   getObservedFactorLabels,
-  DIMENSION_TITLES,
+  dimensionTitle,
 } from './memberAnalytics';
 
 type FactorMode = 'off' | 'has' | 'missing';
@@ -50,14 +51,16 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [sortBy, setSortBy] = useState<SortField>('name');
   const [sortDesc, setSortDesc] = useState(false);
-  const [otherDim, setOtherDim] = useState<ProfileDimension | null>(null);
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false);
 
   useEffect(() => {
     const id = setTimeout(() => setDebouncedQuery(query), 200);
     return () => clearTimeout(id);
   }, [query]);
 
-  const breakdowns = useMemo(() => computeAllBreakdowns(members), [members]);
+  const attributes = useMemo(() => discoverAttributeBreakdowns(members), [members]);
+  const statusRows = useMemo(() => computeDimensionBreakdown(members, 'status'), [members]);
   const factorLabels = useMemo(() => getObservedFactorLabels(mfaResults), [mfaResults]);
 
   const filtered = useMemo(
@@ -88,8 +91,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
 
   const handleCompositionToggle = useCallback(
     (dimension: Dimension, row: BreakdownRow) => {
-      const title = DIMENSION_TITLES[dimension as ProfileDimension];
-      toggleFilter(dimension, row.value, `${title}: ${row.label}`);
+      toggleFilter(dimension, row.value, `${dimensionTitle(dimension)}: ${row.label}`);
     },
     [toggleFilter],
   );
@@ -149,13 +151,13 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   const mfaScanned = mfaResults !== null && scanStatus === 'complete';
   const activeFilterCount = filters.length;
 
-  const otherRows = useMemo(
-    () => (otherDim ? computeDimensionBreakdown(members, otherDim) : []),
-    [otherDim, members],
+  const detailRows = useMemo(
+    () => (detailKey ? computeDimensionBreakdown(members, detailKey) : []),
+    [detailKey, members],
   );
-  const otherActiveValues = useMemo(
-    () => new Set(filters.filter((f) => f.dimension === otherDim).map((f) => f.value)),
-    [filters, otherDim],
+  const detailActiveValues = useMemo(
+    () => new Set(filters.filter((f) => f.dimension === detailKey).map((f) => f.value)),
+    [filters, detailKey],
   );
 
   return (
@@ -194,7 +196,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
       {showFilters && (
         <MemberFilterPanel
           filters={filters}
-          statusRows={breakdowns.status}
+          statusRows={statusRows}
           mfaResults={mfaResults}
           factorLabels={factorLabels}
           sortBy={sortBy}
@@ -220,18 +222,15 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         onToggleMfaFilter={(row) => handleMfaValueToggle(row.value, row.label)}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-neutral-900">Composition</h3>
-          <CompositionReports
-            breakdowns={breakdowns}
-            filters={filters}
-            onToggle={handleCompositionToggle}
-            onShowOther={setOtherDim}
-          />
-        </div>
+      <CompositionReports
+        attributes={attributes}
+        filters={filters}
+        onToggle={handleCompositionToggle}
+        onExpand={setDetailKey}
+      />
 
-        <div className="space-y-3">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-900">
             Members
             <span className="ml-2 text-xs font-normal text-neutral-500">
@@ -239,25 +238,37 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
               {sorted.length !== members.length && ` of ${members.length.toLocaleString()}`}
             </span>
           </h3>
-          <MemberList
-            members={sorted}
-            mfaResults={mfaResults}
-            mfaScanned={mfaScanned}
-            visibleCount={visibleCount}
-            onLoadMore={loadMore}
-            oktaOrigin={oktaOrigin}
-          />
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="clipboard"
+            onClick={() => setCopyOpen(true)}
+            disabled={sorted.length === 0}
+            title="Copy the listed members as names or emails"
+          >
+            Copy members
+          </Button>
         </div>
+        <MemberList
+          members={sorted}
+          mfaResults={mfaResults}
+          mfaScanned={mfaScanned}
+          visibleCount={visibleCount}
+          onLoadMore={loadMore}
+          oktaOrigin={oktaOrigin}
+        />
       </div>
 
       <BreakdownDetailsModal
-        isOpen={otherDim !== null}
-        onClose={() => setOtherDim(null)}
-        title={otherDim ? DIMENSION_TITLES[otherDim] : ''}
-        rows={otherRows}
-        activeValues={otherActiveValues}
-        onRowClick={(row) => otherDim && handleCompositionToggle(otherDim, row)}
+        isOpen={detailKey !== null}
+        onClose={() => setDetailKey(null)}
+        title={detailKey ? dimensionTitle(detailKey) : ''}
+        rows={detailRows}
+        activeValues={detailActiveValues}
+        onRowClick={(row) => detailKey && handleCompositionToggle(detailKey, row)}
       />
+
+      <CopyMembersModal isOpen={copyOpen} onClose={() => setCopyOpen(false)} members={sorted} />
     </div>
   );
 };

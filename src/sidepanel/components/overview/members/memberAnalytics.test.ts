@@ -3,9 +3,12 @@ import {
   computeAllBreakdowns,
   computeDimensionBreakdown,
   computeMfaBreakdown,
+  discoverAttributeBreakdowns,
+  dimensionTitle,
   filterMembers,
   getMemberDimensionValue,
   getObservedFactorLabels,
+  humanizeAttributeKey,
   memberMatchesMfaValue,
   sortMembers,
   NONE_VALUE,
@@ -194,6 +197,80 @@ describe('sortMembers', () => {
     ]);
     const result = sortMembers([members[0], members[1]], 'factors', true, mfa).map((m) => m.id);
     expect(result).toEqual(['alice', 'bob']); // alice has more factors, desc first
+  });
+});
+
+describe('humanizeAttributeKey / dimensionTitle', () => {
+  it('humanizes camelCase and snake_case keys', () => {
+    expect(humanizeAttributeKey('costCenter')).toBe('Cost center');
+    expect(humanizeAttributeKey('employee_type')).toBe('Employee type');
+    expect(humanizeAttributeKey('customBadge99')).toBe('Custom badge 99');
+  });
+
+  it('prefers curated titles, else humanizes', () => {
+    expect(dimensionTitle('countryCode')).toBe('Country');
+    expect(dimensionTitle('favoriteColor')).toBe('Favorite color');
+  });
+});
+
+describe('discoverAttributeBreakdowns', () => {
+  it('discovers populated profile attributes with distributions', () => {
+    const attrs = discoverAttributeBreakdowns(members);
+    const keys = attrs.map((a) => a.key);
+    expect(keys).toContain('department');
+    expect(keys).toContain('title');
+    const dept = attrs.find((a) => a.key === 'department')!;
+    expect(dept.label).toBe('Department');
+    expect(dept.distinct).toBe(2); // Engineering, Sales
+    expect(dept.populated).toBe(3); // dave has none
+    expect(dept.rows.some((r) => r.value === NONE_VALUE && r.count === 1)).toBe(true);
+  });
+
+  it('excludes identity / PII fields even when present', () => {
+    const keys = discoverAttributeBreakdowns(members).map((a) => a.key);
+    for (const k of ['login', 'email', 'firstName', 'lastName']) {
+      expect(keys).not.toContain(k);
+    }
+  });
+
+  it('surfaces arbitrary custom attributes and coerces non-string values', () => {
+    const custom: OktaUser[] = [
+      user('a', { costCenter: 'CC-1', remote: true } as never),
+      user('b', { costCenter: 'CC-1', remote: false } as never),
+      user('c', { costCenter: 'CC-2', remote: true } as never),
+    ];
+    const attrs = discoverAttributeBreakdowns(custom);
+    const remote = attrs.find((a) => a.key === 'remote')!;
+    expect(remote).toBeDefined();
+    expect(remote.distinct).toBe(2); // "true" / "false"
+    expect(remote.rows.find((r) => r.value === 'true')?.count).toBe(2);
+  });
+
+  it('drops identifier-like attributes where nearly every value is unique', () => {
+    const many: OktaUser[] = Array.from({ length: 20 }, (_, i) =>
+      user(`u${i}`, { department: 'Eng', badgeId: `B-${i}` } as never),
+    );
+    const keys = discoverAttributeBreakdowns(many).map((a) => a.key);
+    expect(keys).toContain('department'); // one shared value — kept
+    expect(keys).not.toContain('badgeId'); // 20 distinct of 20 — pruned
+  });
+
+  it('keeps high-cardinality attributes in small groups (below the guard floor)', () => {
+    const few: OktaUser[] = Array.from({ length: 4 }, (_, i) =>
+      user(`u${i}`, { costCenter: `CC-${i}` }),
+    );
+    const keys = discoverAttributeBreakdowns(few).map((a) => a.key);
+    expect(keys).toContain('costCenter');
+  });
+
+  it('orders common organizational attributes ahead of the rest', () => {
+    const rich: OktaUser[] = [
+      user('a', { department: 'Eng', title: 'SWE', costCenter: 'CC-1', zzCustom: 'x' } as never),
+      user('b', { department: 'Sales', title: 'AE', costCenter: 'CC-2', zzCustom: 'y' } as never),
+    ];
+    const order = discoverAttributeBreakdowns(rich).map((a) => a.key);
+    expect(order.indexOf('department')).toBeLessThan(order.indexOf('costCenter'));
+    expect(order.indexOf('title')).toBeLessThan(order.indexOf('zzCustom'));
   });
 });
 

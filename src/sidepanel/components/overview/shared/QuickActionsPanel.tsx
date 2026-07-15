@@ -55,7 +55,7 @@ const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({ sections, classNa
       {sections.map((section, sectionIndex) => (
         <div
           key={sectionIndex}
-          className="rounded-md border border-neutral-200 bg-white shadow-sm overflow-hidden transition-all duration-100"
+          className="rounded-md border border-neutral-200 bg-white overflow-hidden transition-all duration-100"
         >
           <button
             onClick={() => toggleSection(sectionIndex)}

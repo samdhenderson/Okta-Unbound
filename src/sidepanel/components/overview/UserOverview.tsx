@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import StatCard from './shared/StatCard';
 import QuickActionsPanel, { type ActionSection } from './shared/QuickActionsPanel';
-import { UserProfileCard } from '../users';
+import { UserProfileCard, UserComparisonModal } from '../users';
 import { useUserMemberships } from '../../hooks/useUserMemberships';
+import { useEntityQuery } from '../../cache/useEntityQuery';
 import AlertMessage from '../shared/AlertMessage';
 import Button from '../shared/Button';
 import LoadingSpinner from '../shared/LoadingSpinner';
@@ -22,9 +23,26 @@ const UserOverview: React.FC<UserOverviewProps> = ({
   onTabChange,
   oktaOrigin,
 }) => {
-  const [userDetails, setUserDetails] = useState<OktaUser | null>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
+
+  const {
+    data: userDetails,
+    isLoading: isLoadingUser,
+    error: userError,
+  } = useEntityQuery<OktaUser>(
+    ['userDetails', userId],
+    async () => {
+      const userResponse = await chrome.tabs.sendMessage(targetTabId, {
+        action: 'getUserDetails',
+        userId,
+      });
+      if (!userResponse.success || !userResponse.data) {
+        throw new Error(userResponse.error || 'Failed to load user details');
+      }
+      return userResponse.data as OktaUser;
+    },
+    { enabled: Boolean(targetTabId && userId) },
+  );
 
   const {
     memberships: groups,
@@ -36,39 +54,16 @@ const UserOverview: React.FC<UserOverviewProps> = ({
   const isLoading = isLoadingUser || isLoadingMemberships;
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setIsLoadingUser(true);
-        setError(null);
-
-        const userResponse = await chrome.tabs.sendMessage(targetTabId, {
-          action: 'getUserDetails',
-          userId,
-        });
-
-        if (userResponse.success && userResponse.data) {
-          setUserDetails(userResponse.data);
-          await loadMemberships(userResponse.data);
-        } else {
-          setError(userResponse.error || 'Failed to load user details');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load user data');
-      } finally {
-        setIsLoadingUser(false);
-      }
-    };
-
-    fetchUserData();
-  }, [userId, targetTabId, loadMemberships]);
+    if (userDetails) loadMemberships(userDetails);
+  }, [userDetails, loadMemberships]);
 
   if (isLoading) {
     return <LoadingSpinner size="lg" message="Loading user data..." centered />;
   }
 
-  const displayError = error || membershipError;
+  const displayError = userError || membershipError;
   if (displayError) {
-    return <AlertMessage message={{ text: displayError, type: 'error' }} />;
+    return <AlertMessage message={{ text: displayError, type: 'danger' }} />;
   }
 
   const directGroups = groups.filter((g) => g.membershipType === 'DIRECT').length;
@@ -89,6 +84,13 @@ const UserOverview: React.FC<UserOverviewProps> = ({
           onClick: () => onTabChange('users'),
           badge: `${totalGroups}`,
           tooltip: 'See full list of group memberships',
+        },
+        {
+          label: 'Compare with User',
+          icon: 'users',
+          variant: 'secondary',
+          onClick: () => setIsCompareOpen(true),
+          tooltip: 'Compare group & app access with another user',
         },
       ],
     },
@@ -130,22 +132,10 @@ const UserOverview: React.FC<UserOverviewProps> = ({
         />
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         <StatCard title="Total Groups" value={totalGroups} color="primary" icon="users" />
-        <StatCard
-          title="Direct Assignments"
-          value={directGroups}
-          color="neutral"
-          icon="hand"
-          subtitle="*Approximate"
-        />
-        <StatCard
-          title="Rule-Based"
-          value={ruleBasedGroups}
-          color="neutral"
-          icon="bolt"
-          subtitle="*Approximate"
-        />
+        <StatCard title="Direct Assignments" value={directGroups} color="neutral" icon="hand" />
+        <StatCard title="Rule-Based" value={ruleBasedGroups} color="neutral" icon="bolt" />
         <StatCard
           title="Status"
           value={userDetails?.status || 'Unknown'}
@@ -163,7 +153,7 @@ const UserOverview: React.FC<UserOverviewProps> = ({
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white rounded-md border border-neutral-200 p-6 shadow-sm">
+          <div className="bg-white rounded-md border border-neutral-200 p-6">
             <h3 className="text-lg font-semibold text-neutral-900 mb-4">
               Group Membership Distribution
             </h3>
@@ -194,7 +184,7 @@ const UserOverview: React.FC<UserOverviewProps> = ({
             </div>
           </div>
 
-          <div className="bg-white rounded-md border border-neutral-200 p-6 shadow-sm">
+          <div className="bg-white rounded-md border border-neutral-200 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-neutral-900">Recent Groups</h3>
               <Button variant="ghost" size="sm" onClick={() => onTabChange('users')}>
@@ -248,6 +238,17 @@ const UserOverview: React.FC<UserOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {userDetails && (
+        <UserComparisonModal
+          isOpen={isCompareOpen}
+          onClose={() => setIsCompareOpen(false)}
+          contextUser={userDetails}
+          contextGroups={groups}
+          targetTabId={targetTabId}
+          onGroupsChanged={() => loadMemberships(userDetails, { force: true })}
+        />
+      )}
     </div>
   );
 };
