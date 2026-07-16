@@ -8,8 +8,7 @@ import RulesTab from './components/RulesTab';
 import UsersTab from './components/UsersTab';
 import GroupsTab from './components/GroupsTab';
 import AuditLogViewer from './components/AuditLogViewer';
-import LoadingBar from './components/LoadingBar';
-import SchedulerStatusBar from './components/SchedulerStatusBar';
+import ActivityBar from './components/ActivityBar';
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
 import { SchedulerProvider } from './contexts/SchedulerContext';
@@ -145,8 +144,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <LoadingBar />
-        <SchedulerStatusBar />
+        <ActivityBar />
       </div>
     </SchedulerProvider>
   );

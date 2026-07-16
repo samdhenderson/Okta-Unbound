@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger';
+import { OperationCancelledError } from './cancellation';
 import { RateLimitDetector } from './rateLimitDetector';
 import type {
   QueuedRequest,
@@ -400,11 +401,17 @@ export class ApiScheduler {
     return this.queue.length + this.activeRequests.size;
   }
 
-  clearQueue(): void {
-    const queueLength = this.queue.length;
+  clearQueue(): number {
+    const dropped = this.queue;
     this.queue = [];
-    log.debug(`Cleared ${queueLength} requests from queue`);
+
+    for (const request of dropped) {
+      request.reject(new OperationCancelledError());
+    }
+
+    log.debug(`Cleared ${dropped.length} requests from queue`);
     this.notifyStateChange();
+    return dropped.length;
   }
 
   resetMetrics(): void {

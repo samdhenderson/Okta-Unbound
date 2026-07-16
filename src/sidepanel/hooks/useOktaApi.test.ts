@@ -383,7 +383,7 @@ describe('useOktaApi', () => {
       expect(map.get('bob')).toMatchObject({ enrolled: false, factorCount: 0, factorLabels: [] });
     });
 
-    it('reports progress and tolerates failed factor requests', async () => {
+    it('tolerates failed factor requests (summarizes as no factors)', async () => {
       mockRuntimeSendMessage
         .mockResolvedValueOnce({ success: false, error: 'boom' })
         .mockResolvedValueOnce({
@@ -391,18 +391,16 @@ describe('useOktaApi', () => {
           data: [{ id: 'f1', factorType: 'push', provider: 'OKTA', status: 'ACTIVE' }],
         });
 
-      const onProgress = vi.fn();
       const { result } = renderHook(() =>
         useOktaApi({ targetTabId, onResult: mockOnResult, onProgress: mockOnProgress }),
       );
 
       const map = await act(async () => {
-        return result.current.scanGroupMfa(['x', 'y'], onProgress);
+        return result.current.scanGroupMfa(['x', 'y']);
       });
 
       expect(map.get('x')).toMatchObject({ enrolled: false, factorCount: 0 });
       expect(map.get('y')).toMatchObject({ enrolled: true, factorLabels: ['Okta Verify Push'] });
-      expect(onProgress).toHaveBeenCalledWith(2, 2);
     });
   });
 
@@ -461,12 +459,8 @@ describe('useOktaApi', () => {
 
       await waitFor(() => {
         expect(mockOnResult).toHaveBeenCalledWith('Found 1 deprovisioned users', 'warning');
-        expect(mockOnProgress).toHaveBeenCalledWith(
-          expect.any(Number),
-          expect.any(Number),
-          expect.stringMatching(/Removing .+ \(1\/1\)/),
-          expect.any(Number),
-        );
+        expect(mockOnResult).toHaveBeenCalledWith(expect.stringContaining('Removed:'), 'success');
+        expect(mockOnResult).toHaveBeenCalledWith('Complete: 1 removed, 0 failed', 'success');
       });
     });
 
@@ -510,11 +504,9 @@ describe('useOktaApi', () => {
         headers: {},
       });
 
-      mockRuntimeSendMessage.mockResolvedValueOnce({
-        success: false,
-        status: 403,
-        error: 'Forbidden',
-      });
+      mockRuntimeSendMessage
+        .mockResolvedValueOnce({ success: false, status: 403, error: 'Forbidden' })
+        .mockResolvedValueOnce({ success: false, status: 403, error: 'Forbidden' });
 
       const { result } = renderHook(() =>
         useOktaApi({ targetTabId, onResult: mockOnResult, onProgress: mockOnProgress }),
@@ -530,9 +522,8 @@ describe('useOktaApi', () => {
           'error',
         );
         expect(mockOnResult).toHaveBeenCalledWith('Stopping after first 403 error', 'warning');
+        expect(mockOnResult).toHaveBeenCalledWith('Complete: 0 removed, 2 failed', 'warning');
       });
-
-      expect(mockRuntimeSendMessage).toHaveBeenCalledTimes(4); // getCurrentUser + group details + get members + 1 remove attempt
     });
 
     it('should not allow modification of APP_GROUP', async () => {

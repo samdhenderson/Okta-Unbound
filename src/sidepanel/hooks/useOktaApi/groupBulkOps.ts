@@ -2,6 +2,7 @@ import type { CoreApi } from './core';
 import type { OktaUser } from './types';
 import type { BulkOperation, BulkOperationResult } from '../../../shared/types';
 import type { RequestResult } from '../../../shared/scheduler/types';
+import { OperationCancelledError } from '../../../shared/scheduler/cancellation';
 
 interface BulkGroupResult extends BulkOperationResult {
   members?: OktaUser[];
@@ -21,10 +22,14 @@ export function createGroupBulkOperations(
     operation: BulkOperation,
     onProgress?: (current: number, total: number, currentGroupName: string) => void,
   ): Promise<BulkGroupResult[]> => {
+    coreApi.resetCancellation();
+
     const results: BulkGroupResult[] = [];
     const totalGroups = operation.targetGroups.length;
 
     for (let i = 0; i < totalGroups; i++) {
+      coreApi.checkCancelled();
+
       const groupId = operation.targetGroups[i];
 
       try {
@@ -83,6 +88,10 @@ export function createGroupBulkOperations(
 
         results.push(result);
       } catch (error) {
+        if (error instanceof OperationCancelledError) {
+          throw error;
+        }
+
         results.push({
           groupId,
           groupName: groupId,

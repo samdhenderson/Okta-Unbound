@@ -1,5 +1,7 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import type { UseOktaApiOptions } from './useOktaApi/types';
+import { useProgressOptional } from '../contexts/ProgressContext';
+import { createCancellation } from '../../shared/scheduler/cancellation';
 import { createCoreApi } from './useOktaApi/core';
 import { createGroupMemberOperations } from './useOktaApi/groupMembers';
 import { createGroupCleanupOperations } from './useOktaApi/groupCleanup';
@@ -14,26 +16,70 @@ import { createRuleWriteOperations } from './useOktaApi/ruleWrites';
 
 export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOptions) {
   const [isLoading, setIsLoading] = useState(false);
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
-  const [isCancelled, setIsCancelled] = useState(false);
+
+  const progressCtx = useProgressOptional();
+  const localToken = useRef(createCancellation());
+  const cancelFns = useRef({
+    check: () => {},
+    cancel: () => {},
+    reset: () => {},
+  });
+  cancelFns.current.check = progressCtx
+    ? progressCtx.throwIfCancelled
+    : () => localToken.current.throwIfCancelled();
+  cancelFns.current.cancel = progressCtx ? progressCtx.cancel : () => localToken.current.cancel();
+  cancelFns.current.reset = progressCtx
+    ? progressCtx.resetCancellation
+    : () => localToken.current.reset();
+
+  const isCancelled = progressCtx ? progressCtx.isCancelled : localToken.current.isCancelled;
 
   const cancelOperation = useCallback(() => {
-    setIsCancelled(true);
-    if (abortController) {
-      abortController.abort();
-    }
+    cancelFns.current.cancel();
     onResult?.('Operation cancelled by user', 'warning');
-  }, [abortController, onResult]);
+  }, [onResult]);
 
   const checkCancelled = useCallback(() => {
-    if (isCancelled) {
-      throw new Error('Operation cancelled');
-    }
-  }, [isCancelled]);
+    cancelFns.current.check();
+  }, []);
+
+  const resetCancellation = useCallback(() => {
+    cancelFns.current.reset();
+  }, []);
+
+  const progressFns = useRef({
+    start: (_name: string, _total: number) => {},
+    reportBatch: (
+      _p: { total: number; completed: number; active: number; failed: number },
+      _m?: string,
+    ) => {},
+    complete: () => {},
+  });
+  progressFns.current.start = progressCtx
+    ? (name, total) => progressCtx.startProgress(name, `${name}…`, total)
+    : () => {};
+  progressFns.current.reportBatch = progressCtx ? progressCtx.updateBatch : () => {};
+  progressFns.current.complete = progressCtx ? progressCtx.completeProgress : () => {};
+
+  const progressBridge = useMemo(
+    () => ({
+      start: (name: string, total: number) => progressFns.current.start(name, total),
+      reportBatch: (
+        p: { total: number; completed: number; active: number; failed: number },
+        m?: string,
+      ) => progressFns.current.reportBatch(p, m),
+      complete: () => progressFns.current.complete(),
+    }),
+    [],
+  );
 
   const coreApi = useMemo(
-    () => createCoreApi(targetTabId, checkCancelled, { onResult, onProgress }),
-    [targetTabId, checkCancelled, onResult, onProgress],
+    () =>
+      createCoreApi(targetTabId, checkCancelled, resetCancellation, progressBridge, {
+        onResult,
+        onProgress,
+      }),
+    [targetTabId, checkCancelled, resetCancellation, progressBridge, onResult, onProgress],
   );
 
   const groupMemberOps = useMemo(() => createGroupMemberOperations(coreApi), [coreApi]);
@@ -66,16 +112,12 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
 
   const wrapOperation = useCallback(<A extends unknown[]>(fn: (...args: A) => Promise<void>) => {
     return async (...args: A) => {
-      setIsCancelled(false);
-      const controller = new AbortController();
-      setAbortController(controller);
+      cancelFns.current.reset();
       setIsLoading(true);
       try {
         await fn(...args);
       } finally {
         setIsLoading(false);
-        setAbortController(null);
-        setIsCancelled(false);
       }
     };
   }, []);
