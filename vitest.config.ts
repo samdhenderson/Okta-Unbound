@@ -1,13 +1,21 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
+import { playwright } from '@vitest/browser-playwright';
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const executablePath = process.env.VITEST_BROWSER_EXECUTABLE;
 
 export default defineConfig({
-  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(dirname, './src'),
+    },
+  },
   test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test/setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -16,6 +24,7 @@ export default defineConfig({
         'src/test/',
         '**/*.d.ts',
         '**/*.config.*',
+        '**/*.stories.{ts,tsx}',
         '**/mockData',
         'dist/',
         '.github/',
@@ -28,12 +37,33 @@ export default defineConfig({
         statements: 80,
       },
     },
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    projects: [
+      {
+        plugins: [react()],
+        resolve: { alias: { '@': path.resolve(dirname, './src') } },
+        test: {
+          name: 'unit',
+          globals: true,
+          environment: 'jsdom',
+          setupFiles: ['./src/test/setup.ts'],
+          include: ['src/**/*.{test,spec}.{ts,tsx}'],
+          exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
+        },
+      },
+      {
+        plugins: [storybookTest({ configDir: path.join(dirname, '.storybook') })],
+        test: {
+          name: 'storybook',
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright({
+              launchOptions: executablePath ? { executablePath } : {},
+            }),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
+    ],
   },
 });
