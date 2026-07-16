@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PageHeader from './shared/PageHeader';
 import AlertMessage from './shared/AlertMessage';
 import Button from './shared/Button';
@@ -8,25 +8,39 @@ import { useGroupLiveSearch } from '../hooks/useGroupLiveSearch';
 import { useGroupFilters } from '../hooks/useGroupFilters';
 import { useGroupSelection } from '../hooks/useGroupSelection';
 import { useGroupMembersCache } from '../hooks/useGroupMembersCache';
+import { useGroupSource } from '../hooks/useGroupSource';
+import { useGroupMerge } from '../hooks/useGroupMerge';
 import type { GroupSummary } from '../../shared/types';
 import GroupExportModal from './groups/GroupExportModal';
 import GroupComparisonModal from './groups/GroupComparisonModal';
 import CrossGroupSearch from './groups/CrossGroupSearch';
 import BulkOperationsPanel from './groups/BulkOperationsPanel';
 import GroupCollections from './groups/GroupCollections';
+import GroupCleanupPanel from './groups/GroupCleanupPanel';
 import GroupSearchBar from './groups/GroupSearchBar';
 import GroupFilterToggle from './groups/GroupFilterToggle';
 import GroupFilterPanel from './groups/GroupFilterPanel';
 import GroupSelectionBar, { type ActivePanel } from './groups/GroupSelectionBar';
 import GroupsListPanel from './groups/GroupsListPanel';
+import GroupSourceModal from './groups/GroupSourceModal';
+import GroupMergeModal from './groups/GroupMergeModal';
 import { getDateForFilename } from '../../shared/utils/csvUtils';
 
 interface GroupsTabProps {
   targetTabId: number | null;
   oktaOrigin?: string;
+  onNavigateToRule?: (ruleId: string) => void;
+  selectedGroupId?: string | null;
+  onGroupSelected?: () => void;
 }
 
-const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
+const GroupsTab: React.FC<GroupsTabProps> = ({
+  targetTabId,
+  oktaOrigin,
+  onNavigateToRule,
+  selectedGroupId,
+  onGroupSelected,
+}) => {
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'live' | 'cached'>('live');
   const [showFilters, setShowFilters] = useState(false);
@@ -34,6 +48,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportGroups, setExportGroups] = useState<GroupSummary[]>([]);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>('none');
 
   const handleResult = useCallback(
@@ -59,10 +74,44 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
   });
   const selection = useGroupSelection(loader.groups);
   const membersCache = useGroupMembersCache(api, loader.groups);
+  const groupSource = useGroupSource(targetTabId ?? undefined);
+  const merge = useGroupMerge(targetTabId ?? undefined);
+
+  const handleCloseMerge = useCallback(() => {
+    setShowMergeModal(false);
+    merge.reset();
+  }, [merge]);
 
   const { groups, loading, loadAllGroups } = loader;
   const { filteredGroups, activeFilterCount } = filters;
   const { selectedGroupIds, selectedGroups } = selection;
+
+  const navHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedGroupId) {
+      navHandledRef.current = null;
+      return;
+    }
+    if (navHandledRef.current === selectedGroupId) return;
+    if (!groups.some((g) => g.id === selectedGroupId)) return; // wait for groups to load
+    navHandledRef.current = selectedGroupId;
+
+    setSearchMode('cached');
+    filters.clearFilters();
+    filters.setSearchQuery('');
+
+    const scrollT = setTimeout(() => {
+      document
+        .querySelector(`[data-group-id="${selectedGroupId}"]`)
+        ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    }, 150);
+    const clearT = setTimeout(() => onGroupSelected?.(), 2500);
+    return () => {
+      clearTimeout(scrollT);
+      clearTimeout(clearT);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroupId, groups]);
 
   const handleExportSelection = useCallback(() => {
     if (selectedGroupIds.size === 0) {
@@ -190,6 +239,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
                 onSelectAll={() => selection.replaceSelection(filteredGroups.map((g) => g.id))}
                 onDeselectAll={selection.deselectAll}
                 onCompare={() => setShowComparisonModal(true)}
+                onMerge={() => setShowMergeModal(true)}
                 onTogglePanel={togglePanel}
                 onExportSelection={handleExportSelection}
                 onExportGroupsList={handleExportGroupsList}
@@ -224,6 +274,15 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
               />
             )}
 
+            {activePanel === 'cleanup' && (
+              <GroupCleanupPanel
+                groups={groups}
+                onSelectGroups={selection.replaceSelection}
+                onAnalyzeSource={groupSource.open}
+                onClose={() => setActivePanel('none')}
+              />
+            )}
+
             {error && (
               <AlertMessage
                 message={{ text: error, type: 'danger' }}
@@ -245,6 +304,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
             oktaOrigin={oktaOrigin}
             onLoadAllGroups={loadAllGroups}
             onClearFilters={filters.clearFilters}
+            onAnalyzeSource={groupSource.open}
+            highlightedGroupId={selectedGroupId ?? undefined}
           />
         </div>
       </div>
@@ -265,6 +326,37 @@ const GroupsTab: React.FC<GroupsTabProps> = ({ targetTabId, oktaOrigin }) => {
         groups={selectedGroups}
         compareGroups={api.compareGroups}
         memberCache={membersCache.groupMembersCache}
+      />
+
+      <GroupSourceModal
+        group={groupSource.group}
+        feedingRules={groupSource.feedingRules}
+        rulesStatus={groupSource.rulesStatus}
+        breakdown={groupSource.breakdown}
+        memberStatus={groupSource.memberStatus}
+        error={groupSource.error}
+        onClose={groupSource.close}
+        onAnalyzeMembers={groupSource.analyzeMembers}
+        onNavigateToRule={
+          onNavigateToRule
+            ? (ruleId) => {
+                groupSource.close();
+                onNavigateToRule(ruleId);
+              }
+            : undefined
+        }
+      />
+
+      <GroupMergeModal
+        isOpen={showMergeModal}
+        selectedGroups={selectedGroups}
+        phase={merge.phase}
+        plan={merge.plan}
+        results={merge.results}
+        error={merge.error}
+        onPreview={merge.preview}
+        onExecute={merge.execute}
+        onClose={handleCloseMerge}
       />
     </div>
   );

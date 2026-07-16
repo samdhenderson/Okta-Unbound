@@ -10,6 +10,7 @@ interface SelectProps {
   onChange: (value: string) => void;
   options: SelectOption[];
   label?: string;
+  ariaLabel?: string;
   error?: string;
   disabled?: boolean;
   fullWidth?: boolean;
@@ -21,6 +22,7 @@ const Select: React.FC<SelectProps> = ({
   onChange,
   options,
   label,
+  ariaLabel,
   error,
   disabled = false,
   fullWidth = true,
@@ -46,6 +48,7 @@ const Select: React.FC<SelectProps> = ({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
+        aria-label={ariaLabel}
         className={selectClasses}
         style={{ fontFamily: 'var(--font-primary)' }}
       >

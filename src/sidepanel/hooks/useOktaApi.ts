@@ -9,6 +9,8 @@ import { createUserOperations } from './useOktaApi/userOperations';
 import { createExportOperations } from './useOktaApi/exportOperations';
 import { createPushGroupOperations } from './useOktaApi/pushGroupOps';
 import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
+import { createRuleImpactOperations } from './useOktaApi/ruleImpact';
+import { createRuleWriteOperations } from './useOktaApi/ruleWrites';
 
 export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOptions) {
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +58,11 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
     () => createGroupAnalysisOperations(groupMemberOps.getAllGroupMembers),
     [groupMemberOps],
   );
+  const ruleImpactOps = useMemo(
+    () => createRuleImpactOperations(coreApi, groupMemberOps.getAllGroupMembers),
+    [coreApi, groupMemberOps],
+  );
+  const ruleWriteOps = useMemo(() => createRuleWriteOperations(coreApi), [coreApi]);
 
   const wrapOperation = useCallback(<A extends unknown[]>(fn: (...args: A) => Promise<void>) => {
     return async (...args: A) => {
@@ -121,6 +128,14 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       compareGroups: groupAnalysisOps.compareGroups,
       searchUserAcrossGroups: groupAnalysisOps.searchUserAcrossGroups,
       calculateStaleness: groupAnalysisOps.calculateStaleness,
+
+      captureRuleImpact: ruleImpactOps.captureRuleImpact,
+
+      getRawGroupRule: ruleWriteOps.getRawGroupRule,
+      createGroupRule: ruleWriteOps.createGroupRule,
+      deleteGroupRule: ruleWriteOps.deleteGroupRule,
+      activateGroupRule: ruleWriteOps.activateGroupRule,
+      deactivateGroupRule: ruleWriteOps.deactivateGroupRule,
     }),
     [
       isLoading,
@@ -134,6 +149,8 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       exportOps,
       pushGroupOps,
       groupAnalysisOps,
+      ruleImpactOps,
+      ruleWriteOps,
       removeDeprovisioned,
       exportMembers,
     ],

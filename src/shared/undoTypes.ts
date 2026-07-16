@@ -4,7 +4,8 @@ export type ActionType =
   | 'BULK_REMOVE_USERS_FROM_GROUP'
   | 'BULK_ADD_USERS_TO_GROUP'
   | 'ACTIVATE_RULE'
-  | 'DEACTIVATE_RULE';
+  | 'DEACTIVATE_RULE'
+  | 'CONSOLIDATE_RULE';
 
 export interface UndoAction {
   id: string;
@@ -21,7 +22,8 @@ export type UndoActionMetadata =
   | BulkRemoveUsersMetadata
   | BulkAddUsersMetadata
   | ActivateRuleMetadata
-  | DeactivateRuleMetadata;
+  | DeactivateRuleMetadata
+  | ConsolidateRuleMetadata;
 
 export interface RemoveUserMetadata {
   type: 'REMOVE_USER_FROM_GROUP';
@@ -73,6 +75,21 @@ export interface DeactivateRuleMetadata {
   type: 'DEACTIVATE_RULE';
   ruleId: string;
   ruleName: string;
+}
+
+export interface RetiredRuleSnapshot {
+  id: string;
+  name: string;
+  expression: string;
+  groupIds: string[];
+}
+
+export interface ConsolidateRuleMetadata {
+  type: 'CONSOLIDATE_RULE';
+  createdRuleId: string;
+  createdRuleName: string;
+  createdGroupIds: string[];
+  retiredRules: RetiredRuleSnapshot[];
 }
 
 export interface UndoHistory {

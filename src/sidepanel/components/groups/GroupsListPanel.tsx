@@ -17,6 +17,8 @@ interface GroupsListPanelProps {
   oktaOrigin?: string;
   onLoadAllGroups: () => void;
   onClearFilters: () => void;
+  onAnalyzeSource?: (group: GroupSummary) => void;
+  highlightedGroupId?: string;
 }
 
 const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
@@ -32,6 +34,8 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
   oktaOrigin,
   onLoadAllGroups,
   onClearFilters,
+  onAnalyzeSource,
+  highlightedGroupId,
 }) => (
   <ScrollableList
     loading={loading}
@@ -66,6 +70,8 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
         selected={selectedGroupIds.has(group.id)}
         onToggleSelect={onToggleSelect}
         oktaOrigin={oktaOrigin}
+        onAnalyzeSource={onAnalyzeSource}
+        isHighlighted={highlightedGroupId === group.id}
       />
     ))}
   </ScrollableList>

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, memo } from 'react';
-import { IconButton, Checkbox } from '../shared';
+import { Button, IconButton, Checkbox } from '../shared';
 import type { GroupSummary, StalenessInfo } from '../../../shared/types';
 
 function getStalenessColor(score: number): { bg: string; text: string; label: string } {
@@ -26,12 +26,18 @@ interface GroupListItemProps {
   selected: boolean;
   onToggleSelect: (groupId: string) => void;
   oktaOrigin?: string;
+  onAnalyzeSource?: (group: GroupSummary) => void;
+  isHighlighted?: boolean;
 }
 
 const GroupListItem: React.FC<GroupListItemProps> = memo(
-  ({ group, selected, onToggleSelect, oktaOrigin }) => {
+  ({ group, selected, onToggleSelect, oktaOrigin, onAnalyzeSource, isHighlighted = false }) => {
     const [expanded, setExpanded] = useState(false);
     const [idCopied, setIdCopied] = useState(false);
+
+    React.useEffect(() => {
+      if (isHighlighted) setExpanded(true);
+    }, [isHighlighted]);
 
     const getTypeBadge = (type: string) => {
       const configs = {
@@ -90,6 +96,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
 
     return (
       <div
+        data-group-id={group.id}
         className={`
         group/item relative overflow-hidden rounded-md border transition-all duration-100
         ${
@@ -97,6 +104,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
             ? 'border-primary bg-primary-light ring-1 ring-primary/20'
             : 'border-neutral-200 bg-white hover:border-neutral-500'
         }
+        ${isHighlighted ? 'ring-2 ring-primary ring-offset-2' : ''}
       `}
       >
         <div className="p-4">
@@ -271,6 +279,17 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
 
         {expanded && (
           <div className="px-4 pb-4 pt-2 border-t border-neutral-100 space-y-3">
+            {onAnalyzeSource && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="chart"
+                onClick={() => onAnalyzeSource(group)}
+              >
+                Why does this group exist?
+              </Button>
+            )}
+
             {group.description && (
               <div>
                 <div className="text-xs font-medium text-neutral-600 mb-1">Description</div>
@@ -423,7 +442,8 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
       prevProps.group.pushMappings === nextProps.group.pushMappings &&
       prevProps.group.staleness?.score === nextProps.group.staleness?.score &&
       prevProps.selected === nextProps.selected &&
-      prevProps.oktaOrigin === nextProps.oktaOrigin
+      prevProps.oktaOrigin === nextProps.oktaOrigin &&
+      prevProps.isHighlighted === nextProps.isHighlighted
     );
   },
 );

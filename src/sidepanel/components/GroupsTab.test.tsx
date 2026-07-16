@@ -1,7 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within, act, waitFor, fireEvent } from '@testing-library/react';
+import {
+  render as rtlRender,
+  screen,
+  within,
+  act,
+  waitFor,
+  fireEvent,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactElement, ReactNode } from 'react';
 import GroupsTab from './GroupsTab';
+import { ProgressProvider } from '../contexts/ProgressContext';
+
+const render = (ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) =>
+  rtlRender(ui, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <ProgressProvider>{children}</ProgressProvider>
+    ),
+    ...options,
+  });
 
 const captured = vi.hoisted(() => ({
   props: {} as Record<string, any>,
@@ -631,8 +648,8 @@ describe('mount cache rehydrate', () => {
   it('a late storage callback overwrites freshly loaded groups (stale wins)', async () => {
     const uev = userEvent.setup();
     let storageCb: ((r: any) => void) | null = null;
-    storageGet.mockImplementation((_k: string[], cb: (r: any) => void) => {
-      storageCb = cb;
+    storageGet.mockImplementation((_k: string[], cb?: (r: any) => void) => {
+      if (typeof cb === 'function') storageCb = cb;
     });
     route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
       success: true,
@@ -1538,5 +1555,17 @@ describe('page header', () => {
     await waitFor(() =>
       expect(screen.queryByText('Loading groups from Okta...')).not.toBeInTheDocument(),
     );
+  });
+});
+
+describe('deep-link from the Rules tab', () => {
+  it('highlights and auto-expands the navigated group row', async () => {
+    renderCached(
+      [cachedGroup({ id: 'g1', name: 'Engineering' }), cachedGroup({ id: 'g2', name: 'Sales' })],
+      { selectedGroupId: 'g1', onGroupSelected: () => {} },
+    );
+    await waitFor(() => expect(screen.getByText('Engineering')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Group ID')).toBeInTheDocument());
+    expect(screen.getAllByText('Group ID')).toHaveLength(1);
   });
 });

@@ -1,4 +1,5 @@
 import type { FormattedRule, RuleStats, GroupSummary } from '../types';
+import type { RuleSortMode } from '../rules/similarity';
 
 export type TabName = 'overview' | 'rules' | 'users' | 'groups' | 'history';
 
@@ -10,6 +11,7 @@ export interface BaseTabState {
 export interface RulesTabState extends BaseTabState {
   searchQuery: string;
   activeFilter: 'all' | 'active' | 'conflicts' | 'current-group';
+  sortMode: RuleSortMode;
   cachedRules: FormattedRule[] | null;
   cachedStats: RuleStats | null;
   lastFetchTime: string | null;

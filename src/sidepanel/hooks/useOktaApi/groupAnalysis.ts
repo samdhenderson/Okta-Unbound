@@ -101,7 +101,7 @@ export function createGroupAnalysisOperations(getAllGroupMembers: GetAllGroupMem
     return results;
   };
 
-  const calculateStaleness = (group: GroupSummary): StalenessInfo => {
+  const calculateStaleness = (group: GroupSummary, rulesKnown: boolean = true): StalenessInfo => {
     let score = 0;
     const factors: string[] = [];
 
@@ -113,7 +113,7 @@ export function createGroupAnalysisOperations(getAllGroupMembers: GetAllGroupMem
       factors.push('Very few members');
     }
 
-    if (!group.hasRules && group.ruleCount === 0) {
+    if (rulesKnown && !group.hasRules && group.ruleCount === 0) {
       score += 20;
       factors.push('No group rules');
     }

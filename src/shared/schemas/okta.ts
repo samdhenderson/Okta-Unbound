@@ -51,10 +51,33 @@ export const oktaGroupSchema = z.object({
   }),
 });
 
+export const oktaGroupRuleSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    status: z.enum(['ACTIVE', 'INACTIVE']),
+    type: z.string().optional(),
+    conditions: z
+      .object({
+        expression: z.object({ value: z.string(), type: z.string() }).partial().optional(),
+        people: z.unknown().optional(),
+      })
+      .passthrough()
+      .optional(),
+    actions: z
+      .object({
+        assignUserToGroups: z.object({ groupIds: z.array(z.string()) }).optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
 export const oktaUserListSchema = z.array(oktaUserSchema);
 
 export type OktaUserResponse = z.infer<typeof oktaUserSchema>;
 export type OktaGroupResponse = z.infer<typeof oktaGroupSchema>;
+export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;
 
 export function parseOkta<T>(schema: z.ZodType<T>, data: unknown, context: string): T {
   const result = schema.safeParse(data);

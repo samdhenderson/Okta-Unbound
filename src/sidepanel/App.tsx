@@ -19,6 +19,7 @@ const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const { groupInfo, connectionStatus, targetTabId, error, isLoading, oktaOrigin } =
     useGroupContext();
   const { pageType, userInfo, appInfo } = useOktaPageContext(activeTab === 'overview');
@@ -68,6 +69,12 @@ const App: React.FC = () => {
     chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'rules' });
   };
 
+  const handleNavigateToGroup = (groupId: string) => {
+    setSelectedGroupId(groupId);
+    setActiveTab('groups');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'groups' });
+  };
+
   return (
     <SchedulerProvider>
       <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
@@ -107,6 +114,7 @@ const App: React.FC = () => {
             oktaOrigin={oktaOrigin ?? undefined}
             selectedRuleId={selectedRuleId}
             onRuleSelected={() => setSelectedRuleId(null)}
+            onNavigateToGroup={handleNavigateToGroup}
           />
         )}
         {activeTab === 'users' && (
@@ -117,7 +125,13 @@ const App: React.FC = () => {
           />
         )}
         {activeTab === 'groups' && (
-          <GroupsTab targetTabId={targetTabId ?? null} oktaOrigin={oktaOrigin ?? undefined} />
+          <GroupsTab
+            targetTabId={targetTabId ?? null}
+            oktaOrigin={oktaOrigin ?? undefined}
+            onNavigateToRule={handleNavigateToRule}
+            selectedGroupId={selectedGroupId}
+            onGroupSelected={() => setSelectedGroupId(null)}
+          />
         )}
         {activeTab === 'history' && (
           <div
