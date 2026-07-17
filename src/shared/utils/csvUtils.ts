@@ -7,7 +7,10 @@ export function formatDateForCSV(date: Date | string | null | undefined): string
 
 export function escapeCSV(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined) return '';
-  const stringValue = String(value);
+  let stringValue = String(value);
+  if (typeof value === 'string' && /^[=+\-@\t\r]/.test(stringValue)) {
+    stringValue = `'${stringValue}`;
+  }
   if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('"')) {
     return `"${stringValue.replace(/"/g, '""')}"`;
   }

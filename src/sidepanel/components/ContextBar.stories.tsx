@@ -1,17 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import ContextBanner from './ContextBanner';
+import { fn } from 'storybook/test';
+import ContextBar from './ContextBar';
 
 const meta = {
-  title: 'Components/ContextBanner',
-  component: ContextBanner,
+  title: 'Components/ContextBar',
+  component: ContextBar,
   tags: ['autodocs'],
   parameters: {
     layout: 'fullscreen',
     docs: {
       description: {
         component:
-          'Banner summarising the Okta entity detected on the active tab.\n\n' +
-          '**Related internals:** [Shared utilities](?path=/docs/internals-shared-utilities--docs)',
+          'Slim, merged context header: entity identity + connection + refresh + pin.\n\n' +
+          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
+          '[Shared utilities](?path=/docs/internals-shared-utilities--docs)',
       },
     },
   },
@@ -19,10 +21,15 @@ const meta = {
     pageType: 'group',
     entityName: 'Engineering Team',
     entityId: '00g1abcd2345EFGH6789',
+    connectionStatus: 'connected',
     isLoading: false,
     error: null,
+    isPinned: false,
+    canPin: true,
+    onTogglePin: fn(),
+    onRefresh: fn(),
   },
-} satisfies Meta<typeof ContextBanner>;
+} satisfies Meta<typeof ContextBar>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -37,34 +44,30 @@ export const UserPage: Story = {
   },
 };
 
-export const AppPage: Story = {
-  args: {
-    pageType: 'app',
-    entityName: 'Salesforce',
-    entityId: '0oa5qrst1122UVWX3344',
-  },
+export const Pinned: Story = {
+  args: { isPinned: true },
 };
 
-export const AdminOverview: Story = {
+export const PinnedLiveChanged: Story = {
+  args: { isPinned: true, liveContextChanged: true, liveEntityName: 'Finance Team' },
+};
+
+export const NotPinnable: Story = {
   args: {
     pageType: 'admin',
     entityName: undefined,
     entityId: undefined,
+    canPin: false,
   },
 };
 
 export const Loading: Story = {
   args: {
     isLoading: true,
+    connectionStatus: 'connecting',
     entityName: undefined,
     entityId: undefined,
-  },
-};
-
-export const NoEntitySelected: Story = {
-  args: {
-    entityName: undefined,
-    entityId: undefined,
+    canPin: false,
   },
 };
 
@@ -73,5 +76,6 @@ export const WithError: Story = {
     entityName: undefined,
     entityId: undefined,
     error: 'Unable to reach Okta tab',
+    canPin: false,
   },
 };

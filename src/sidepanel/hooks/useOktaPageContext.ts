@@ -6,7 +6,7 @@ import {
   type EntityLoadContext,
 } from './useOktaTabContext';
 
-type PageType = 'group' | 'user' | 'app' | 'admin' | 'unknown';
+export type PageType = 'group' | 'user' | 'app' | 'admin' | 'unknown';
 
 export interface AppInfo {
   appId: string;
@@ -28,6 +28,7 @@ export interface OktaPageContext extends PageDetection {
   isLoading: boolean;
   refetch: () => Promise<void>;
   oktaOrigin: string | null;
+  resyncPending: boolean;
 }
 
 const UNKNOWN: PageDetection = {

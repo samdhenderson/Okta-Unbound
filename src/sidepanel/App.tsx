@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
-import ContextBanner from './components/ContextBanner';
+import ContextBar from './components/ContextBar';
 import PageHeader from './components/shared/PageHeader';
 import TabNavigation, { type TabType } from './components/TabNavigation';
 import OverviewTab from './components/OverviewTab';
@@ -12,16 +12,96 @@ import ActivityBar from './components/ActivityBar';
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
 import { SchedulerProvider } from './contexts/SchedulerContext';
+import type { GroupInfo, UserInfo } from '../shared/types';
 
 const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
+const PINNED_CONTEXT_KEY = 'okta_unbound_pinned_context';
+
+interface PinnedContext {
+  pageType: 'group' | 'user';
+  groupInfo: GroupInfo | null;
+  userInfo: UserInfo | null;
+  targetTabId: number;
+  oktaOrigin: string | null;
+}
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [pinned, setPinned] = useState<PinnedContext | null>(null);
+  const isPinned = pinned !== null;
+
   const { groupInfo, connectionStatus, targetTabId, error, isLoading, oktaOrigin } =
     useGroupContext();
-  const { pageType, userInfo, appInfo } = useOktaPageContext(activeTab === 'overview');
+  const page = useOktaPageContext(activeTab === 'overview' && !isPinned);
+
+  useEffect(() => {
+    chrome.storage.local.get([PINNED_CONTEXT_KEY], (result) => {
+      const saved = result[PINNED_CONTEXT_KEY] as PinnedContext | undefined;
+      if (saved) setPinned(saved);
+    });
+  }, []);
+
+  const isLivePinnable = page.pageType === 'group' || page.pageType === 'user';
+  const effective = pinned
+    ? {
+        pageType: pinned.pageType,
+        groupInfo: pinned.groupInfo,
+        userInfo: pinned.userInfo,
+        targetTabId: pinned.targetTabId as number | null,
+        oktaOrigin: pinned.oktaOrigin,
+        connectionStatus: 'connected' as const,
+        error: null as string | null,
+        isLoading: false,
+      }
+    : {
+        pageType: page.pageType,
+        groupInfo: page.groupInfo,
+        userInfo: page.userInfo,
+        targetTabId: page.targetTabId,
+        oktaOrigin: page.oktaOrigin,
+        connectionStatus: page.connectionStatus,
+        error: page.error,
+        isLoading: page.isLoading,
+      };
+
+  const entityName =
+    effective.pageType === 'group'
+      ? (effective.groupInfo?.groupName ?? undefined)
+      : effective.pageType === 'user'
+        ? (effective.userInfo?.userName ?? undefined)
+        : effective.pageType === 'app'
+          ? (page.appInfo?.appName ?? undefined)
+          : undefined;
+  const entityId =
+    effective.pageType === 'group'
+      ? (effective.groupInfo?.groupId ?? undefined)
+      : effective.pageType === 'user'
+        ? (effective.userInfo?.userId ?? undefined)
+        : effective.pageType === 'app'
+          ? (page.appInfo?.appId ?? undefined)
+          : undefined;
+
+  const handleTogglePin = () => {
+    if (pinned) {
+      setPinned(null);
+      chrome.storage.local.remove(PINNED_CONTEXT_KEY);
+      return;
+    }
+    if (isLivePinnable && page.targetTabId != null) {
+      const snapshot: PinnedContext = {
+        pageType: page.pageType as 'group' | 'user',
+        groupInfo: page.groupInfo,
+        userInfo: page.userInfo,
+        targetTabId: page.targetTabId,
+        oktaOrigin: page.oktaOrigin,
+      };
+      setPinned(snapshot);
+      chrome.storage.local.set({ [PINNED_CONTEXT_KEY]: snapshot });
+    }
+  };
 
   useEffect(() => {
     chrome.storage.local.get([SELECTED_TAB_KEY], (result) => {
@@ -74,38 +154,50 @@ const App: React.FC = () => {
     chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'groups' });
   };
 
+  const handleNavigateToUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setActiveTab('users');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'users' });
+  };
+
   return (
     <SchedulerProvider>
       <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
         <Header status={connectionStatus} />
 
-        <ContextBanner
-          pageType={pageType}
-          entityName={
-            pageType === 'group'
-              ? groupInfo?.groupName
-              : pageType === 'user'
-                ? userInfo?.userName
-                : pageType === 'app'
-                  ? appInfo?.appName
-                  : undefined
-          }
-          entityId={
-            pageType === 'group'
-              ? groupInfo?.groupId
-              : pageType === 'user'
-                ? userInfo?.userId
-                : pageType === 'app'
-                  ? appInfo?.appId
-                  : undefined
-          }
+        <ContextBar
+          pageType={effective.pageType}
+          entityName={entityName}
+          entityId={entityId}
+          connectionStatus={connectionStatus}
           isLoading={isLoading}
           error={error}
+          isPinned={isPinned}
+          canPin={isLivePinnable}
+          liveContextChanged={isPinned && page.resyncPending}
+          onTogglePin={handleTogglePin}
+          onRefresh={page.refetch}
         />
 
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
-        {activeTab === 'overview' && <OverviewTab onTabChange={handleTabChange} />}
+        {activeTab === 'overview' && (
+          <OverviewTab
+            onTabChange={handleTabChange}
+            pageType={effective.pageType}
+            groupInfo={effective.groupInfo}
+            userInfo={effective.userInfo}
+            connectionStatus={effective.connectionStatus}
+            targetTabId={effective.targetTabId}
+            error={effective.error}
+            isLoading={effective.isLoading}
+            oktaOrigin={effective.oktaOrigin}
+            onRetry={page.refetch}
+            onViewAllGroups={() => {
+              if (effective.userInfo) handleNavigateToUser(effective.userInfo.userId);
+            }}
+          />
+        )}
         {activeTab === 'rules' && (
           <RulesTab
             targetTabId={targetTabId ?? undefined}
@@ -121,6 +213,8 @@ const App: React.FC = () => {
             targetTabId={targetTabId ?? undefined}
             currentGroupId={groupInfo?.groupId}
             onNavigateToRule={handleNavigateToRule}
+            selectedUserId={selectedUserId}
+            onUserSelected={() => setSelectedUserId(null)}
           />
         )}
         {activeTab === 'groups' && (

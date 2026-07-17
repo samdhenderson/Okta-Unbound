@@ -55,6 +55,7 @@ export function useUserMemberships({
         const cached = peek<GroupMembership[]>(['userMemberships', user.id]);
         if (cached) {
           setMemberships(cached);
+          reportLoading(false);
           return;
         }
       }

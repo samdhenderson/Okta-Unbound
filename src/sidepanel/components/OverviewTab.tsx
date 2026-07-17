@@ -1,8 +1,8 @@
 import React from 'react';
-import { useOktaPageContext } from '../hooks/useOktaPageContext';
-import PageHeader from './shared/PageHeader';
+import type { GroupInfo, UserInfo } from '../../shared/types';
+import type { PageType } from '../hooks/useOktaPageContext';
+import type { ConnectionStatus } from '../hooks/useOktaTabContext';
 import AlertMessage from './shared/AlertMessage';
-import Button from './shared/Button';
 import EmptyState from './shared/EmptyState';
 import LoadingSpinner from './shared/LoadingSpinner';
 import GroupOverview from './overview/GroupOverview';
@@ -10,21 +10,31 @@ import UserOverview from './overview/UserOverview';
 
 interface OverviewTabProps {
   onTabChange: (tab: 'rules' | 'users' | 'groups' | 'history', selectedRuleId?: string) => void;
+  pageType: PageType;
+  groupInfo: GroupInfo | null;
+  userInfo: UserInfo | null;
+  connectionStatus: ConnectionStatus;
+  targetTabId: number | null;
+  error: string | null;
+  isLoading: boolean;
+  oktaOrigin: string | null;
+  onRetry: () => void;
+  onViewAllGroups: () => void;
 }
 
-const OverviewTab: React.FC<OverviewTabProps> = ({ onTabChange }) => {
-  const {
-    pageType,
-    groupInfo,
-    userInfo,
-    connectionStatus,
-    targetTabId,
-    error,
-    isLoading,
-    refetch,
-    oktaOrigin,
-  } = useOktaPageContext();
-
+const OverviewTab: React.FC<OverviewTabProps> = ({
+  onTabChange,
+  pageType,
+  groupInfo,
+  userInfo,
+  connectionStatus,
+  targetTabId,
+  error,
+  isLoading,
+  oktaOrigin,
+  onRetry,
+  onViewAllGroups,
+}) => {
   if (isLoading) {
     return (
       <div className="tab-content active">
@@ -42,7 +52,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ onTabChange }) => {
               text: error || 'Please open an Okta admin page in this window',
               type: 'danger',
             }}
-            action={{ label: 'Retry Connection', onClick: refetch }}
+            action={{ label: 'Retry Connection', onClick: onRetry }}
           />
           <AlertMessage
             message={{
@@ -55,34 +65,8 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ onTabChange }) => {
     );
   }
 
-  const getBadgeConfig = ():
-    | { text: string; variant: 'primary' | 'success' | 'warning' | 'error' | 'neutral' }
-    | undefined => {
-    if (pageType === 'group') return { text: 'Group', variant: 'primary' };
-    if (pageType === 'user') return { text: 'User', variant: 'primary' };
-    return undefined;
-  };
-
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
-      <PageHeader
-        title="Overview"
-        subtitle="Context-aware insights and quick actions"
-        badge={getBadgeConfig()}
-        actions={
-          <Button
-            variant="secondary"
-            icon="refresh"
-            onClick={refetch}
-            disabled={isLoading}
-            loading={isLoading}
-            title="Refresh context and data"
-          >
-            Refresh
-          </Button>
-        }
-      />
-
       <div className="w-full max-w-7xl mx-auto px-6 py-6">
         {pageType === 'group' && groupInfo && targetTabId && (
           <GroupOverview
@@ -99,7 +83,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({ onTabChange }) => {
             userId={userInfo.userId}
             userName={userInfo.userName}
             targetTabId={targetTabId}
-            onTabChange={onTabChange}
+            onViewAllGroups={onViewAllGroups}
             oktaOrigin={oktaOrigin}
           />
         )}

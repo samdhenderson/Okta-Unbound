@@ -40,13 +40,56 @@ setInterval(
   60 * 60 * 1000,
 );
 
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+const ALLOWED_PRIORITIES = new Set(['high', 'normal', 'low']);
+
+function isValidScheduleRequest(request: {
+  endpoint?: unknown;
+  tabId?: unknown;
+  method?: unknown;
+  priority?: unknown;
+}): boolean {
+  if (
+    typeof request.endpoint !== 'string' ||
+    !request.endpoint.startsWith('/') ||
+    request.endpoint.startsWith('//')
+  ) {
+    return false;
+  }
+  if (typeof request.tabId !== 'number' || !Number.isInteger(request.tabId)) {
+    return false;
+  }
+  if (request.method !== undefined && !ALLOWED_METHODS.has(String(request.method).toUpperCase())) {
+    return false;
+  }
+  if (request.priority !== undefined && !ALLOWED_PRIORITIES.has(String(request.priority))) {
+    return false;
+  }
+  return true;
+}
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) {
+    log.warn('Ignoring message from foreign sender');
+    return false;
+  }
+
   log.debug('Received message', { action: request.action });
 
   switch (request.action) {
     case 'scheduleApiRequest':
+      if (sender.tab) {
+        sendResponse({ success: false, error: 'scheduleApiRequest not allowed from tabs' });
+        return true;
+      }
+
       if (!request.endpoint || !request.tabId) {
         sendResponse({ success: false, error: 'Missing endpoint or tabId' });
+        return true;
+      }
+
+      if (!isValidScheduleRequest(request)) {
+        sendResponse({ success: false, error: 'Invalid scheduleApiRequest message' });
         return true;
       }
 

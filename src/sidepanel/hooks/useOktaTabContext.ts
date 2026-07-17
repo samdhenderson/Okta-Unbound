@@ -28,6 +28,7 @@ export interface OktaTabContext<T> {
   isLoading: boolean;
   refetch: () => Promise<void>;
   oktaOrigin: string | null;
+  resyncPending: boolean;
 }
 
 const MAX_RETRIES = 3;
@@ -53,6 +54,7 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [oktaOrigin, setOktaOrigin] = useState<string | null>(null);
+  const [resyncPending, setResyncPending] = useState(false);
 
   const fetchIdRef = useRef(0);
   const lastEntityUrlRef = useRef<string | null>(null);
@@ -62,6 +64,7 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
     async (retryCount = 0) => {
       const currentFetchId = ++fetchIdRef.current;
       const isStale = () => currentFetchId !== fetchIdRef.current;
+      setResyncPending(false);
 
       try {
         log.debug('Fetching context', { attempt: retryCount + 1 });
@@ -158,6 +161,7 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
       }
       if (!enabledRef.current || document.hidden) {
         pendingResyncRef.current = true;
+        setResyncPending(true);
         return;
       }
       debouncedFetch();
@@ -217,5 +221,6 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
     isLoading,
     refetch: fetchContext,
     oktaOrigin,
+    resyncPending,
   };
 }

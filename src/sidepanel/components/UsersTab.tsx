@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PageHeader from './shared/PageHeader';
 import AlertMessage from './shared/AlertMessage';
 import Button from './shared/Button';
@@ -20,9 +20,17 @@ interface UsersTabProps {
   targetTabId?: number;
   currentGroupId?: string;
   onNavigateToRule?: (ruleId: string) => void;
+  selectedUserId?: string | null;
+  onUserSelected?: () => void;
 }
 
-const UsersTab: React.FC<UsersTabProps> = ({ targetTabId, currentGroupId, onNavigateToRule }) => {
+const UsersTab: React.FC<UsersTabProps> = ({
+  targetTabId,
+  currentGroupId,
+  onNavigateToRule,
+  selectedUserId,
+  onUserSelected,
+}) => {
   const { userInfo, oktaOrigin } = useUserContext();
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OktaUser | null>(null);
@@ -67,7 +75,7 @@ const UsersTab: React.FC<UsersTabProps> = ({ targetTabId, currentGroupId, onNavi
     setSearchQuery('');
   }, [setSearchResults, setSearchQuery]);
 
-  const { loadDetectedUser } = useDetectedUser({
+  const { loadDetectedUser, loadUserById } = useDetectedUser({
     targetTabId,
     detectedUserId: userInfo?.userId,
     loadMemberships,
@@ -76,6 +84,18 @@ const UsersTab: React.FC<UsersTabProps> = ({ targetTabId, currentGroupId, onNavi
     onLoadingChange: setIsLoadingMemberships,
     onResetSearch,
   });
+
+  const requestedUserRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedUserId) {
+      requestedUserRef.current = null;
+      return;
+    }
+    if (selectedUserId === requestedUserRef.current) return;
+    requestedUserRef.current = selectedUserId;
+    loadUserById(selectedUserId);
+    onUserSelected?.();
+  }, [selectedUserId, loadUserById, onUserSelected]);
 
   const detectedUserId = userInfo?.userId;
   const showDetectedBanner =

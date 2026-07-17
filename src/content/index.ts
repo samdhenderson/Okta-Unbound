@@ -12,6 +12,7 @@ import type {
 } from '../shared/types';
 import { getCacheEntry, setCacheEntry } from '../shared/cache';
 import { createLogger } from '../shared/utils/logger';
+import { escapeCSV } from '../shared/utils/csvUtils';
 import { oktaUserSchema, oktaGroupSchema, parseOkta } from '../shared/schemas/okta';
 
 const log = createLogger('Content');
@@ -132,6 +133,19 @@ chrome.runtime.onMessage.addListener(
   },
 );
 
+const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+
+function isSameOriginPath(endpoint: string): boolean {
+  if (typeof endpoint !== 'string' || !endpoint.startsWith('/') || endpoint.startsWith('//')) {
+    return false;
+  }
+  try {
+    return new URL(endpoint, window.location.origin).origin === window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
 async function handleMakeApiRequest(
   endpoint: string,
   method: string = 'GET',
@@ -143,6 +157,17 @@ async function handleMakeApiRequest(
     hasBody: !!body,
   });
 
+  if (!isSameOriginPath(endpoint)) {
+    log.warn('Rejected API request: endpoint is not a same-origin path');
+    return { success: false, error: 'Rejected request: endpoint must be a same-origin path' };
+  }
+
+  const normalizedMethod = (method || 'GET').toUpperCase();
+  if (!ALLOWED_METHODS.has(normalizedMethod)) {
+    log.warn('Rejected API request: unsupported HTTP method', { method: normalizedMethod });
+    return { success: false, error: 'Rejected request: unsupported HTTP method' };
+  }
+
   try {
     const url = window.location.origin + endpoint;
 
@@ -150,7 +175,7 @@ async function handleMakeApiRequest(
     log.debug('XSRF token check', { present: xsrfToken.length > 0 });
 
     const options: RequestInit = {
-      method,
+      method: normalizedMethod,
       headers: {
         Accept: 'application/json, text/javascript, */*; q=0.01',
         'Content-Type': 'application/json',
@@ -164,7 +189,7 @@ async function handleMakeApiRequest(
       redirect: 'follow',
     };
 
-    if (body && method !== 'GET') {
+    if (body && normalizedMethod !== 'GET') {
       options.body = JSON.stringify(body);
     }
 
@@ -183,7 +208,7 @@ async function handleMakeApiRequest(
       headers[key] = value;
     });
 
-    if (method === 'DELETE' && response.ok) {
+    if (normalizedMethod === 'DELETE' && response.ok) {
       return {
         success: true,
         data: null,
@@ -1192,7 +1217,7 @@ function convertToCSV(users: OktaUser[]): string {
 
   const csvContent = [
     headers.join(','),
-    ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ...rows.map((row) => row.map((cell) => escapeCSV(cell)).join(',')),
   ].join('\n');
 
   return csvContent;

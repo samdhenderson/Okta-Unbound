@@ -18,10 +18,31 @@ const meta = {
   },
   args: {
     onTabChange: fn(),
+    pageType: 'admin',
+    groupInfo: null,
+    userInfo: null,
+    connectionStatus: 'connected',
+    targetTabId: 1,
+    error: null,
+    isLoading: false,
+    oktaOrigin: 'https://example.okta.com',
+    onRetry: fn(),
+    onViewAllGroups: fn(),
   },
 } satisfies Meta<typeof OverviewTab>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const WaitingForContext: Story = {};
+
+export const Loading: Story = {
+  args: { isLoading: true },
+};
+
+export const Disconnected: Story = {
+  args: {
+    connectionStatus: 'error',
+    error: 'Please open an Okta admin page in this window',
+  },
+};

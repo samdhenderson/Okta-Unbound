@@ -16,6 +16,7 @@ interface UseDetectedUserOptions {
 
 interface UseDetectedUserReturn {
   loadDetectedUser: () => Promise<void>;
+  loadUserById: (userId: string) => Promise<void>;
 }
 
 export function useDetectedUser({
@@ -36,38 +37,46 @@ export function useDetectedUser({
   });
   depsRef.current = { loadMemberships, onSelectUser, onError, onLoadingChange, onResetSearch };
 
-  const loadDetectedUser = useCallback(async () => {
-    if (!targetTabId || !detectedUserId) return;
+  const loadUserById = useCallback(
+    async (userId: string) => {
+      if (!targetTabId || !userId) return;
 
-    const { loadMemberships, onSelectUser, onError, onLoadingChange, onResetSearch } =
-      depsRef.current;
+      const { loadMemberships, onSelectUser, onError, onLoadingChange, onResetSearch } =
+        depsRef.current;
 
-    log.debug('Loading detected user on request:', detectedUserId);
-    onLoadingChange(true);
-    onError(null);
-    onResetSearch(); // Clear search results + query when loading the detected user.
+      log.debug('Loading user on request:', userId);
+      onLoadingChange(true);
+      onError(null);
+      onResetSearch(); // Clear search results + query when loading a specific user.
 
-    try {
-      const userResponse = await chrome.tabs.sendMessage(targetTabId, {
-        action: 'getUserDetails',
-        userId: detectedUserId,
-      });
+      try {
+        const userResponse = await chrome.tabs.sendMessage(targetTabId, {
+          action: 'getUserDetails',
+          userId,
+        });
 
-      if (!userResponse.success) {
-        throw new Error(userResponse.error || 'Failed to fetch user details');
+        if (!userResponse.success) {
+          throw new Error(userResponse.error || 'Failed to fetch user details');
+        }
+
+        const user: OktaUser = userResponse.data;
+        onSelectUser(user);
+
+        await loadMemberships(user);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to load user';
+        onSelectUser(null);
+        onError(message);
+        onLoadingChange(false);
       }
+    },
+    [targetTabId],
+  );
 
-      const user: OktaUser = userResponse.data;
-      onSelectUser(user);
+  const loadDetectedUser = useCallback(async () => {
+    if (!detectedUserId) return;
+    await loadUserById(detectedUserId);
+  }, [detectedUserId, loadUserById]);
 
-      await loadMemberships(user);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load detected user';
-      onSelectUser(null);
-      onError(message);
-      onLoadingChange(false);
-    }
-  }, [targetTabId, detectedUserId]);
-
-  return { loadDetectedUser };
+  return { loadDetectedUser, loadUserById };
 }
