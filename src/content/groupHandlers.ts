@@ -1,6 +1,12 @@
 import type { MessageRequest, MessageResponse, OktaUser, GroupInfo } from '../shared/types';
 import { createLogger } from '../shared/utils/logger';
-import { oktaGroupSchema, parseOkta } from '../shared/schemas/okta';
+import {
+  oktaGroupSchema,
+  oktaGroupListItemSchema,
+  oktaUserListItemSchema,
+  parseOkta,
+  parseOktaList,
+} from '../shared/schemas/okta';
 import { extractGroupIdFromUrl, extractGroupNameFromPage } from './pageContext';
 import { handleMakeApiRequest } from './apiRequest';
 import { convertToCSV, downloadFile } from './exportHelpers';
@@ -111,7 +117,9 @@ export async function fetchAllGroupMembers(groupId: string): Promise<OktaUser[]>
       throw new Error(response.error || 'Failed to fetch group members');
     }
 
-    allMembers = allMembers.concat(response.data || []);
+    allMembers = allMembers.concat(
+      parseOktaList(oktaUserListItemSchema, response.data, 'GET /api/v1/groups/{id}/users'),
+    );
 
     nextUrl = null;
     if (response.headers?.link) {
@@ -145,7 +153,7 @@ export async function handleSearchGroups(query: string): Promise<MessageResponse
     const response = await handleMakeApiRequest(searchUrl, 'GET');
 
     if (response.success && response.data) {
-      const groups = response.data;
+      const groups = parseOktaList(oktaGroupListItemSchema, response.data, 'GET /api/v1/groups?q');
       log.debug('Found groups', { count: groups.length });
 
       return {

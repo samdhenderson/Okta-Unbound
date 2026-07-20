@@ -68,6 +68,18 @@ function isValidScheduleRequest(request: {
   return true;
 }
 
+function rejectIfFromTab(
+  sender: chrome.runtime.MessageSender,
+  action: string,
+  sendResponse: (response: { success: false; error: string }) => void,
+): boolean {
+  if (sender.tab) {
+    sendResponse({ success: false, error: `${action} not allowed from tabs` });
+    return true;
+  }
+  return false;
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) {
     log.warn('Ignoring message from foreign sender');
@@ -78,8 +90,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   switch (request.action) {
     case 'scheduleApiRequest':
-      if (sender.tab) {
-        sendResponse({ success: false, error: 'scheduleApiRequest not allowed from tabs' });
+      if (rejectIfFromTab(sender, 'scheduleApiRequest', sendResponse)) {
         return true;
       }
 
@@ -122,21 +133,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
 
     case 'pauseScheduler':
+      if (rejectIfFromTab(sender, 'pauseScheduler', sendResponse)) {
+        return true;
+      }
       globalScheduler.pause();
       sendResponse({ success: true });
       return true;
 
     case 'resumeScheduler':
+      if (rejectIfFromTab(sender, 'resumeScheduler', sendResponse)) {
+        return true;
+      }
       globalScheduler.resume();
       sendResponse({ success: true });
       return true;
 
     case 'clearSchedulerQueue':
+      if (rejectIfFromTab(sender, 'clearSchedulerQueue', sendResponse)) {
+        return true;
+      }
       globalScheduler.clearQueue();
       sendResponse({ success: true });
       return true;
 
     case 'saveTabState':
+      if (rejectIfFromTab(sender, 'saveTabState', sendResponse)) {
+        return true;
+      }
       if (!request.tabName || !request.state) {
         sendResponse({ success: false, error: 'Missing tabName or state' });
         return true;
@@ -153,6 +176,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
 
     case 'loadTabState':
+      if (rejectIfFromTab(sender, 'loadTabState', sendResponse)) {
+        return true;
+      }
       if (!request.tabName) {
         sendResponse({ success: false, error: 'Missing tabName' });
         return true;
@@ -169,6 +195,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
 
     case 'clearTabState':
+      if (rejectIfFromTab(sender, 'clearTabState', sendResponse)) {
+        return true;
+      }
       if (!request.tabName) {
         sendResponse({ success: false, error: 'Missing tabName' });
         return true;

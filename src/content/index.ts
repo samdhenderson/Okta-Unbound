@@ -25,6 +25,11 @@ chrome.runtime.onMessage.addListener(
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: MessageResponse) => void,
   ) => {
+    if (sender.id !== chrome.runtime.id) {
+      log.warn('Ignoring message from foreign sender');
+      return false;
+    }
+
     log.debug('Received message', {
       action: request.action,
       from: sender.id,

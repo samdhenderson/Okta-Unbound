@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Modal from '../shared/Modal';
 import Button from '../shared/Button';
+import { generateCSV, downloadCSV, getDateForFilename } from '../../../shared/utils/csvUtils';
 import type { GroupSummary, GroupComparisonResult, OktaUser } from '../../../shared/types';
 
 interface GroupComparisonModalProps {
@@ -74,7 +75,8 @@ const GroupComparisonModal: React.FC<GroupComparisonModalProps> = ({
   const handleExportResults = useCallback(() => {
     if (!result) return;
 
-    const rows: string[][] = [['Metric', 'Value']];
+    const headers = ['Metric', 'Value'];
+    const rows: (string | number | boolean | null | undefined)[][] = [];
     rows.push(['Total Unique Users', String(result.totalUniqueUsers)]);
     rows.push(['Users in ALL Groups', String(result.intersection.length)]);
 
@@ -84,14 +86,7 @@ const GroupComparisonModal: React.FC<GroupComparisonModalProps> = ({
       rows.push([`${group.name} - Unique Only`, String(unique)]);
     }
 
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `group_comparison_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCSV(generateCSV(headers, rows), `group_comparison_${getDateForFilename()}.csv`);
   }, [result]);
 
   return (

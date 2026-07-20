@@ -72,6 +72,7 @@ export function useRuleConsolidation({
     deleteGroupRule,
     activateGroupRule,
     deactivateGroupRule,
+    makeApiRequest,
   } = api;
 
   const [phase, setPhase] = useState<ConsolidationPhase>('idle');
@@ -165,6 +166,16 @@ export function useRuleConsolidation({
     setError(null);
     const startTime = Date.now();
 
+    let currentUserEmail = 'unknown@unknown.com';
+    try {
+      const userResponse = await makeApiRequest('/api/v1/users/me');
+      if (userResponse.success && userResponse.data) {
+        currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
+      }
+    } catch (err) {
+      log.error('Failed to get current user:', err);
+    }
+
     try {
       const addGroupIds =
         preview.mode === 'add-target' ? preview.addedGroupIds : preview.resultingGroupIds; // merge: union (dedup handled by builder)
@@ -228,7 +239,7 @@ export function useRuleConsolidation({
         action: 'activate_rule',
         groupId: preview.resultingGroupIds[0] || 'multiple',
         groupName: created.rule.name,
-        performedBy: 'unknown@unknown.com',
+        performedBy: currentUserEmail,
         affectedUsers: [],
         result: retireFailed === 0 ? 'success' : 'partial',
         details: {
@@ -263,6 +274,7 @@ export function useRuleConsolidation({
     deactivateGroupRule,
     deleteGroupRule,
     getRawGroupRule,
+    makeApiRequest,
     onError,
     reload,
   ]);

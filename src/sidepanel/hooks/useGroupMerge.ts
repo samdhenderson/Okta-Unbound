@@ -98,6 +98,16 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     let done = 0;
     const res: MergeResults = { copied: 0, copyFailed: 0, removed: 0, removeFailed: 0 };
 
+    let currentUserEmail = 'unknown@unknown.com';
+    try {
+      const userResponse = await makeApiRequest('/api/v1/users/me');
+      if (userResponse.success && userResponse.data) {
+        currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
+      }
+    } catch (err) {
+      log.error('Failed to get current user:', err);
+    }
+
     startProgress('Merging groups', `Copying members into ${plan.survivor.name}…`, total, false);
 
     try {
@@ -160,7 +170,7 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
       }
 
       const auditBase = {
-        performedBy: 'unknown@unknown.com',
+        performedBy: currentUserEmail,
         affectedUsers: [] as string[],
       };
       const addEntry: AuditLogEntry = {
