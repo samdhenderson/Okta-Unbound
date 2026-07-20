@@ -73,8 +73,6 @@ export const oktaGroupRuleSchema = z
   })
   .passthrough();
 
-export const oktaUserListSchema = z.array(oktaUserSchema);
-
 export type OktaUserResponse = z.infer<typeof oktaUserSchema>;
 export type OktaGroupResponse = z.infer<typeof oktaGroupSchema>;
 export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;
@@ -82,7 +80,11 @@ export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;
 export function parseOkta<T>(schema: z.ZodType<T>, data: unknown, context: string): T {
   const result = schema.safeParse(data);
   if (!result.success) {
-    throw new Error(`Okta response validation failed (${context}): ${result.error.message}`);
+    const issues = result.error.issues.map((issue) => ({
+      path: issue.path.join('.'),
+      code: issue.code,
+    }));
+    throw new Error(`Okta response validation failed (${context}): ${JSON.stringify(issues)}`);
   }
   return result.data;
 }
