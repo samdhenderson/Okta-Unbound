@@ -366,6 +366,7 @@ export class ApiScheduler {
     if (this.status !== status) {
       this.status = status;
       log.debug('Status changed:', status);
+      this.notifyStateChange();
     }
   }
 

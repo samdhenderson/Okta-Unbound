@@ -60,12 +60,6 @@ export const SchedulerProvider: React.FC<{ children: ReactNode }> = ({ children 
       await refreshState();
       await refreshMetrics();
     })();
-
-    const interval = setInterval(() => {
-      void refreshState();
-    }, 1000); // Update every second for smooth countdown
-
-    return () => clearInterval(interval);
   }, [refreshState, refreshMetrics]);
 
   useEffect(() => {
