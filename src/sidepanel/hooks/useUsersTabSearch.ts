@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { OktaUser } from '../../shared/types';
 import { createLogger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
+import { searchUsersRequest } from './searchUsersRequest';
 
 const log = createLogger('useUsersTabSearch');
 
@@ -32,6 +34,8 @@ export function useUsersTabSearch({
   const [isSearching, setIsSearching] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
+
   const handleSearch = useCallback(async () => {
     if (!targetTabId) {
       onError('No Okta tab connected');
@@ -50,10 +54,7 @@ export function useUsersTabSearch({
     try {
       log.debug('Searching for users', { queryLength: searchQuery.trim().length });
 
-      const response = await chrome.tabs.sendMessage(targetTabId, {
-        action: 'searchUsers',
-        query: searchQuery.trim(),
-      });
+      const response = await searchUsersRequest(makeApiRequest, searchQuery.trim());
 
       if (response.success) {
         setSearchResults(response.data || []);
@@ -70,7 +71,7 @@ export function useUsersTabSearch({
     } finally {
       setIsSearching(false);
     }
-  }, [targetTabId, searchQuery, onError, onSearchStart]);
+  }, [targetTabId, searchQuery, onError, onSearchStart, makeApiRequest]);
 
   useEffect(() => {
     if (debounceTimerRef.current) {

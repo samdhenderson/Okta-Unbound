@@ -101,6 +101,14 @@ function schedulerCalls() {
   return runtimeSendMessage.mock.calls.map((c) => c[0]);
 }
 
+const SEARCH_RE = /^\/api\/v1\/groups\?q=/;
+function searchCalls() {
+  return schedulerCalls().filter((m: any) => SEARCH_RE.test(m.endpoint));
+}
+function routeSearch(respond: (msg: any) => any) {
+  route(SEARCH_RE, respond);
+}
+
 function rawGroup(over: Record<string, any> = {}) {
   return {
     id: 'g1',
@@ -214,29 +222,32 @@ afterEach(() => {
 });
 
 describe('live search: debounce contract', () => {
-  it('fires exactly one searchGroups message 300ms after the last keystroke', async () => {
+  it('fires exactly one scheduler search 300ms after the last keystroke', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [] });
+    routeSearch(() => ({ success: true, data: [] }));
 
     render(<GroupsTab targetTabId={1} />);
-    tabsSendMessage.mockClear();
 
     typeInto(liveInput(), 'eng');
 
     await advance(299);
-    expect(tabsSendMessage).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(0);
 
     await advance(1);
-    expect(tabsSendMessage).toHaveBeenCalledTimes(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(1, { action: 'searchGroups', query: 'eng' });
+    expect(searchCalls()).toHaveLength(1);
+    expect(searchCalls()[0]).toMatchObject({
+      action: 'scheduleApiRequest',
+      endpoint: '/api/v1/groups?q=eng&limit=20&expand=stats',
+      tabId: 1,
+      priority: 'interactive',
+    });
   });
 
   it('restarts the 300ms window on every keystroke', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [] });
+    routeSearch(() => ({ success: true, data: [] }));
 
     render(<GroupsTab targetTabId={1} />);
-    tabsSendMessage.mockClear();
     const input = liveInput();
 
     setValue(input, 'e');
@@ -245,19 +256,18 @@ describe('live search: debounce contract', () => {
     await advance(200);
     setValue(input, 'eng');
     await advance(200);
-    expect(tabsSendMessage).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(0);
 
     await advance(100);
-    expect(tabsSendMessage).toHaveBeenCalledTimes(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(1, { action: 'searchGroups', query: 'eng' });
+    expect(searchCalls()).toHaveLength(1);
+    expect(searchCalls()[0].endpoint).toBe('/api/v1/groups?q=eng&limit=20&expand=stats');
   });
 
   it('still fires exactly once when unrelated re-renders happen mid-debounce', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [] });
+    routeSearch(() => ({ success: true, data: [] }));
 
     const { rerender } = render(<GroupsTab targetTabId={1} oktaOrigin="https://a.okta.com" />);
-    tabsSendMessage.mockClear();
 
     typeInto(liveInput(), 'eng');
 
@@ -267,43 +277,44 @@ describe('live search: debounce contract', () => {
     }
     await advance(300);
 
-    expect(tabsSendMessage).toHaveBeenCalledTimes(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(1, { action: 'searchGroups', query: 'eng' });
+    expect(searchCalls()).toHaveLength(1);
+    expect(searchCalls()[0].endpoint).toBe('/api/v1/groups?q=eng&limit=20&expand=stats');
   });
 
   it('re-fires the search when targetTabId changes', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [] });
+    routeSearch(() => ({ success: true, data: [] }));
 
     const { rerender } = render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
     await advance(300);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
 
     rerender(<GroupsTab targetTabId={2} />);
     await advance(300);
 
-    expect(tabsSendMessage).toHaveBeenCalledTimes(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(2, { action: 'searchGroups', query: 'eng' });
+    expect(searchCalls()).toHaveLength(1);
+    expect(searchCalls()[0]).toMatchObject({ tabId: 2, priority: 'interactive' });
   });
 
-  it('never routes live search through the background scheduler (the §8 bypass)', async () => {
+  it('routes live search through the background scheduler, never a direct content call (§8)', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [rawGroup()] });
+    routeSearch(() => ({ success: true, data: [rawGroup()] }));
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
     await advance(300);
 
-    expect(runtimeSendMessage).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(1);
+    expect(tabsSendMessage).not.toHaveBeenCalled();
   });
 
   it('renders mapped live results (memberCount from expand=stats)', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({
+    routeSearch(() => ({
       success: true,
       data: [rawGroup({ id: 'g1', profile: { name: 'Engineering' } })],
-    });
+    }));
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
@@ -324,32 +335,32 @@ describe('live search: error paths', () => {
     await advance(300);
 
     expect(screen.getByText('No Okta tab connected')).toBeInTheDocument();
-    expect(tabsSendMessage).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(0);
     expect(document.querySelector('.animate-spin')).toBeNull();
   });
 
   it('with a whitespace-only query: clears results, sends nothing, shows no spinner', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [rawGroup()] });
+    routeSearch(() => ({ success: true, data: [rawGroup()] }));
 
     render(<GroupsTab targetTabId={1} />);
     const input = liveInput();
     typeInto(input, 'eng');
     await advance(300);
     expect(renderedGroupNames()).toEqual(['Engineering']);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
 
     setValue(input, '   ');
     await advance(300);
 
-    expect(tabsSendMessage).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(0);
     expect(renderedGroupNames()).toEqual([]);
     expect(document.querySelector('.animate-spin')).toBeNull();
   });
 
   it('on response.success === false: banners response.error and clears results', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: false, error: 'Okta said no' });
+    routeSearch(() => ({ success: false, error: 'Okta said no' }));
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
@@ -360,9 +371,11 @@ describe('live search: error paths', () => {
     expect(document.querySelector('.animate-spin')).toBeNull();
   });
 
-  it('when sendMessage rejects: banners the rejection message and clears results', async () => {
+  it('when the scheduler request rejects: banners the rejection message and clears results', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockRejectedValue(new Error('Receiving end does not exist'));
+    routeSearch(() => {
+      throw new Error('Receiving end does not exist');
+    });
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
@@ -375,7 +388,7 @@ describe('live search: error paths', () => {
 
   it('the error banner is dismissible', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: false, error: 'Okta said no' });
+    routeSearch(() => ({ success: false, error: 'Okta said no' }));
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
@@ -389,7 +402,8 @@ describe('live search: error paths', () => {
     useDebounceTimers();
     const first = deferred<any>();
     const second = deferred<any>();
-    tabsSendMessage.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    let call = 0;
+    routeSearch(() => (call++ === 0 ? first.promise : second.promise));
 
     render(<GroupsTab targetTabId={1} />);
     const input = liveInput();
@@ -398,7 +412,7 @@ describe('live search: error paths', () => {
     await advance(300);
     setValue(input, 'ab');
     await advance(300);
-    expect(tabsSendMessage).toHaveBeenCalledTimes(2);
+    expect(searchCalls()).toHaveLength(2);
 
     await act(async () => {
       second.resolve({
@@ -574,10 +588,10 @@ describe('loadAllGroups', () => {
 
   it('clears live search state when a load succeeds', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({
+    routeSearch(() => ({
       success: true,
       data: [rawGroup({ id: 'gLive', profile: { name: 'Live Result' } })],
-    });
+    }));
     route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
       success: true,
       headers: {},
@@ -978,16 +992,16 @@ describe('live mode isolation', () => {
     expect(screen.queryByRole('button', { name: /Export List/ })).not.toBeInTheDocument();
   });
 
-  it('returns live results in the content script order — never filtered or sorted', async () => {
+  it('returns live results in the response order — never filtered or sorted', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({
+    routeSearch(() => ({
       success: true,
       data: [
         rawGroup({ id: 'z', profile: { name: 'Zulu' }, _embedded: { stats: { usersCount: 1 } } }),
         rawGroup({ id: 'a', profile: { name: 'Alpha' }, _embedded: { stats: { usersCount: 99 } } }),
         rawGroup({ id: 'm', profile: { name: 'Mike' }, _embedded: { stats: { usersCount: 50 } } }),
       ],
-    });
+    }));
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'x');
@@ -1460,7 +1474,7 @@ describe('inline panels', () => {
 describe('empty states', () => {
   it('live + query + not searching: offers Load All Groups', async () => {
     useDebounceTimers();
-    tabsSendMessage.mockResolvedValue({ success: true, data: [] });
+    routeSearch(() => ({ success: true, data: [] }));
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'zzz');
@@ -1478,7 +1492,7 @@ describe('empty states', () => {
   it('live while searching: suppresses the empty state', async () => {
     useDebounceTimers();
     const pending = deferred<any>();
-    tabsSendMessage.mockReturnValue(pending.promise);
+    routeSearch(() => pending.promise);
 
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'zzz');

@@ -19,7 +19,6 @@ globalThis.chrome = {
   storage: {
     local: { get: mockStorageGet, set: mockStorageSet, remove: mockStorageRemove },
   },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 vi.mock('../../../shared/undoManager', () => ({
@@ -100,6 +99,13 @@ let scenario: Scenario;
 const appsEndpointUserId = (endpoint: string): string =>
   endpoint.match(/user\.id\+eq\+"([^"]+)"/)?.[1] ?? '';
 
+const userSearchCalls = () =>
+  mockRuntimeSendMessage.mock.calls.filter(
+    (c) =>
+      (c[0] as Record<string, unknown>).action === 'scheduleApiRequest' &&
+      /^\/api\/v1\/users\?q=/.test(String((c[0] as Record<string, unknown>).endpoint)),
+  );
+
 beforeEach(() => {
   vi.clearAllMocks();
 
@@ -128,29 +134,25 @@ beforeEach(() => {
       return { success: true, data: scenario.apps[userId] ?? [], headers: {} };
     }
 
+    if (endpoint.startsWith('/api/v1/users?')) {
+      if (scenario.searchResponse) return scenario.searchResponse();
+      return { success: true, data: scenario.searchResults, headers: {} };
+    }
+
+    if (/^\/api\/v1\/users\/[^/?]+\/groups/.test(endpoint)) {
+      if (scenario.groupsResponse) return scenario.groupsResponse();
+      return { success: true, data: scenario.comparedGroups };
+    }
+
+    if (/^\/api\/v1\/groups\/rules/.test(endpoint)) {
+      if (scenario.rulesResponse) return scenario.rulesResponse();
+      return { success: true, data: [] };
+    }
+
     return { success: true, data: [], headers: {} };
   });
 
-  mockTabsSendMessage.mockImplementation(async (_tabId: number, msg: Record<string, unknown>) => {
-    if (msg.action === 'getUserGroups') {
-      if (scenario.groupsResponse) return scenario.groupsResponse();
-      return { success: true, data: scenario.comparedGroups.map((g) => ({ group: g })) };
-    }
-    if (msg.action === 'fetchGroupRules') {
-      if (scenario.rulesResponse) return scenario.rulesResponse();
-      return {
-        success: true,
-        rules: [],
-        stats: { total: 0, active: 0, inactive: 0, conflicts: 0 },
-        conflicts: [],
-      };
-    }
-    if (msg.action === 'searchUsers') {
-      if (scenario.searchResponse) return scenario.searchResponse();
-      return { success: true, data: scenario.searchResults };
-    }
-    return { success: false, error: 'unexpected' };
-  });
+  mockTabsSendMessage.mockResolvedValue({ success: false, error: 'no direct tab calls' });
 });
 
 interface HarnessProps {
@@ -247,7 +249,11 @@ const getUserAppsCalls = () =>
   );
 
 const getUserGroupsCalls = () =>
-  mockTabsSendMessage.mock.calls.filter(([, m]) => m.action === 'getUserGroups');
+  mockRuntimeSendMessage.mock.calls.filter(
+    (c) =>
+      (c[0] as Record<string, unknown>).action === 'scheduleApiRequest' &&
+      /^\/api\/v1\/users\/[^/?]+\/groups/.test(String((c[0] as Record<string, unknown>).endpoint)),
+  );
 
 const addUserToGroupCalls = () =>
   mockRuntimeSendMessage.mock.calls.filter(([m]) => m.method === 'PUT');
@@ -589,7 +595,7 @@ describe('UserComparisonModal', () => {
       expect(screen.getByText('— —')).toBeInTheDocument();
       expect(screen.queryByText('Match')).not.toBeInTheDocument();
 
-      releaseGroups({ success: true, data: scenario.comparedGroups.map((g) => ({ group: g })) });
+      releaseGroups({ success: true, data: scenario.comparedGroups });
       await waitForLoadToSettle();
       expect(screen.getByText('Match')).toBeInTheDocument();
     });
@@ -615,7 +621,7 @@ describe('UserComparisonModal', () => {
       expect(screen.getByRole('tablist')).toBeInTheDocument();
       expect(screen.queryByText('Group memberships')).not.toBeInTheDocument();
 
-      releaseGroups({ success: true, data: scenario.comparedGroups.map((g) => ({ group: g })) });
+      releaseGroups({ success: true, data: scenario.comparedGroups });
       await waitForLoadToSettle();
       expect(screen.getByText('Group memberships')).toBeInTheDocument();
     });
@@ -680,9 +686,7 @@ describe('UserComparisonModal', () => {
       await userEvent.type(searchInput(), 'e');
 
       await new Promise((r) => setTimeout(r, 700));
-      expect(
-        mockTabsSendMessage.mock.calls.filter(([, m]) => m.action === 'searchUsers'),
-      ).toHaveLength(0);
+      expect(userSearchCalls()).toHaveLength(0);
 
       await userEvent.type(searchInput(), 'xample');
       await screen.findByText('Search Results', {}, { timeout: 3000 });
@@ -700,9 +704,11 @@ describe('UserComparisonModal', () => {
 
       await waitFor(
         () =>
-          expect(mockTabsSendMessage).toHaveBeenCalledWith(
-            TAB_ID,
-            expect.objectContaining({ action: 'searchUsers', query: 'bob' }),
+          expect(mockRuntimeSendMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+              action: 'scheduleApiRequest',
+              endpoint: '/api/v1/users?q=bob&limit=20',
+            }),
           ),
         { timeout: 3000 },
       );

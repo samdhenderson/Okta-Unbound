@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { OktaUser } from '../../shared/types';
 import { createLogger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
+import { searchUsersRequest } from './searchUsersRequest';
 
 const log = createLogger('useUserSearch');
 
@@ -30,6 +32,8 @@ export function useUserSearch({
   const [error, setError] = useState<string | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
+
   const performSearch = useCallback(
     async (query: string) => {
       if (!targetTabId) {
@@ -48,10 +52,7 @@ export function useUserSearch({
       try {
         log.debug('Searching for users', { queryLength: query.length });
 
-        const response = await chrome.tabs.sendMessage(targetTabId, {
-          action: 'searchUsers',
-          query: query.trim(),
-        });
+        const response = await searchUsersRequest(makeApiRequest, query.trim());
 
         if (response.success) {
           setSearchResults(response.data || []);
@@ -69,7 +70,7 @@ export function useUserSearch({
         setIsSearching(false);
       }
     },
-    [targetTabId],
+    [targetTabId, makeApiRequest],
   );
 
   useEffect(() => {

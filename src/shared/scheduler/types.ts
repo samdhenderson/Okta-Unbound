@@ -1,4 +1,4 @@
-export type RequestPriority = 'high' | 'normal' | 'low';
+export type RequestPriority = 'interactive' | 'high' | 'normal' | 'low';
 export type SchedulerStatus = 'idle' | 'processing' | 'throttled' | 'cooldown' | 'paused';
 
 export interface QueuedRequest {
@@ -45,6 +45,7 @@ export interface SchedulerState {
 
 export interface RequestResult {
   success: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any;
   error?: string;
   headers?: Record<string, string>;

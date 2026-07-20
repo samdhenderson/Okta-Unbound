@@ -4,6 +4,9 @@ import { RulesCache } from '../../shared/rulesCache';
 import { getOrFetch, peek } from '../cache/entityCache';
 import { analyzeMemberships } from '../../shared/utils/membershipAnalysis';
 import { createLogger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
+import { getUserGroupsRequest } from './getUserGroupsRequest';
+import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
 
 const log = createLogger('useUserMemberships');
 
@@ -29,6 +32,8 @@ export function useUserMemberships({
   const [memberships, setMemberships] = useState<GroupMembership[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
 
   const callbacksRef = useRef({ onError, onLoadingChange });
   callbacksRef.current = { onError, onLoadingChange };
@@ -68,10 +73,7 @@ export function useUserMemberships({
           async () => {
             log.debug('Loading memberships for user:', user.id);
 
-            const groupsResponse = await chrome.tabs.sendMessage(targetTabId, {
-              action: 'getUserGroups',
-              userId: user.id,
-            });
+            const groupsResponse = await getUserGroupsRequest(makeApiRequest, user.id);
 
             if (!groupsResponse.success) {
               throw new Error(groupsResponse.error || 'Failed to fetch user groups');
@@ -85,9 +87,7 @@ export function useUserMemberships({
               rules = cachedRules.rules;
             } else {
               log.debug('Cache miss - fetching rules');
-              const rulesResponse = await chrome.tabs.sendMessage(targetTabId, {
-                action: 'fetchGroupRules',
-              });
+              const rulesResponse = await fetchGroupRulesRequest(makeApiRequest);
 
               if (!rulesResponse.success) {
                 log.warn('Could not fetch rules for analysis:', rulesResponse.error);
@@ -121,7 +121,7 @@ export function useUserMemberships({
         reportLoading(false);
       }
     },
-    [targetTabId, reportError, reportLoading],
+    [targetTabId, reportError, reportLoading, makeApiRequest],
   );
 
   const clearMemberships = useCallback(() => {

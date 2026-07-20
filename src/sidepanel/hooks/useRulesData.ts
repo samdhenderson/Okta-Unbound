@@ -3,6 +3,8 @@ import type { FormattedRule, RuleStats } from '../../shared/types';
 import { RulesCache } from '../../shared/rulesCache';
 import { useProgress } from '../contexts/ProgressContext';
 import { createLogger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
+import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
 
 const log = createLogger('RulesTab');
 
@@ -17,6 +19,7 @@ export interface RulesDataSnapshot {
 interface UseRulesDataOptions {
   targetTabId?: number;
   onError: (message: string) => void;
+  currentGroupId?: string;
 }
 
 interface UseRulesDataReturn {
@@ -29,13 +32,19 @@ interface UseRulesDataReturn {
   hydrate: (snapshot: RulesDataSnapshot) => void;
 }
 
-export function useRulesData({ targetTabId, onError }: UseRulesDataOptions): UseRulesDataReturn {
+export function useRulesData({
+  targetTabId,
+  onError,
+  currentGroupId,
+}: UseRulesDataOptions): UseRulesDataReturn {
   const [rules, setRules] = useState<FormattedRule[]>([]);
   const [stats, setStats] = useState<RuleStats>(EMPTY_STATS);
   const [apiCost, setApiCost] = useState<number | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { startProgress, updateProgress, completeProgress } = useProgress();
+
+  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
 
   const hydrate = useCallback((snapshot: RulesDataSnapshot) => {
     if (snapshot.rules) setRules(snapshot.rules);
@@ -76,9 +85,7 @@ export function useRulesData({ targetTabId, onError }: UseRulesDataOptions): Use
           }
         }
 
-        const response = await chrome.tabs.sendMessage(targetTabId, {
-          action: 'fetchGroupRules',
-        });
+        const response = await fetchGroupRulesRequest(makeApiRequest, currentGroupId);
 
         log.debug('Received response:', { success: response.success });
 
@@ -122,7 +129,15 @@ export function useRulesData({ targetTabId, onError }: UseRulesDataOptions): Use
         setIsLoading(false);
       }
     },
-    [targetTabId, onError, startProgress, updateProgress, completeProgress],
+    [
+      targetTabId,
+      onError,
+      currentGroupId,
+      makeApiRequest,
+      startProgress,
+      updateProgress,
+      completeProgress,
+    ],
   );
 
   return { rules, stats, apiCost, lastFetchTime, isLoading, loadRules, hydrate };

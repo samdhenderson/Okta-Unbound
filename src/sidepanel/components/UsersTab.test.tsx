@@ -45,11 +45,6 @@ function route(pattern: RegExp, respond: (msg: any) => any) {
   routes.push([pattern, respond]);
 }
 
-let tabResponders: Record<string, (msg: any) => any> = {};
-function tabRoute(action: string, respond: (msg: any) => any) {
-  tabResponders[action] = respond;
-}
-
 function tabCalls(action?: string) {
   return tabsSendMessage.mock.calls
     .map((c) => c[1])
@@ -59,6 +54,21 @@ function tabCalls(action?: string) {
 function schedulerEndpoints() {
   return runtimeSendMessage.mock.calls.map((c) => c[0].endpoint).filter(Boolean);
 }
+
+function userDetailCalls() {
+  return schedulerEndpoints().filter((e) => /^\/api\/v1\/users\/[^/?]+$/.test(e));
+}
+
+function userSearchCalls() {
+  return schedulerEndpoints().filter((e) => /^\/api\/v1\/users\?q=/.test(e));
+}
+
+const USER_GROUPS = /^\/api\/v1\/users\/[^/?]+\/groups/;
+function userGroupsCalls() {
+  return schedulerEndpoints().filter((e) => USER_GROUPS.test(e));
+}
+
+const GROUP_RULES = /^\/api\/v1\/groups\/rules/;
 
 function oktaUser(over: Record<string, any> = {}) {
   const { profile, ...rest } = over;
@@ -134,25 +144,21 @@ const groupSearchInput = () => screen.getByPlaceholderText('Type to search by gr
 beforeEach(() => {
   vi.clearAllMocks();
   routes = [];
-  tabResponders = {};
   userContext.current = { userInfo: null, isLoading: false, oktaOrigin: null };
 
-  tabRoute('searchUsers', () => ({ success: true, data: [] }));
-  tabRoute('getUserGroups', () => ({ success: true, data: [] }));
-  tabRoute('fetchGroupRules', () => ({ success: true, rules: [], stats: {}, conflicts: [] }));
-  tabRoute('getUserDetails', () => ({ success: true, data: oktaUser() }));
+  route(/^\/api\/v1\/users\?/, () => ({ success: true, data: [] }));
+  route(USER_GROUPS, () => ({ success: true, data: [] }));
+  route(GROUP_RULES, () => ({ success: true, data: [] }));
 
-  tabsSendMessage.mockImplementation(async (_tabId: number, msg: any) => {
-    const r = tabResponders[msg.action];
-    return r ? r(msg) : { success: false, error: `unhandled action ${msg.action}` };
-  });
+  tabsSendMessage.mockResolvedValue({ success: false, error: 'no direct tab calls' });
 
   rulesCacheGet.mockResolvedValue(null); // cache miss by default
   rulesCacheSet.mockResolvedValue(undefined);
 
   runtimeSendMessage.mockImplementation(async (msg: any) => {
     if (msg.action !== 'scheduleApiRequest') return { success: false };
-    for (const [pattern, respond] of routes) {
+    for (let i = routes.length - 1; i >= 0; i--) {
+      const [pattern, respond] = routes[i];
       if (pattern.test(msg.endpoint)) return respond(msg);
     }
     return { success: false, error: `unrouted endpoint: ${msg.endpoint}` };
@@ -164,53 +170,51 @@ afterEach(() => {
 });
 
 describe('user search: 600ms debounce contract', () => {
-  it('fires exactly one searchUsers message 600ms after the last keystroke', async () => {
+  it('fires exactly one scheduler user search 600ms after the last keystroke', async () => {
     useDebounceTimers();
     render(<UsersTab targetTabId={1} />);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
 
     typeInto(userSearchInput(), 'ada');
 
     await advance(599);
-    expect(tabCalls('searchUsers')).toHaveLength(0);
+    expect(userSearchCalls()).toHaveLength(0);
 
     await advance(1);
-    expect(tabCalls('searchUsers')).toHaveLength(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(1, { action: 'searchUsers', query: 'ada' });
+    expect(userSearchCalls()).toEqual(['/api/v1/users?q=ada&limit=20']);
   });
 
   it('restarts the 600ms window on every keystroke (only one call fires)', async () => {
     useDebounceTimers();
     render(<UsersTab targetTabId={1} />);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
     const input = userSearchInput();
 
     setValue(input, 'ad');
     await advance(500);
     setValue(input, 'ada');
     await advance(500);
-    expect(tabCalls('searchUsers')).toHaveLength(0);
+    expect(userSearchCalls()).toHaveLength(0);
 
     await advance(100);
-    expect(tabCalls('searchUsers')).toHaveLength(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(1, { action: 'searchUsers', query: 'ada' });
+    expect(userSearchCalls()).toEqual(['/api/v1/users?q=ada&limit=20']);
   });
 
   it('does not search for queries shorter than 2 characters', async () => {
     useDebounceTimers();
     render(<UsersTab targetTabId={1} />);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
 
     typeInto(userSearchInput(), 'a');
     await advance(1000);
 
-    expect(tabCalls('searchUsers')).toHaveLength(0);
+    expect(userSearchCalls()).toHaveLength(0);
   });
 
   it('still fires exactly once when unrelated re-renders happen mid-debounce', async () => {
     useDebounceTimers();
     const { rerender } = render(<UsersTab targetTabId={1} currentGroupId="x0" />);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
 
     typeInto(userSearchInput(), 'ada');
 
@@ -220,8 +224,7 @@ describe('user search: 600ms debounce contract', () => {
     }
     await advance(600);
 
-    expect(tabCalls('searchUsers')).toHaveLength(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(1, { action: 'searchUsers', query: 'ada' });
+    expect(userSearchCalls()).toEqual(['/api/v1/users?q=ada&limit=20']);
   });
 
   it('re-searches when targetTabId changes', async () => {
@@ -229,18 +232,20 @@ describe('user search: 600ms debounce contract', () => {
     const { rerender } = render(<UsersTab targetTabId={1} />);
     typeInto(userSearchInput(), 'ada');
     await advance(600);
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
 
     rerender(<UsersTab targetTabId={2} />);
     await advance(600);
 
-    expect(tabCalls('searchUsers')).toHaveLength(1);
-    expect(tabsSendMessage).toHaveBeenCalledWith(2, { action: 'searchUsers', query: 'ada' });
+    expect(userSearchCalls()).toHaveLength(1);
+    expect(runtimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: '/api/v1/users?q=ada&limit=20', tabId: 2 }),
+    );
   });
 
   it('CHARACTERIZED (quirk): backspacing to 1 char leaves stale results on screen', async () => {
     useDebounceTimers();
-    tabRoute('searchUsers', () => ({
+    route(/^\/api\/v1\/users\?q=/, () => ({
       success: true,
       data: [oktaUser({ id: 'u9', profile: { firstName: 'Grace', lastName: 'Hopper' } })],
     }));
@@ -251,11 +256,11 @@ describe('user search: 600ms debounce contract', () => {
     await advance(600);
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
 
-    tabsSendMessage.mockClear();
+    runtimeSendMessage.mockClear();
     setValue(input, 'g'); // <2 chars: early-returns WITHOUT clearing searchResults
     await advance(1000);
 
-    expect(tabCalls('searchUsers')).toHaveLength(0);
+    expect(userSearchCalls()).toHaveLength(0);
     expect(screen.getByText('Grace Hopper')).toBeInTheDocument();
 
     setValue(input, ''); // only reaching 0 chars clears the results
@@ -263,7 +268,7 @@ describe('user search: 600ms debounce contract', () => {
     expect(screen.queryByText('Grace Hopper')).not.toBeInTheDocument();
   });
 
-  it('never routes user search through the background scheduler (the §8 bypass)', async () => {
+  it('routes user search through the background scheduler, never a direct content call (§8)', async () => {
     useDebounceTimers();
     render(<UsersTab targetTabId={1} />);
     runtimeSendMessage.mockClear();
@@ -271,8 +276,8 @@ describe('user search: 600ms debounce contract', () => {
     typeInto(userSearchInput(), 'ada');
     await advance(600);
 
-    expect(schedulerEndpoints()).not.toContain('/api/v1/users');
-    expect(runtimeSendMessage).not.toHaveBeenCalled();
+    expect(userSearchCalls()).toHaveLength(1);
+    expect(tabCalls('searchUsers')).toHaveLength(0);
   });
 });
 
@@ -285,9 +290,10 @@ describe('detected user: manual-load banner', () => {
 
   it('does NOT auto-fetch; shows a banner and loads only when Load is clicked', async () => {
     userContext.current = { ...detected };
+    route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
     render(<UsersTab targetTabId={1} />);
 
-    expect(tabCalls('getUserDetails')).toHaveLength(0);
+    expect(userDetailCalls()).toHaveLength(0);
     expect(screen.getByText(/Detected in admin/)).toBeInTheDocument();
 
     await act(async () => {
@@ -295,8 +301,8 @@ describe('detected user: manual-load banner', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'Ada Lovelace' })).toBeInTheDocument();
-    expect(tabCalls('getUserDetails')).toHaveLength(1);
-    expect(tabCalls('getUserGroups')).toHaveLength(1);
+    expect(userDetailCalls()).toEqual(['/api/v1/users/u1']);
+    expect(userGroupsCalls()).toHaveLength(1);
   });
 
   it('never auto-fetches across parent re-renders', async () => {
@@ -308,7 +314,7 @@ describe('detected user: manual-load banner', () => {
       await flush();
     }
 
-    expect(tabCalls('getUserDetails')).toHaveLength(0);
+    expect(userDetailCalls()).toHaveLength(0);
     expect(screen.getByText(/Detected in admin/)).toBeInTheDocument();
   });
 
@@ -318,7 +324,7 @@ describe('detected user: manual-load banner', () => {
       isLoading: false,
       oktaOrigin: null,
     };
-    tabRoute('getUserDetails', () => ({ success: false, error: 'boom' }));
+    route(/^\/api\/v1\/users\/u1$/, () => ({ success: false, error: 'boom' }));
     render(<UsersTab targetTabId={1} />);
 
     await act(async () => {
@@ -337,17 +343,17 @@ describe('detected user: manual-load banner', () => {
     });
 
     expect(screen.queryByText(/Detected in admin/)).not.toBeInTheDocument();
-    expect(tabCalls('getUserDetails')).toHaveLength(0);
+    expect(userDetailCalls()).toHaveLength(0);
   });
 });
 
 describe('membership classification (in-file heuristic)', () => {
   beforeEach(() => {
-    tabRoute('searchUsers', () => ({ success: true, data: [oktaUser()] }));
+    route(/^\/api\/v1\/users\?q=/, () => ({ success: true, data: [oktaUser()] }));
   });
 
   it('classifies an APP_GROUP as RULE_BASED regardless of rules', async () => {
-    tabRoute('getUserGroups', () => ({
+    route(USER_GROUPS, () => ({
       success: true,
       data: [rawGroup({ id: 'g2', type: 'APP_GROUP', profile: { name: 'Salesforce' } })],
     }));
@@ -363,7 +369,7 @@ describe('membership classification (in-file heuristic)', () => {
   });
 
   it('classifies a group with a matching ACTIVE rule as RULE_BASED and shows the rule', async () => {
-    tabRoute('getUserGroups', () => ({ success: true, data: [rawGroup()] }));
+    route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
     rulesCacheGet.mockResolvedValue({ rules: [activeRule()] });
 
     render(<UsersTab targetTabId={1} />);
@@ -376,7 +382,7 @@ describe('membership classification (in-file heuristic)', () => {
   });
 
   it('classifies a group with no active rules as DIRECT', async () => {
-    tabRoute('getUserGroups', () => ({ success: true, data: [rawGroup()] }));
+    route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
     rulesCacheGet.mockResolvedValue({ rules: [] });
 
     render(<UsersTab targetTabId={1} />);
@@ -391,7 +397,7 @@ describe('membership classification (in-file heuristic)', () => {
   });
 
   it('classifies an excluded user as DIRECT even when an active rule targets the group', async () => {
-    tabRoute('getUserGroups', () => ({ success: true, data: [rawGroup()] }));
+    route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
     rulesCacheGet.mockResolvedValue({
       rules: [activeRule({ conditions: { people: { users: { exclude: ['u1'] } } } })],
     });
@@ -406,9 +412,9 @@ describe('membership classification (in-file heuristic)', () => {
   });
 
   it('CHARACTERIZED: degrades to all-DIRECT (no error) when rules cannot be fetched', async () => {
-    tabRoute('getUserGroups', () => ({ success: true, data: [rawGroup()] }));
+    route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
     rulesCacheGet.mockResolvedValue(null);
-    tabRoute('fetchGroupRules', () => ({ success: false, error: 'nope' }));
+    route(GROUP_RULES, () => ({ success: false, error: 'nope' }));
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
@@ -427,21 +433,23 @@ describe('lifecycle actions', () => {
       isLoading: false,
       oktaOrigin: null,
     };
-    tabRoute('getUserGroups', () => ({ success: true, data: [] }));
+    route(USER_GROUPS, () => ({ success: true, data: [] }));
+    route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
     render(<UsersTab targetTabId={1} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Load' }));
     });
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
+    runtimeSendMessage.mockClear();
   }
 
   it('suspends an ACTIVE user: exact copy, one getUserById refresh, badge flips, profile kept', async () => {
     route(/\/lifecycle\/suspend/, () => ({ success: true }));
-    route(/\/api\/v1\/users\/u1$/, () => ({
+    await renderWithActiveUser();
+    route(/^\/api\/v1\/users\/u1$/, () => ({
       success: true,
       data: { id: 'u1', status: 'SUSPENDED', profile: { firstName: 'Ada', lastName: 'Lovelace' } },
     }));
-    await renderWithActiveUser();
 
     fireEvent.click(screen.getByRole('button', { name: 'Suspend User' }));
     await act(async () => {
@@ -470,7 +478,7 @@ describe('lifecycle actions', () => {
 
     expect(await screen.findByText('Password reset email sent successfully.')).toBeInTheDocument();
     expect(schedulerEndpoints()).not.toContain('/api/v1/users/u1');
-    expect(tabCalls('getUserGroups')).toHaveLength(0);
+    expect(userGroupsCalls()).toHaveLength(0);
   });
 
   it('shows a danger result message when the lifecycle call fails', async () => {
@@ -494,12 +502,14 @@ describe('add-to-group: 300ms group search (memoized searchGroups)', () => {
       isLoading: false,
       oktaOrigin: null,
     };
-    tabRoute('getUserGroups', () => ({ success: true, data: [] }));
+    route(USER_GROUPS, () => ({ success: true, data: [] }));
+    route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
     render(<UsersTab targetTabId={1} />);
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Load' }));
     });
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
+    runtimeSendMessage.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Add to Group' }));
   }
 

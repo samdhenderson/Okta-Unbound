@@ -39,6 +39,7 @@ export class ApiScheduler {
   private cooldownEndsAt: number | null = null;
   private isPaused: boolean = false;
   private processingInterval: ReturnType<typeof setInterval> | null = null;
+  private cancelGeneration: number = 0;
 
   private metrics: SchedulerMetrics = {
     totalRequests: 0,
@@ -137,7 +138,7 @@ export class ApiScheduler {
   }
 
   private addToQueue(request: QueuedRequest): void {
-    const priorityOrder = { high: 0, normal: 1, low: 2 };
+    const priorityOrder = { interactive: 0, high: 1, normal: 2, low: 3 };
     const requestPriorityValue = priorityOrder[request.priority];
 
     let insertIndex = this.queue.length;
@@ -175,9 +176,14 @@ export class ApiScheduler {
       return;
     }
 
+    const interactiveBypass =
+      this.queue[0]?.priority === 'interactive' && !this.rateLimitDetector.isLimitExceeded();
+
     if (this.cooldownEndsAt && Date.now() < this.cooldownEndsAt) {
-      this.updateStatus('cooldown');
-      return;
+      if (!interactiveBypass) {
+        this.updateStatus('cooldown');
+        return;
+      }
     } else if (this.cooldownEndsAt) {
       log.debug('Cooldown ended, resuming processing');
       this.cooldownEndsAt = null;
@@ -194,8 +200,10 @@ export class ApiScheduler {
         this.activeRequests.size,
       )
     ) {
-      this.enterCooldown();
-      return;
+      if (!interactiveBypass) {
+        this.enterCooldown();
+        return;
+      }
     }
 
     const request = this.queue.shift();
@@ -299,9 +307,16 @@ export class ApiScheduler {
       delayMs: backoffDelay,
     });
 
+    const generation = this.cancelGeneration;
     await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-
     this.activeRequests.delete(request.id);
+
+    if (this.cancelGeneration !== generation) {
+      request.reject(new OperationCancelledError());
+      this.notifyStateChange();
+      return;
+    }
+
     request.priority = 'high';
     this.addToQueue(request);
   }
@@ -402,6 +417,8 @@ export class ApiScheduler {
   }
 
   clearQueue(): number {
+    this.cancelGeneration++;
+
     const dropped = this.queue;
     this.queue = [];
 

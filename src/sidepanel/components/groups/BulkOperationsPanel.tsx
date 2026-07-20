@@ -1,15 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { Button, IconButton, Input } from '../shared';
-import type { GroupSummary, BulkOperationResult } from '../../../shared/types';
+import type { GroupSummary, BulkOperation, BulkOperationResult } from '../../../shared/types';
 
 type BulkOpType = 'cleanup_inactive' | 'export_all' | 'remove_user';
 
 interface BulkOperationsPanelProps {
   selectedGroups: GroupSummary[];
   executeBulkOperation: (
-    operation: any,
+    operation: BulkOperation,
     onProgress?: (current: number, total: number, currentGroupName: string) => void,
-  ) => Promise<any[]>;
+  ) => Promise<BulkOperationResult[]>;
   onClose: () => void;
   onExportSelection: () => void;
 }
@@ -58,7 +58,7 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
   const [showRemoveInput, setShowRemoveInput] = useState(false);
 
   const handleExecute = useCallback(
-    async (type: BulkOpType, config?: any) => {
+    async (type: BulkOpType, config?: BulkOperation['config']) => {
       setRunning(true);
       setCurrentOp(type);
       setResults(null);

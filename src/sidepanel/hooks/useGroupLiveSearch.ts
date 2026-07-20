@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { GroupSummary } from '../../shared/types';
 import { liveSearchToGroupSummary } from '../components/groups/groupSummary';
+import { useOktaApi } from './useOktaApi';
 
 interface UseGroupLiveSearchOptions {
   targetTabId: number | null;
@@ -19,6 +20,8 @@ export function useGroupLiveSearch({
   const [isLiveSearching, setIsLiveSearching] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const { makeApiRequest } = useOktaApi({ targetTabId });
+
   const handleLiveSearch = useCallback(
     async (query: string) => {
       if (!targetTabId) {
@@ -35,10 +38,13 @@ export function useGroupLiveSearch({
       setError(null);
 
       try {
-        const response = await chrome.tabs.sendMessage(targetTabId, {
-          action: 'searchGroups',
-          query: query.trim(),
-        });
+        const q = encodeURIComponent(query.trim());
+        const response = await makeApiRequest(
+          `/api/v1/groups?q=${q}&limit=20&expand=stats`,
+          'GET',
+          undefined,
+          'interactive',
+        );
 
         if (response.success) {
           const results = (response.data || []).map(liveSearchToGroupSummary);
@@ -54,7 +60,7 @@ export function useGroupLiveSearch({
         setIsLiveSearching(false);
       }
     },
-    [targetTabId, setError],
+    [targetTabId, setError, makeApiRequest],
   );
 
   useEffect(() => {

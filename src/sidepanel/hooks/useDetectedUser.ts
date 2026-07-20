@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import type { OktaUser } from '../../shared/types';
 import { createLogger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
 
 const log = createLogger('useDetectedUser');
 
@@ -28,21 +29,37 @@ export function useDetectedUser({
   onLoadingChange,
   onResetSearch,
 }: UseDetectedUserOptions): UseDetectedUserReturn {
+  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
+
   const depsRef = useRef({
     loadMemberships,
     onSelectUser,
     onError,
     onLoadingChange,
     onResetSearch,
+    makeApiRequest,
   });
-  depsRef.current = { loadMemberships, onSelectUser, onError, onLoadingChange, onResetSearch };
+  depsRef.current = {
+    loadMemberships,
+    onSelectUser,
+    onError,
+    onLoadingChange,
+    onResetSearch,
+    makeApiRequest,
+  };
 
   const loadUserById = useCallback(
     async (userId: string) => {
       if (!targetTabId || !userId) return;
 
-      const { loadMemberships, onSelectUser, onError, onLoadingChange, onResetSearch } =
-        depsRef.current;
+      const {
+        loadMemberships,
+        onSelectUser,
+        onError,
+        onLoadingChange,
+        onResetSearch,
+        makeApiRequest,
+      } = depsRef.current;
 
       log.debug('Loading user on request:', userId);
       onLoadingChange(true);
@@ -50,10 +67,7 @@ export function useDetectedUser({
       onResetSearch(); // Clear search results + query when loading a specific user.
 
       try {
-        const userResponse = await chrome.tabs.sendMessage(targetTabId, {
-          action: 'getUserDetails',
-          userId,
-        });
+        const userResponse = await makeApiRequest(`/api/v1/users/${userId}`);
 
         if (!userResponse.success) {
           throw new Error(userResponse.error || 'Failed to fetch user details');

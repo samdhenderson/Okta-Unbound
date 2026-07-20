@@ -177,7 +177,6 @@ beforeEach(async () => {
     storage: {
       local: { get: storageGet, set: storageSet, remove: storageRemove },
     },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
   fetchMock.mockReset();

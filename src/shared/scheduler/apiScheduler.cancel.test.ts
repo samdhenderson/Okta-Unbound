@@ -81,6 +81,28 @@ describe('ApiScheduler.clearQueue cancellation', () => {
     await expect(Promise.allSettled([a, b, c])).resolves.toHaveLength(3);
   });
 
+  it('rejects a request that is sleeping in retry backoff, without re-dispatching it', async () => {
+    let call = 0;
+    sendMessage.mockImplementation(async () => {
+      call++;
+      if (call === 1) throw new Error('net down');
+      return { success: true, data: 'ok' };
+    });
+    scheduler = new ApiScheduler({ retryDelay: 200, maxRetries: 2 });
+
+    const p = scheduler.scheduleRequest('/api/v1/groups/a', 'GET', undefined, 1);
+
+    await new Promise((r) => setTimeout(r, 120));
+    expect(apiCallCount()).toBe(1);
+
+    scheduler.clearQueue();
+
+    await expect(p).rejects.toBeInstanceOf(OperationCancelledError);
+    await new Promise((r) => setTimeout(r, 250));
+    expect(apiCallCount()).toBe(1);
+    expect(scheduler.getMetrics().failedRequests).toBe(0);
+  });
+
   it('does not count cancelled requests as failures in metrics', async () => {
     sendMessage.mockResolvedValue({ success: true });
     scheduler = new ApiScheduler();

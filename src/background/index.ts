@@ -41,7 +41,7 @@ setInterval(
 );
 
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
-const ALLOWED_PRIORITIES = new Set(['high', 'normal', 'low']);
+const ALLOWED_PRIORITIES = new Set(['interactive', 'high', 'normal', 'low']);
 
 function isValidScheduleRequest(request: {
   endpoint?: unknown;

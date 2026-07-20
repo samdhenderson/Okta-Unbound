@@ -37,6 +37,7 @@ export interface OktaUser {
     userType?: string;
     locale?: string;
     timezone?: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     [key: string]: any;
   };
 }
@@ -137,6 +138,7 @@ export interface FormattedRule {
   conflicts?: RuleConflict[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -218,6 +220,7 @@ export interface MessageRequest {
   groupIds?: string[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface MessageResponse<T = any> extends ApiResponse<T> {
   count?: number;
   rules?: OktaGroupRule[];

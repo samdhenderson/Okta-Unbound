@@ -3,6 +3,7 @@ import type { FormattedRule, AuditLogEntry } from '../../shared/types';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
 import { createLogger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
 
 const log = createLogger('RulesTab');
 
@@ -10,7 +11,6 @@ type LifecycleKind = 'activate' | 'deactivate';
 
 const LIFECYCLE = {
   activate: {
-    action: 'activateRule' as const,
     auditAction: 'activate_rule' as const,
     undoType: 'ACTIVATE_RULE' as const,
     gerund: 'Activating',
@@ -19,7 +19,6 @@ const LIFECYCLE = {
     errorLog: 'Activation error:',
   },
   deactivate: {
-    action: 'deactivateRule' as const,
     auditAction: 'deactivate_rule' as const,
     undoType: 'DEACTIVATE_RULE' as const,
     gerund: 'Deactivating',
@@ -47,6 +46,10 @@ export function useRuleLifecycle({
   reload,
   onError,
 }: UseRuleLifecycleOptions): UseRuleLifecycleReturn {
+  const { makeApiRequest, activateGroupRule, deactivateGroupRule } = useOktaApi({
+    targetTabId: targetTabId ?? null,
+  });
+
   const runLifecycle = useCallback(
     async (ruleId: string, kind: LifecycleKind) => {
       if (!targetTabId) return;
@@ -59,11 +62,7 @@ export function useRuleLifecycle({
         log.debug(`${cfg.gerund} rule:`, ruleId);
 
         try {
-          const userResponse = await chrome.tabs.sendMessage(targetTabId, {
-            action: 'makeApiRequest',
-            endpoint: '/api/v1/users/me',
-            method: 'GET',
-          });
+          const userResponse = await makeApiRequest('/api/v1/users/me');
           if (userResponse.success && userResponse.data) {
             currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
           }
@@ -76,10 +75,9 @@ export function useRuleLifecycle({
         const groupIds = rule?.groupIds || [];
         const groupNames = rule?.groupNames || [];
 
-        const response = await chrome.tabs.sendMessage(targetTabId, {
-          action: cfg.action,
-          ruleId,
-        });
+        const response = await (kind === 'activate'
+          ? activateGroupRule(ruleId)
+          : deactivateGroupRule(ruleId));
 
         if (response.success) {
           await logAction(`${cfg.verbPast} rule: ${ruleName}`, {
@@ -163,7 +161,7 @@ export function useRuleLifecycle({
         });
       }
     },
-    [targetTabId, rules, reload, onError],
+    [targetTabId, rules, reload, onError, makeApiRequest, activateGroupRule, deactivateGroupRule],
   );
 
   const activateRule = useCallback(

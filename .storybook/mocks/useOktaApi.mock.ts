@@ -3,6 +3,45 @@ import { fn } from 'storybook/test';
 
 const asyncFn = (value?: any) => fn(async () => value);
 
+const sampleUser = {
+  id: 'user1',
+  status: 'ACTIVE',
+  profile: {
+    login: 'ada.lovelace@example.com',
+    email: 'ada.lovelace@example.com',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    department: 'Engineering',
+    title: 'Principal Engineer',
+  },
+};
+
+const sampleGroups = [
+  {
+    id: 'g-eng',
+    type: 'OKTA_GROUP',
+    profile: { name: 'Engineering', description: 'All engineers' },
+  },
+  {
+    id: 'g-admins',
+    type: 'APP_GROUP',
+    profile: { name: 'Okta Admins', description: 'Admin console' },
+  },
+];
+
+const makeApiRequestFn = () =>
+  fn(async (endpoint?: string) => {
+    if (typeof endpoint === 'string') {
+      if (/^\/api\/v1\/users\/[^/?]+\/groups/.test(endpoint)) {
+        return { success: true, data: sampleGroups };
+      }
+      if (/^\/api\/v1\/users\/[^/?]+$/.test(endpoint)) {
+        return { success: true, data: sampleUser };
+      }
+    }
+    return { success: true, data: [] };
+  });
+
 export type UseOktaApiValue = Record<string, any>;
 
 export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApiValue {
@@ -11,7 +50,7 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     isCancelled: false,
     cancelOperation: fn(),
 
-    makeApiRequest: asyncFn({}),
+    makeApiRequest: makeApiRequestFn(),
 
     getAllGroupMembers: asyncFn([]),
     removeUserFromGroup: asyncFn(),
