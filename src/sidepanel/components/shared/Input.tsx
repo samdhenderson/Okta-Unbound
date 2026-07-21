@@ -8,6 +8,7 @@ interface InputProps {
   disabled?: boolean;
   error?: string;
   label?: string;
+  ariaLabel?: string;
   hint?: string;
   fullWidth?: boolean;
   icon?: React.ReactNode;
@@ -25,6 +26,7 @@ const Input: React.FC<InputProps> = ({
   disabled = false,
   error,
   label,
+  ariaLabel,
   hint,
   fullWidth = true,
   icon,
@@ -59,6 +61,7 @@ const Input: React.FC<InputProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          aria-label={ariaLabel}
           placeholder={placeholder}
           disabled={disabled}
           autoFocus={autoFocus}

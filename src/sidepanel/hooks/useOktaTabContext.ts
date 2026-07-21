@@ -31,7 +31,8 @@ export interface OktaTabContext<T> {
   resyncPending: boolean;
 }
 
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 5;
+const MAX_RETRY_DELAY_MS = 4000;
 const DEBOUNCE_MS = 150;
 
 function normalizeEntityUrl(url?: string): string | null {
@@ -107,20 +108,21 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
           setConnectionStatus('connected');
           setError(null);
           setData(entity);
-        } catch (messageErr) {
-          log.warn('Content script communication error', messageErr);
-
+        } catch {
           if (retryCount < MAX_RETRIES) {
-            const delay = Math.pow(2, retryCount) * 500; // 500ms, 1s, 2s
-            log.debug('Retrying content script', { delayMs: delay });
+            const delay = Math.min(Math.pow(2, retryCount) * 500, MAX_RETRY_DELAY_MS);
+            log.debug('Content script not ready; retrying', {
+              attempt: retryCount + 1,
+              delayMs: delay,
+            });
             setTimeout(() => fetchContext(retryCount + 1), delay);
             return; // Leave loading state until the retry settles.
           }
 
-          log.warn('Max retries reached; showing as connected');
-          setConnectionStatus('connected');
+          log.warn('Content script unreachable after retries', { attempts: retryCount + 1 });
+          setConnectionStatus('error');
           setData(commsFailedData);
-          setError('Connected to Okta, but extension communication delayed');
+          setError('Can’t reach the Okta tab — reload it to reconnect.');
         }
       } catch (err) {
         log.error('Context fetch failed', err);
@@ -128,6 +130,7 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
         setConnectionStatus('error');
         setData(initialData);
         setOktaOrigin(null);
+        setTargetTabId(null);
       } finally {
         if (!isStale()) {
           setIsLoading(false);

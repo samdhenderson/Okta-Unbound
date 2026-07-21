@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type TabType = 'overview' | 'rules' | 'users' | 'groups' | 'history';
+export type TabType = 'overview' | 'rules' | 'users' | 'groups' | 'export' | 'history';
 
 interface TabNavigationProps {
   activeTab: TabType;
@@ -13,6 +13,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange })
     { id: 'users', label: 'Users' },
     { id: 'groups', label: 'Groups' },
     { id: 'rules', label: 'Rules' },
+    { id: 'export', label: 'Export' },
     { id: 'history', label: 'History' },
   ];
 

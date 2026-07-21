@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { useGroupContext } from './useGroupContext';
 import { useUserContext } from './useUserContext';
 import { useOktaPageContext } from './useOktaPageContext';
@@ -100,6 +100,36 @@ describe('useOktaTabContext (via context hooks)', () => {
     expect(result.current.userInfo).toEqual({ userId: '00u1', userName: 'Jane Doe' });
     expect(result.current.groupInfo).toBeNull();
     expect(result.current.appInfo).toBeNull();
+  });
+
+  it('reports error (not a fake "connected") when the content script is unreachable', async () => {
+    vi.useFakeTimers();
+    try {
+      (chrome as unknown as { windows: unknown }).windows = {
+        getCurrent: vi.fn().mockResolvedValue({ id: 1 }),
+      };
+      chrome.tabs.query = vi
+        .fn()
+        .mockResolvedValue([{ id: 42, url: 'https://acme.okta.com/admin/groups', active: true }]);
+      chrome.tabs.get = vi.fn();
+      chrome.tabs.sendMessage = vi
+        .fn()
+        .mockRejectedValue(
+          new Error('Could not establish connection. Receiving end does not exist.'),
+        ) as unknown as typeof chrome.tabs.sendMessage;
+
+      const { result } = renderHook(() => useGroupContext());
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20000);
+      });
+
+      expect(result.current.connectionStatus).toBe('error');
+      expect(result.current.groupInfo).toBeNull();
+      expect(result.current.error).toMatch(/reconnect/i);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('useOktaPageContext falls back to admin when no entity is detected', async () => {

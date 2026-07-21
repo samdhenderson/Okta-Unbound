@@ -471,7 +471,7 @@ describe('loadAllGroups', () => {
     await waitFor(() => expect(renderedGroupNames()).toEqual(['Engineering', 'Slack Users']));
 
     expect(
-      screen.getByPlaceholderText('Search by name, description, or ID...'),
+      screen.getByPlaceholderText('Search by name, description, ID — or /regex/'),
     ).toBeInTheDocument();
     expect(screen.getByText('2 Cached')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Refresh/ })).toBeInTheDocument();
@@ -609,7 +609,9 @@ describe('loadAllGroups', () => {
     await advance(0);
 
     expect(renderedGroupNames()).toEqual(['Engineering']);
-    expect(screen.getByPlaceholderText('Search by name, description, or ID...')).toHaveValue('');
+    expect(screen.getByPlaceholderText('Search by name, description, ID — or /regex/')).toHaveValue(
+      '',
+    );
   });
 });
 
@@ -719,7 +721,7 @@ describe('filter pipeline (cached mode)', () => {
       cachedGroup({ id: 'b', name: 'ZebraTeam', description: 'nope' }),
       cachedGroup({ id: 'c', name: 'Gamma', description: 'A ZEBRA lives here' }),
     ]);
-    const input = screen.getByPlaceholderText('Search by name, description, or ID...');
+    const input = screen.getByPlaceholderText('Search by name, description, ID — or /regex/');
 
     await uev.type(input, 'zebra');
     expect(renderedGroupNames().sort()).toEqual(['Gamma', 'ZebraTeam']);
@@ -871,7 +873,7 @@ describe('filter pipeline (cached mode)', () => {
   it('a text query alone does not raise the Filters badge, but Clear all still wipes it', async () => {
     const uev = userEvent.setup();
     renderCached([cachedGroup({ id: 'a', name: 'Alpha', type: 'APP_GROUP' })]);
-    const input = screen.getByPlaceholderText('Search by name, description, or ID...');
+    const input = screen.getByPlaceholderText('Search by name, description, ID — or /regex/');
 
     await uev.type(input, 'alph');
     expect(screen.getByRole('button', { name: /^Filters/ }).textContent).toBe('Filters');
@@ -1511,7 +1513,10 @@ describe('empty states', () => {
     const uev = userEvent.setup();
     renderCached([cachedGroup({ id: 'a', name: 'Alpha', type: 'OKTA_GROUP' })]);
 
-    await uev.type(screen.getByPlaceholderText('Search by name, description, or ID...'), 'zzz');
+    await uev.type(
+      screen.getByPlaceholderText('Search by name, description, ID — or /regex/'),
+      'zzz',
+    );
     expect(screen.getByText('No groups match your filters')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clear Filters' })).not.toBeInTheDocument();
 

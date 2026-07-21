@@ -74,6 +74,51 @@ describe('fetchGroupRulesRequest', () => {
     expect(makeApiRequest.mock.calls.filter((c) => c[0] === '/api/v1/groups/gX')).toHaveLength(0);
   });
 
+  it('skips the group-name fan-out when resolveGroupNames is false', async () => {
+    const ruleA = rawRule({
+      id: 'rA',
+      actions: { assignUserToGroups: { groupIds: ['00gAAAAAAAAAAAAAAAAA'] } },
+      conditions: { expression: { value: 'isMemberOfAnyGroup("00gBBBBBBBBBBBBBBBBB")' } },
+    });
+    const ruleB = rawRule({
+      id: 'rB',
+      actions: { assignUserToGroups: { groupIds: ['00gCCCCCCCCCCCCCCCCC'] } },
+    });
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([ruleA, ruleB])]]);
+
+    const result = await fetchGroupRulesRequest(makeApiRequest, undefined, {
+      resolveGroupNames: false,
+    });
+
+    expect(result.success).toBe(true);
+    const groupGets = makeApiRequest.mock.calls.filter((c) =>
+      /^\/api\/v1\/groups\/00g/.test(c[0] as string),
+    );
+    expect(groupGets).toHaveLength(0);
+    expect(getCacheEntry).not.toHaveBeenCalled();
+    expect(result.rules?.[0].groupNames).toEqual(['00gAAAAAAAAAAAAAAAAA']);
+  });
+
+  it('stops paginating when Okta returns a next link on an empty page', async () => {
+    const nextHeader = {
+      link: '<https://acme.okta.com/api/v1/groups/rules?after=STUCK&limit=200>; rel="next"',
+    };
+    const makeApiRequest = vi
+      .fn()
+      .mockResolvedValueOnce(
+        ok([rawRule({ actions: { assignUserToGroups: { groupIds: [] } } })], nextHeader),
+      )
+      .mockResolvedValue(ok([], nextHeader));
+
+    const result = await fetchGroupRulesRequest(makeApiRequest);
+
+    expect(result.success).toBe(true);
+    const rulePageCalls = makeApiRequest.mock.calls.filter((c) =>
+      /^\/api\/v1\/groups\/rules/.test(c[0] as string),
+    );
+    expect(rulePageCalls).toHaveLength(2);
+  });
+
   it('follows Link rel="next" across rule pages', async () => {
     const makeApiRequest = vi
       .fn()

@@ -15,6 +15,37 @@ export interface GroupFilterState {
   sortDesc: boolean;
 }
 
+export function parseRegexQuery(query: string): RegExp | null {
+  const match = query.trim().match(/^\/(.+)\/([gimsuy]*)$/);
+  if (!match) return null;
+  try {
+    return new RegExp(match[1], match[2].replace(/[gy]/g, ''));
+  } catch {
+    return null;
+  }
+}
+
+export function matchesSearchQuery(group: GroupSummary, query: string): boolean {
+  const trimmed = query.trim();
+  if (!trimmed) return true;
+
+  const regex = parseRegexQuery(trimmed);
+  if (regex) {
+    return (
+      regex.test(group.name) ||
+      (group.description ? regex.test(group.description) : false) ||
+      regex.test(group.id)
+    );
+  }
+
+  const q = trimmed.toLowerCase();
+  return (
+    group.name.toLowerCase().includes(q) ||
+    (group.description?.toLowerCase().includes(q) ?? false) ||
+    group.id.toLowerCase().includes(q)
+  );
+}
+
 export function matchesSizeFilter(memberCount: number, sizeFilter: string): boolean {
   switch (sizeFilter) {
     case 'empty':
@@ -71,13 +102,7 @@ export function filterAndSortGroups(
   let filtered = [...groups];
 
   if (state.searchQuery.trim()) {
-    const q = state.searchQuery.toLowerCase();
-    filtered = filtered.filter(
-      (g) =>
-        g.name.toLowerCase().includes(q) ||
-        g.description?.toLowerCase().includes(q) ||
-        g.id.toLowerCase().includes(q),
-    );
+    filtered = filtered.filter((g) => matchesSearchQuery(g, state.searchQuery));
   }
 
   if (state.typeFilter) {

@@ -6,6 +6,7 @@ import OverviewTab from './components/OverviewTab';
 import RulesTab from './components/RulesTab';
 import UsersTab from './components/UsersTab';
 import GroupsTab from './components/GroupsTab';
+import { ExportTab } from './components/export';
 import AuditLogViewer from './components/AuditLogViewer';
 import ActivityBar from './components/ActivityBar';
 import { useGroupContext } from './hooks/useGroupContext';
@@ -102,6 +103,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleReconnect = () => {
+    if (targetTabId != null) {
+      chrome.tabs.reload(targetTabId, {}, () => {
+        void chrome.runtime.lastError; // tab may be gone; ignore
+        page.refetch();
+      });
+    } else {
+      page.refetch();
+    }
+  };
+
   useEffect(() => {
     chrome.storage.local.get([SELECTED_TAB_KEY], (result) => {
       if (result[SELECTED_TAB_KEY]) {
@@ -174,6 +186,7 @@ const App: React.FC = () => {
           liveContextChanged={isPinned && page.resyncPending}
           onTogglePin={handleTogglePin}
           onRefresh={page.refetch}
+          onReconnect={handleReconnect}
         />
 
         <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
@@ -222,6 +235,9 @@ const App: React.FC = () => {
             selectedGroupId={selectedGroupId}
             onGroupSelected={() => setSelectedGroupId(null)}
           />
+        )}
+        {activeTab === 'export' && (
+          <ExportTab targetTabId={targetTabId ?? undefined} oktaOrigin={oktaOrigin ?? undefined} />
         )}
         {activeTab === 'history' && (
           <div

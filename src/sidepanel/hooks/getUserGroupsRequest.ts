@@ -1,6 +1,6 @@
 import type { OktaGroup } from '../../shared/types';
 import type { CoreApi } from './useOktaApi/core';
-import { parseNextLink } from './useOktaApi/utilities';
+import { nextPageUrl } from './useOktaApi/utilities';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('getUserGroupsRequest');
@@ -37,8 +37,9 @@ export async function getUserGroupsRequest(
         return response;
       }
 
-      allGroups = allGroups.concat(response.data || []);
-      nextUrl = parseNextLink(response.headers?.link);
+      const page: OktaGroup[] = response.data || [];
+      allGroups = allGroups.concat(page);
+      nextUrl = nextPageUrl(nextUrl, response.headers?.link, page.length);
     }
 
     const memberships: UserGroupMembership[] = allGroups.map((group) => ({

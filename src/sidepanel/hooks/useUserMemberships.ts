@@ -86,19 +86,15 @@ export function useUserMemberships({
               log.debug('Using cached rules from global cache');
               rules = cachedRules.rules;
             } else {
-              log.debug('Cache miss - fetching rules');
-              const rulesResponse = await fetchGroupRulesRequest(makeApiRequest);
+              log.debug('Cache miss - fetching rules (names not needed for analysis)');
+              const rulesResponse = await fetchGroupRulesRequest(makeApiRequest, undefined, {
+                resolveGroupNames: false,
+              });
 
               if (!rulesResponse.success) {
                 log.warn('Could not fetch rules for analysis:', rulesResponse.error);
               } else {
                 rules = rulesResponse.rules || [];
-                await RulesCache.set(
-                  rules,
-                  [],
-                  rulesResponse.stats || { total: 0, active: 0, inactive: 0, conflicts: 0 },
-                  rulesResponse.conflicts || [],
-                );
               }
             }
 

@@ -8,7 +8,9 @@ import { createGroupCleanupOperations } from './useOktaApi/groupCleanup';
 import { createGroupBulkOperations } from './useOktaApi/groupBulkOps';
 import { createGroupDiscoveryOperations } from './useOktaApi/groupDiscovery';
 import { createUserOperations } from './useOktaApi/userOperations';
+import { createAppOperations } from './useOktaApi/appOperations';
 import { createExportOperations } from './useOktaApi/exportOperations';
+import { createExportEngineOperations } from './useOktaApi/exportEngine';
 import { createPushGroupOperations } from './useOktaApi/pushGroupOps';
 import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
 import { createRuleImpactOperations } from './useOktaApi/ruleImpact';
@@ -98,7 +100,9 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
   );
   const groupDiscoveryOps = useMemo(() => createGroupDiscoveryOperations(coreApi), [coreApi]);
   const userOps = useMemo(() => createUserOperations(coreApi), [coreApi]);
+  const appOps = useMemo(() => createAppOperations(coreApi), [coreApi]);
   const exportOps = useMemo(() => createExportOperations(coreApi), [coreApi]);
+  const exportEngineOps = useMemo(() => createExportEngineOperations(coreApi), [coreApi]);
   const pushGroupOps = useMemo(() => createPushGroupOperations(coreApi), [coreApi]);
   const groupAnalysisOps = useMemo(
     () => createGroupAnalysisOperations(groupMemberOps.getAllGroupMembers),
@@ -158,11 +162,16 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       getUserGroupMemberships: userOps.getUserGroupMemberships,
       searchUsers: userOps.searchUsers,
       getUserById: userOps.getUserById,
+      searchApps: appOps.searchApps,
       suspendUser: userOps.suspendUser,
       unsuspendUser: userOps.unsuspendUser,
       resetPassword: userOps.resetPassword,
 
       exportMembers,
+
+      fetchExportRows: exportEngineOps.fetchAllRows,
+      countExportRows: exportEngineOps.countRows,
+      runExport: exportEngineOps.runExport,
 
       getAppPushGroupMappings: pushGroupOps.getAppPushGroupMappings,
       applyPushGroupMappings: pushGroupOps.applyPushGroupMappings,
@@ -188,7 +197,9 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       groupDiscoveryOps,
       groupBulkOps,
       userOps,
+      appOps,
       exportOps,
+      exportEngineOps,
       pushGroupOps,
       groupAnalysisOps,
       ruleImpactOps,

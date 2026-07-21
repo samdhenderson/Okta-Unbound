@@ -2,7 +2,7 @@ import type { OktaGroupRule, FormattedRule, RuleConflict, RuleStats } from '../.
 import type { CoreApi } from './useOktaApi/core';
 import { getCacheEntry, setCacheEntry } from '../../shared/cache';
 import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
-import { parseNextLink } from './useOktaApi/utilities';
+import { nextPageUrl } from './useOktaApi/utilities';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('fetchGroupRulesRequest');
@@ -52,7 +52,9 @@ async function resolveGroupName(
 export async function fetchGroupRulesRequest(
   makeApiRequest: MakeApiRequest,
   currentGroupId?: string,
+  options: { resolveGroupNames?: boolean } = {},
 ): Promise<FetchGroupRulesResult> {
+  const { resolveGroupNames = true } = options;
   try {
     let rules: OktaGroupRule[] = [];
     let nextUrl: string | null = '/api/v1/groups/rules?limit=200';
@@ -62,22 +64,25 @@ export async function fetchGroupRulesRequest(
       if (!response.success) {
         return response;
       }
-      rules = rules.concat(response.data || []);
-      nextUrl = parseNextLink(response.headers?.link);
+      const page: OktaGroupRule[] = response.data || [];
+      rules = rules.concat(page);
+      nextUrl = nextPageUrl(nextUrl, response.headers?.link, page.length);
     }
 
     log.debug('Fetched rules (total across all pages)', { count: rules.length });
 
-    const allGroupIds = new Set<string>();
-    rules.forEach((rule) => groupIdsReferencedBy(rule).forEach((id) => allGroupIds.add(id)));
-
     const groupNameMap = new Map<string, string>();
-    const resolved = await Promise.all(
-      Array.from(allGroupIds).map((groupId) => resolveGroupName(makeApiRequest, groupId)),
-    );
-    resolved.forEach((result) => {
-      if (result) groupNameMap.set(result.groupId, result.name);
-    });
+    if (resolveGroupNames) {
+      const allGroupIds = new Set<string>();
+      rules.forEach((rule) => groupIdsReferencedBy(rule).forEach((id) => allGroupIds.add(id)));
+
+      const resolved = await Promise.all(
+        Array.from(allGroupIds).map((groupId) => resolveGroupName(makeApiRequest, groupId)),
+      );
+      resolved.forEach((result) => {
+        if (result) groupNameMap.set(result.groupId, result.name);
+      });
+    }
 
     const conflicts = detectConflicts(rules);
 

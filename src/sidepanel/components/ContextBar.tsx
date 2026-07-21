@@ -18,6 +18,7 @@ interface ContextBarProps {
   liveEntityName?: string;
   onTogglePin: () => void;
   onRefresh: () => void;
+  onReconnect?: () => void;
 }
 
 const DOT_COLOR: Record<PageType, string> = {
@@ -57,6 +58,7 @@ const ContextBar: React.FC<ContextBarProps> = ({
   liveEntityName,
   onTogglePin,
   onRefresh,
+  onReconnect,
 }) => {
   const [idCopied, setIdCopied] = useState(false);
 
@@ -124,6 +126,17 @@ const ContextBar: React.FC<ContextBarProps> = ({
                 </span>
               )}
             </div>
+            {error && onReconnect && (
+              <button
+                type="button"
+                onClick={onReconnect}
+                className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-primary-text hover:underline"
+                title="Reload the Okta tab to re-establish the connection"
+              >
+                <Icon type="refresh" size="sm" className="w-3 h-3" />
+                Reload tab to reconnect
+              </button>
+            )}
             {entityId && !error && (
               <div className="flex items-center gap-1 mt-0.5">
                 <code className="text-[11px] font-mono text-neutral-500 truncate">{entityId}</code>

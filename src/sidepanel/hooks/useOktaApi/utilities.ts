@@ -14,6 +14,17 @@ export function parseNextLink(linkHeader?: string): string | null {
   return null;
 }
 
+export function nextPageUrl(
+  currentUrl: string,
+  linkHeader: string | undefined,
+  pageSize: number,
+): string | null {
+  if (pageSize === 0) return null;
+  const next = parseNextLink(linkHeader);
+  if (!next || next === currentUrl) return null;
+  return next;
+}
+
 export function deepMergeProfiles(
   baseProfile: Record<string, unknown>,
   overrideProfile: Record<string, unknown>,

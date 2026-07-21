@@ -28,6 +28,7 @@ const meta = {
     canPin: true,
     onTogglePin: fn(),
     onRefresh: fn(),
+    onReconnect: fn(),
   },
 } satisfies Meta<typeof ContextBar>;
 
@@ -75,7 +76,7 @@ export const WithError: Story = {
   args: {
     entityName: undefined,
     entityId: undefined,
-    error: 'Unable to reach Okta tab',
+    error: 'Can’t reach the Okta tab — reload it to reconnect.',
     canPin: false,
   },
 };

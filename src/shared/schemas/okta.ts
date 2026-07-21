@@ -100,6 +100,20 @@ export const oktaGroupListItemSchema = z
   })
   .passthrough();
 
+export const oktaAppListItemSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().optional(),
+    label: z.string().optional(),
+    status: z.string().optional(),
+    signOnMode: z.string().optional(),
+    created: z.string().nullish(),
+    lastUpdated: z.string().nullish(),
+  })
+  .passthrough();
+
+export type OktaAppListItem = z.infer<typeof oktaAppListItemSchema>;
+
 export type OktaUserResponse = z.infer<typeof oktaUserSchema>;
 export type OktaGroupResponse = z.infer<typeof oktaGroupSchema>;
 export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;
