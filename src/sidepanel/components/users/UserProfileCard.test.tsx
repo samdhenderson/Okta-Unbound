@@ -28,23 +28,22 @@ describe('UserProfileCard', () => {
     expect(screen.getByText('LIFECYCLE_SLOT')).toBeInTheDocument();
   });
 
-  it('shows the Preferences section with locale and timezone when expanded', async () => {
+  it('shows the Preferences tab with locale and timezone when selected', async () => {
     const user = userEvent.setup();
     render(<UserProfileCard user={withProfile({ locale: 'en_US', timezone: 'UTC' })} />);
 
-    const header = screen.getByRole('button', { name: /Preferences/ });
-    await user.click(header);
+    await user.click(screen.getByRole('tab', { name: /Prefs/ }));
 
     expect(screen.getByText('en_US')).toBeInTheDocument();
     expect(screen.getByText('UTC')).toBeInTheDocument();
   });
 
-  it('does not render Preferences when neither locale nor timezone is set', () => {
+  it('does not render the Preferences tab when neither locale nor timezone is set', () => {
     render(<UserProfileCard user={baseUser} />);
-    expect(screen.queryByRole('button', { name: /Preferences/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: /Prefs/ })).not.toBeInTheDocument();
   });
 
-  it('lists non-standard fields under Custom Attributes but excludes security-sensitive keys', async () => {
+  it('lists non-standard fields under the Custom tab but excludes security-sensitive keys', async () => {
     const user = userEvent.setup();
     render(
       <UserProfileCard
@@ -52,8 +51,7 @@ describe('UserProfileCard', () => {
       />,
     );
 
-    const header = screen.getByRole('button', { name: /Custom Attributes/ });
-    await user.click(header);
+    await user.click(screen.getByRole('tab', { name: /Custom/ }));
 
     expect(screen.getByText('favoriteColor')).toBeInTheDocument();
     expect(screen.getByText('blue')).toBeInTheDocument();
@@ -61,7 +59,26 @@ describe('UserProfileCard', () => {
     expect(screen.queryByText('first pet?')).not.toBeInTheDocument();
   });
 
-  it('hides all collapsible sections when showCollapsibleSections is false, but keeps afterCard', () => {
+  it('lists every attribute in the All tab and filters by query, excluding security keys', async () => {
+    const user = userEvent.setup();
+    render(
+      <UserProfileCard
+        user={withProfile({ favoriteColor: 'blue', securityQuestion: 'first pet?' })}
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: 'All' }));
+
+    expect(screen.getByText('favoriteColor')).toBeInTheDocument();
+    expect(screen.getByText('login')).toBeInTheDocument();
+    expect(screen.queryByText('securityQuestion')).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(/Filter all attributes/), 'favorite');
+    expect(screen.getByText('favoriteColor')).toBeInTheDocument();
+    expect(screen.queryByText('login')).not.toBeInTheDocument();
+  });
+
+  it('hides the detail-section tabs when showCollapsibleSections is false, but keeps afterCard', () => {
     render(
       <UserProfileCard
         user={withProfile({ locale: 'en_US', favoriteColor: 'blue' })}
@@ -70,9 +87,7 @@ describe('UserProfileCard', () => {
       />,
     );
 
-    expect(screen.queryByRole('button', { name: /Account Details/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Preferences/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Custom Attributes/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.getByText('LIFECYCLE_SLOT')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
 import ContextBar from './components/ContextBar';
 import PageHeader from './components/shared/PageHeader';
 import TabNavigation, { type TabType } from './components/TabNavigation';
@@ -163,8 +162,6 @@ const App: React.FC = () => {
   return (
     <SchedulerProvider>
       <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
-        <Header status={connectionStatus} />
-
         <ContextBar
           pageType={effective.pageType}
           entityName={entityName}

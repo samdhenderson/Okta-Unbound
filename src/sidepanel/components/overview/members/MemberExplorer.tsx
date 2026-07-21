@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../../shared/types';
 import Button from '../../shared/Button';
+import Modal from '../../shared/Modal';
 import MemberSearchBar from './MemberSearchBar';
 import MemberFilterPanel from './MemberFilterPanel';
 import CopyMembersModal from './CopyMembersModal';
 import CompositionReports from './CompositionReports';
 import BreakdownDetailsModal from './BreakdownDetailsModal';
-import MfaScanPanel from './MfaScanPanel';
 import MemberList from './MemberList';
 import {
   type BreakdownRow,
@@ -14,12 +14,15 @@ import {
   type MemberFilter,
   type SortField,
   computeDimensionBreakdown,
+  computeMfaBreakdown,
   discoverAttributeBreakdowns,
   filterMembers,
   sortMembers,
   getObservedFactorLabels,
   dimensionTitle,
 } from './memberAnalytics';
+
+const MFA_AUTO_THRESHOLD = 500;
 
 type FactorMode = 'off' | 'has' | 'missing';
 
@@ -62,6 +65,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   const attributes = useMemo(() => discoverAttributeBreakdowns(members), [members]);
   const statusRows = useMemo(() => computeDimensionBreakdown(members, 'status'), [members]);
   const factorLabels = useMemo(() => getObservedFactorLabels(mfaResults), [mfaResults]);
+  const mfaRows = useMemo(() => computeMfaBreakdown(members, mfaResults), [members, mfaResults]);
 
   const filtered = useMemo(
     () => filterMembers(members, debouncedQuery, filters, mfaResults),
@@ -148,6 +152,11 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
     setVisibleCount((c) => Math.min(c + PAGE, sorted.length));
   }, [sorted.length]);
 
+  const handleScanClick = useCallback(() => {
+    if (members.length > MFA_AUTO_THRESHOLD) onRequestConfirm();
+    else onRunScan();
+  }, [members.length, onRequestConfirm, onRunScan]);
+
   const mfaScanned = mfaResults !== null && scanStatus === 'complete';
   const activeFilterCount = filters.length;
 
@@ -199,6 +208,9 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
           statusRows={statusRows}
           mfaResults={mfaResults}
           factorLabels={factorLabels}
+          memberCount={members.length}
+          scanStatus={scanStatus}
+          onRunScanClick={handleScanClick}
           sortBy={sortBy}
           sortDesc={sortDesc}
           onToggleStatus={handleStatusToggle}
@@ -211,22 +223,17 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         />
       )}
 
-      <MfaScanPanel
-        members={members}
-        mfaResults={mfaResults}
-        scanStatus={scanStatus}
-        filters={filters}
-        onRunScan={onRunScan}
-        onRequestConfirm={onRequestConfirm}
-        onCancelConfirm={onCancelConfirm}
-        onToggleMfaFilter={(row) => handleMfaValueToggle(row.value, row.label)}
-      />
-
       <CompositionReports
         attributes={attributes}
         filters={filters}
         onToggle={handleCompositionToggle}
         onExpand={setDetailKey}
+        mfaRows={mfaRows}
+        mfaResults={mfaResults}
+        scanStatus={scanStatus}
+        memberCount={members.length}
+        onToggleMfa={(row) => handleMfaValueToggle(row.value, row.label)}
+        onRunScanClick={handleScanClick}
       />
 
       <div className="space-y-3">
@@ -269,6 +276,28 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
       />
 
       <CopyMembersModal isOpen={copyOpen} onClose={() => setCopyOpen(false)} members={sorted} />
+
+      <Modal
+        isOpen={scanStatus === 'confirming'}
+        onClose={onCancelConfirm}
+        title="Run MFA scan?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={onCancelConfirm}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={onRunScan}>
+              Scan anyway
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-neutral-600">
+          This group has <strong>{members.length.toLocaleString()}</strong> members. Scanning makes
+          roughly <strong>{members.length.toLocaleString()}</strong> API calls (one per member) and
+          may take a while on large groups. Results are cached until you reload the panel.
+        </p>
+      </Modal>
     </div>
   );
 };

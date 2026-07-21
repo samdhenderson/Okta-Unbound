@@ -59,7 +59,6 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     user: richUser,
-    groupCount: 4,
   },
 } satisfies Meta<typeof UserProfileCard>;
 
@@ -69,7 +68,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const MinimalProfile: Story = {
-  args: { user: minimalUser, groupCount: 0 },
+  args: { user: minimalUser },
 };
 
 export const Suspended: Story = {

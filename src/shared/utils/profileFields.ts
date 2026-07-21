@@ -36,12 +36,15 @@ export const STANDARD_PROFILE_FIELDS = new Set([
   'genderPronouns',
 ]);
 
+export function isExcludedProfileField(key: string): boolean {
+  return EXCLUDED_PROFILE_FIELDS.has(key) || EXCLUDED_PROFILE_FIELDS.has(key.toLowerCase());
+}
+
 export function getCustomProfileFields(profile: Record<string, unknown>): Array<[string, unknown]> {
   return Object.entries(profile).filter(
     ([key, value]) =>
       !STANDARD_PROFILE_FIELDS.has(key) &&
-      !EXCLUDED_PROFILE_FIELDS.has(key) &&
-      !EXCLUDED_PROFILE_FIELDS.has(key.toLowerCase()) &&
+      !isExcludedProfileField(key) &&
       value !== null &&
       value !== undefined &&
       value !== '',

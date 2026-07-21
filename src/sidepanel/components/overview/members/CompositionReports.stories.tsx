@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import CompositionReports from './CompositionReports';
 import { discoverAttributeBreakdowns, NONE_VALUE, OTHER_VALUE } from './memberAnalytics';
-import type { AttributeSummary, MemberFilter } from './memberAnalytics';
+import type { AttributeSummary, BreakdownRow, MemberFilter } from './memberAnalytics';
+import type { MemberMfaResult } from '../../../../shared/types';
 import { mockUsers } from '../../../../test/mocks/handlers';
 
 const discoveredAttributes = discoverAttributeBreakdowns(mockUsers);
@@ -67,6 +68,15 @@ const activeFilters: MemberFilter[] = [
   { dimension: 'department', value: 'Engineering', label: 'Engineering' },
 ];
 
+const mfaRows: BreakdownRow[] = [
+  { value: 'Okta Verify (Fastpass)', label: 'Okta Verify (Fastpass)', count: 620, pct: 62 },
+  { value: 'WebAuthn', label: 'WebAuthn', count: 240, pct: 24 },
+  { value: 'SMS', label: 'SMS', count: 140, pct: 14 },
+];
+const mfaResults = new Map<string, MemberMfaResult>([
+  ['u1', { userId: 'u1', factors: [], enrolled: true, factorCount: 2, factorLabels: [] }],
+]);
+
 const meta = {
   title: 'Overview/Members/CompositionReports',
   component: CompositionReports,
@@ -77,6 +87,12 @@ const meta = {
     filters: [],
     onToggle: fn(),
     onExpand: fn(),
+    mfaRows: [],
+    mfaResults: null,
+    scanStatus: 'idle',
+    memberCount: 250,
+    onToggleMfa: fn(),
+    onRunScanClick: fn(),
   },
 } satisfies Meta<typeof CompositionReports>;
 
@@ -95,4 +111,12 @@ export const ManyAttributes: Story = {
 
 export const WithActiveFilter: Story = {
   args: { attributes: manyAttributes, filters: activeFilters },
+};
+
+export const MfaTabNotScanned: Story = {
+  args: { mfaResults: null, scanStatus: 'idle' },
+};
+
+export const MfaTabScanned: Story = {
+  args: { mfaResults, scanStatus: 'complete', mfaRows },
 };

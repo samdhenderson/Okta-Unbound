@@ -36,6 +36,14 @@ const NO_ENTITY_LABEL: Record<PageType, string> = {
   unknown: 'No context',
 };
 
+const PAGE_LABEL: Record<PageType, string> = {
+  group: 'Group',
+  user: 'User',
+  app: 'App',
+  admin: 'Admin',
+  unknown: '',
+};
+
 const ContextBar: React.FC<ContextBarProps> = ({
   pageType,
   entityName,
@@ -77,6 +85,13 @@ const ContextBar: React.FC<ContextBarProps> = ({
       ? 'var(--color-warning)'
       : DOT_COLOR[pageType];
 
+  const connectionText = error
+    ? 'Disconnected'
+    : connectionStatus === 'connecting' || isLoading
+      ? 'Connecting…'
+      : 'Connected';
+
+  const wordmarkSuffix = PAGE_LABEL[pageType];
   const liveChanged = isPinned && liveContextChanged;
 
   return (
@@ -89,9 +104,17 @@ const ContextBar: React.FC<ContextBarProps> = ({
           <span
             className={`w-2.5 h-2.5 rounded-full shrink-0 ${connectionStatus === 'connecting' || isLoading ? 'animate-pulse' : ''}`}
             style={{ backgroundColor: dotColor }}
-            aria-hidden
+            title={connectionText}
+            role="img"
+            aria-label={connectionText}
           />
           <div className="min-w-0">
+            <div
+              className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 leading-none mb-1"
+              style={{ fontFamily: 'var(--font-heading)' }}
+            >
+              Okta Unbound{wordmarkSuffix ? ` · ${wordmarkSuffix}` : ''}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-neutral-900 truncate">{displayName}</span>
               {isPinned && (

@@ -1,8 +1,9 @@
 import React from 'react';
-import type { MemberMfaResult } from '../../../../shared/types';
+import type { MemberMfaResult, MfaScanStatus } from '../../../../shared/types';
 import FilterPill from '../../shared/FilterPill';
 import SortPill from '../../shared/SortPill';
 import ActiveFilterChips from './ActiveFilterChips';
+import MfaScanButton from './MfaScanButton';
 import { type BreakdownRow, type MemberFilter, type SortField } from './memberAnalytics';
 
 type FactorMode = 'off' | 'has' | 'missing';
@@ -12,6 +13,9 @@ interface MemberFilterPanelProps {
   statusRows: BreakdownRow[];
   mfaResults: Map<string, MemberMfaResult> | null;
   factorLabels: string[];
+  memberCount: number;
+  scanStatus: MfaScanStatus;
+  onRunScanClick: () => void;
   sortBy: SortField;
   sortDesc: boolean;
   onToggleStatus: (row: BreakdownRow) => void;
@@ -28,6 +32,9 @@ const MemberFilterPanel: React.FC<MemberFilterPanelProps> = ({
   statusRows,
   mfaResults,
   factorLabels,
+  memberCount,
+  scanStatus,
+  onRunScanClick,
   sortBy,
   sortDesc,
   onToggleStatus,
@@ -74,10 +81,21 @@ const MemberFilterPanel: React.FC<MemberFilterPanelProps> = ({
       )}
 
       <div>
-        <label className="block text-xs font-medium text-neutral-600 mb-1.5">MFA Factors</label>
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <label className="block text-xs font-medium text-neutral-600">MFA Factors</label>
+          <MfaScanButton
+            mfaResults={mfaResults}
+            scanStatus={scanStatus}
+            memberCount={memberCount}
+            onScanClick={onRunScanClick}
+          />
+        </div>
+        {scanStatus === 'error' && (
+          <p className="text-xs text-danger-text mb-1.5">The MFA scan failed. Please try again.</p>
+        )}
         {!mfaResults ? (
           <p className="text-xs text-neutral-500">
-            Run the MFA scan above to filter by enrolled factors.
+            Scan the group to filter by enrolled factors (1 API call per member).
           </p>
         ) : (
           <div className="space-y-2">
