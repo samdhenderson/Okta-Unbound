@@ -447,6 +447,37 @@ describe('UserComparisonModal', () => {
     });
   });
 
+  describe('group add — to the compared user (bidirectional)', () => {
+    it('copies a context-only group onto the COMPARED user and re-buckets it to shared', async () => {
+      const onGroupsChanged = vi.fn();
+      render(<Harness onGroupsChanged={onGroupsChanged} />);
+      await openComparison();
+      await gotoTab('Groups');
+
+      expect(bucketTitleOf('Context Only Group')).toBe('Only Alice Context');
+
+      await userEvent.click(addButtonFor('Context Only Group'));
+
+      await waitFor(() =>
+        expect(mockRuntimeSendMessage).toHaveBeenCalledWith({
+          action: 'scheduleApiRequest',
+          endpoint: '/api/v1/groups/g2/users/cmp-1',
+          method: 'PUT',
+          body: undefined,
+          tabId: TAB_ID,
+          priority: 'normal',
+        }),
+      );
+
+      await waitFor(() => expect(bucketTitleOf('Context Only Group')).toBe('Shared'));
+      expect(
+        within(rowFor('Context Only Group')).queryByRole('button', { name: 'Add' }),
+      ).toBeNull();
+
+      expect(onGroupsChanged).not.toHaveBeenCalled();
+    });
+  });
+
   describe('group add — both failure channels', () => {
     const expectFailed = async (message: string) => {
       const alert = await screen.findByRole('alert');

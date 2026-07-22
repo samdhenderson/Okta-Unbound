@@ -53,6 +53,29 @@ export const WithRowAction: Story = {
   },
 };
 
+export const WithBidirectionalActions: Story = {
+  args: {
+    renderAction: (item) => (
+      <button
+        type="button"
+        onClick={fn()}
+        className="text-xs font-semibold text-primary-text hover:text-primary-dark"
+      >
+        Add {item.label} to Jane Doe
+      </button>
+    ),
+    renderContextAction: (item) => (
+      <button
+        type="button"
+        onClick={fn()}
+        className="text-xs font-semibold text-primary-text hover:text-primary-dark"
+      >
+        Add {item.label} to John Smith
+      </button>
+    ),
+  },
+};
+
 export const Empty: Story = {
   args: {
     comparedItems: [],

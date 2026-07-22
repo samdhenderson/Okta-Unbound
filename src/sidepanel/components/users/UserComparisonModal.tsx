@@ -48,7 +48,8 @@ const UserComparisonModal: React.FC<UserComparisonModalProps> = ({
     addingGroupId,
     addError,
     setAddError,
-    addGroup,
+    addToContext,
+    addToCompared,
     contextName,
     comparedName,
     selectUser,
@@ -166,7 +167,23 @@ const UserComparisonModal: React.FC<UserComparisonModalProps> = ({
                         icon="plus"
                         loading={addingGroupId === group.id}
                         disabled={addingGroupId !== null}
-                        onClick={() => addGroup(group)}
+                        onClick={() => addToContext(group)}
+                      >
+                        Add
+                      </Button>
+                    );
+                  }}
+                  renderContextAction={(item) => {
+                    const group = groupBuckets.onlyContext.find((g) => g.id === item.id);
+                    if (!group) return null;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        icon="plus"
+                        loading={addingGroupId === group.id}
+                        disabled={addingGroupId !== null}
+                        onClick={() => addToCompared(group)}
                       >
                         Add
                       </Button>

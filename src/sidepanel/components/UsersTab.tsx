@@ -7,6 +7,7 @@ import {
   AddToGroupModal,
   DetectedUserBanner,
   GroupMembershipsList,
+  UserComparisonModal,
   UserLifecycleActions,
   UserProfileCard,
   UserSearchBar,
@@ -40,6 +41,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
   const { userInfo, oktaOrigin } = useUserContext();
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OktaUser | null>(null);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<AlertMessageData | null>(null);
   const [dismissedDetectedId, setDismissedDetectedId] = useState<string | null>(null);
@@ -75,6 +77,12 @@ const UsersTab: React.FC<UsersTabProps> = ({
     },
     [handleSelectUser],
   );
+
+  const refreshSelectedUserMemberships = useCallback(() => {
+    if (!selectedUser) return;
+    invalidate(['userMemberships', selectedUser.id]);
+    void loadMemberships(selectedUser, { force: true });
+  }, [selectedUser, loadMemberships]);
 
   const onResetSearch = useCallback(() => {
     setSearchResults([]);
@@ -230,14 +238,26 @@ const UsersTab: React.FC<UsersTabProps> = ({
               oktaOrigin={oktaOrigin}
               onNavigateToRule={onNavigateToRule}
               actions={
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleOpenAddToGroupModal}
-                  disabled={isLoadingMemberships}
-                >
-                  Add to Group
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon="users"
+                    onClick={() => setIsCompareOpen(true)}
+                    disabled={isLoadingMemberships}
+                    title="Compare group & app access with another user"
+                  >
+                    Compare
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleOpenAddToGroupModal}
+                    disabled={isLoadingMemberships}
+                  >
+                    Add to Group
+                  </Button>
+                </>
               }
             />
           </div>
@@ -251,6 +271,17 @@ const UsersTab: React.FC<UsersTabProps> = ({
           />
         )}
       </div>
+
+      {selectedUser && targetTabId != null && (
+        <UserComparisonModal
+          isOpen={isCompareOpen}
+          onClose={() => setIsCompareOpen(false)}
+          contextUser={selectedUser}
+          contextGroups={memberships}
+          targetTabId={targetTabId}
+          onGroupsChanged={refreshSelectedUserMemberships}
+        />
+      )}
 
       <AddToGroupModal
         isOpen={isAddToGroupModalOpen}

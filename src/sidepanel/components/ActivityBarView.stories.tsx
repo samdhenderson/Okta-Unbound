@@ -10,6 +10,7 @@ const meta = {
   parameters: { layout: 'fullscreen' },
   args: {
     onCancel: fn(),
+    onToggleCollapse: fn(),
   },
 } satisfies Meta<typeof ActivityBarView>;
 
@@ -123,6 +124,71 @@ export const ProcessedWithFailures: Story = {
       ...idleView,
       processed: 118,
       failed: 3,
+    },
+  },
+};
+
+export const CollapsedIdle: Story = {
+  args: {
+    collapsible: true,
+    collapsed: true,
+    view: {
+      ...idleView,
+      rateLimit: { remaining: 480, limit: 600, low: false },
+      processed: 118,
+      failed: 3,
+    },
+  },
+};
+
+export const CollapsedOperation: Story = {
+  args: {
+    collapsible: true,
+    collapsed: true,
+    view: {
+      ...idleView,
+      statusLabel: 'Processing',
+      statusColorVar: 'var(--color-info)',
+      busy: true,
+      operationActive: true,
+      operationName: 'Removing members',
+      current: 42,
+      total: 120,
+      percentage: 35,
+      opCompleted: 40,
+      opActive: 2,
+      opFailed: 1,
+      rateLimit: { remaining: 90, limit: 600, low: false },
+      queueLength: 6,
+      activeRequests: 2,
+      canCancel: true,
+    },
+  },
+};
+
+export const NarrowExpanded: Story = {
+  args: {
+    collapsible: true,
+    collapsed: false,
+    view: {
+      ...idleView,
+      statusLabel: 'Processing',
+      statusColorVar: 'var(--color-info)',
+      busy: true,
+      operationActive: true,
+      operationName: 'Removing members',
+      current: 42,
+      total: 120,
+      percentage: 35,
+      elapsedLabel: '0:18',
+      etaLabel: '~0:34 left',
+      opCompleted: 40,
+      opActive: 2,
+      opFailed: 0,
+      rateLimit: { remaining: 90, limit: 600, low: false },
+      queueLength: 6,
+      activeRequests: 2,
+      canCancel: true,
     },
   },
 };

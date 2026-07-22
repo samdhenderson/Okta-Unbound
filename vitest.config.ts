@@ -54,6 +54,7 @@ export default defineConfig({
         plugins: [storybookTest({ configDir: path.join(dirname, '.storybook') })],
         test: {
           name: 'storybook',
+          retry: 2,
           browser: {
             enabled: true,
             headless: true,

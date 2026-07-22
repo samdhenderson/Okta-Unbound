@@ -5,15 +5,19 @@ import type { OktaUser, OktaGroup } from '../../shared/types';
 interface UseGroupCopyOptions {
   targetTabId: number;
   contextUser: OktaUser;
-  onGroupsChanged: () => void;
+  comparedUser: OktaUser | null;
+  onContextGroupsChanged: () => void;
+  onComparedGroupsChanged: () => void;
 }
 
 interface UseGroupCopyReturn {
-  addedGroupIds: Set<string>;
+  addedToContextIds: Set<string>;
+  addedToComparedIds: Set<string>;
   addingGroupId: string | null;
   addError: string | null;
   setAddError: (v: string | null) => void;
-  addGroup: (group: OktaGroup) => Promise<void>;
+  addToContext: (group: OktaGroup) => Promise<void>;
+  addToCompared: (group: OktaGroup) => Promise<void>;
   resetCopyState: () => void;
   resetForChangeUser: () => void;
 }
@@ -21,32 +25,40 @@ interface UseGroupCopyReturn {
 export function useGroupCopy({
   targetTabId,
   contextUser,
-  onGroupsChanged,
+  comparedUser,
+  onContextGroupsChanged,
+  onComparedGroupsChanged,
 }: UseGroupCopyOptions): UseGroupCopyReturn {
   const { addUserToGroup } = useOktaApi({ targetTabId: targetTabId ?? null });
 
-  const [addedGroupIds, setAddedGroupIds] = useState<Set<string>>(new Set());
+  const [addedToContextIds, setAddedToContextIds] = useState<Set<string>>(new Set());
+  const [addedToComparedIds, setAddedToComparedIds] = useState<Set<string>>(new Set());
   const [addingGroupId, setAddingGroupId] = useState<string | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
 
-  const addGroup = useCallback(
-    async (group: OktaGroup) => {
+  const runAdd = useCallback(
+    async (
+      group: OktaGroup,
+      user: OktaUser,
+      markAdded: (id: string) => void,
+      onChanged: () => void,
+    ) => {
       setAddingGroupId(group.id);
       setAddError(null);
       try {
         const result = await addUserToGroup(group.id, group.profile.name, {
-          id: contextUser.id,
+          id: user.id,
           profile: {
-            login: contextUser.profile.login,
-            firstName: contextUser.profile.firstName,
-            lastName: contextUser.profile.lastName,
-            email: contextUser.profile.email,
+            login: user.profile.login,
+            firstName: user.profile.firstName,
+            lastName: user.profile.lastName,
+            email: user.profile.email,
           },
         });
 
         if (result.success) {
-          setAddedGroupIds((prev) => new Set(prev).add(group.id));
-          onGroupsChanged();
+          markAdded(group.id);
+          onChanged();
         } else {
           setAddError(result.error || `Failed to add to ${group.profile.name}`);
         }
@@ -56,26 +68,54 @@ export function useGroupCopy({
         setAddingGroupId(null);
       }
     },
-    [addUserToGroup, contextUser, onGroupsChanged],
+    [addUserToGroup],
+  );
+
+  const addToContext = useCallback(
+    (group: OktaGroup) =>
+      runAdd(
+        group,
+        contextUser,
+        (id) => setAddedToContextIds((prev) => new Set(prev).add(id)),
+        onContextGroupsChanged,
+      ),
+    [runAdd, contextUser, onContextGroupsChanged],
+  );
+
+  const addToCompared = useCallback(
+    (group: OktaGroup) => {
+      if (!comparedUser) return Promise.resolve();
+      return runAdd(
+        group,
+        comparedUser,
+        (id) => setAddedToComparedIds((prev) => new Set(prev).add(id)),
+        onComparedGroupsChanged,
+      );
+    },
+    [runAdd, comparedUser, onComparedGroupsChanged],
   );
 
   const resetCopyState = useCallback(() => {
-    setAddedGroupIds(new Set());
+    setAddedToContextIds(new Set());
+    setAddedToComparedIds(new Set());
     setAddingGroupId(null);
     setAddError(null);
   }, []);
 
   const resetForChangeUser = useCallback(() => {
-    setAddedGroupIds(new Set());
+    setAddedToContextIds(new Set());
+    setAddedToComparedIds(new Set());
     setAddError(null);
   }, []);
 
   return {
-    addedGroupIds,
+    addedToContextIds,
+    addedToComparedIds,
     addingGroupId,
     addError,
     setAddError,
-    addGroup,
+    addToContext,
+    addToCompared,
     resetCopyState,
     resetForChangeUser,
   };

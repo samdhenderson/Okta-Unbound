@@ -48,15 +48,27 @@ export function useUserComparison({
     comparedUser,
   });
 
+  const onComparedGroupsChanged = useCallback(() => {
+    if (comparedUser) void loadMemberships(comparedUser, { force: true });
+  }, [comparedUser, loadMemberships]);
+
   const {
-    addedGroupIds,
+    addedToContextIds,
+    addedToComparedIds,
     addingGroupId,
     addError,
     setAddError,
-    addGroup,
+    addToContext,
+    addToCompared,
     resetCopyState,
     resetForChangeUser,
-  } = useGroupCopy({ targetTabId, contextUser, onGroupsChanged });
+  } = useGroupCopy({
+    targetTabId,
+    contextUser,
+    comparedUser,
+    onContextGroupsChanged: onGroupsChanged,
+    onComparedGroupsChanged,
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -89,8 +101,8 @@ export function useUserComparison({
   }, [resetApps, resetForChangeUser, clearMemberships, clearSearch]);
 
   const groupBuckets = useMemo(
-    () => bucketGroups(contextGroups, comparedGroups, addedGroupIds),
-    [contextGroups, comparedGroups, addedGroupIds],
+    () => bucketGroups(contextGroups, comparedGroups, addedToContextIds, addedToComparedIds),
+    [contextGroups, comparedGroups, addedToContextIds, addedToComparedIds],
   );
 
   const appBuckets = useMemo(
@@ -134,11 +146,11 @@ export function useUserComparison({
     overallSimilarity,
     isLoading,
     loadError,
-    addedGroupIds,
     addingGroupId,
     addError,
     setAddError,
-    addGroup,
+    addToContext,
+    addToCompared,
     contextName,
     comparedName,
     selectUser,

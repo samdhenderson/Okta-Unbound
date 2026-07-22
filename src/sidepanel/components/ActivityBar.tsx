@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import ActivityBarView from './ActivityBarView';
 import { useActivityBar } from '../hooks/useActivityBar';
+import { useIsNarrow } from '../hooks/useIsNarrow';
+
+const COMPACT_BELOW_PX = 640;
 
 const ActivityBar: React.FC = () => {
   const { view, cancel } = useActivityBar();
   const [confirming, setConfirming] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const isNarrow = useIsNarrow(COMPACT_BELOW_PX);
+
+  const collapsible = isNarrow;
+  const collapsed = isNarrow && !expanded;
 
   const handleCancel = () => {
     if (confirming) return;
@@ -18,7 +26,15 @@ const ActivityBar: React.FC = () => {
     setConfirming(false);
   };
 
-  return <ActivityBarView view={view} onCancel={handleCancel} />;
+  return (
+    <ActivityBarView
+      view={view}
+      onCancel={handleCancel}
+      collapsible={collapsible}
+      collapsed={collapsed}
+      onToggleCollapse={() => setExpanded((prev) => !prev)}
+    />
+  );
 };
 
 export default ActivityBar;

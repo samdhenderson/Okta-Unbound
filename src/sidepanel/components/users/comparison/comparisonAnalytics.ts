@@ -24,7 +24,8 @@ export interface GroupBuckets {
 export const bucketGroups = (
   contextGroups: GroupMembership[],
   comparedGroups: GroupMembership[],
-  addedGroupIds: Set<string>,
+  addedToContextIds: Set<string>,
+  addedToComparedIds: Set<string> = new Set(),
 ): GroupBuckets => {
   const contextGroupIds = new Set(contextGroups.map((m) => m.group.id));
   const comparedGroupIds = new Set(comparedGroups.map((m) => m.group.id));
@@ -32,16 +33,19 @@ export const bucketGroups = (
   const onlyCompared: OktaGroup[] = [];
   const shared: OktaGroup[] = [];
   for (const m of comparedGroups) {
-    if (contextGroupIds.has(m.group.id) || addedGroupIds.has(m.group.id)) {
+    if (contextGroupIds.has(m.group.id) || addedToContextIds.has(m.group.id)) {
       shared.push(m.group);
     } else {
       onlyCompared.push(m.group);
     }
   }
 
-  const onlyContext = contextGroups
-    .filter((m) => !comparedGroupIds.has(m.group.id))
-    .map((m) => m.group);
+  const onlyContext: OktaGroup[] = [];
+  for (const m of contextGroups) {
+    if (comparedGroupIds.has(m.group.id)) continue;
+    if (addedToComparedIds.has(m.group.id)) shared.push(m.group);
+    else onlyContext.push(m.group);
+  }
 
   return { onlyCompared, shared, onlyContext };
 };

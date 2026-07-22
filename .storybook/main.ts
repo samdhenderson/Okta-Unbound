@@ -59,6 +59,9 @@ const config: StorybookConfig = {
       ...(viteConfig.resolve.alias as Record<string, string>),
       '@': path.resolve(configDir, '../src'),
     };
+
+    viteConfig.optimizeDeps = viteConfig.optimizeDeps ?? {};
+    viteConfig.optimizeDeps.include = [...(viteConfig.optimizeDeps.include ?? []), 'zod'];
     return viteConfig;
   },
 };

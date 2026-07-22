@@ -13,6 +13,7 @@ interface ComparisonDiffTabProps {
   emptyContextText: string;
   noun: string;
   renderAction?: (item: DiffItem) => React.ReactNode;
+  renderContextAction?: (item: DiffItem) => React.ReactNode;
 }
 
 const ComparisonDiffTab: React.FC<ComparisonDiffTabProps> = ({
@@ -26,6 +27,7 @@ const ComparisonDiffTab: React.FC<ComparisonDiffTabProps> = ({
   emptyContextText,
   noun,
   renderAction,
+  renderContextAction,
 }) => (
   <div className="space-y-3">
     <BucketCard
@@ -48,10 +50,15 @@ const ComparisonDiffTab: React.FC<ComparisonDiffTabProps> = ({
     <BucketCard
       tone="neutral"
       title={`Only ${contextName}`}
-      subtitle={`${noun.charAt(0).toUpperCase() + noun.slice(1)}s ${comparedName} doesn't have`}
+      subtitle={
+        renderContextAction
+          ? `Add ${noun}s to ${comparedName}`
+          : `${noun.charAt(0).toUpperCase() + noun.slice(1)}s ${comparedName} doesn't have`
+      }
       count={contextItems.length}
       items={contextItems}
       emptyText={emptyContextText}
+      renderAction={renderContextAction}
     />
   </div>
 );
