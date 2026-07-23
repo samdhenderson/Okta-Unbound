@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import ActivityBar from './ActivityBar';
+import { inSidePanelFrame } from '../../../.storybook/decorators';
 
 const meta = {
   title: 'Sidepanel/ActivityBar',
   component: ActivityBar,
   tags: ['autodocs'],
+  decorators: [inSidePanelFrame],
   parameters: {
     layout: 'fullscreen',
     docs: {

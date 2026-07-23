@@ -6,7 +6,31 @@ const meta = {
   title: 'Overview/Shared/StatCard',
   component: StatCard,
   tags: ['autodocs'],
-  parameters: { layout: 'centered' },
+  parameters: {
+    layout: 'centered',
+    docs: {
+      description: {
+        component:
+          'Single metric tile — an uppercase title, a large value, and an optional ' +
+          'top-right icon — used to build the Overview stat grids.\n\n' +
+          'Presentational only. Numeric values are localized with thousands separators; ' +
+          'string values render verbatim. The `color` prop selects a semantic icon/border ' +
+          'token set (`primary`, `success`, `warning`, `danger`, `neutral`). Passing ' +
+          '`onClick` turns the whole card into a clickable button.',
+      },
+    },
+  },
+  argTypes: {
+    title: { description: 'Uppercase label above the value.' },
+    value: { description: 'The metric; numbers are rendered with thousands separators.' },
+    color: {
+      description:
+        'Semantic color, selecting the icon and border token set; defaults to `neutral`.',
+    },
+    icon: { description: 'Optional icon shown at the top-right.' },
+    subtitle: { description: 'Optional caption below the value.' },
+    onClick: { description: 'When provided, makes the card a clickable button.' },
+  },
   args: {
     title: 'Active Users',
     value: 1250,
@@ -62,9 +86,9 @@ export const Warning: Story = {
   },
 };
 
-export const Error: Story = {
+export const ErrorState: Story = {
   args: {
-    color: 'error',
+    color: 'danger',
     title: 'Failed Requests',
     value: 3,
     icon: 'alert',

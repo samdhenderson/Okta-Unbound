@@ -48,7 +48,7 @@ const mockResult: ConsolidationResult = {
 };
 
 const meta = {
-  title: 'Components/RuleConsolidationModal',
+  title: 'Rules/RuleConsolidationModal',
   component: RuleConsolidationModal,
   tags: ['autodocs'],
   parameters: {
@@ -61,6 +61,18 @@ const meta = {
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
       },
     },
+  },
+  argTypes: {
+    phase: {
+      description: 'Lifecycle phase of the consolidation flow, driving which step renders.',
+    },
+    preview: { description: 'The dry-run diff of the resulting rule, or null before a preview.' },
+    result: { description: 'The outcome of a completed run, or null until done.' },
+    error: { description: 'Failure message to surface, or null.' },
+    searchGroups: { description: 'Search groups by name (add-target select step).' },
+    onChooseGroup: { description: 'Choose the group to add.' },
+    onExecute: { description: 'Execute the consolidation.' },
+    onClose: { description: 'Close + reset.' },
   },
   args: {
     phase: 'select',
@@ -99,6 +111,6 @@ export const Done: Story = {
   args: { phase: 'done', result: mockResult },
 };
 
-export const Failed: Story = {
+export const ErrorState: Story = {
   args: { phase: 'error', error: 'Failed to create the consolidated rule: rate limited.' },
 };

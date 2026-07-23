@@ -30,7 +30,26 @@ const preview: Preview = {
       },
     },
     a11y: {
-      test: 'todo',
+      test: 'error',
+    },
+    viewport: {
+      options: {
+        sidepanelCompact: {
+          name: 'Side panel — compact (< 640)',
+          styles: { width: '360px', height: '900px' },
+          type: 'other',
+        },
+        sidepanelDefault: {
+          name: 'Side panel — default',
+          styles: { width: '480px', height: '900px' },
+          type: 'other',
+        },
+        sidepanelWide: {
+          name: 'Side panel — wide (≥ 640)',
+          styles: { width: '720px', height: '900px' },
+          type: 'other',
+        },
+      },
     },
     layout: 'fullscreen',
   },

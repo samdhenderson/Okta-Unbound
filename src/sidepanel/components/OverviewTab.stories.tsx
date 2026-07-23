@@ -3,7 +3,7 @@ import { fn } from 'storybook/test';
 import OverviewTab from './OverviewTab';
 
 const meta = {
-  title: 'Components/OverviewTab',
+  title: 'Overview/OverviewTab',
   component: OverviewTab,
   tags: ['autodocs'],
   parameters: {

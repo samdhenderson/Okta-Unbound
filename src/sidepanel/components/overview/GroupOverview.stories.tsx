@@ -55,7 +55,7 @@ export const NoOktaOrigin: Story = {
   },
 };
 
-export const EmptyGroup: Story = {
+export const Empty: Story = {
   args: { groupId: 'group-empty', groupName: 'Empty Group' },
   beforeEach: () => {
     useOktaApi.mockReturnValue(makeUseOktaApiValue({ getAllGroupMembers: fn(async () => []) }));
@@ -74,7 +74,7 @@ export const Loading: Story = {
   },
 };
 
-export const WithError: Story = {
+export const ErrorState: Story = {
   args: { groupId: 'group-error' },
   beforeEach: () => {
     useOktaApi.mockReturnValue(

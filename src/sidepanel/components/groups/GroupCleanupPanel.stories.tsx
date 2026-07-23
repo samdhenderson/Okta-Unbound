@@ -45,7 +45,30 @@ const meta = {
   title: 'Groups/GroupCleanupPanel',
   component: GroupCleanupPanel,
   tags: ['autodocs'],
-  parameters: { layout: 'fullscreen' },
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        component:
+          'Read-only clutter-triage panel over the loaded groups.\n\n' +
+          'Buckets groups into cleanup categories (empty, duplicate-named, stale, …), ' +
+          'offers category selectors, and previews a ranked review list that can be ' +
+          'pushed back as the current selection. When nothing is flagged it renders an ' +
+          'empty state; a long flagged list is capped with an "N more" overflow line. ' +
+          'The panel itself performs no mutations.\n\n' +
+          '**Related internals:** [Shared utilities](?path=/docs/internals-shared-utilities--docs), ' +
+          '[Types](?path=/docs/internals-types--docs)',
+      },
+    },
+  },
+  argTypes: {
+    groups: { description: 'The loaded (cached) groups to analyze.' },
+    onSelectGroups: { description: 'Replace the current selection with the given group ids.' },
+    onAnalyzeSource: {
+      description: 'Open the read-only membership-source insight for a flagged group.',
+    },
+    onClose: { description: 'Close the panel.' },
+  },
   args: {
     groups: mixedGroups,
     onSelectGroups: fn(),
@@ -59,7 +82,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
-export const NoClutter: Story = {
+export const Empty: Story = {
   args: { groups: healthyGroups },
 };
 

@@ -4,7 +4,7 @@ import Icon, { type IconType } from './Icon';
 interface StatCardProps {
   title: string;
   value: number | string;
-  color?: 'primary' | 'success' | 'warning' | 'error' | 'neutral';
+  color?: 'primary' | 'success' | 'warning' | 'danger' | 'neutral';
   icon?: IconType;
   subtitle?: string;
   onClick?: () => void;
@@ -32,7 +32,7 @@ const colorConfigs = {
     border: 'border-neutral-200',
     textColor: 'text-neutral-900',
   },
-  error: {
+  danger: {
     iconBg: 'bg-danger-light',
     iconColor: 'text-danger-text',
     cardBg: 'bg-white',

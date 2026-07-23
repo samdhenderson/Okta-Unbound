@@ -21,7 +21,34 @@ const meta = {
   title: 'Overview/Members/MemberExplorer',
   component: MemberExplorer,
   tags: ['autodocs'],
-  parameters: { layout: 'fullscreen' },
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        component:
+          'Orchestrator for in-group member search, faceting, composition, MFA, and listing.\n\n' +
+          "Owns the explorer's client-side state — debounced search, the active filter set, " +
+          'sort field/direction, and the paged visible window — and derives the ' +
+          'filtered/sorted list via the pure `memberAnalytics` helpers. Composes the search ' +
+          'bar, filter panel, MFA scan panel, composition reports, member list, and the ' +
+          'details/copy modals. MFA scan results are owned by the parent overview and passed ' +
+          'in, so the scan lifecycle (idle → confirming → scanning → complete) is driven by ' +
+          'props.\n\n' +
+          '**Related internals:** [Types](?path=/docs/internals-types--docs)',
+      },
+    },
+  },
+  argTypes: {
+    members: { description: "The group's full member set (the explorer filters/sorts locally)." },
+    mfaResults: { description: 'Per-member MFA scan results, or null before a scan has run.' },
+    scanStatus: { description: 'Current MFA scan lifecycle status.' },
+    onRunScan: { description: 'Start the MFA scan.' },
+    onRequestConfirm: { description: 'Request the confirmation gate (used for large groups).' },
+    onCancelConfirm: { description: 'Dismiss the confirmation gate.' },
+    oktaOrigin: {
+      description: 'Okta org origin for member Admin Console links (null when unknown).',
+    },
+  },
   args: {
     members: mockUsers,
     mfaResults: null,
@@ -50,6 +77,6 @@ export const ScanComplete: Story = {
   args: { mfaResults, scanStatus: 'complete' },
 };
 
-export const EmptyGroup: Story = {
+export const Empty: Story = {
   args: { members: [] },
 };
