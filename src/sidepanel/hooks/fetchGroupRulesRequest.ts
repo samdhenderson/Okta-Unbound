@@ -1,8 +1,8 @@
 import type { OktaGroupRule, FormattedRule, RuleConflict, RuleStats } from '../../shared/types';
 import type { CoreApi } from './useOktaApi/core';
-import { getCacheEntry, setCacheEntry } from '../../shared/cache';
 import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
 import { nextPageUrl } from './useOktaApi/utilities';
+import { GROUPS_CACHE_KEY, parseGroupsCache } from '../components/groups/groupsCache';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('fetchGroupRulesRequest');
@@ -26,27 +26,20 @@ function groupIdsReferencedBy(rule: OktaGroupRule): string[] {
   return [...ids, ...inExpression];
 }
 
-async function resolveGroupName(
-  makeApiRequest: MakeApiRequest,
-  groupId: string,
-): Promise<{ groupId: string; name: string } | null> {
+async function loadCachedGroupNames(): Promise<Map<string, string>> {
+  const nameById = new Map<string, string>();
   try {
-    const cacheKey = `group_name_${groupId}`;
-    const cachedName = await getCacheEntry<string>(cacheKey);
-    if (cachedName) {
-      return { groupId, name: cachedName };
-    }
-
-    const groupResponse = await makeApiRequest(`/api/v1/groups/${groupId}`);
-    if (groupResponse.success && groupResponse.data?.profile?.name) {
-      const groupName = groupResponse.data.profile.name;
-      await setCacheEntry(cacheKey, groupName, { ttl: 5 * 60 * 1000 });
-      return { groupId, name: groupName };
-    }
+    const stored = await chrome.storage.local.get(GROUPS_CACHE_KEY);
+    const raw = stored?.[GROUPS_CACHE_KEY];
+    if (typeof raw !== 'string') return nameById;
+    const groups = parseGroupsCache(raw, Date.now());
+    groups?.forEach((group) => {
+      if (group.id && group.name) nameById.set(group.id, group.name);
+    });
   } catch (err) {
-    log.warn('Failed to fetch group name for group', { groupId }, err);
+    log.warn('Failed to read cached group names', err);
   }
-  return null;
+  return nameById;
 }
 
 export async function fetchGroupRulesRequest(
@@ -71,18 +64,9 @@ export async function fetchGroupRulesRequest(
 
     log.debug('Fetched rules (total across all pages)', { count: rules.length });
 
-    const groupNameMap = new Map<string, string>();
-    if (resolveGroupNames) {
-      const allGroupIds = new Set<string>();
-      rules.forEach((rule) => groupIdsReferencedBy(rule).forEach((id) => allGroupIds.add(id)));
-
-      const resolved = await Promise.all(
-        Array.from(allGroupIds).map((groupId) => resolveGroupName(makeApiRequest, groupId)),
-      );
-      resolved.forEach((result) => {
-        if (result) groupNameMap.set(result.groupId, result.name);
-      });
-    }
+    const groupNameMap = resolveGroupNames
+      ? await loadCachedGroupNames()
+      : new Map<string, string>();
 
     const conflicts = detectConflicts(rules);
 

@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
+import { GROUPS_CACHE_KEY } from '../components/groups/groupsCache';
 import type { RequestResult } from '../../shared/scheduler/types';
 
-const getCacheEntry = vi.fn();
-const setCacheEntry = vi.fn();
-vi.mock('../../shared/cache', () => ({
-  getCacheEntry: (...args: unknown[]) => getCacheEntry(...args),
-  setCacheEntry: (...args: unknown[]) => setCacheEntry(...args),
-}));
+function stubGroupsCache(groups: Array<{ id: string; name: string }>) {
+  const payload = JSON.stringify({ groups, timestamp: Date.now() });
+  vi.mocked(chrome.storage.local.get).mockResolvedValue({ [GROUPS_CACHE_KEY]: payload } as never);
+}
 
 const ok = (data: unknown, headers?: Record<string, string>): RequestResult => ({
   success: true,
@@ -39,18 +38,15 @@ function router(handlers: Array<[RegExp, () => RequestResult]>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  getCacheEntry.mockResolvedValue(null); // cache miss → resolve names via fetch
-  setCacheEntry.mockResolvedValue(undefined);
+  vi.mocked(chrome.storage.local.get).mockResolvedValue({} as never);
 });
 
 describe('fetchGroupRulesRequest', () => {
-  it('formats rules with resolved group names, stats, and conflicts', async () => {
+  it('labels rules with group names from the Groups cache, plus stats and conflicts', async () => {
+    stubGroupsCache([{ id: 'gX', name: 'Group X' }]);
     const ruleA = rawRule({ id: 'rA', name: 'A' });
     const ruleB = rawRule({ id: 'rB', name: 'B' }); // same group + attribute → conflict
-    const makeApiRequest = router([
-      [/^\/api\/v1\/groups\/rules/, () => ok([ruleA, ruleB])],
-      [/^\/api\/v1\/groups\/gX$/, () => ok({ profile: { name: 'Group X' } })],
-    ]);
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([ruleA, ruleB])]]);
 
     const result = await fetchGroupRulesRequest(makeApiRequest, 'gX');
 
@@ -60,21 +56,19 @@ describe('fetchGroupRulesRequest', () => {
     expect(result.rules?.[0].groupNames).toEqual(['Group X']);
     expect(result.rules?.[0].allGroupNamesMap).toEqual({ gX: 'Group X' });
     expect(result.rules?.[0].affectsCurrentGroup).toBe(true);
-    expect(makeApiRequest.mock.calls.filter((c) => c[0] === '/api/v1/groups/gX')).toHaveLength(1);
-    expect(setCacheEntry).toHaveBeenCalledWith('group_name_gX', 'Group X', { ttl: 5 * 60 * 1000 });
+    expect(makeApiRequest.mock.calls.filter((c) => c[0] === '/api/v1/groups/gX')).toHaveLength(0);
   });
 
-  it('serves a cached group name without fetching it', async () => {
-    getCacheEntry.mockResolvedValue('Cached X');
+  it('falls back to the group id when the group is absent from the cache', async () => {
     const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([rawRule()])]]);
 
     const result = await fetchGroupRulesRequest(makeApiRequest);
 
-    expect(result.rules?.[0].groupNames).toEqual(['Cached X']);
+    expect(result.rules?.[0].groupNames).toEqual(['gX']);
     expect(makeApiRequest.mock.calls.filter((c) => c[0] === '/api/v1/groups/gX')).toHaveLength(0);
   });
 
-  it('skips the group-name fan-out when resolveGroupNames is false', async () => {
+  it('does not read the Groups cache when resolveGroupNames is false', async () => {
     const ruleA = rawRule({
       id: 'rA',
       actions: { assignUserToGroups: { groupIds: ['00gAAAAAAAAAAAAAAAAA'] } },
@@ -95,7 +89,7 @@ describe('fetchGroupRulesRequest', () => {
       /^\/api\/v1\/groups\/00g/.test(c[0] as string),
     );
     expect(groupGets).toHaveLength(0);
-    expect(getCacheEntry).not.toHaveBeenCalled();
+    expect(chrome.storage.local.get).not.toHaveBeenCalled();
     expect(result.rules?.[0].groupNames).toEqual(['00gAAAAAAAAAAAAAAAAA']);
   });
 
