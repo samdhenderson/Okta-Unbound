@@ -166,15 +166,21 @@ const App: React.FC = () => {
     chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'users' });
   };
 
-  const handleExportGroup = (groupId: string, groupName: string) => {
-    setExportRequest({
+  const handleNavigateToExport = (request: ExportRequest) => {
+    setExportRequest(request);
+    setActiveTab('export');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'export' });
+  };
+
+  const handleExportGroup = (groupId: string, groupName: string) =>
+    handleNavigateToExport({
       descriptorId: 'group-memberships',
       contextId: groupId,
       contextLabel: groupName,
     });
-    setActiveTab('export');
-    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'export' });
-  };
+
+  const handleExportApp = (descriptorId: string, appId: string, appName: string) =>
+    handleNavigateToExport({ descriptorId, contextId: appId, contextLabel: appName });
 
   return (
     <SchedulerProvider>
@@ -202,6 +208,7 @@ const App: React.FC = () => {
             pageType={effective.pageType}
             groupInfo={effective.groupInfo}
             userInfo={effective.userInfo}
+            appInfo={page.appInfo ?? null}
             connectionStatus={effective.connectionStatus}
             targetTabId={effective.targetTabId}
             error={effective.error}
@@ -212,6 +219,7 @@ const App: React.FC = () => {
               if (effective.userInfo) handleNavigateToUser(effective.userInfo.userId);
             }}
             onExportGroup={handleExportGroup}
+            onExportApp={handleExportApp}
           />
         )}
         {activeTab === 'rules' && (

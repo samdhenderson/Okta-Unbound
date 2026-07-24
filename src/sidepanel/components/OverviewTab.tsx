@@ -1,5 +1,5 @@
 import React from 'react';
-import type { GroupInfo, UserInfo } from '../../shared/types';
+import type { GroupInfo, UserInfo, AppInfo } from '../../shared/types';
 import type { PageType } from '../hooks/useOktaPageContext';
 import type { ConnectionStatus } from '../hooks/useOktaTabContext';
 import AlertMessage from './shared/AlertMessage';
@@ -7,12 +7,14 @@ import EmptyState from './shared/EmptyState';
 import LoadingSpinner from './shared/LoadingSpinner';
 import GroupOverview from './overview/GroupOverview';
 import UserOverview from './overview/UserOverview';
+import AppOverview from './overview/AppOverview';
 
 interface OverviewTabProps {
   onTabChange: (tab: 'rules' | 'users' | 'groups' | 'history', selectedRuleId?: string) => void;
   pageType: PageType;
   groupInfo: GroupInfo | null;
   userInfo: UserInfo | null;
+  appInfo: AppInfo | null;
   connectionStatus: ConnectionStatus;
   targetTabId: number | null;
   error: string | null;
@@ -21,6 +23,7 @@ interface OverviewTabProps {
   onRetry: () => void;
   onViewAllGroups: () => void;
   onExportGroup: (groupId: string, groupName: string) => void;
+  onExportApp: (descriptorId: string, appId: string, appName: string) => void;
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -28,6 +31,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   pageType,
   groupInfo,
   userInfo,
+  appInfo,
   connectionStatus,
   targetTabId,
   error,
@@ -36,6 +40,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   onRetry,
   onViewAllGroups,
   onExportGroup,
+  onExportApp,
 }) => {
   if (isLoading) {
     return (
@@ -91,7 +96,13 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
           />
         )}
 
-        {(pageType === 'unknown' || pageType === 'admin' || pageType === 'app') && (
+        {pageType === 'app' && appInfo && targetTabId && (
+          <AppOverview appId={appInfo.appId} appName={appInfo.appName} onExport={onExportApp} />
+        )}
+
+        {(pageType === 'unknown' ||
+          pageType === 'admin' ||
+          (pageType === 'app' && (!appInfo || !targetTabId))) && (
           <EmptyState
             icon="search"
             title="Waiting for Context"
