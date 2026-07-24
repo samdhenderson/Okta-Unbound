@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
+  const [scopeRulesToGroupId, setScopeRulesToGroupId] = useState<string | null>(null);
   const [pinned, setPinned] = useState<PinnedContext | null>(null);
   const isPinned = pinned !== null;
 
@@ -182,6 +183,12 @@ const App: React.FC = () => {
   const handleExportApp = (descriptorId: string, appId: string, appName: string) =>
     handleNavigateToExport({ descriptorId, contextId: appId, contextLabel: appName });
 
+  const handleViewGroupRules = (groupId: string) => {
+    setScopeRulesToGroupId(groupId);
+    setActiveTab('rules');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'rules' });
+  };
+
   return (
     <SchedulerProvider>
       <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
@@ -220,6 +227,7 @@ const App: React.FC = () => {
             }}
             onExportGroup={handleExportGroup}
             onExportApp={handleExportApp}
+            onViewGroupRules={handleViewGroupRules}
           />
         )}
         {activeTab === 'rules' && (
@@ -230,6 +238,8 @@ const App: React.FC = () => {
             selectedRuleId={selectedRuleId}
             onRuleSelected={() => setSelectedRuleId(null)}
             onNavigateToGroup={handleNavigateToGroup}
+            scopeToGroupId={scopeRulesToGroupId}
+            onScopeConsumed={() => setScopeRulesToGroupId(null)}
           />
         )}
         {activeTab === 'users' && (

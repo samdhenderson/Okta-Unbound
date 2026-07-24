@@ -31,6 +31,7 @@ const meta = {
     onViewAllGroups: fn(),
     onExportGroup: fn(),
     onExportApp: fn(),
+    onViewGroupRules: fn(),
   },
 } satisfies Meta<typeof OverviewTab>;
 

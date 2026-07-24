@@ -24,6 +24,7 @@ interface OverviewTabProps {
   onViewAllGroups: () => void;
   onExportGroup: (groupId: string, groupName: string) => void;
   onExportApp: (descriptorId: string, appId: string, appName: string) => void;
+  onViewGroupRules: (groupId: string) => void;
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -41,6 +42,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   onViewAllGroups,
   onExportGroup,
   onExportApp,
+  onViewGroupRules,
 }) => {
   if (isLoading) {
     return (
@@ -80,7 +82,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             groupId={groupInfo.groupId}
             groupName={groupInfo.groupName}
             targetTabId={targetTabId}
-            onTabChange={(tab, selectedRuleId) => onTabChange(tab, selectedRuleId)}
+            onViewRules={() => onViewGroupRules(groupInfo.groupId)}
             onExportMembers={onExportGroup}
             oktaOrigin={oktaOrigin}
           />

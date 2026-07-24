@@ -32,6 +32,8 @@ interface RulesTabProps {
   selectedRuleId?: string | null;
   onRuleSelected?: () => void;
   onNavigateToGroup?: (groupId: string) => void;
+  scopeToGroupId?: string | null;
+  onScopeConsumed?: () => void;
 }
 
 const RulesTab: React.FC<RulesTabProps> = ({
@@ -41,14 +43,16 @@ const RulesTab: React.FC<RulesTabProps> = ({
   selectedRuleId,
   onRuleSelected,
   onNavigateToGroup,
+  scopeToGroupId,
+  onScopeConsumed,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<RulesFilterType>('all');
   const [sortMode, setSortMode] = useState<RuleSortMode>('default');
+  const [restoreAttempted, setRestoreAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [focusRuleId, setFocusRuleId] = useState<string | null>(null);
   const activeRuleId = selectedRuleId ?? focusRuleId;
-  const [restoreAttempted, setRestoreAttempted] = useState(false);
 
   const handleError = useCallback((message: string) => setError(message || null), []);
 
@@ -125,6 +129,18 @@ const RulesTab: React.FC<RulesTabProps> = ({
     TabStateManager.markTabVisited('rules');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const scopeHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!scopeToGroupId) {
+      scopeHandledRef.current = null;
+      return;
+    }
+    if (!restoreAttempted || scopeHandledRef.current === scopeToGroupId) return;
+    scopeHandledRef.current = scopeToGroupId;
+    if (currentGroupId) setActiveFilter('current-group');
+    onScopeConsumed?.();
+  }, [scopeToGroupId, restoreAttempted, currentGroupId, onScopeConsumed]);
 
   const deepLinkLoadRef = useRef<string | null>(null);
   useEffect(() => {

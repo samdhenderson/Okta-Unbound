@@ -17,7 +17,7 @@ interface GroupOverviewProps {
   groupId: string;
   groupName: string;
   targetTabId: number;
-  onTabChange: (tab: 'rules' | 'users' | 'groups', selectedRuleId?: string) => void;
+  onViewRules: () => void;
   onExportMembers: (groupId: string, groupName: string) => void;
   oktaOrigin?: string | null;
 }
@@ -26,7 +26,7 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   groupId,
   groupName,
   targetTabId,
-  onTabChange,
+  onViewRules,
   onExportMembers,
   oktaOrigin,
 }) => {
@@ -188,7 +188,7 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
           variant="secondary"
           size="sm"
           icon="list"
-          onClick={() => onTabChange('rules')}
+          onClick={onViewRules}
           title="View group rules affecting this group"
         >
           View Rules
