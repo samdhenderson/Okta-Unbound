@@ -145,3 +145,29 @@ export const WithoutAnalyzeSource: Story = {
 export const LongText: Story = {
   args: { group: longNameGroup, isHighlighted: true },
 };
+
+export const UsedInAndAssignedByRules: Story = {
+  args: {
+    group: {
+      ...baseGroup,
+      id: '00grel0001',
+      name: 'Contractors',
+      hasRules: true,
+      ruleCount: 2,
+      usedInRuleCount: 3,
+    },
+  },
+};
+
+export const UsedInRulesOnly: Story = {
+  args: {
+    group: {
+      ...appGroup,
+      id: '00grel0002',
+      name: 'Eligibility Cohort',
+      hasRules: false,
+      ruleCount: 0,
+      usedInRuleCount: 1,
+    },
+  },
+};

@@ -21,6 +21,29 @@ const StalenessIndicator: React.FC<{ staleness: StalenessInfo }> = ({ staleness 
   );
 };
 
+const RuleRelationBadge: React.FC<{ group: GroupSummary }> = ({ group }) => {
+  const assigned = group.ruleCount;
+  const used = group.usedInRuleCount ?? 0;
+  const total = assigned + used;
+  if (total === 0) return null;
+  const plural = (n: number) => (n === 1 ? '' : 's');
+  const title = `Assigned by ${assigned} rule${plural(assigned)} · Used in ${used} rule${plural(used)}`;
+  return (
+    <div className="inline-flex items-center gap-1 text-primary-text" title={title}>
+      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 10V3L4 14h7v7l9-11h-7z"
+        />
+      </svg>
+      <span className="font-medium">{total}</span>
+      <span>rule{plural(total)}</span>
+    </div>
+  );
+};
+
 interface GroupListItemProps {
   group: GroupSummary;
   selected: boolean;
@@ -234,25 +257,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
                   <span>member{group.memberCount !== 1 ? 's' : ''}</span>
                 </div>
 
-                {group.hasRules && (
-                  <div className="inline-flex items-center gap-1 text-primary-text">
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                    <span className="font-medium">{group.ruleCount}</span>
-                    <span>rule{group.ruleCount !== 1 ? 's' : ''}</span>
-                  </div>
-                )}
+                <RuleRelationBadge group={group} />
 
                 {group.lastMembershipUpdated && (
                   <div className="inline-flex items-center gap-1" title="Last membership change">

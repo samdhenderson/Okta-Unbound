@@ -325,6 +325,7 @@ export interface GroupSummary {
   lastMembershipUpdated?: Date;
   hasRules: boolean;
   ruleCount: number;
+  usedInRuleCount?: number;
   selected?: boolean;
   sourceAppId?: string;
   sourceAppName?: string;

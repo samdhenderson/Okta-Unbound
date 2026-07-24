@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { countRulesByGroup, annotateGroupsWithRuleCounts } from './groupRuleIndex';
+import {
+  countRulesByGroup,
+  countReferencedGroups,
+  extractReferencedGroupIds,
+  annotateGroupsWithRuleCounts,
+} from './groupRuleIndex';
 import type { GroupSummary } from '../types';
 
 function group(id: string, over: Partial<GroupSummary> = {}): GroupSummary {
@@ -42,6 +47,44 @@ describe('countRulesByGroup', () => {
   });
 });
 
+describe('extractReferencedGroupIds', () => {
+  it('pulls ids out of isMemberOfAnyGroup / isMemberOfGroup calls', () => {
+    expect(extractReferencedGroupIds('isMemberOfAnyGroup("00gAAA", "00gBBB")')).toEqual([
+      '00gAAA',
+      '00gBBB',
+    ]);
+    expect(extractReferencedGroupIds('isMemberOfGroup("00gCCC")')).toEqual(['00gCCC']);
+  });
+
+  it('excludes the name/pattern variants (their args are names, not ids)', () => {
+    expect(extractReferencedGroupIds('isMemberOfGroupName("Engineering")')).toEqual([]);
+    expect(extractReferencedGroupIds('isMemberOfAnyGroupNameStartsWith("Eng")')).toEqual([]);
+  });
+
+  it('combines with other predicates and dedupes within one expression', () => {
+    const expr = 'user.department=="Eng" AND isMemberOfAnyGroup("00gAAA", "00gAAA")';
+    expect(extractReferencedGroupIds(expr)).toEqual(['00gAAA']);
+  });
+
+  it('returns nothing for empty, missing, or reference-free expressions', () => {
+    expect(extractReferencedGroupIds('')).toEqual([]);
+    expect(extractReferencedGroupIds(undefined)).toEqual([]);
+    expect(extractReferencedGroupIds('user.title=="Manager"')).toEqual([]);
+  });
+});
+
+describe('countReferencedGroups', () => {
+  it('tallies how many rules reference each group in their conditions', () => {
+    const counts = countReferencedGroups([
+      { groupIds: [], conditionExpression: 'isMemberOfAnyGroup("00gA", "00gB")' },
+      { groupIds: [], conditionExpression: 'isMemberOfGroup("00gB")' },
+      { groupIds: ['00gA'], conditionExpression: 'user.dept=="x"' },
+    ]);
+    expect(counts.get('00gA')).toBe(1);
+    expect(counts.get('00gB')).toBe(2);
+  });
+});
+
 describe('annotateGroupsWithRuleCounts', () => {
   it('sets hasRules/ruleCount from the feeding rules', () => {
     const groups = [group('a'), group('b'), group('c')];
@@ -51,6 +94,33 @@ describe('annotateGroupsWithRuleCounts', () => {
     expect(annotated.find((g) => g.id === 'a')).toMatchObject({ hasRules: true, ruleCount: 1 });
     expect(annotated.find((g) => g.id === 'b')).toMatchObject({ hasRules: true, ruleCount: 2 });
     expect(annotated.find((g) => g.id === 'c')).toMatchObject({ hasRules: false, ruleCount: 0 });
+  });
+
+  it('tracks assigned-by and used-in independently', () => {
+    const groups = [group('assigned'), group('used'), group('both')];
+    const rules = [
+      {
+        groupIds: ['assigned', 'both'],
+        conditionExpression: 'isMemberOfAnyGroup("used", "both")',
+      },
+    ];
+    const annotated = annotateGroupsWithRuleCounts(groups, rules);
+
+    expect(annotated.find((g) => g.id === 'assigned')).toMatchObject({
+      hasRules: true,
+      ruleCount: 1,
+      usedInRuleCount: 0,
+    });
+    expect(annotated.find((g) => g.id === 'used')).toMatchObject({
+      hasRules: false,
+      ruleCount: 0,
+      usedInRuleCount: 1,
+    });
+    expect(annotated.find((g) => g.id === 'both')).toMatchObject({
+      hasRules: true,
+      ruleCount: 1,
+      usedInRuleCount: 1,
+    });
   });
 
   it('does not mutate the input groups', () => {
