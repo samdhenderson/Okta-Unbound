@@ -12,18 +12,10 @@ import ActivityBar from './components/ActivityBar';
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
 import { SchedulerProvider } from './contexts/SchedulerContext';
-import type { GroupInfo, UserInfo } from '../shared/types';
+import { deriveTabContext, type PinnedContext } from './pinContext';
 
 const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
 const PINNED_CONTEXT_KEY = 'okta_unbound_pinned_context';
-
-interface PinnedContext {
-  pageType: 'group' | 'user';
-  groupInfo: GroupInfo | null;
-  userInfo: UserInfo | null;
-  targetTabId: number;
-  oktaOrigin: string | null;
-}
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
@@ -66,6 +58,8 @@ const App: React.FC = () => {
         error: page.error,
         isLoading: page.isLoading,
       };
+
+  const tabContext = deriveTabContext(pinned, { targetTabId, groupInfo, oktaOrigin });
 
   const entityName =
     effective.pageType === 'group'
@@ -210,9 +204,9 @@ const App: React.FC = () => {
         )}
         {activeTab === 'rules' && (
           <RulesTab
-            targetTabId={targetTabId ?? undefined}
-            currentGroupId={groupInfo?.groupId}
-            oktaOrigin={oktaOrigin ?? undefined}
+            targetTabId={tabContext.targetTabId ?? undefined}
+            currentGroupId={tabContext.currentGroupId}
+            oktaOrigin={tabContext.oktaOrigin ?? undefined}
             selectedRuleId={selectedRuleId}
             onRuleSelected={() => setSelectedRuleId(null)}
             onNavigateToGroup={handleNavigateToGroup}
@@ -220,8 +214,8 @@ const App: React.FC = () => {
         )}
         {activeTab === 'users' && (
           <UsersTab
-            targetTabId={targetTabId ?? undefined}
-            currentGroupId={groupInfo?.groupId}
+            targetTabId={tabContext.targetTabId ?? undefined}
+            currentGroupId={tabContext.currentGroupId}
             onNavigateToRule={handleNavigateToRule}
             selectedUserId={selectedUserId}
             onUserSelected={() => setSelectedUserId(null)}
@@ -229,15 +223,18 @@ const App: React.FC = () => {
         )}
         {activeTab === 'groups' && (
           <GroupsTab
-            targetTabId={targetTabId ?? null}
-            oktaOrigin={oktaOrigin ?? undefined}
+            targetTabId={tabContext.targetTabId ?? null}
+            oktaOrigin={tabContext.oktaOrigin ?? undefined}
             onNavigateToRule={handleNavigateToRule}
             selectedGroupId={selectedGroupId}
             onGroupSelected={() => setSelectedGroupId(null)}
           />
         )}
         {activeTab === 'export' && (
-          <ExportTab targetTabId={targetTabId ?? undefined} oktaOrigin={oktaOrigin ?? undefined} />
+          <ExportTab
+            targetTabId={tabContext.targetTabId ?? undefined}
+            oktaOrigin={tabContext.oktaOrigin ?? undefined}
+          />
         )}
         {activeTab === 'history' && (
           <div
