@@ -10,6 +10,7 @@ interface UseSearchWithDropdownOptions<T> {
   onSelect?: (item: T) => void;
   filterFn?: (results: T[]) => T[];
   disabled?: boolean;
+  initialSelected?: T | null;
 }
 
 interface UseSearchWithDropdownReturn<T> {
@@ -32,12 +33,13 @@ export function useSearchWithDropdown<T>({
   onSelect,
   filterFn,
   disabled = false,
+  initialSelected = null,
 }: UseSearchWithDropdownOptions<T>): UseSearchWithDropdownReturn<T> {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<T[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<T | null>(null);
+  const [selectedItem, setSelectedItem] = useState<T | null>(initialSelected);
 
   const isMounted = useRef(true);
   useEffect(() => {

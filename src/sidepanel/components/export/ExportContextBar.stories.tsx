@@ -63,6 +63,12 @@ export const WithResults: Story = {
   },
 };
 
+export const PreSelected: Story = {
+  args: {
+    initialSelected: { id: '00gFAKE001', label: 'Engineering', sublabel: 'OKTA_GROUP' },
+  },
+};
+
 export const AppContext: Story = {
   args: {
     label: 'App',

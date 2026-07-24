@@ -6,7 +6,7 @@ import OverviewTab from './components/OverviewTab';
 import RulesTab from './components/RulesTab';
 import UsersTab from './components/UsersTab';
 import GroupsTab from './components/GroupsTab';
-import { ExportTab } from './components/export';
+import { ExportTab, type ExportRequest } from './components/export';
 import AuditLogViewer from './components/AuditLogViewer';
 import ActivityBar from './components/ActivityBar';
 import { useGroupContext } from './hooks/useGroupContext';
@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
   const [pinned, setPinned] = useState<PinnedContext | null>(null);
   const isPinned = pinned !== null;
 
@@ -165,6 +166,16 @@ const App: React.FC = () => {
     chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'users' });
   };
 
+  const handleExportGroup = (groupId: string, groupName: string) => {
+    setExportRequest({
+      descriptorId: 'group-memberships',
+      contextId: groupId,
+      contextLabel: groupName,
+    });
+    setActiveTab('export');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'export' });
+  };
+
   return (
     <SchedulerProvider>
       <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
@@ -200,6 +211,7 @@ const App: React.FC = () => {
             onViewAllGroups={() => {
               if (effective.userInfo) handleNavigateToUser(effective.userInfo.userId);
             }}
+            onExportGroup={handleExportGroup}
           />
         )}
         {activeTab === 'rules' && (
@@ -234,6 +246,8 @@ const App: React.FC = () => {
           <ExportTab
             targetTabId={tabContext.targetTabId ?? undefined}
             oktaOrigin={tabContext.oktaOrigin ?? undefined}
+            exportRequest={exportRequest}
+            onExportRequestConsumed={() => setExportRequest(null)}
           />
         )}
         {activeTab === 'history' && (

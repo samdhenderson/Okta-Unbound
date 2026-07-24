@@ -1,1 +1,1 @@
-export { default as ExportTab } from './ExportTab';
+export { default as ExportTab, type ExportRequest } from './ExportTab';

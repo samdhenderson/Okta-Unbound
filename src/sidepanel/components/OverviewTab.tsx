@@ -20,6 +20,7 @@ interface OverviewTabProps {
   oktaOrigin: string | null;
   onRetry: () => void;
   onViewAllGroups: () => void;
+  onExportGroup: (groupId: string, groupName: string) => void;
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = ({
@@ -34,6 +35,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   oktaOrigin,
   onRetry,
   onViewAllGroups,
+  onExportGroup,
 }) => {
   if (isLoading) {
     return (
@@ -74,6 +76,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
             groupName={groupInfo.groupName}
             targetTabId={targetTabId}
             onTabChange={(tab, selectedRuleId) => onTabChange(tab, selectedRuleId)}
+            onExportMembers={onExportGroup}
             oktaOrigin={oktaOrigin}
           />
         )}

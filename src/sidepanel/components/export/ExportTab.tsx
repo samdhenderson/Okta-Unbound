@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PageHeader, AlertMessage, Button } from '../shared';
 import { useOktaApi } from '../../hooks/useOktaApi';
 import { useExportTab } from '../../hooks/useExportTab';
@@ -11,12 +11,25 @@ import ColumnPicker from './ColumnPicker';
 import PresetControls from './PresetControls';
 import ExportPreviewTable from './ExportPreviewTable';
 
+export interface ExportRequest {
+  descriptorId: string;
+  contextId: string;
+  contextLabel: string;
+}
+
 interface ExportTabProps {
   targetTabId?: number;
   oktaOrigin?: string;
+  exportRequest?: ExportRequest | null;
+  onExportRequestConsumed?: () => void;
 }
 
-const ExportTab: React.FC<ExportTabProps> = ({ targetTabId, oktaOrigin }) => {
+const ExportTab: React.FC<ExportTabProps> = ({
+  targetTabId,
+  oktaOrigin,
+  exportRequest,
+  onExportRequestConsumed,
+}) => {
   const [error, setError] = useState<string | null>(null);
 
   const handleResult = useCallback(
@@ -61,7 +74,21 @@ const ExportTab: React.FC<ExportTabProps> = ({ targetTabId, oktaOrigin }) => {
     onError: setError,
   });
 
-  const { descriptor } = tab;
+  const { descriptor, selectEntity, setContext } = tab;
+
+  const handledExportRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!exportRequest) {
+      handledExportRef.current = null;
+      return;
+    }
+    const key = `${exportRequest.descriptorId}:${exportRequest.contextId}`;
+    if (handledExportRef.current === key) return;
+    handledExportRef.current = key;
+    selectEntity(exportRequest.descriptorId);
+    setContext({ id: exportRequest.contextId, label: exportRequest.contextLabel });
+    onExportRequestConsumed?.();
+  }, [exportRequest, selectEntity, setContext, onExportRequestConsumed]);
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
@@ -99,6 +126,11 @@ const ExportTab: React.FC<ExportTabProps> = ({ targetTabId, oktaOrigin }) => {
                 placeholder={descriptor.context.placeholder}
                 search={tab.contextSearch}
                 onSelect={tab.setContext}
+                initialSelected={
+                  tab.contextId
+                    ? { id: tab.contextId, label: tab.contextLabel ?? tab.contextId }
+                    : null
+                }
               />
             )}
 

@@ -18,6 +18,7 @@ interface GroupOverviewProps {
   groupName: string;
   targetTabId: number;
   onTabChange: (tab: 'rules' | 'users' | 'groups', selectedRuleId?: string) => void;
+  onExportMembers: (groupId: string, groupName: string) => void;
   oktaOrigin?: string | null;
 }
 
@@ -26,11 +27,10 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   groupName,
   targetTabId,
   onTabChange,
+  onExportMembers,
   oktaOrigin,
 }) => {
-  const { startProgress, completeProgress, updateProgress } = useProgress();
-  const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'csv' | 'json'>('csv');
+  const { updateProgress } = useProgress();
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [mfaResults, setMfaResults] = useState<Map<string, MemberMfaResult> | null>(null);
   const [scanStatus, setScanStatus] = useState<MfaScanStatus>('idle');
@@ -52,7 +52,6 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   const {
     getAllGroupMembers,
     removeDeprovisioned,
-    exportMembers,
     scanGroupMfa,
     isLoading: isApiLoading,
   } = useOktaApi({
@@ -99,16 +98,6 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
     await removeDeprovisioned(groupId);
     invalidate(['mfaScan', groupId]);
     await refetchMembers();
-  };
-
-  const handleExportConfirm = async () => {
-    setExportModalOpen(false);
-    startProgress('Export', `Exporting members to ${exportFormat.toUpperCase()}...`);
-    try {
-      await exportMembers(groupId, groupName, exportFormat);
-    } finally {
-      completeProgress();
-    }
   };
 
   const runMfaScan = useCallback(async () => {
@@ -175,9 +164,9 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
             variant="secondary"
             size="sm"
             icon="download"
-            onClick={() => setExportModalOpen(true)}
+            onClick={() => onExportMembers(groupId, groupName)}
             disabled={isApiLoading}
-            title="Export member list to CSV or JSON"
+            title="Export this group's members (opens the Export tab with column picker + presets)"
           >
             Export Members
           </Button>
@@ -205,40 +194,6 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
           View Rules
         </Button>
       </div>
-
-      <Modal
-        isOpen={exportModalOpen}
-        onClose={() => setExportModalOpen(false)}
-        title="Export Group Members"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setExportModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" onClick={handleExportConfirm}>
-              Export
-            </Button>
-          </>
-        }
-      >
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">Format</label>
-            <select
-              className="w-full px-3 py-2 border border-neutral-200 rounded-md focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary"
-              value={exportFormat}
-              onChange={(e) => setExportFormat(e.target.value as 'csv' | 'json')}
-            >
-              <option value="csv">CSV</option>
-              <option value="json">JSON</option>
-            </select>
-          </div>
-          <p className="text-sm text-neutral-600">
-            This will export all members from <strong>{groupName}</strong> to a{' '}
-            {exportFormat.toUpperCase()} file.
-          </p>
-        </div>
-      </Modal>
 
       <Modal
         isOpen={confirmRemoveOpen}

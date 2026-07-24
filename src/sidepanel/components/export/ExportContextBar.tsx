@@ -8,6 +8,7 @@ interface ExportContextBarProps {
   placeholder: string;
   search: (query: string) => Promise<EntityContextOption[]>;
   onSelect: (option: EntityContextOption | null) => void;
+  initialSelected?: EntityContextOption | null;
 }
 
 const ExportContextBar: React.FC<ExportContextBarProps> = ({
@@ -15,10 +16,12 @@ const ExportContextBar: React.FC<ExportContextBarProps> = ({
   placeholder,
   search,
   onSelect,
+  initialSelected = null,
 }) => {
   const dropdown = useSearchWithDropdown<EntityContextOption>({
     searchFn: search,
     onSelect,
+    initialSelected,
   });
 
   return (

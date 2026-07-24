@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 const api = vi.hoisted(() => ({
   getAllGroupMembers: vi.fn(async () => [] as unknown[]),
@@ -37,6 +38,7 @@ const baseProps = {
   groupName: 'Group One',
   targetTabId: 1,
   onTabChange: () => {},
+  onExportMembers: () => {},
 };
 
 beforeEach(() => {
@@ -67,5 +69,18 @@ describe('GroupOverview member-load effect', () => {
     await waitFor(() => expect(api.getAllGroupMembers).toHaveBeenCalledWith('g2'));
 
     expect(api.getAllGroupMembers).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('GroupOverview member export', () => {
+  it('deep-links "Export Members" to the Export tab instead of a bespoke modal', async () => {
+    const onExportMembers = vi.fn();
+    render(<GroupOverview {...baseProps} onExportMembers={onExportMembers} />);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Export Members' }));
+
+    expect(onExportMembers).toHaveBeenCalledWith('g1', 'Group One');
+    expect(screen.queryByText('Export Group Members')).not.toBeInTheDocument();
+    expect(api.exportMembers).not.toHaveBeenCalled();
   });
 });

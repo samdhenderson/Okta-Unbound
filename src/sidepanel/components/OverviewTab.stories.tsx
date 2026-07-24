@@ -28,6 +28,7 @@ const meta = {
     oktaOrigin: 'https://example.okta.com',
     onRetry: fn(),
     onViewAllGroups: fn(),
+    onExportGroup: fn(),
   },
 } satisfies Meta<typeof OverviewTab>;
 
