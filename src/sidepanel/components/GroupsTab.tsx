@@ -87,13 +87,22 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const { selectedGroupIds, selectedGroups } = selection;
 
   const navHandledRef = useRef<string | null>(null);
+  const navLoadRef = useRef<string | null>(null);
   useEffect(() => {
     if (!selectedGroupId) {
       navHandledRef.current = null;
+      navLoadRef.current = null;
       return;
     }
     if (navHandledRef.current === selectedGroupId) return;
-    if (!groups.some((g) => g.id === selectedGroupId)) return; // wait for groups to load
+    if (!groups.some((g) => g.id === selectedGroupId)) {
+      if (!loading && navLoadRef.current !== selectedGroupId) {
+        navLoadRef.current = selectedGroupId;
+        setSearchMode('cached');
+        void loadAllGroups();
+      }
+      return;
+    }
     navHandledRef.current = selectedGroupId;
 
     setSearchMode('cached');
@@ -111,7 +120,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
       clearTimeout(clearT);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGroupId, groups]);
+  }, [selectedGroupId, groups, loading]);
 
   const handleExportSelection = useCallback(() => {
     if (selectedGroupIds.size === 0) {

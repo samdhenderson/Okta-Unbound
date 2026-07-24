@@ -1587,4 +1587,26 @@ describe('deep-link from the Rules tab', () => {
     await waitFor(() => expect(screen.getByText('Group ID')).toBeInTheDocument());
     expect(screen.getAllByText('Group ID')).toHaveLength(1);
   });
+
+  it('loads the group list on demand when the target is not cached, then highlights it', async () => {
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+      success: true,
+      headers: {},
+      data: [
+        rawGroup({ id: 'g1', profile: { name: 'Engineering' } }),
+        rawGroup({ id: 'g2', profile: { name: 'Sales' } }),
+      ],
+    }));
+
+    render(<GroupsTab targetTabId={1} selectedGroupId="g1" onGroupSelected={() => {}} />);
+
+    await waitFor(() => expect(renderedGroupNames()).toContain('Engineering'));
+    expect(
+      schedulerCalls().filter((m) =>
+        /^\/api\/v1\/groups\?limit=200&expand=stats$/.test(m.endpoint),
+      ),
+    ).toHaveLength(1);
+    await waitFor(() => expect(screen.getByText('Group ID')).toBeInTheDocument());
+    expect(screen.getAllByText('Group ID')).toHaveLength(1);
+  });
 });

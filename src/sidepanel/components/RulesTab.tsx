@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import RuleImpactModal from './RuleImpactModal';
 import PageHeader from './shared/PageHeader';
 import Button from './shared/Button';
@@ -48,6 +48,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [focusRuleId, setFocusRuleId] = useState<string | null>(null);
   const activeRuleId = selectedRuleId ?? focusRuleId;
+  const [restoreAttempted, setRestoreAttempted] = useState(false);
 
   const handleError = useCallback((message: string) => setError(message || null), []);
 
@@ -115,6 +116,8 @@ const RulesTab: React.FC<RulesTabProps> = ({
         }
       } catch (err) {
         log.error('Failed to load persisted state:', err);
+      } finally {
+        setRestoreAttempted(true);
       }
     };
 
@@ -123,22 +126,23 @@ const RulesTab: React.FC<RulesTabProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const deepLinkLoadRef = useRef<string | null>(null);
   useEffect(() => {
-    if (activeRuleId && rules.length > 0) {
-      log.debug('Navigating to rule:', activeRuleId);
-      const ruleElement = document.querySelector(`[data-rule-id="${activeRuleId}"]`);
-      if (ruleElement) {
-        ruleElement.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-        const t = setTimeout(() => {
-          onRuleSelected?.();
-          setFocusRuleId(null);
-        }, 2000);
-        return () => clearTimeout(t);
-      } else {
-        log.warn('Rule not found in DOM:', activeRuleId);
-      }
+    if (!activeRuleId) {
+      deepLinkLoadRef.current = null;
+      return;
     }
-  }, [activeRuleId, rules, onRuleSelected]);
+    if (
+      restoreAttempted &&
+      rules.length === 0 &&
+      !data.isLoading &&
+      targetTabId != null &&
+      deepLinkLoadRef.current !== activeRuleId
+    ) {
+      deepLinkLoadRef.current = activeRuleId;
+      void loadRules(false);
+    }
+  }, [activeRuleId, restoreAttempted, rules.length, data.isLoading, targetTabId, loadRules]);
 
   useEffect(() => {
     if (rules.length > 0) {
@@ -196,6 +200,28 @@ const RulesTab: React.FC<RulesTabProps> = ({
     }
     return sortRules(result, sortMode);
   }, [rules, searchQuery, activeFilter, sortMode]);
+
+  useEffect(() => {
+    if (!activeRuleId || rules.length === 0) return;
+    if (!rules.some((r) => r.id === activeRuleId)) return; // not loaded yet; loader effect handles it
+    if (!filteredRules.some((r) => r.id === activeRuleId)) {
+      setSearchQuery('');
+      setActiveFilter('all');
+      return;
+    }
+    log.debug('Navigating to rule:', activeRuleId);
+    const ruleElement = document.querySelector(`[data-rule-id="${activeRuleId}"]`);
+    if (ruleElement) {
+      ruleElement.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      const t = setTimeout(() => {
+        onRuleSelected?.();
+        setFocusRuleId(null);
+      }, 2000);
+      return () => clearTimeout(t);
+    } else {
+      log.warn('Rule not found in DOM:', activeRuleId);
+    }
+  }, [activeRuleId, rules, filteredRules, onRuleSelected]);
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>

@@ -280,6 +280,29 @@ describe('RulesTab characterization', () => {
     await waitFor(() => expect(screen.getByText('Okta said no')).toBeInTheDocument());
   });
 
+  it('auto-loads rules when deep-linked to a rule with nothing loaded yet', async () => {
+    renderTab({ selectedRuleId: 'r2' });
+
+    await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
+    expect(rulesFetchCalls()).toHaveLength(1);
+    expect(screen.getByTestId('rule-r2')).toHaveAttribute('data-highlighted', 'true');
+  });
+
+  it('clears a persisted filter that would hide the deep-linked rule', async () => {
+    loadTabState.mockResolvedValue({
+      cachedRules: [rule(), rule({ id: 'r2', name: 'Sales Rule', status: 'INACTIVE' })],
+      cachedStats: stats,
+      lastFetchTime: new Date('2024-01-01').toISOString(),
+      activeFilter: 'active',
+    });
+
+    renderTab({ selectedRuleId: 'r2' });
+
+    await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
+    expect(screen.getByTestId('rule-r2')).toHaveAttribute('data-highlighted', 'true');
+    expect(rulesFetchCalls()).toHaveLength(0);
+  });
+
   it('the merge banner "View" link highlights the rule card in the list', async () => {
     renderTab();
     await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
