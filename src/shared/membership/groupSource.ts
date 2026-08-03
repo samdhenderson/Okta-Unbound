@@ -11,6 +11,7 @@ export interface MemberSourceBreakdown {
   total: number;
   direct: number;
   ruleBased: number;
+  unattributed: number;
   byRule: RuleContribution[];
 }
 
@@ -33,12 +34,14 @@ export function summarizeMemberSources(
 
   let direct = 0;
   let ruleBased = 0;
+  let unattributed = 0;
   const ruleCounts = new Map<string, RuleContribution>();
 
   for (const member of members) {
     const [membership] = analyzeMemberships([oktaGroup], rules, member);
     if (membership.membershipType === 'RULE_BASED') {
       ruleBased++;
+      if (membership.attribution === 'inferred') unattributed++;
       const rule = membership.rule;
       if (rule) {
         const existing = ruleCounts.get(rule.id);
@@ -52,5 +55,5 @@ export function summarizeMemberSources(
 
   const byRule = Array.from(ruleCounts.values()).sort((a, b) => b.count - a.count);
 
-  return { total: members.length, direct, ruleBased, byRule };
+  return { total: members.length, direct, ruleBased, unattributed, byRule };
 }

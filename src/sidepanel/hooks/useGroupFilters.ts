@@ -4,7 +4,6 @@ import {
   filterAndSortGroups,
   computeActiveFilterCount,
   type SortField,
-  type StalenessLevel,
   type PushFilter,
 } from '../components/groups/groupFilters';
 
@@ -20,7 +19,6 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
   const [sizeFilter, setSizeFilter] = useState<string>('');
   const [pushFilter, setPushFilter] = useState<PushFilter>('');
   const [pushAppFilter, setPushAppFilter] = useState<Set<string>>(new Set());
-  const [stalenessFilter, setStalenessFilter] = useState<StalenessLevel>('');
   const [sortBy, setSortBy] = useState<SortField>('name');
   const [sortDesc, setSortDesc] = useState(false);
 
@@ -28,7 +26,6 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     typeFilter,
     sizeFilter,
     pushFilter,
-    stalenessFilter,
     pushAppFilter,
   });
 
@@ -41,7 +38,6 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
       sizeFilter,
       pushFilter,
       pushAppFilter,
-      stalenessFilter,
       sortBy,
       sortDesc,
     });
@@ -54,7 +50,6 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     sizeFilter,
     pushFilter,
     pushAppFilter,
-    stalenessFilter,
     sortBy,
     sortDesc,
   ]);
@@ -80,7 +75,6 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     setSizeFilter('');
     setPushFilter('');
     setPushAppFilter(new Set());
-    setStalenessFilter('');
     setSearchQuery('');
   }, []);
 
@@ -107,8 +101,6 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     setPushFilter,
     pushAppFilter,
     setPushAppFilter,
-    stalenessFilter,
-    setStalenessFilter,
     sortBy,
     sortDesc,
     filteredGroups,

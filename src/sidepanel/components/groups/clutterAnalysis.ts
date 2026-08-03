@@ -1,6 +1,15 @@
 import type { GroupSummary } from '../../../shared/types';
 
-export const STALE_SCORE_THRESHOLD = 60;
+export const STALE_AGE_DAYS = 365;
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+export function isStaleByAge(group: GroupSummary, now: number = Date.now()): boolean {
+  if (!group.lastUpdated) return false;
+  const time = group.lastUpdated.getTime();
+  if (Number.isNaN(time)) return false;
+  return now - time >= STALE_AGE_DAYS * MS_PER_DAY;
+}
 
 export const CLUTTER_WEIGHTS = {
   empty: 40,
@@ -44,7 +53,7 @@ export function normalizeGroupName(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-export function analyzeClutter(groups: GroupSummary[]): ClutterReport {
+export function analyzeClutter(groups: GroupSummary[], now: number = Date.now()): ClutterReport {
   const byNormalizedName = new Map<string, string[]>();
   for (const g of groups) {
     const key = normalizeGroupName(g.name);
@@ -73,7 +82,7 @@ export function analyzeClutter(groups: GroupSummary[]): ClutterReport {
   for (const group of groups) {
     const empty = group.memberCount === 0;
     const duplicateName = duplicateIds.has(group.id);
-    const stale = (group.staleness?.score ?? 0) >= STALE_SCORE_THRESHOLD;
+    const stale = isStaleByAge(group, now);
     const noDescription = !group.description || group.description.trim() === '';
 
     if (empty) categories.empty.push(group.id);
@@ -85,7 +94,7 @@ export function analyzeClutter(groups: GroupSummary[]): ClutterReport {
     const reasons: string[] = [];
     if (empty) reasons.push('No members');
     if (duplicateName) reasons.push('Duplicate name');
-    if (stale) reasons.push('Stale (no recent activity)');
+    if (stale) reasons.push('Not updated in over a year');
     if (noDescription) reasons.push('No description');
 
     const reviewScore = Math.min(

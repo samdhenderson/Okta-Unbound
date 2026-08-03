@@ -5,6 +5,7 @@ import {
   summarizeMemberSources,
   type MemberSourceBreakdown,
 } from '../../shared/membership/groupSource';
+import { writeMemberSource } from '../cache/memberSourceCache';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('useGroupSource');
@@ -85,6 +86,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
           rules as MembershipRule[],
         );
         setBreakdown(summary);
+        writeMemberSource(group.id, summary);
         setMemberStatus('done');
       })
       .catch((err) => {

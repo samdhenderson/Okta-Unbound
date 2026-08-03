@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { FilterPill, SortPill } from '../shared';
-import type { SortField, StalenessLevel, PushFilter } from './groupFilters';
+import type { SortField, PushFilter } from './groupFilters';
 
 interface GroupFilterPanelProps {
   activeFilterCount: number;
@@ -13,8 +13,6 @@ interface GroupFilterPanelProps {
   setPushFilter: (value: PushFilter) => void;
   pushAppFilter: Set<string>;
   setPushAppFilter: Dispatch<SetStateAction<Set<string>>>;
-  stalenessFilter: StalenessLevel;
-  setStalenessFilter: (value: StalenessLevel) => void;
   availablePushApps: { id: string; name: string }[];
   sortBy: SortField;
   sortDesc: boolean;
@@ -32,8 +30,6 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
   setPushFilter,
   pushAppFilter,
   setPushAppFilter,
-  stalenessFilter,
-  setStalenessFilter,
   availablePushApps,
   sortBy,
   sortDesc,
@@ -55,12 +51,6 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
         )}
         {pushFilter && (
           <FilterChip label={`Push: ${pushFilter}`} onRemove={() => setPushFilter('')} />
-        )}
-        {stalenessFilter && (
-          <FilterChip
-            label={`Health: ${stalenessFilter.replace('_', ' ')}`}
-            onRemove={() => setStalenessFilter('')}
-          />
         )}
         {pushAppFilter.size > 0 && (
           <FilterChip
@@ -141,44 +131,6 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
           ))}
         </div>
       </div>
-
-      <div>
-        <label className="block text-xs font-medium text-neutral-600 mb-1.5">Group Health</label>
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { value: '' as StalenessLevel, label: 'All', color: '' },
-            {
-              value: 'healthy' as StalenessLevel,
-              label: 'Healthy',
-              color: 'bg-success-light text-success-text border-success-light',
-            },
-            {
-              value: 'monitor' as StalenessLevel,
-              label: 'Monitor',
-              color: 'bg-warning-light text-warning-text border-warning-light',
-            },
-            {
-              value: 'stale' as StalenessLevel,
-              label: 'Stale',
-              color: 'bg-warning-light text-danger-text border-warning-light',
-            },
-            {
-              value: 'very_stale' as StalenessLevel,
-              label: 'Critical',
-              color: 'bg-danger-light text-danger-text border-danger-light',
-            },
-          ].map((opt) => (
-            <FilterPill
-              key={opt.value}
-              active={stalenessFilter === opt.value}
-              onClick={() => setStalenessFilter(opt.value)}
-              inactiveClassName={opt.color ? `border ${opt.color}` : undefined}
-            >
-              {opt.label}
-            </FilterPill>
-          ))}
-        </div>
-      </div>
     </div>
 
     {availablePushApps.length > 0 && (
@@ -215,7 +167,6 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
           { value: 'name' as SortField, label: 'Name' },
           { value: 'memberCount' as SortField, label: 'Size' },
           { value: 'lastUpdated' as SortField, label: 'Last Updated' },
-          { value: 'staleness' as SortField, label: 'Staleness' },
         ].map((opt) => (
           <SortPill
             key={opt.value}

@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useOktaApi } from './useOktaApi';
 import type { GroupSummary } from '../../shared/types';
 import { createLogger } from '../../shared/utils/logger';
-import { RulesCache } from '../../shared/rulesCache';
 import { annotateGroupsWithRuleCounts } from '../../shared/rules/groupRuleIndex';
 import { toGroupSummary } from '../components/groups/groupSummary';
 import {
@@ -57,16 +56,10 @@ export function useGroupsLoader({
 
       let groupSummaries: GroupSummary[] = allGroups.map(toGroupSummary);
 
-      const cachedRules = await RulesCache.get();
-      const rulesKnown = cachedRules !== null;
-      if (cachedRules) {
-        groupSummaries = annotateGroupsWithRuleCounts(groupSummaries, cachedRules.rules);
+      const rules = await api.ensureGroupRulesLoaded();
+      if (rules) {
+        groupSummaries = annotateGroupsWithRuleCounts(groupSummaries, rules);
       }
-
-      groupSummaries = groupSummaries.map((g) => ({
-        ...g,
-        staleness: api.calculateStaleness(g, rulesKnown),
-      }));
 
       try {
         groupSummaries = await api.applyPushGroupMappings(groupSummaries);

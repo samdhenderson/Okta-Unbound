@@ -9,12 +9,14 @@ interface UseGroupLiveSearchOptions {
   targetTabId: number | null;
   searchMode: 'live' | 'cached';
   setError: Dispatch<SetStateAction<string | null>>;
+  enabled?: boolean;
 }
 
 export function useGroupLiveSearch({
   targetTabId,
   searchMode,
   setError,
+  enabled = true,
 }: UseGroupLiveSearchOptions) {
   const [liveSearchQuery, setLiveSearchQuery] = useState('');
   const [liveSearchResults, setLiveSearchResults] = useState<GroupSummary[]>([]);
@@ -65,10 +67,10 @@ export function useGroupLiveSearch({
   );
 
   useEffect(() => {
-    if (searchMode === 'live') {
+    if (enabled && searchMode === 'live') {
       handleLiveSearch(debouncedQuery);
     }
-  }, [debouncedQuery, searchMode, handleLiveSearch]);
+  }, [debouncedQuery, searchMode, handleLiveSearch, enabled]);
 
   const resetLiveSearch = useCallback(() => {
     setLiveSearchQuery('');

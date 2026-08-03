@@ -18,8 +18,10 @@ interface GroupsListPanelProps {
   oktaOrigin?: string;
   onLoadAllGroups: () => void;
   onClearFilters: () => void;
+  onOpenDetail?: (group: GroupSummary) => void;
   onAnalyzeSource?: (group: GroupSummary) => void;
   highlightedGroupId?: string;
+  scrollRef?: React.Ref<HTMLDivElement>;
 }
 
 const PAGE = 50;
@@ -37,8 +39,10 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
   oktaOrigin,
   onLoadAllGroups,
   onClearFilters,
+  onOpenDetail,
   onAnalyzeSource,
   highlightedGroupId,
+  scrollRef,
 }) => {
   const [visibleCount, setVisibleCount] = useState(PAGE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -83,6 +87,7 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
         loading={loading}
         loadingMessage="Loading groups from Okta..."
         className="mt-4"
+        scrollRef={scrollRef}
         emptyState={
           searchMode === 'live' && liveSearchQuery.trim() && !isLiveSearching ? (
             <EmptyState
@@ -112,6 +117,7 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
             selected={selectedGroupIds.has(group.id)}
             onToggleSelect={onToggleSelect}
             oktaOrigin={oktaOrigin}
+            onOpenDetail={onOpenDetail}
             onAnalyzeSource={onAnalyzeSource}
             isHighlighted={highlightedGroupId === group.id}
           />

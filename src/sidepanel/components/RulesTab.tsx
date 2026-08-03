@@ -34,6 +34,7 @@ interface RulesTabProps {
   onNavigateToGroup?: (groupId: string) => void;
   scopeToGroupId?: string | null;
   onScopeConsumed?: () => void;
+  isActive?: boolean;
 }
 
 const RulesTab: React.FC<RulesTabProps> = ({
@@ -45,6 +46,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
   onNavigateToGroup,
   scopeToGroupId,
   onScopeConsumed,
+  isActive = true,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<RulesFilterType>('all');
@@ -126,9 +128,12 @@ const RulesTab: React.FC<RulesTabProps> = ({
     };
 
     loadPersistedState();
-    TabStateManager.markTabVisited('rules');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (isActive) void TabStateManager.markTabVisited('rules');
+  }, [isActive]);
 
   const scopeHandledRef = useRef<string | null>(null);
   useEffect(() => {
@@ -175,10 +180,11 @@ const RulesTab: React.FC<RulesTabProps> = ({
   }, [rules, stats, data.lastFetchTime, searchQuery, activeFilter, sortMode]);
 
   useEffect(() => {
+    if (!isActive) return;
     const handleScroll = () => TabStateManager.updateScrollPosition('rules', window.scrollY);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isActive]);
 
   const toRuleImpactInput = (rule: FormattedRule): RuleImpactInput => ({
     id: rule.id,

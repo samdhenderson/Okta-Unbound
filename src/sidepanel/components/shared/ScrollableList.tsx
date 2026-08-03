@@ -9,6 +9,7 @@ interface ScrollableListProps {
   loadingMessage?: string;
   maxHeight?: string;
   fillAvailable?: boolean;
+  scrollRef?: React.Ref<HTMLDivElement>;
   testId?: string;
 }
 
@@ -20,6 +21,7 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   loadingMessage = 'Loading...',
   maxHeight,
   fillAvailable = true,
+  scrollRef,
   testId,
 }) => {
   const childArray = React.Children.toArray(children);
@@ -60,7 +62,7 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   const containerStyle: React.CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
 
   return (
-    <div className={containerClasses} style={containerStyle} data-testid={testId}>
+    <div ref={scrollRef} className={containerClasses} style={containerStyle} data-testid={testId}>
       <div className="space-y-3">{children}</div>
     </div>
   );

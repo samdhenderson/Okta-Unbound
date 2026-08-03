@@ -10,6 +10,7 @@ interface UseUsersTabSearchOptions {
   onSearchStart: () => void;
   debounceMs?: number;
   minQueryLength?: number;
+  enabled?: boolean;
 }
 
 interface UseUsersTabSearchReturn {
@@ -26,6 +27,7 @@ export function useUsersTabSearch({
   onSearchStart,
   debounceMs = 600,
   minQueryLength = 2,
+  enabled = true,
 }: UseUsersTabSearchOptions): UseUsersTabSearchReturn {
   return useDebouncedUserSearch({
     targetTabId,
@@ -34,5 +36,6 @@ export function useUsersTabSearch({
     debounceMs,
     minQueryLength,
     log,
+    enabled,
   });
 }

@@ -13,6 +13,8 @@ interface IconButtonProps {
   type?: 'button' | 'submit' | 'reset';
   title?: string;
   active?: boolean;
+  expanded?: boolean;
+  controls?: string;
   className?: string;
 }
 
@@ -37,6 +39,8 @@ const IconButton: React.FC<IconButtonProps> = ({
   type = 'button',
   title,
   active,
+  expanded,
+  controls,
   className = '',
 }) => (
   <button
@@ -45,6 +49,8 @@ const IconButton: React.FC<IconButtonProps> = ({
     disabled={disabled}
     aria-label={label}
     aria-pressed={active}
+    aria-expanded={expanded}
+    aria-controls={controls}
     title={title ?? label}
     className={`inline-flex items-center justify-center rounded-md transition-colors duration-100 focus:outline-2 focus:outline-offset-2 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
   >

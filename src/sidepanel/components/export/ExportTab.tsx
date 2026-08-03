@@ -22,6 +22,7 @@ interface ExportTabProps {
   oktaOrigin?: string;
   exportRequest?: ExportRequest | null;
   onExportRequestConsumed?: () => void;
+  isActive?: boolean;
 }
 
 const ExportTab: React.FC<ExportTabProps> = ({
@@ -29,6 +30,7 @@ const ExportTab: React.FC<ExportTabProps> = ({
   oktaOrigin,
   exportRequest,
   onExportRequestConsumed,
+  isActive = true,
 }) => {
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +74,7 @@ const ExportTab: React.FC<ExportTabProps> = ({
     oktaOrigin,
     hasConnectedTab: targetTabId != null,
     onError: setError,
+    enabled: isActive,
   });
 
   const { descriptor, selectEntity, setContext } = tab;

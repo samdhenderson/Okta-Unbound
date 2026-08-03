@@ -23,7 +23,7 @@ const mixedGroups: GroupSummary[] = [
     id: 'g4',
     name: 'Contractors 2019',
     memberCount: 8,
-    staleness: { score: 75, factors: ['No membership change in 400+ days'] },
+    lastUpdated: new Date('2019-06-01'),
   }),
   makeGroup({ id: 'g5', name: 'Sales Team', memberCount: 40 }),
   makeGroup({ id: 'g6', name: 'Sales Team', memberCount: 15 }),

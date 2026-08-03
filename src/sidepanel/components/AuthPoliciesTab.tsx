@@ -13,6 +13,7 @@ import type { OktaPolicyListItem } from '../../shared/schemas/okta';
 interface AuthPoliciesTabProps {
   targetTabId?: number;
   oktaOrigin?: string | null;
+  isActive?: boolean;
 }
 
 function filterPolicies(policies: OktaPolicyListItem[], query: string): OktaPolicyListItem[] {
@@ -25,7 +26,7 @@ function filterPolicies(policies: OktaPolicyListItem[], query: string): OktaPoli
   );
 }
 
-const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId }) => {
+const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive = true }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -39,10 +40,10 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId }) => {
 
   const autoLoadedRef = useRef<number | null>(null);
   useEffect(() => {
-    if (targetTabId == null || autoLoadedRef.current === targetTabId) return;
+    if (!isActive || targetTabId == null || autoLoadedRef.current === targetTabId) return;
     autoLoadedRef.current = targetTabId;
     void loadPolicies(false);
-  }, [targetTabId, loadPolicies]);
+  }, [isActive, targetTabId, loadPolicies]);
 
   const filteredPolicies = useMemo(
     () => filterPolicies(policies, searchQuery),

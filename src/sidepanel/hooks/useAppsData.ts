@@ -11,6 +11,7 @@ export interface UseAppsDataOptions {
   api: Pick<OktaApi, 'getAllApps'>;
   onError: (message: string) => void;
   targetTabId: number | null;
+  enabled?: boolean;
 }
 
 export interface UseAppsDataReturn {
@@ -20,7 +21,12 @@ export interface UseAppsDataReturn {
   loadApps: (force?: boolean) => Promise<void>;
 }
 
-export function useAppsData({ api, onError, targetTabId }: UseAppsDataOptions): UseAppsDataReturn {
+export function useAppsData({
+  api,
+  onError,
+  targetTabId,
+  enabled = true,
+}: UseAppsDataOptions): UseAppsDataReturn {
   const [apps, setApps] = useState<OktaAppListItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
@@ -52,10 +58,10 @@ export function useAppsData({ api, onError, targetTabId }: UseAppsDataOptions): 
 
   const autoLoadedFor = useRef<number | null>(null);
   useEffect(() => {
-    if (targetTabId == null || autoLoadedFor.current === targetTabId) return;
+    if (!enabled || targetTabId == null || autoLoadedFor.current === targetTabId) return;
     autoLoadedFor.current = targetTabId;
     void loadApps();
-  }, [targetTabId, loadApps]);
+  }, [enabled, targetTabId, loadApps]);
 
   return { apps, isLoading, lastFetchTime, loadApps };
 }

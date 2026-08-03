@@ -15,6 +15,7 @@ interface UseAddToGroupOptions {
   selectedUser: OktaUser | null;
   onResult: (result: { text: string; type: 'danger' }) => void;
   onAdded: (user: OktaUser) => Promise<void> | void;
+  enabled?: boolean;
 }
 
 interface UseAddToGroupReturn {
@@ -38,6 +39,7 @@ export function useAddToGroup({
   selectedUser,
   onResult,
   onAdded,
+  enabled = true,
 }: UseAddToGroupOptions): UseAddToGroupReturn {
   const [isOpen, setIsOpen] = useState(false);
   const [groupSearchQuery, setGroupSearchQuery] = useState('');
@@ -61,7 +63,7 @@ export function useAddToGroup({
 
   useEffect(() => {
     const query = debouncedGroupQuery.trim();
-    if (query.length < 2) return;
+    if (!enabled || query.length < 2) return;
 
     void (async () => {
       setIsSearchingGroups(true);
@@ -76,7 +78,7 @@ export function useAddToGroup({
         setIsSearchingGroups(false);
       }
     })();
-  }, [debouncedGroupQuery, searchGroups]);
+  }, [enabled, debouncedGroupQuery, searchGroups]);
 
   const openModal = useCallback(() => {
     setGroupSearchQuery('');

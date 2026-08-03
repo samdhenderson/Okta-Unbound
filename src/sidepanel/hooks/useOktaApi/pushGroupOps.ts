@@ -27,7 +27,7 @@ export function createPushGroupOperations(coreApi: CoreApi) {
                   `${appId}_${assignment._links?.group?.href?.split('/').pop() || 'unknown'}`,
                 sourceUserGroupId: assignment._links?.group?.href?.split('/').pop() || '',
                 targetGroupName: assignment.profile?.name || assignment.profile?.groupName || '',
-                status: assignment.priority !== undefined ? 'ACTIVE' : 'INACTIVE',
+                priority: assignment.priority,
                 appId,
                 appName,
               });

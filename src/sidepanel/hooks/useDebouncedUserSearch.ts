@@ -11,6 +11,7 @@ export interface UseDebouncedUserSearchOptions {
   debounceMs: number;
   minQueryLength: number;
   log: Logger;
+  enabled?: boolean;
 }
 
 export interface UseDebouncedUserSearchReturn {
@@ -28,6 +29,7 @@ export function useDebouncedUserSearch({
   debounceMs,
   minQueryLength,
   log,
+  enabled = true,
 }: UseDebouncedUserSearchOptions): UseDebouncedUserSearchReturn {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<OktaUser[]>([]);
@@ -81,6 +83,8 @@ export function useDebouncedUserSearch({
       clearTimeout(debounceTimerRef.current);
     }
 
+    if (!enabled) return;
+
     if (searchQuery.trim().length === 0) {
       setSearchResults([]);
       onError(null);
@@ -100,7 +104,7 @@ export function useDebouncedUserSearch({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [searchQuery, debounceMs, minQueryLength, performSearch, onError]);
+  }, [enabled, searchQuery, debounceMs, minQueryLength, performSearch, onError]);
 
   return {
     searchQuery,

@@ -14,9 +14,10 @@ import { useAppsData } from '../hooks/useAppsData';
 export interface AppsTabProps {
   targetTabId: number | null;
   oktaOrigin?: string;
+  isActive?: boolean;
 }
 
-const AppsTab: React.FC<AppsTabProps> = ({ targetTabId, oktaOrigin }) => {
+const AppsTab: React.FC<AppsTabProps> = ({ targetTabId, oktaOrigin, isActive = true }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<AppStatusFilter>('');
@@ -40,6 +41,7 @@ const AppsTab: React.FC<AppsTabProps> = ({ targetTabId, oktaOrigin }) => {
     api,
     onError: handleError,
     targetTabId,
+    enabled: isActive,
   });
 
   const filteredApps = useMemo(

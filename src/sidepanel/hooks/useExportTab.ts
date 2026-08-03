@@ -46,6 +46,7 @@ export interface UseExportTabOptions {
   oktaOrigin?: string;
   hasConnectedTab: boolean;
   onError: (message: string | null) => void;
+  enabled?: boolean;
 }
 
 export type ExportPhase = 'pick' | 'configure';
@@ -101,6 +102,7 @@ export function useExportTab({
   oktaOrigin: _oktaOrigin,
   hasConnectedTab,
   onError,
+  enabled = true,
 }: UseExportTabOptions): UseExportTab {
   const { startProgress, updateProgress, completeProgress } = useProgress();
 
@@ -221,6 +223,7 @@ export function useExportTab({
 
   const matchReqRef = useRef(0);
   useEffect(() => {
+    if (!enabled) return;
     if (!descriptor || descriptor.filter.kind === 'none') {
       setMatchCount(null);
       return;
@@ -247,7 +250,7 @@ export function useExportTab({
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [descriptor, contextId, filterText, api]);
+  }, [enabled, descriptor, contextId, filterText, api]);
 
   const applyPreset = useCallback(
     (id: string) => {

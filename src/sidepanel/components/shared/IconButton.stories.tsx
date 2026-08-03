@@ -32,6 +32,10 @@ const meta = {
     type: { description: 'Native button type. Defaults to `button`.' },
     title: { description: 'Tooltip text; defaults to `label`.' },
     active: { description: 'For toggle buttons — reflected as `aria-pressed`.' },
+    expanded: { description: 'For disclosure triggers — reflected as `aria-expanded`.' },
+    controls: {
+      description: '`id` of the region this button shows/hides — reflected as `aria-controls`.',
+    },
     className: { description: 'Extra classes merged onto the button.' },
   },
   args: {
@@ -71,6 +75,19 @@ export const Disabled: Story = {
 
 export const Active: Story = {
   args: { active: true, label: 'Settings active' },
+};
+
+export const Disclosure: Story = {
+  render: (args) => (
+    <div>
+      <IconButton {...args} label="Collapse" expanded controls="disclosure-demo-panel">
+        <Icon type="chevron-right" className="rotate-90" />
+      </IconButton>
+      <div id="disclosure-demo-panel" className="mt-2 text-sm text-neutral-700">
+        The region the button controls.
+      </div>
+    </div>
+  ),
 };
 
 export const Small: Story = {

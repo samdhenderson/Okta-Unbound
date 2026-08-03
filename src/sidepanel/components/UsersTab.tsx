@@ -29,6 +29,7 @@ interface UsersTabProps {
   onNavigateToRule?: (ruleId: string) => void;
   selectedUserId?: string | null;
   onUserSelected?: () => void;
+  isActive?: boolean;
 }
 
 const UsersTab: React.FC<UsersTabProps> = ({
@@ -37,8 +38,9 @@ const UsersTab: React.FC<UsersTabProps> = ({
   onNavigateToRule,
   selectedUserId,
   onUserSelected,
+  isActive = true,
 }) => {
-  const { userInfo, oktaOrigin } = useUserContext();
+  const { userInfo, oktaOrigin } = useUserContext(isActive);
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OktaUser | null>(null);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
@@ -58,7 +60,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
   }, [clearMemberships]);
 
   const { searchQuery, setSearchQuery, searchResults, setSearchResults, isSearching } =
-    useUsersTabSearch({ targetTabId, onError: setError, onSearchStart });
+    useUsersTabSearch({ targetTabId, onError: setError, onSearchStart, enabled: isActive });
 
   const handleSelectUser = useCallback(
     async (user: OktaUser) => {
@@ -162,6 +164,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
     selectedUser,
     onResult: setResultMessage,
     onAdded: handleUserAddedToGroup,
+    enabled: isActive,
   });
 
   return (

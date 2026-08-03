@@ -36,6 +36,46 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
     }
   };
 
+  const fetchAndCacheAllGroupRules = async (): Promise<{
+    rules: FormattedRule[];
+    rawRules: OktaGroupRule[];
+  }> => {
+    const rawRules = await fetchAllPages<OktaGroupRule>(
+      (url) => coreApi.makeApiRequest(url),
+      `/api/v1/groups/rules?limit=${OKTA_PAGE_SIZE}`,
+    );
+
+    const conflicts = detectConflicts(rawRules);
+    const rules = rawRules.map((rule) => formatRuleForDisplay(rule, undefined, conflicts));
+    await RulesCache.set(
+      rules,
+      rawRules,
+      {
+        total: rawRules.length,
+        active: rawRules.filter((r) => r.status === 'ACTIVE').length,
+        inactive: rawRules.filter((r) => r.status === 'INACTIVE').length,
+        conflicts: conflicts.length,
+      },
+      conflicts,
+    );
+
+    return { rules, rawRules };
+  };
+
+  const ensureGroupRulesLoaded = async (): Promise<FormattedRule[] | null> => {
+    try {
+      const cached = await RulesCache.get();
+      if (cached) return cached.rules;
+
+      log.debug('Rules cache cold - fetching the org-wide rules listing once');
+      const { rules } = await fetchAndCacheAllGroupRules();
+      return rules;
+    } catch (error) {
+      log.error('Failed to load the org-wide group rules:', error);
+      return null;
+    }
+  };
+
   const getGroupRulesForGroup = async (
     groupId: string,
   ): Promise<FormattedRule[] | OktaGroupRule[]> => {
@@ -47,28 +87,9 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       }
 
       log.debug(`Cache miss - fetching all rules for group ${groupId}`);
-      const allRules = await fetchAllPages<OktaGroupRule>(
-        (url) => coreApi.makeApiRequest(url),
-        `/api/v1/groups/rules?limit=${OKTA_PAGE_SIZE}`,
-      );
+      const { rawRules } = await fetchAndCacheAllGroupRules();
 
-      const conflicts = detectConflicts(allRules);
-      const formattedRules = allRules.map((rule) =>
-        formatRuleForDisplay(rule, undefined, conflicts),
-      );
-      await RulesCache.set(
-        formattedRules,
-        allRules,
-        {
-          total: allRules.length,
-          active: allRules.filter((r) => r.status === 'ACTIVE').length,
-          inactive: allRules.filter((r) => r.status === 'INACTIVE').length,
-          conflicts: conflicts.length,
-        },
-        conflicts,
-      );
-
-      const groupRules = allRules.filter((rule) => {
+      const groupRules = rawRules.filter((rule) => {
         const targetGroupIds = rule.actions?.assignUserToGroups?.groupIds || [];
         return targetGroupIds.includes(groupId);
       });
@@ -131,6 +152,7 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
   return {
     getAllGroups,
     getGroupMemberCount,
+    ensureGroupRulesLoaded,
     getGroupRulesForGroup,
     searchGroups,
     getGroupById,

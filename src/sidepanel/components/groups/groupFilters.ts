@@ -3,8 +3,7 @@ import { parseRegexQuery } from '../../../shared/utils/regexQuery';
 
 export { parseRegexQuery } from '../../../shared/utils/regexQuery';
 
-export type SortField = 'name' | 'memberCount' | 'lastUpdated' | 'staleness';
-export type StalenessLevel = '' | 'healthy' | 'monitor' | 'stale' | 'very_stale';
+export type SortField = 'name' | 'memberCount' | 'lastUpdated';
 export type PushFilter = '' | 'pushed' | 'not_pushed';
 
 export interface GroupFilterState {
@@ -13,7 +12,6 @@ export interface GroupFilterState {
   sizeFilter: string;
   pushFilter: PushFilter;
   pushAppFilter: Set<string>;
-  stalenessFilter: StalenessLevel;
   sortBy: SortField;
   sortDesc: boolean;
 }
@@ -56,21 +54,6 @@ export function matchesSizeFilter(memberCount: number, sizeFilter: string): bool
   }
 }
 
-export function matchesStalenessFilter(score: number, level: StalenessLevel): boolean {
-  switch (level) {
-    case 'healthy':
-      return score <= 25;
-    case 'monitor':
-      return score > 25 && score <= 50;
-    case 'stale':
-      return score > 50 && score <= 75;
-    case 'very_stale':
-      return score > 75;
-    default:
-      return true;
-  }
-}
-
 export function compareGroupsBy(a: GroupSummary, b: GroupSummary, sortBy: SortField): number {
   switch (sortBy) {
     case 'name':
@@ -81,8 +64,6 @@ export function compareGroupsBy(a: GroupSummary, b: GroupSummary, sortBy: SortFi
       if (!a.lastUpdated) return 1;
       if (!b.lastUpdated) return -1;
       return a.lastUpdated.getTime() - b.lastUpdated.getTime();
-    case 'staleness':
-      return (a.staleness?.score || 0) - (b.staleness?.score || 0);
     default:
       return 0;
   }
@@ -120,12 +101,6 @@ export function filterAndSortGroups(
     });
   }
 
-  if (state.stalenessFilter) {
-    filtered = filtered.filter((g) =>
-      matchesStalenessFilter(g.staleness?.score || 0, state.stalenessFilter),
-    );
-  }
-
   filtered.sort((a, b) => {
     const cmp = compareGroupsBy(a, b, state.sortBy);
     return state.sortDesc ? -cmp : cmp;
@@ -135,13 +110,10 @@ export function filterAndSortGroups(
 }
 
 export function computeActiveFilterCount(
-  state: Pick<
-    GroupFilterState,
-    'typeFilter' | 'sizeFilter' | 'pushFilter' | 'stalenessFilter' | 'pushAppFilter'
-  >,
+  state: Pick<GroupFilterState, 'typeFilter' | 'sizeFilter' | 'pushFilter' | 'pushAppFilter'>,
 ): number {
   return (
-    [state.typeFilter, state.sizeFilter, state.pushFilter, state.stalenessFilter].filter(Boolean)
-      .length + (state.pushAppFilter.size > 0 ? 1 : 0)
+    [state.typeFilter, state.sizeFilter, state.pushFilter].filter(Boolean).length +
+    (state.pushAppFilter.size > 0 ? 1 : 0)
   );
 }

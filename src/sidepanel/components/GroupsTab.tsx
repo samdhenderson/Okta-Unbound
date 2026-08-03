@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import PageHeader from './shared/PageHeader';
+import Breadcrumbs from './shared/Breadcrumbs';
 import AlertMessage from './shared/AlertMessage';
 import Button from './shared/Button';
 import { useOktaApi } from '../hooks/useOktaApi';
@@ -8,8 +9,9 @@ import { useGroupLiveSearch } from '../hooks/useGroupLiveSearch';
 import { useGroupFilters } from '../hooks/useGroupFilters';
 import { useGroupSelection } from '../hooks/useGroupSelection';
 import { useGroupMembersCache } from '../hooks/useGroupMembersCache';
-import { useGroupSource } from '../hooks/useGroupSource';
 import { useGroupMerge } from '../hooks/useGroupMerge';
+import { useViewStack } from '../hooks/useViewStack';
+import { useScrollPreservation } from '../hooks/useScrollPreservation';
 import type { GroupSummary } from '../../shared/types';
 import GroupExportModal from './groups/GroupExportModal';
 import GroupComparisonModal from './groups/GroupComparisonModal';
@@ -22,7 +24,7 @@ import GroupFilterToggle from './groups/GroupFilterToggle';
 import GroupFilterPanel from './groups/GroupFilterPanel';
 import GroupSelectionBar, { type ActivePanel } from './groups/GroupSelectionBar';
 import GroupsListPanel from './groups/GroupsListPanel';
-import GroupSourceModal from './groups/GroupSourceModal';
+import GroupDetailView from './groups/detail/GroupDetailView';
 import GroupMergeModal from './groups/GroupMergeModal';
 import { downloadCSV, getDateForFilename } from '../../shared/utils/csvUtils';
 import { buildGroupsListCsv } from './groups/groupsListCsv';
@@ -33,7 +35,24 @@ interface GroupsTabProps {
   onNavigateToRule?: (ruleId: string) => void;
   selectedGroupId?: string | null;
   onGroupSelected?: () => void;
+  isActive?: boolean;
 }
+
+const groupCrumbLabel = (group: GroupSummary): string => group.name;
+
+const groupCrumbKey = (group: GroupSummary): string => group.id;
+
+const groupTypeBadgeVariant: Record<GroupSummary['type'], 'primary' | 'warning' | 'neutral'> = {
+  OKTA_GROUP: 'primary',
+  APP_GROUP: 'warning',
+  BUILT_IN: 'neutral',
+};
+
+const groupTypeBadgeText: Record<GroupSummary['type'], string> = {
+  OKTA_GROUP: 'Okta group',
+  APP_GROUP: 'App group',
+  BUILT_IN: 'Built-in',
+};
 
 const GroupsTab: React.FC<GroupsTabProps> = ({
   targetTabId,
@@ -41,6 +60,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   onNavigateToRule,
   selectedGroupId,
   onGroupSelected,
+  isActive = true,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'live' | 'cached'>('live');
@@ -61,7 +81,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
 
   const api = useOktaApi({ targetTabId, onResult: handleResult });
 
-  const liveSearch = useGroupLiveSearch({ targetTabId, searchMode, setError });
+  const liveSearch = useGroupLiveSearch({ targetTabId, searchMode, setError, enabled: isActive });
   const loader = useGroupsLoader({
     api,
     setError,
@@ -75,8 +95,18 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   });
   const selection = useGroupSelection(loader.groups);
   const membersCache = useGroupMembersCache(api, loader.groups);
-  const groupSource = useGroupSource(targetTabId ?? undefined);
   const merge = useGroupMerge(targetTabId ?? undefined);
+
+  const detailViewRef = useRef<HTMLDivElement>(null);
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const [autoAnalyzeGroupId, setAutoAnalyzeGroupId] = useState<string | null>(null);
+  const nav = useViewStack<GroupSummary>({
+    rootLabel: 'Groups',
+    getLabel: groupCrumbLabel,
+    getKey: groupCrumbKey,
+    viewRef: detailViewRef,
+  });
+  const captureListScroll = useScrollPreservation(listScrollRef, isActive && nav.isRoot);
 
   const handleCloseMerge = useCallback(() => {
     setShowMergeModal(false);
@@ -86,6 +116,30 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const { groups, loading, loadAllGroups } = loader;
   const { filteredGroups, activeFilterCount } = filters;
   const { selectedGroupIds, selectedGroups } = selection;
+
+  const pushedGroup = nav.currentEntry;
+  const detailGroup = pushedGroup
+    ? (groups.find((g) => g.id === pushedGroup.id) ?? pushedGroup)
+    : undefined;
+
+  const { push: pushView } = nav;
+  const handleOpenDetail = useCallback(
+    (group: GroupSummary) => {
+      captureListScroll();
+      setAutoAnalyzeGroupId(null);
+      pushView(group);
+    },
+    [captureListScroll, pushView],
+  );
+
+  const handleAnalyzeSource = useCallback(
+    (group: GroupSummary) => {
+      captureListScroll();
+      setAutoAnalyzeGroupId(group.id);
+      pushView(group);
+    },
+    [captureListScroll, pushView],
+  );
 
   const navHandledRef = useRef<string | null>(null);
   const navLoadRef = useRef<string | null>(null);
@@ -106,6 +160,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     }
     navHandledRef.current = selectedGroupId;
 
+    nav.reset();
     setSearchMode('cached');
     filters.clearFilters();
     filters.setSearchQuery('');
@@ -147,17 +202,25 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
       <PageHeader
-        title="Groups"
-        subtitle="Browse, search, and manage groups"
+        title={detailGroup ? detailGroup.name : 'Groups'}
+        subtitle={detailGroup ? undefined : 'Browse, search, and manage groups'}
+        onBack={detailGroup ? nav.pop : undefined}
+        backLabel="Back to groups"
+        breadcrumbs={detailGroup ? <Breadcrumbs items={nav.trail} /> : undefined}
         badge={
-          selectedGroupIds.size > 0
-            ? { text: `${selectedGroupIds.size} Selected`, variant: 'primary' }
-            : searchMode === 'cached'
-              ? { text: `${groups.length} Cached`, variant: 'success' }
-              : { text: 'Live', variant: 'primary' }
+          detailGroup
+            ? {
+                text: groupTypeBadgeText[detailGroup.type],
+                variant: groupTypeBadgeVariant[detailGroup.type],
+              }
+            : selectedGroupIds.size > 0
+              ? { text: `${selectedGroupIds.size} Selected`, variant: 'primary' }
+              : searchMode === 'cached'
+                ? { text: `${groups.length} Cached`, variant: 'success' }
+                : { text: 'Live', variant: 'primary' }
         }
         actions={
-          searchMode === 'live' ? (
+          detailGroup ? undefined : searchMode === 'live' ? (
             <Button
               variant="primary"
               onClick={loadAllGroups}
@@ -175,7 +238,9 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
       />
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
-        <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
+        <div
+          className={nav.isRoot ? 'flex flex-col h-[calc(100vh-280px)] min-h-[400px]' : 'hidden'}
+        >
           <div className="shrink-0 space-y-3">
             <div className="flex gap-2">
               <GroupSearchBar
@@ -207,8 +272,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
                 setPushFilter={filters.setPushFilter}
                 pushAppFilter={filters.pushAppFilter}
                 setPushAppFilter={filters.setPushAppFilter}
-                stalenessFilter={filters.stalenessFilter}
-                setStalenessFilter={filters.setStalenessFilter}
                 availablePushApps={filters.availablePushApps}
                 sortBy={filters.sortBy}
                 sortDesc={filters.sortDesc}
@@ -265,7 +328,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
               <GroupCleanupPanel
                 groups={groups}
                 onSelectGroups={selection.replaceSelection}
-                onAnalyzeSource={groupSource.open}
+                onAnalyzeSource={handleOpenDetail}
                 onClose={() => setActivePanel('none')}
               />
             )}
@@ -291,10 +354,25 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             oktaOrigin={oktaOrigin}
             onLoadAllGroups={loadAllGroups}
             onClearFilters={filters.clearFilters}
-            onAnalyzeSource={groupSource.open}
+            onOpenDetail={handleOpenDetail}
+            onAnalyzeSource={handleAnalyzeSource}
             highlightedGroupId={selectedGroupId ?? undefined}
+            scrollRef={listScrollRef}
           />
         </div>
+
+        {detailGroup && (
+          <div ref={detailViewRef} tabIndex={-1} className="focus:outline-none">
+            <GroupDetailView
+              group={detailGroup}
+              targetTabId={targetTabId}
+              oktaOrigin={oktaOrigin}
+              onNavigateToRule={onNavigateToRule}
+              autoAnalyze={autoAnalyzeGroupId === detailGroup.id}
+              isActive={isActive}
+            />
+          </div>
+        )}
       </div>
 
       <GroupExportModal
@@ -313,25 +391,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
         groups={selectedGroups}
         compareGroups={api.compareGroups}
         memberCache={membersCache.groupMembersCache}
-      />
-
-      <GroupSourceModal
-        group={groupSource.group}
-        feedingRules={groupSource.feedingRules}
-        rulesStatus={groupSource.rulesStatus}
-        breakdown={groupSource.breakdown}
-        memberStatus={groupSource.memberStatus}
-        error={groupSource.error}
-        onClose={groupSource.close}
-        onAnalyzeMembers={groupSource.analyzeMembers}
-        onNavigateToRule={
-          onNavigateToRule
-            ? (ruleId) => {
-                groupSource.close();
-                onNavigateToRule(ruleId);
-              }
-            : undefined
-        }
       />
 
       <GroupMergeModal

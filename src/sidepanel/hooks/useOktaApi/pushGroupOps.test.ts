@@ -82,7 +82,7 @@ describe('getAppPushGroupMappings boundary validation', () => {
         mappingId: '00gFAKE1',
         sourceUserGroupId: '00gFAKE1',
         targetGroupName: 'Pushed Group',
-        status: 'ACTIVE',
+        priority: 0,
         appId: '0oaFAKE1',
         appName: 'Fake App',
       },

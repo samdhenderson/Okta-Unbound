@@ -133,4 +133,14 @@ describe('AppsTab', () => {
     expect(api.getAllApps).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /Refresh/ })).toBeDisabled();
   });
+
+  it('defers the auto-load while the tab is mounted but not the visible one', async () => {
+    const { rerender } = render(<AppsTab targetTabId={1} isActive={false} />);
+
+    await waitFor(() => expect(api.getAllApps).not.toHaveBeenCalled());
+
+    rerender(<AppsTab targetTabId={1} isActive />);
+    expect(await screen.findByText('Salesforce')).toBeInTheDocument();
+    expect(api.getAllApps).toHaveBeenCalledTimes(1);
+  });
 });

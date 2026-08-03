@@ -1,9 +1,4 @@
-import type {
-  OktaUser,
-  GroupSummary,
-  GroupComparisonResult,
-  StalenessInfo,
-} from '../../../shared/types';
+import type { OktaUser, GroupComparisonResult } from '../../../shared/types';
 
 type GetAllGroupMembers = (groupId: string) => Promise<OktaUser[]>;
 
@@ -101,51 +96,8 @@ export function createGroupAnalysisOperations(getAllGroupMembers: GetAllGroupMem
     return results;
   };
 
-  const calculateStaleness = (group: GroupSummary, rulesKnown: boolean = true): StalenessInfo => {
-    let score = 0;
-    const factors: string[] = [];
-
-    if (group.memberCount === 0) {
-      score += 30;
-      factors.push('Empty group');
-    } else if (group.memberCount < 5) {
-      score += 15;
-      factors.push('Very few members');
-    }
-
-    if (rulesKnown && !group.hasRules && group.ruleCount === 0) {
-      score += 20;
-      factors.push('No group rules');
-    }
-
-    if (group.lastUpdated) {
-      const daysSinceUpdate = (Date.now() - group.lastUpdated.getTime()) / (1000 * 60 * 60 * 24);
-      if (daysSinceUpdate > 365) {
-        score += 25;
-        factors.push('Not updated in over a year');
-      } else if (daysSinceUpdate > 180) {
-        score += 15;
-        factors.push('Not updated in 6+ months');
-      } else if (daysSinceUpdate > 90) {
-        score += 8;
-        factors.push('Not updated in 3+ months');
-      }
-    } else {
-      score += 10;
-      factors.push('No update date available');
-    }
-
-    if (!group.description) {
-      score += 10;
-      factors.push('No description');
-    }
-
-    return { score: Math.min(score, 100), factors };
-  };
-
   return {
     compareGroups,
     searchUserAcrossGroups,
-    calculateStaleness,
   };
 }

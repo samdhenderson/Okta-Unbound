@@ -191,10 +191,13 @@ export interface MembershipRule {
   userAttributes?: string[];
 }
 
+export type MembershipAttribution = 'exact' | 'inferred';
+
 export interface GroupMembership {
   group: OktaGroup;
   membershipType: 'DIRECT' | 'RULE_BASED' | 'UNKNOWN';
   rule?: MembershipRule;
+  attribution?: MembershipAttribution;
 }
 
 export interface MessageRequest {
@@ -285,14 +288,9 @@ export interface PushGroupMapping {
   mappingId: string;
   sourceUserGroupId: string;
   targetGroupName: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'UNLINKED';
+  priority?: number;
   appId: string;
   appName?: string;
-}
-
-export interface StalenessInfo {
-  score: number; // 0-100 (100 = most stale)
-  factors: string[];
 }
 
 export interface GroupComparisonResult {
@@ -318,7 +316,6 @@ export interface GroupSummary {
   type: GroupType;
   memberCount: number;
   lastUpdated?: Date;
-  lastMembershipUpdated?: Date;
   hasRules: boolean;
   ruleCount: number;
   usedInRuleCount?: number;
@@ -327,7 +324,6 @@ export interface GroupSummary {
   sourceAppName?: string;
   created?: Date;
   pushMappings?: PushGroupMapping[];
-  staleness?: StalenessInfo;
 }
 
 export interface BulkOperation {
