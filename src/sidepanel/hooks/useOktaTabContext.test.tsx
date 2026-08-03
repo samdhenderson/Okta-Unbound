@@ -212,3 +212,132 @@ describe('useOktaTabContext detection hygiene', () => {
     await waitFor(() => expect(sendCount()).toBeGreaterThan(before));
   });
 });
+
+describe('useOktaTabContext reload recovery', () => {
+  const groupUrl = 'https://acme.okta.com/admin/groups';
+
+  const groupResponder = (action: string): SendResponse =>
+    action === 'getGroupInfo'
+      ? { success: true, data: { groupId: '00g1', groupName: 'Engineering' } }
+      : origin(action);
+
+  type OnUpdated = (
+    id: number,
+    change: { url?: string; status?: string },
+    tab: chrome.tabs.Tab,
+  ) => void;
+
+  function mockUnreachableTab() {
+    (chrome as unknown as { windows: unknown }).windows = {
+      getCurrent: vi.fn().mockResolvedValue({ id: 1 }),
+    };
+    chrome.tabs.query = vi.fn().mockResolvedValue([{ id: 42, url: groupUrl, active: true }]);
+    chrome.tabs.get = vi.fn();
+    const sendMessage = vi
+      .fn()
+      .mockRejectedValue(
+        new Error('Could not establish connection. Receiving end does not exist.'),
+      );
+    chrome.tabs.sendMessage = sendMessage as unknown as typeof chrome.tabs.sendMessage;
+    return sendMessage;
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setVisibility('visible');
+  });
+
+  afterEach(() => {
+    setVisibility('visible');
+    vi.useRealTimers();
+  });
+
+  it('recovers from error when the Okta tab is reloaded at the same URL', async () => {
+    vi.useFakeTimers();
+    const sendMessage = mockUnreachableTab();
+
+    const { result } = renderHook(() => useGroupContext());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    expect(result.current.connectionStatus).toBe('error');
+
+    sendMessage.mockImplementation((_tabId: number, msg: { action: string }) =>
+      Promise.resolve(groupResponder(msg.action)),
+    );
+
+    const onUpdated = lastListener<OnUpdated>(chrome.tabs.onUpdated.addListener);
+    await act(async () => {
+      onUpdated(42, { status: 'complete' }, { url: groupUrl } as chrome.tabs.Tab);
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    expect(result.current.connectionStatus).toBe('connected');
+    expect(result.current.groupInfo).toEqual({ groupId: '00g1', groupName: 'Engineering' });
+    expect(result.current.error).toBeNull();
+  });
+
+  it('re-probes on a same-URL document reload while already connected', async () => {
+    mockOktaTab(groupResponder);
+    const { result } = renderHook(() => useGroupContext());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.connectionStatus).toBe('connected');
+
+    const before = sendCount();
+    const onUpdated = lastListener<OnUpdated>(chrome.tabs.onUpdated.addListener);
+
+    onUpdated(42, { status: 'complete' }, { url: groupUrl } as chrome.tabs.Tab);
+
+    await waitFor(() => expect(sendCount()).toBeGreaterThan(before));
+  });
+
+  it('does not latch the entity URL after a failed attempt', async () => {
+    vi.useFakeTimers();
+    mockUnreachableTab();
+
+    const { result } = renderHook(() => useGroupContext());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    expect(result.current.connectionStatus).toBe('error');
+
+    const before = sendCount();
+    const onUpdated = lastListener<OnUpdated>(chrome.tabs.onUpdated.addListener);
+
+    await act(async () => {
+      onUpdated(42, { url: groupUrl }, { url: groupUrl } as chrome.tabs.Tab);
+      await vi.advanceTimersByTimeAsync(300);
+    });
+
+    expect(sendCount()).toBeGreaterThan(before);
+  });
+
+  it('clears a pending backoff retry on unmount', async () => {
+    vi.useFakeTimers();
+    mockUnreachableTab();
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const { unmount } = renderHook(() => useGroupContext());
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    const afterFirstAttempt = sendCount();
+    expect(afterFirstAttempt).toBeGreaterThan(0);
+
+    unmount();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+
+    expect(sendCount()).toBe(afterFirstAttempt);
+    expect(
+      consoleError.mock.calls.filter(([first]) =>
+        /not wrapped in act|unmounted component/i.test(String(first)),
+      ),
+    ).toEqual([]);
+    consoleError.mockRestore();
+  });
+});

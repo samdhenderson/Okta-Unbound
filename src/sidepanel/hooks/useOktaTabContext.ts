@@ -60,9 +60,14 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
   const fetchIdRef = useRef(0);
   const lastEntityUrlRef = useRef<string | null>(null);
   const pendingResyncRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchContext = useCallback(
     async (retryCount = 0) => {
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       const currentFetchId = ++fetchIdRef.current;
       const isStale = () => currentFetchId !== fetchIdRef.current;
       setResyncPending(false);
@@ -88,7 +93,6 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
         }
 
         setTargetTabId(tab.id!);
-        lastEntityUrlRef.current = normalizeEntityUrl(tab.url);
 
         const sendToTab = <R>(action: string): Promise<MessageResponse<R>> =>
           chrome.tabs.sendMessage(tab.id!, { action });
@@ -105,6 +109,7 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
 
           if (isStale()) return;
 
+          lastEntityUrlRef.current = normalizeEntityUrl(tab.url);
           setConnectionStatus('connected');
           setError(null);
           setData(entity);
@@ -115,17 +120,19 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
               attempt: retryCount + 1,
               delayMs: delay,
             });
-            setTimeout(() => fetchContext(retryCount + 1), delay);
+            retryTimerRef.current = setTimeout(() => fetchContext(retryCount + 1), delay);
             return; // Leave loading state until the retry settles.
           }
 
           log.warn('Content script unreachable after retries', { attempts: retryCount + 1 });
+          lastEntityUrlRef.current = null;
           setConnectionStatus('error');
           setData(commsFailedData);
           setError('Can’t reach the Okta tab — reload it to reconnect.');
         }
       } catch (err) {
         log.error('Context fetch failed', err);
+        lastEntityUrlRef.current = null;
         setError(err instanceof Error ? err.message : 'Unknown error');
         setConnectionStatus('error');
         setData(initialData);
@@ -158,8 +165,8 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
       debounceTimer = setTimeout(() => fetchContextRef.current(), DEBOUNCE_MS);
     };
 
-    const requestFetch = (nextUrl?: string) => {
-      if (nextUrl && normalizeEntityUrl(nextUrl) === lastEntityUrlRef.current) {
+    const requestFetch = (nextUrl?: string, force = false) => {
+      if (!force && nextUrl && normalizeEntityUrl(nextUrl) === lastEntityUrlRef.current) {
         return; // hash-only / same-page navigation — nothing to refetch
       }
       if (!enabledRef.current || document.hidden) {
@@ -176,7 +183,8 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
       tab: chrome.tabs.Tab,
     ) => {
       if ((changeInfo.url || changeInfo.status === 'complete') && isOktaUrl(tab.url)) {
-        requestFetch(changeInfo.url ?? tab.url);
+        const isDocumentLoad = changeInfo.status === 'complete' && !changeInfo.url;
+        requestFetch(changeInfo.url ?? tab.url, isDocumentLoad);
       }
     };
 
@@ -203,6 +211,10 @@ export function useOktaTabContext<T>(config: OktaTabContextConfig<T>): OktaTabCo
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
       chrome.tabs.onUpdated.removeListener(handleTabUpdate);
       chrome.tabs.onActivated.removeListener(handleTabActivated);
       document.removeEventListener('visibilitychange', handleVisibilityChange);

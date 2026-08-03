@@ -1,4 +1,5 @@
 import type { GroupInfo, UserInfo } from '../shared/types';
+import { isOktaUrl } from '../shared/utils/oktaUrl';
 import type { PageType } from './hooks/useOktaPageContext';
 
 export type PinnablePageType = Extract<PageType, 'group' | 'user'>;
@@ -36,4 +37,24 @@ export function deriveTabContext(pinned: PinnedContext | null, live: LiveTabCont
     currentGroupId: live.groupInfo?.groupId,
     oktaOrigin: live.oktaOrigin,
   };
+}
+
+export async function revalidatePinnedContext(saved: PinnedContext): Promise<PinnedContext | null> {
+  try {
+    const tab = await chrome.tabs.get(saved.targetTabId);
+    if (isOktaUrl(tab.url)) return saved;
+  } catch {
+    // The tab no longer exists — fall through and re-resolve against live tabs.
+  }
+
+  try {
+    const currentWindow = await chrome.windows.getCurrent();
+    const tabsInWindow = await chrome.tabs.query({ windowId: currentWindow.id });
+    const oktaTabs = tabsInWindow.filter((tab) => isOktaUrl(tab.url));
+    const liveTab = oktaTabs.find((t) => t.active) ?? oktaTabs[0];
+    if (!liveTab || liveTab.id == null) return null;
+    return { ...saved, targetTabId: liveTab.id };
+  } catch {
+    return null;
+  }
 }

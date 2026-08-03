@@ -161,6 +161,37 @@ export const oktaAppGroupSchema = z
 
 export type OktaAppGroup = z.infer<typeof oktaAppGroupSchema>;
 
+export const oktaPolicyListItemSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().optional(),
+    status: z.string().optional(),
+    type: z.string().optional(),
+    priority: z.number().nullish(),
+    description: z.string().nullish(),
+    system: z.boolean().optional(),
+    created: z.string().nullish(),
+    lastUpdated: z.string().nullish(),
+    _links: z.unknown().optional(),
+  })
+  .passthrough();
+
+export const oktaPolicyRuleSchema = z
+  .object({
+    id: z.string(),
+    name: z.string().optional(),
+    status: z.string().optional(),
+    priority: z.number().nullish(),
+    system: z.boolean().optional(),
+    conditions: z.unknown().optional(),
+    actions: z.unknown().optional(),
+  })
+  .passthrough();
+
+export type OktaPolicyListItem = z.infer<typeof oktaPolicyListItemSchema>;
+
+export type OktaPolicyRule = z.infer<typeof oktaPolicyRuleSchema>;
+
 export type OktaUserResponse = z.infer<typeof oktaUserSchema>;
 export type OktaGroupResponse = z.infer<typeof oktaGroupSchema>;
 export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;

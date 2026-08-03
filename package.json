@@ -19,6 +19,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"*.{json,js,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{json,js,ts}\"",
     "prepare": "husky",
+    "shoot": "node .storybook/scripts/shoot-stories.mjs",
     "storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook dev -p 6006",
     "build-storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook build"
   },

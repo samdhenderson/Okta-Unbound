@@ -27,6 +27,16 @@ const storageRemove = vi.fn(async (keys: string[]) => {
 
 const addListener = vi.fn();
 
+const CLAIM_FLAG = '__oktaUnboundClaim';
+
+function stubDoubleInjectionGuard(): void {
+  Object.defineProperty(window, CLAIM_FLAG, {
+    configurable: true,
+    get: () => undefined,
+    set: () => {},
+  });
+}
+
 let listener: Listener;
 
 async function loadContentScript(): Promise<void> {
@@ -130,6 +140,7 @@ beforeEach(async () => {
   document.body.innerHTML = '';
   document.head.innerHTML = '';
   setPageUrl('/');
+  stubDoubleInjectionGuard();
 
   globalThis.chrome = {
     runtime: {
@@ -793,6 +804,110 @@ describe('getAppInfo', () => {
   });
 });
 
+describe('getPolicyInfo', () => {
+  const POLICY_ID = 'rstFAKE0123456789abc';
+  const POLICY_ID_00P = '00pFAKE0123456789abc';
+
+  it('returns literal true synchronously (never a promise)', async () => {
+    setPageUrl(`/admin/authn/policies/${POLICY_ID}`);
+    routeFetch([[`/api/v1/policies/${POLICY_ID}`, () => res({ id: POLICY_ID })]]);
+
+    const { returned, response } = send({ action: 'getPolicyInfo' });
+
+    expect(returned).toBe(true);
+    expect(returned).not.toBeInstanceOf(Promise);
+    await response;
+  });
+
+  it('detects a policy page: page name wins, the API supplies the status', async () => {
+    setPageUrl(`/admin/authn/policies/${POLICY_ID}`);
+    document.body.innerHTML = '<span data-se="policy-name"> Contractor MFA </span>';
+    routeFetch([
+      [
+        `/api/v1/policies/${POLICY_ID}`,
+        () => res({ id: POLICY_ID, name: 'API Policy Name', status: 'ACTIVE' }),
+      ],
+    ]);
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: true,
+      data: { policyId: POLICY_ID, policyName: 'Contractor MFA', policyStatus: 'ACTIVE' },
+    });
+    expect(fetchedEndpoints()).toEqual([`/api/v1/policies/${POLICY_ID}`]);
+  });
+
+  it('falls back to the API name when the page has none (00p-prefixed id)', async () => {
+    setPageUrl(`/admin/access/policies/${POLICY_ID_00P}`);
+    routeFetch([
+      [
+        `/api/v1/policies/${POLICY_ID_00P}`,
+        () => res({ id: POLICY_ID_00P, name: 'Any Two Factor', status: 'INACTIVE' }),
+      ],
+    ]);
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: true,
+      data: {
+        policyId: POLICY_ID_00P,
+        policyName: 'Any Two Factor',
+        policyStatus: 'INACTIVE',
+      },
+    });
+  });
+
+  it('errors when not on a policy page', async () => {
+    setPageUrl('/admin/dashboard');
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: false,
+      error: 'Not on an authentication policy page. Please navigate to a specific policy page.',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects a policy-shaped route whose segment is not a policy id', async () => {
+    setPageUrl('/admin/authn/policies/new');
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: false,
+      error: 'Not on an authentication policy page. Please navigate to a specific policy page.',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('degrades to the DOM name (no status) when the enrichment request fails', async () => {
+    setPageUrl(`/admin/authn/policies/${POLICY_ID}`);
+    document.body.innerHTML = '<span data-se="policy-name">Contractor MFA</span>';
+    routeFetch([[`/api/v1/policies/${POLICY_ID}`, () => res({}, { status: 403 })]]);
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: true,
+      data: { policyId: POLICY_ID, policyName: 'Contractor MFA', policyStatus: undefined },
+    });
+  });
+
+  it('degrades when the enrichment payload fails the zod schema', async () => {
+    setPageUrl(`/admin/authn/policies/${POLICY_ID}`);
+    document.body.innerHTML = '<span data-se="policy-name">Contractor MFA</span>';
+    routeFetch([[`/api/v1/policies/${POLICY_ID}`, () => res({ nope: true, status: 'ACTIVE' })]]);
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: true,
+      data: { policyId: POLICY_ID, policyName: 'Contractor MFA', policyStatus: undefined },
+    });
+  });
+
+  it('keeps policyName null when neither the DOM nor the API supplies one', async () => {
+    setPageUrl(`/admin/authn/policies/${POLICY_ID}`);
+    routeFetch([[`/api/v1/policies/${POLICY_ID}`, () => res({}, { status: 500 })]]);
+
+    await expect(send({ action: 'getPolicyInfo' }).response).resolves.toEqual({
+      success: true,
+      data: { policyId: POLICY_ID, policyName: null, policyStatus: undefined },
+    });
+  });
+});
+
 describe('bootstrap', () => {
   it('registers the message listener exactly once, before touching the DOM', async () => {
     const appendSpy = vi.spyOn(document.body, 'appendChild');
@@ -869,5 +984,63 @@ describe('bootstrap', () => {
     expect(indicator.style.position).toBe('fixed');
     expect(indicator.style.zIndex).toBe('999999');
     expect(indicator.style.cssText).toContain('rgb(26, 26, 26)');
+  });
+});
+
+describe('double-injection guard', () => {
+  beforeEach(() => {
+    delete (window as unknown as Record<string, unknown>)[CLAIM_FLAG];
+  });
+
+  it('registers and initializes on the first injection into a page', async () => {
+    document.body.innerHTML = '';
+    addListener.mockClear();
+    vi.resetModules();
+    await import('./index');
+
+    expect(addListener).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('okta-extension-indicator')).not.toBeNull();
+    expect(window.__oktaUnboundClaim?.()).toBe('test-extension');
+  });
+
+  it('skips listener registration and initialization when a live script of this extension already claimed the page', async () => {
+    vi.resetModules();
+    await import('./index');
+    document.body.innerHTML = '';
+
+    addListener.mockClear();
+    vi.resetModules();
+    await import('./index');
+
+    expect(addListener).not.toHaveBeenCalled();
+    expect(document.getElementById('okta-extension-indicator')).toBeNull();
+  });
+
+  it('still initializes when the previous claimant is orphaned (invalidated context throws)', async () => {
+    window.__oktaUnboundClaim = () => {
+      throw new Error('Extension context invalidated.');
+    };
+    document.body.innerHTML = '';
+
+    addListener.mockClear();
+    vi.resetModules();
+    await import('./index');
+
+    expect(addListener).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('okta-extension-indicator')).not.toBeNull();
+    expect(window.__oktaUnboundClaim?.()).toBe('test-extension');
+  });
+
+  it('still initializes when the previous claimant is orphaned (invalidated context returns undefined)', async () => {
+    window.__oktaUnboundClaim = () => undefined;
+    document.body.innerHTML = '';
+
+    addListener.mockClear();
+    vi.resetModules();
+    await import('./index');
+
+    expect(addListener).toHaveBeenCalledTimes(1);
+    expect(document.getElementById('okta-extension-indicator')).not.toBeNull();
+    expect(window.__oktaUnboundClaim?.()).toBe('test-extension');
   });
 });

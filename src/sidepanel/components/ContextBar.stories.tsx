@@ -80,6 +80,14 @@ export const PinnedLiveChanged: Story = {
   args: { isPinned: true, liveContextChanged: true, liveEntityName: 'Finance Team' },
 };
 
+export const PinnedDisconnected: Story = {
+  args: {
+    isPinned: true,
+    connectionStatus: 'error',
+    error: 'Can’t reach the Okta tab — reload it to reconnect.',
+  },
+};
+
 export const NotPinnable: Story = {
   args: {
     pageType: 'admin',

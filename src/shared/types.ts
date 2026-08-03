@@ -167,6 +167,12 @@ export interface AppInfo {
   appLabel?: string;
 }
 
+export interface PolicyInfo {
+  policyId: string;
+  policyName: string | null;
+  policyStatus?: string;
+}
+
 export interface UserMembershipTrace {
   userId: string;
   user: OktaUser;
@@ -192,7 +198,13 @@ export interface GroupMembership {
 }
 
 export interface MessageRequest {
-  action: 'getGroupInfo' | 'getUserInfo' | 'getAppInfo' | 'makeApiRequest' | 'getOktaOrigin';
+  action:
+    | 'getGroupInfo'
+    | 'getUserInfo'
+    | 'getAppInfo'
+    | 'getPolicyInfo'
+    | 'makeApiRequest'
+    | 'getOktaOrigin';
   endpoint?: string;
   method?: string;
   body?: unknown;

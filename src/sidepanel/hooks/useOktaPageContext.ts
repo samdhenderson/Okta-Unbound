@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
-import type { GroupInfo, UserInfo } from '../../shared/types';
+import type { GroupInfo, UserInfo, PolicyInfo } from '../../shared/types';
 import {
   useOktaTabContext,
   type ConnectionStatus,
   type EntityLoadContext,
 } from './useOktaTabContext';
 
-export type PageType = 'group' | 'user' | 'app' | 'admin' | 'unknown';
+export type PageType = 'group' | 'user' | 'app' | 'policy' | 'admin' | 'unknown';
 
 export interface AppInfo {
   appId: string;
@@ -19,6 +19,7 @@ interface PageDetection {
   groupInfo: GroupInfo | null;
   userInfo: UserInfo | null;
   appInfo: AppInfo | null;
+  policyInfo: PolicyInfo | null;
 }
 
 export interface OktaPageContext extends PageDetection {
@@ -31,31 +32,32 @@ export interface OktaPageContext extends PageDetection {
   resyncPending: boolean;
 }
 
-const UNKNOWN: PageDetection = {
-  pageType: 'unknown',
-  groupInfo: null,
-  userInfo: null,
-  appInfo: null,
-};
-const ADMIN: PageDetection = { pageType: 'admin', groupInfo: null, userInfo: null, appInfo: null };
+const NO_ENTITY = { groupInfo: null, userInfo: null, appInfo: null, policyInfo: null } as const;
+
+const UNKNOWN: PageDetection = { pageType: 'unknown', ...NO_ENTITY };
+const ADMIN: PageDetection = { pageType: 'admin', ...NO_ENTITY };
 
 export function useOktaPageContext(enabled = true): OktaPageContext {
   const loadEntity = useCallback(
     async ({ sendToTab }: EntityLoadContext): Promise<PageDetection> => {
-      const [groupResponse, userResponse, appResponse] = await Promise.all([
+      const [groupResponse, userResponse, appResponse, policyResponse] = await Promise.all([
         sendToTab<GroupInfo>('getGroupInfo'),
         sendToTab<UserInfo>('getUserInfo'),
         sendToTab<AppInfo>('getAppInfo'),
+        sendToTab<PolicyInfo>('getPolicyInfo'),
       ]);
 
       if (groupResponse.success && groupResponse.data) {
-        return { pageType: 'group', groupInfo: groupResponse.data, userInfo: null, appInfo: null };
+        return { ...NO_ENTITY, pageType: 'group', groupInfo: groupResponse.data };
       }
       if (userResponse.success && userResponse.data) {
-        return { pageType: 'user', groupInfo: null, userInfo: userResponse.data, appInfo: null };
+        return { ...NO_ENTITY, pageType: 'user', userInfo: userResponse.data };
       }
       if (appResponse.success && appResponse.data) {
-        return { pageType: 'app', groupInfo: null, userInfo: null, appInfo: appResponse.data };
+        return { ...NO_ENTITY, pageType: 'app', appInfo: appResponse.data };
+      }
+      if (policyResponse.success && policyResponse.data) {
+        return { ...NO_ENTITY, pageType: 'policy', policyInfo: policyResponse.data };
       }
       return ADMIN;
     },

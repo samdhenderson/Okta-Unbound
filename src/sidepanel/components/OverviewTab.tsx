@@ -1,5 +1,5 @@
 import React from 'react';
-import type { GroupInfo, UserInfo, AppInfo } from '../../shared/types';
+import type { GroupInfo, UserInfo, AppInfo, PolicyInfo } from '../../shared/types';
 import type { PageType } from '../hooks/useOktaPageContext';
 import type { ConnectionStatus } from '../hooks/useOktaTabContext';
 import AlertMessage from './shared/AlertMessage';
@@ -8,6 +8,7 @@ import LoadingSpinner from './shared/LoadingSpinner';
 import GroupOverview from './overview/GroupOverview';
 import UserOverview from './overview/UserOverview';
 import AppOverview from './overview/AppOverview';
+import AuthPolicyOverview from './overview/AuthPolicyOverview';
 
 interface OverviewTabProps {
   onTabChange: (tab: 'rules' | 'users' | 'groups' | 'history', selectedRuleId?: string) => void;
@@ -15,6 +16,7 @@ interface OverviewTabProps {
   groupInfo: GroupInfo | null;
   userInfo: UserInfo | null;
   appInfo: AppInfo | null;
+  policyInfo?: PolicyInfo | null;
   connectionStatus: ConnectionStatus;
   targetTabId: number | null;
   error: string | null;
@@ -33,6 +35,7 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
   groupInfo,
   userInfo,
   appInfo,
+  policyInfo = null,
   connectionStatus,
   targetTabId,
   error,
@@ -99,12 +102,27 @@ const OverviewTab: React.FC<OverviewTabProps> = ({
         )}
 
         {pageType === 'app' && appInfo && targetTabId && (
-          <AppOverview appId={appInfo.appId} appName={appInfo.appName} onExport={onExportApp} />
+          <AppOverview
+            appId={appInfo.appId}
+            appName={appInfo.appName}
+            targetTabId={targetTabId}
+            onExport={onExportApp}
+          />
+        )}
+
+        {pageType === 'policy' && policyInfo && targetTabId && (
+          <AuthPolicyOverview
+            policyId={policyInfo.policyId}
+            policyName={policyInfo.policyName}
+            policyStatus={policyInfo.policyStatus}
+            targetTabId={targetTabId}
+          />
         )}
 
         {(pageType === 'unknown' ||
           pageType === 'admin' ||
-          (pageType === 'app' && (!appInfo || !targetTabId))) && (
+          (pageType === 'app' && (!appInfo || !targetTabId)) ||
+          (pageType === 'policy' && (!policyInfo || !targetTabId))) && (
           <EmptyState
             icon="search"
             title="Waiting for Context"

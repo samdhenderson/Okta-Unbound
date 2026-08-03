@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import ContextBar from './components/ContextBar';
 import PageHeader from './components/shared/PageHeader';
 import TabNavigation from './components/TabNavigation';
@@ -11,12 +11,14 @@ import ActivityBar from './components/ActivityBar';
 const RulesTab = lazy(() => import('./components/RulesTab'));
 const UsersTab = lazy(() => import('./components/UsersTab'));
 const GroupsTab = lazy(() => import('./components/GroupsTab'));
+const AppsTab = lazy(() => import('./components/AppsTab'));
+const AuthPoliciesTab = lazy(() => import('./components/AuthPoliciesTab'));
 const ExportTab = lazy(() => import('./components/export').then((m) => ({ default: m.ExportTab })));
 const AuditLogViewer = lazy(() => import('./components/AuditLogViewer'));
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
 import { SchedulerProvider } from './contexts/SchedulerContext';
-import { deriveTabContext, type PinnedContext } from './pinContext';
+import { deriveTabContext, revalidatePinnedContext, type PinnedContext } from './pinContext';
 
 const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
 const PINNED_CONTEXT_KEY = 'okta_unbound_pinned_context';
@@ -31,14 +33,31 @@ const App: React.FC = () => {
   const [pinned, setPinned] = useState<PinnedContext | null>(null);
   const isPinned = pinned !== null;
 
-  const { groupInfo, connectionStatus, targetTabId, error, isLoading, oktaOrigin } =
-    useGroupContext();
+  const {
+    groupInfo,
+    connectionStatus,
+    targetTabId,
+    error,
+    isLoading,
+    oktaOrigin,
+    refetch: refetchGroupContext,
+  } = useGroupContext();
   const page = useOktaPageContext(activeTab === 'overview' && !isPinned);
 
   useEffect(() => {
     chrome.storage.local.get([PINNED_CONTEXT_KEY], (result) => {
       const saved = result[PINNED_CONTEXT_KEY] as PinnedContext | undefined;
-      if (saved) setPinned(saved);
+      if (!saved) return;
+      void revalidatePinnedContext(saved).then((revalidated) => {
+        if (!revalidated) {
+          chrome.storage.local.remove(PINNED_CONTEXT_KEY);
+          return;
+        }
+        setPinned(revalidated);
+        if (revalidated.targetTabId !== saved.targetTabId) {
+          chrome.storage.local.set({ [PINNED_CONTEXT_KEY]: revalidated });
+        }
+      });
     });
   }, []);
 
@@ -50,8 +69,8 @@ const App: React.FC = () => {
         userInfo: pinned.userInfo,
         targetTabId: pinned.targetTabId as number | null,
         oktaOrigin: pinned.oktaOrigin,
-        connectionStatus: 'connected' as const,
-        error: null as string | null,
+        connectionStatus,
+        error,
         isLoading: false,
       }
     : {
@@ -74,7 +93,9 @@ const App: React.FC = () => {
         ? (effective.userInfo?.userName ?? undefined)
         : effective.pageType === 'app'
           ? (page.appInfo?.appName ?? undefined)
-          : undefined;
+          : effective.pageType === 'policy'
+            ? (page.policyInfo?.policyName ?? undefined)
+            : undefined;
   const entityId =
     effective.pageType === 'group'
       ? (effective.groupInfo?.groupId ?? undefined)
@@ -82,7 +103,9 @@ const App: React.FC = () => {
         ? (effective.userInfo?.userId ?? undefined)
         : effective.pageType === 'app'
           ? (page.appInfo?.appId ?? undefined)
-          : undefined;
+          : effective.pageType === 'policy'
+            ? (page.policyInfo?.policyId ?? undefined)
+            : undefined;
 
   const handleTogglePin = () => {
     if (pinned) {
@@ -103,14 +126,20 @@ const App: React.FC = () => {
     }
   };
 
+  const refetchPageContext = page.refetch;
+  const handleRefreshAll = useCallback(() => {
+    void refetchGroupContext();
+    void refetchPageContext();
+  }, [refetchGroupContext, refetchPageContext]);
+
   const handleReconnect = () => {
     if (targetTabId != null) {
       chrome.tabs.reload(targetTabId, {}, () => {
         void chrome.runtime.lastError; // tab may be gone; ignore
-        page.refetch();
+        handleRefreshAll();
       });
     } else {
-      page.refetch();
+      handleRefreshAll();
     }
   };
 
@@ -191,7 +220,7 @@ const App: React.FC = () => {
           canPin={isLivePinnable}
           liveContextChanged={isPinned && page.resyncPending}
           onTogglePin={handleTogglePin}
-          onRefresh={page.refetch}
+          onRefresh={handleRefreshAll}
           onReconnect={handleReconnect}
         />
 
@@ -205,12 +234,13 @@ const App: React.FC = () => {
               groupInfo={effective.groupInfo}
               userInfo={effective.userInfo}
               appInfo={page.appInfo ?? null}
+              policyInfo={page.policyInfo ?? null}
               connectionStatus={effective.connectionStatus}
               targetTabId={effective.targetTabId}
               error={effective.error}
               isLoading={effective.isLoading}
               oktaOrigin={effective.oktaOrigin}
-              onRetry={page.refetch}
+              onRetry={handleRefreshAll}
               onViewAllGroups={() => {
                 if (effective.userInfo) handleNavigateToUser(effective.userInfo.userId);
               }}
@@ -247,6 +277,18 @@ const App: React.FC = () => {
               onNavigateToRule={handleNavigateToRule}
               selectedGroupId={selectedGroupId}
               onGroupSelected={() => setSelectedGroupId(null)}
+            />
+          )}
+          {activeTab === 'apps' && (
+            <AppsTab
+              targetTabId={tabContext.targetTabId ?? null}
+              oktaOrigin={tabContext.oktaOrigin ?? undefined}
+            />
+          )}
+          {activeTab === 'policies' && (
+            <AuthPoliciesTab
+              targetTabId={tabContext.targetTabId ?? undefined}
+              oktaOrigin={tabContext.oktaOrigin ?? undefined}
             />
           )}
           {activeTab === 'export' && (

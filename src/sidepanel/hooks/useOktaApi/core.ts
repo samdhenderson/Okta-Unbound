@@ -6,6 +6,20 @@ import { getCachedCurrentUser, cacheCurrentUser } from './currentUserCache';
 
 const log = createLogger('useOktaApi');
 
+const TRANSIENT_PORT_ERROR_PATTERNS = [
+  'message port closed before a response',
+  'receiving end does not exist',
+];
+
+const TRANSIENT_PORT_MAX_RETRIES = 2;
+
+const TRANSIENT_PORT_RETRY_DELAYS_MS = [250, 500];
+
+export function isTransientPortError(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return TRANSIENT_PORT_ERROR_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
 export interface ProgressBridge {
   start: (name: string, total: number) => void;
   reportBatch: (progress: BatchProgress, message?: string) => void;
@@ -74,14 +88,35 @@ export function createCoreApi(
       priority,
     });
 
-    const response = await chrome.runtime.sendMessage({
-      action: 'scheduleApiRequest',
-      endpoint,
-      method,
-      body,
-      tabId: targetTabId,
-      priority,
-    });
+    const retryable = method.toUpperCase() === 'GET';
+    let response: RequestResult;
+    let attempt = 0;
+
+    for (;;) {
+      try {
+        response = await chrome.runtime.sendMessage({
+          action: 'scheduleApiRequest',
+          endpoint,
+          method,
+          body,
+          tabId: targetTabId,
+          priority,
+        });
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!retryable || attempt >= TRANSIENT_PORT_MAX_RETRIES || !isTransientPortError(message)) {
+          throw error;
+        }
+        log.debug('Retrying scheduled API request after transient port error', {
+          endpoint: endpoint.split('?')[0],
+          attempt: attempt + 1,
+        });
+        const delay = TRANSIENT_PORT_RETRY_DELAYS_MS[attempt];
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        attempt += 1;
+      }
+    }
 
     log.debug('Received scheduled response', {
       endpoint: endpoint.split('?')[0],

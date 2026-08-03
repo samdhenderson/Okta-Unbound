@@ -25,6 +25,7 @@ const DOT_COLOR: Record<PageType, string> = {
   group: 'var(--color-primary)',
   user: 'var(--color-accent)',
   app: 'var(--color-success)',
+  policy: 'var(--color-warning)',
   admin: 'var(--color-neutral-500)',
   unknown: 'var(--color-neutral-500)',
 };
@@ -33,6 +34,7 @@ const NO_ENTITY_LABEL: Record<PageType, string> = {
   group: 'No group selected',
   user: 'No user selected',
   app: 'No app selected',
+  policy: 'No policy detected',
   admin: 'Okta Admin',
   unknown: 'No context',
 };
@@ -41,6 +43,7 @@ const PAGE_LABEL: Record<PageType, string> = {
   group: 'Group',
   user: 'User',
   app: 'App',
+  policy: 'Policy',
   admin: 'Admin',
   unknown: '',
 };

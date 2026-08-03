@@ -6,6 +6,7 @@ import type { SchedulerStateChangedMessage } from '../shared/types';
 import { createLogger } from '../shared/utils/logger';
 import { isOktaUrl } from '../shared/utils/oktaUrl';
 import { createThrottledRelay } from './throttledRelay';
+import { reinjectContentScripts } from './reinjectContentScripts';
 
 const log = createLogger('Background');
 
@@ -237,6 +238,12 @@ chrome.runtime.onInstalled.addListener((details) => {
     log.info(`Extension updated from ${previousVersion} to ${version}`);
 
     setupAuditRetentionAlarm();
+  }
+
+  if (details.reason === 'install' || details.reason === 'update') {
+    reinjectContentScripts().catch((error) => {
+      log.error('Content script re-injection failed', error);
+    });
   }
 
   chrome.contextMenus.create({

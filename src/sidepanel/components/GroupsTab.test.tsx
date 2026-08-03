@@ -380,6 +380,8 @@ describe('live search: error paths', () => {
     render(<GroupsTab targetTabId={1} />);
     typeInto(liveInput(), 'eng');
     await advance(300);
+    await advance(250);
+    await advance(500);
 
     expect(screen.getByText('Receiving end does not exist')).toBeInTheDocument();
     expect(renderedGroupNames()).toEqual([]);

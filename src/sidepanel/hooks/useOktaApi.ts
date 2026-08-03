@@ -9,6 +9,7 @@ import { createGroupBulkOperations } from './useOktaApi/groupBulkOps';
 import { createGroupDiscoveryOperations } from './useOktaApi/groupDiscovery';
 import { createUserOperations } from './useOktaApi/userOperations';
 import { createAppOperations } from './useOktaApi/appOperations';
+import { createPolicyOperations } from './useOktaApi/policyOperations';
 import { createExportEngineOperations } from './useOktaApi/exportEngine';
 import { createPushGroupOperations } from './useOktaApi/pushGroupOps';
 import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
@@ -100,6 +101,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
   const groupDiscoveryOps = useMemo(() => createGroupDiscoveryOperations(coreApi), [coreApi]);
   const userOps = useMemo(() => createUserOperations(coreApi), [coreApi]);
   const appOps = useMemo(() => createAppOperations(coreApi), [coreApi]);
+  const policyOps = useMemo(() => createPolicyOperations(coreApi), [coreApi]);
   const exportEngineOps = useMemo(() => createExportEngineOperations(coreApi), [coreApi]);
   const pushGroupOps = useMemo(() => createPushGroupOperations(coreApi), [coreApi]);
   const groupAnalysisOps = useMemo(
@@ -161,6 +163,14 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       unsuspendUser: userOps.unsuspendUser,
       resetPassword: userOps.resetPassword,
 
+      getAllApps: appOps.getAllApps,
+      getAppById: appOps.getAppById,
+      getAppAssignmentCounts: appOps.getAppAssignmentCounts,
+
+      listPolicies: policyOps.listPolicies,
+      getPolicyRules: policyOps.getPolicyRules,
+      getAppAccessPolicyId: policyOps.getAppAccessPolicyId,
+
       fetchExportRows: exportEngineOps.fetchAllRows,
       countExportRows: exportEngineOps.countRows,
       runExport: exportEngineOps.runExport,
@@ -190,6 +200,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       groupBulkOps,
       userOps,
       appOps,
+      policyOps,
       exportEngineOps,
       pushGroupOps,
       groupAnalysisOps,

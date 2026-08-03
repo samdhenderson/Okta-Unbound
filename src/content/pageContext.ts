@@ -212,3 +212,97 @@ export function extractAppNameFromPage(): string | null {
 
   return null;
 }
+
+const POLICY_ID_PATTERN = /^(?:rst|00p)[A-Za-z0-9]{15,}$/;
+
+export function extractPolicyIdFromUrl(url: string): string | null {
+  log.debug('extractPolicyIdFromUrl: parsing URL', { path: url.split('?')[0] });
+
+  const patterns: Array<{ regex: RegExp; name: string }> = [
+    { regex: /\/admin\/authn\/policies\/([a-zA-Z0-9]+)/, name: '/admin/authn/policies/{id}' },
+    { regex: /\/admin\/access\/policies\/([a-zA-Z0-9]+)/, name: '/admin/access/policies/{id}' },
+
+    { regex: /\/admin\/policy\/[a-zA-Z0-9-]+\/([a-zA-Z0-9]+)/, name: '/admin/policy/{view}/{id}' },
+    { regex: /\/admin\/policy\/([a-zA-Z0-9]+)/, name: '/admin/policy/{id}' },
+
+    { regex: /\/api\/v1\/policies\/([a-zA-Z0-9]+)/, name: '/api/v1/policies/{id}' },
+
+    { regex: /[?&]policyId=([a-zA-Z0-9]+)/, name: '?policyId={id}' },
+  ];
+
+  for (const { regex, name } of patterns) {
+    const match = url.match(regex);
+    if (match && match[1]) {
+      const potentialId = match[1];
+      const nonIdKeywords = [
+        'settings',
+        'new',
+        'create',
+        'edit',
+        'view',
+        'delete',
+        'list',
+        'search',
+        'rules',
+        'policies',
+        'default',
+      ];
+      if (nonIdKeywords.includes(potentialId.toLowerCase())) {
+        continue;
+      }
+      if (POLICY_ID_PATTERN.test(potentialId)) {
+        log.debug('extractPolicyIdFromUrl: matched pattern', { pattern: name, id: potentialId });
+        return potentialId;
+      }
+    }
+  }
+
+  log.warn('extractPolicyIdFromUrl: no pattern matched', { path: url.split('?')[0] });
+  return null;
+}
+
+export function extractPolicyNameFromPage(): string | null {
+  const selectors = [
+    '[data-se="policy-name"]',
+    '[data-se="policy-title"]',
+    '[data-testid="policy-name"]',
+
+    '.policy-header h1',
+    '.policy-detail-header h1',
+    '[class*="PolicyHeader"] h1',
+
+    'h1.okta-form-title',
+    '.content-container h1',
+    'main h1',
+
+    '.page-title',
+    '[class*="PageTitle"]',
+  ];
+
+  const genericLabels = [
+    'Policy',
+    'Policies',
+    'Authentication',
+    'Authentication Policy',
+    'Authentication Policies',
+    'Access Policy',
+    'Settings',
+    'Security',
+  ];
+
+  for (const selector of selectors) {
+    try {
+      const element = document.querySelector(selector);
+      if (element) {
+        const text = element.textContent?.trim();
+        if (text && !genericLabels.includes(text)) {
+          return text;
+        }
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
