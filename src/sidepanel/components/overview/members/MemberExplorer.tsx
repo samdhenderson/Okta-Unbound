@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../../shared/types';
+import { useDebouncedValue } from '../../../hooks/useDebouncedValue';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import MemberSearchBar from './MemberSearchBar';
@@ -48,7 +49,6 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   oktaOrigin,
 }) => {
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filters, setFilters] = useState<MemberFilter[]>([]);
   const [visibleCount, setVisibleCount] = useState(PAGE);
   const [showFilters, setShowFilters] = useState(false);
@@ -57,10 +57,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
 
-  useEffect(() => {
-    const id = setTimeout(() => setDebouncedQuery(query), 200);
-    return () => clearTimeout(id);
-  }, [query]);
+  const debouncedQuery = useDebouncedValue(query, 200);
 
   const attributes = useMemo(() => discoverAttributeBreakdowns(members), [members]);
   const statusRows = useMemo(() => computeDimensionBreakdown(members, 'status'), [members]);

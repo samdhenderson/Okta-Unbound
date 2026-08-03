@@ -1,7 +1,9 @@
-export function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return 'Never';
+export type DateInput = Date | number | string | null | undefined;
+
+export function formatDate(date: DateInput): string {
+  if (!date) return 'Never';
   try {
-    return new Date(dateString).toLocaleDateString(undefined, {
+    return new Date(date).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -9,20 +11,20 @@ export function formatDate(dateString: string | null | undefined): string {
       minute: '2-digit',
     });
   } catch {
-    return dateString;
+    return String(date);
   }
 }
 
-export function formatDateShort(dateString: string | null | undefined): string {
-  if (!dateString) return 'Never';
+export function formatDateShort(date: DateInput): string {
+  if (!date) return 'Never';
   try {
-    return new Date(dateString).toLocaleDateString(undefined, {
+    return new Date(date).toLocaleDateString(undefined, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     });
   } catch {
-    return dateString;
+    return String(date);
   }
 }
 

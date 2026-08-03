@@ -139,3 +139,17 @@ export const LiveSearching: Story = {
     hasGroups: false,
   },
 };
+
+export const LargeListWindowed: Story = {
+  args: {
+    filteredGroups: Array.from({ length: 120 }, (_, i) => ({
+      id: `00gFAKE${String(i).padStart(4, '0')}`,
+      name: `Team ${i + 1}`,
+      description: 'Generated sample group',
+      type: 'OKTA_GROUP' as const,
+      memberCount: (i * 7) % 400,
+      hasRules: i % 5 === 0,
+      ruleCount: i % 5 === 0 ? 1 : 0,
+    })),
+  },
+};

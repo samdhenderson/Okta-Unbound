@@ -1,8 +1,7 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import type { OktaUser } from '../../shared/types';
 import { createLogger } from '../../shared/utils/logger';
-import { useOktaApi } from './useOktaApi';
-import { searchUsersRequest } from './searchUsersRequest';
+import { useDebouncedUserSearch } from './useDebouncedUserSearch';
 
 const log = createLogger('useUserSearch');
 
@@ -26,84 +25,22 @@ export function useUserSearch({
   debounceMs = 600,
   minQueryLength = 2,
 }: UseUserSearchOptions): UseUserSearchReturn {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<OktaUser[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
-
-  const performSearch = useCallback(
-    async (query: string) => {
-      if (!targetTabId) {
-        setError('No Okta tab connected');
-        return;
-      }
-
-      if (!query.trim()) {
-        setError('Please enter a search query');
-        return;
-      }
-
-      setIsSearching(true);
-      setError(null);
-
-      try {
-        log.debug('Searching for users', { queryLength: query.length });
-
-        const response = await searchUsersRequest(makeApiRequest, query.trim());
-
-        if (response.success) {
-          setSearchResults(response.data || []);
-          log.debug('Found users:', response.data?.length);
-        } else {
-          setError(response.error || 'Failed to search users');
-          setSearchResults([]);
-        }
-      } catch (err: unknown) {
-        const error = err as Error;
-        setError(error.message || 'Failed to communicate with Okta tab');
-        setSearchResults([]);
-        log.error('Search error:', err);
-      } finally {
-        setIsSearching(false);
-      }
-    },
-    [targetTabId, makeApiRequest],
-  );
-
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    if (searchQuery.trim().length === 0) {
-      setSearchResults([]);
-      setError(null);
-      return;
-    }
-
-    if (searchQuery.trim().length < minQueryLength) {
-      return;
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      performSearch(searchQuery);
-    }, debounceMs);
-
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, [searchQuery, debounceMs, minQueryLength, performSearch]);
+  const { searchQuery, setSearchQuery, searchResults, setSearchResults, isSearching } =
+    useDebouncedUserSearch({
+      targetTabId,
+      onError: setError,
+      debounceMs,
+      minQueryLength,
+      log,
+    });
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
     setSearchResults([]);
     setError(null);
-  }, []);
+  }, [setSearchQuery, setSearchResults]);
 
   return {
     searchQuery,

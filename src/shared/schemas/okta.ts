@@ -114,6 +114,53 @@ export const oktaAppListItemSchema = z
 
 export type OktaAppListItem = z.infer<typeof oktaAppListItemSchema>;
 
+export const oktaAppGroupAssignmentSchema = z
+  .object({
+    id: z.string(),
+    priority: z.number().optional(),
+    profile: z
+      .object({
+        name: z.string().optional(),
+        groupName: z.string().optional(),
+      })
+      .passthrough()
+      .nullish(),
+    _links: z
+      .object({
+        group: z.object({ href: z.string().optional() }).passthrough().optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+export type OktaAppGroupAssignment = z.infer<typeof oktaAppGroupAssignmentSchema>;
+
+export const oktaAppUserSchema = z
+  .object({
+    id: z.string(),
+    status: z.string().optional(),
+    scope: z.string().optional(),
+    syncState: z.string().optional(),
+    created: z.string().nullish(),
+    lastUpdated: z.string().nullish(),
+    credentials: z.object({ userName: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
+export type OktaAppUser = z.infer<typeof oktaAppUserSchema>;
+
+export const oktaAppGroupSchema = z
+  .object({
+    id: z.string(),
+    priority: z.number().optional(),
+    lastUpdated: z.string().nullish(),
+    profile: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
+
+export type OktaAppGroup = z.infer<typeof oktaAppGroupSchema>;
+
 export type OktaUserResponse = z.infer<typeof oktaUserSchema>;
 export type OktaGroupResponse = z.infer<typeof oktaGroupSchema>;
 export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;

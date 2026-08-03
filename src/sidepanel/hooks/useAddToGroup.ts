@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { OktaUser } from '../../shared/types';
+import { useDebouncedValue } from './useDebouncedValue';
 import { useOktaApi } from './useOktaApi';
 
 export interface GroupSearchResult {
@@ -45,27 +46,27 @@ export function useAddToGroup({
   const [selectedGroup, setSelectedGroup] = useState<GroupSearchResult | null>(null);
   const [isAddingToGroup, setIsAddingToGroup] = useState(false);
   const [showGroupDropdown, setShowGroupDropdown] = useState(false);
-  const groupDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debouncedGroupQuery = useDebouncedValue(groupSearchQuery, 300);
 
   const { searchGroups, addUserToGroup } = useOktaApi({
     targetTabId: targetTabId ?? null,
   });
 
   useEffect(() => {
-    if (groupDebounceTimerRef.current) {
-      clearTimeout(groupDebounceTimerRef.current);
-    }
-
     if (groupSearchQuery.trim().length < 2) {
       setGroupSearchResults([]);
       setShowGroupDropdown(false);
-      return;
     }
+  }, [groupSearchQuery]);
 
-    groupDebounceTimerRef.current = setTimeout(async () => {
+  useEffect(() => {
+    const query = debouncedGroupQuery.trim();
+    if (query.length < 2) return;
+
+    void (async () => {
       setIsSearchingGroups(true);
       try {
-        const results = await searchGroups(groupSearchQuery.trim());
+        const results = await searchGroups(query);
         setGroupSearchResults(results);
         setShowGroupDropdown(results.length > 0);
       } catch {
@@ -74,14 +75,8 @@ export function useAddToGroup({
       } finally {
         setIsSearchingGroups(false);
       }
-    }, 300);
-
-    return () => {
-      if (groupDebounceTimerRef.current) {
-        clearTimeout(groupDebounceTimerRef.current);
-      }
-    };
-  }, [groupSearchQuery, searchGroups]);
+    })();
+  }, [debouncedGroupQuery, searchGroups]);
 
   const openModal = useCallback(() => {
     setGroupSearchQuery('');

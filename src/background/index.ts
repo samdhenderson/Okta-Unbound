@@ -2,8 +2,10 @@ import { auditStore } from '../shared/storage/auditStore';
 import { ApiScheduler } from '../shared/scheduler/apiScheduler';
 import { TabStateManager } from '../shared/tabState/tabStateManager';
 import type { SchedulerState } from '../shared/scheduler/types';
+import type { SchedulerStateChangedMessage } from '../shared/types';
 import { createLogger } from '../shared/utils/logger';
-import { isOktaUrl as isOktaUrlShared } from '../shared/utils/oktaUrl';
+import { isOktaUrl } from '../shared/utils/oktaUrl';
+import { createThrottledRelay } from './throttledRelay';
 
 const log = createLogger('Background');
 
@@ -20,25 +22,22 @@ const globalScheduler = new ApiScheduler({
 
 log.info('Global API scheduler initialized');
 
-globalScheduler.onStateChange((state: SchedulerState) => {
-  chrome.runtime
-    .sendMessage({
-      action: 'schedulerStateChanged',
-      state,
-    })
-    .catch(() => {
+const relaySchedulerState = createThrottledRelay<SchedulerStateChangedMessage>(
+  (message) => {
+    chrome.runtime.sendMessage(message).catch(() => {
       // Ignore errors if no listeners (sidepanel not open)
     });
-});
-
-setInterval(
-  () => {
-    TabStateManager.cleanupExpiredStates().catch((err) => {
-      log.error('Failed to cleanup expired tab states', err);
-    });
   },
-  60 * 60 * 1000,
+  { isUrgent: (previous, next) => previous.state.status !== next.state.status },
 );
+
+globalScheduler.onStateChange((state: SchedulerState) => {
+  relaySchedulerState({
+    action: 'schedulerStateChanged',
+    state,
+    metrics: globalScheduler.getMetrics(),
+  });
+});
 
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const ALLOWED_PRIORITIES = new Set(['interactive', 'high', 'normal', 'low']);
@@ -290,6 +289,11 @@ function getNextMidnight(): number {
   return tomorrow.getTime();
 }
 
+function setupTabStateCleanupAlarm(): void {
+  chrome.alarms.create('tabStateCleanup', { periodInMinutes: 60 });
+  log.debug('Tab state cleanup alarm created');
+}
+
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'auditRetentionCleanup') {
     log.debug('Running audit retention cleanup');
@@ -305,10 +309,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       log.error('Audit retention cleanup failed', error);
     }
   }
+
+  if (alarm.name === 'tabStateCleanup') {
+    log.debug('Running tab state cleanup');
+
+    try {
+      await TabStateManager.cleanupExpiredStates();
+      log.debug('Tab state cleanup completed');
+    } catch (error) {
+      log.error('Failed to cleanup expired tab states', error);
+    }
+  }
 });
 
-function isOktaUrl(url: string): boolean {
-  return isOktaUrlShared(url);
-}
-
 setupAuditRetentionAlarm();
+setupTabStateCleanupAlarm();

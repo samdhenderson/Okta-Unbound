@@ -1,7 +1,8 @@
 import type { CoreApi } from './core';
 import type { OktaGroup, OktaGroupRule, FormattedRule } from '../../../shared/types';
 import { RulesCache } from '../../../shared/rulesCache';
-import { parseNextLink } from './utilities';
+import { detectConflicts, formatRuleForDisplay } from '../../../shared/ruleUtils';
+import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
@@ -9,44 +10,23 @@ const log = createLogger('useOktaApi');
 export function createGroupDiscoveryOperations(coreApi: CoreApi) {
   const getAllGroups = async (
     onProgress?: (loaded: number, total: number) => void,
-  ): Promise<OktaGroup[]> => {
-    const allGroups: OktaGroup[] = [];
-    let nextUrl: string | null = '/api/v1/groups?limit=200&expand=stats';
-
-    while (nextUrl) {
-      const response = await coreApi.makeApiRequest(nextUrl);
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch groups');
-      }
-
-      const pageGroups = response.data || [];
-      allGroups.push(...pageGroups);
-
-      onProgress?.(allGroups.length, allGroups.length);
-
-      nextUrl = parseNextLink(response.headers?.link);
-    }
-
-    return allGroups;
-  };
+  ): Promise<OktaGroup[]> =>
+    fetchAllPages<OktaGroup>(
+      (url) => coreApi.makeApiRequest(url),
+      `/api/v1/groups?limit=${OKTA_PAGE_SIZE}&expand=stats`,
+      {
+        errorMessage: 'Failed to fetch groups',
+        onPage: (_pageGroups, totalSoFar) => onProgress?.(totalSoFar, totalSoFar),
+      },
+    );
 
   const getGroupMemberCount = async (groupId: string): Promise<number> => {
     try {
       const usersResponse = await coreApi.makeApiRequest(
-        `/api/v1/groups/${groupId}/users?limit=200`,
+        `/api/v1/groups/${groupId}/users?limit=${OKTA_PAGE_SIZE}`,
       );
       if (usersResponse.success && usersResponse.data) {
-        const firstPageCount = usersResponse.data.length;
-
-        const linkHeader = usersResponse.headers?.['link'] || usersResponse.headers?.['Link'];
-        const hasMorePages = linkHeader && linkHeader.includes('rel="next"');
-
-        if (hasMorePages) {
-          return firstPageCount;
-        }
-
-        return firstPageCount;
+        return usersResponse.data.length;
       }
 
       return 0;
@@ -67,12 +47,26 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       }
 
       log.debug(`Cache miss - fetching all rules for group ${groupId}`);
-      const response = await coreApi.makeApiRequest('/api/v1/groups/rules?limit=200');
-      if (!response.success) {
-        return [];
-      }
+      const allRules = await fetchAllPages<OktaGroupRule>(
+        (url) => coreApi.makeApiRequest(url),
+        `/api/v1/groups/rules?limit=${OKTA_PAGE_SIZE}`,
+      );
 
-      const allRules: OktaGroupRule[] = response.data || [];
+      const conflicts = detectConflicts(allRules);
+      const formattedRules = allRules.map((rule) =>
+        formatRuleForDisplay(rule, undefined, conflicts),
+      );
+      await RulesCache.set(
+        formattedRules,
+        allRules,
+        {
+          total: allRules.length,
+          active: allRules.filter((r) => r.status === 'ACTIVE').length,
+          inactive: allRules.filter((r) => r.status === 'INACTIVE').length,
+          conflicts: conflicts.length,
+        },
+        conflicts,
+      );
 
       const groupRules = allRules.filter((rule) => {
         const targetGroupIds = rule.actions?.assignUserToGroups?.groupIds || [];

@@ -1,7 +1,9 @@
 import type { CoreApi } from './core';
 import type { OktaUser } from './types';
+import type { BatchOutcome } from '@/shared/scheduler/runBatch';
 import { logAction } from '../../../shared/undoManager';
-import { parseNextLink } from './utilities';
+import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { oktaUserListItemSchema, type OktaUserListItem } from '@/shared/schemas/okta';
 
 export function createGroupMemberOperations(coreApi: CoreApi) {
   const removeUserFromGroup = async (
@@ -32,31 +34,49 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
     return result;
   };
 
+  const removeUserFromGroups = async (
+    userId: string,
+    groupIds: string[],
+    onProgress?: (completed: number, total: number) => void,
+  ): Promise<BatchOutcome<string, void>> => {
+    let completedCount = 0;
+    return coreApi.runOperation(
+      'Remove user from groups',
+      groupIds,
+      async (groupId) => {
+        await coreApi.makeApiRequest(`/api/v1/groups/${groupId}/users/${userId}`, 'DELETE');
+        completedCount += 1;
+        onProgress?.(completedCount, groupIds.length);
+      },
+      {
+        concurrency: 1,
+        stopOnError: () => true,
+        message: (p) => `Removing user from groups (${p.completed}/${p.total})`,
+      },
+    );
+  };
+
   const getAllGroupMembers = async (groupId: string): Promise<OktaUser[]> => {
-    const allMembers: OktaUser[] = [];
-    let nextUrl: string | null = `/api/v1/groups/${groupId}/users?limit=200`;
     let pageCount = 0;
 
-    while (nextUrl) {
-      pageCount++;
-      coreApi.callbacks.onResult?.(`Fetching page ${pageCount}...`, 'info');
-
-      const response = await coreApi.makeApiRequest(nextUrl);
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch group members');
-      }
-
-      const pageMembers = response.data || [];
-      allMembers.push(...pageMembers);
-
-      coreApi.callbacks.onResult?.(
-        `Page ${pageCount}: Loaded ${pageMembers.length} members (Total: ${allMembers.length})`,
-        'info',
-      );
-
-      nextUrl = parseNextLink(response.headers?.link);
-    }
+    const allMembers: OktaUser[] = await fetchAllPages<OktaUserListItem>(
+      (url) => coreApi.makeApiRequest(url),
+      `/api/v1/groups/${groupId}/users?limit=${OKTA_PAGE_SIZE}`,
+      {
+        schema: oktaUserListItemSchema,
+        errorMessage: 'Failed to fetch group members',
+        onBeforePage: (pageNumber) => {
+          pageCount = pageNumber;
+          coreApi.callbacks.onResult?.(`Fetching page ${pageNumber}...`, 'info');
+        },
+        onPage: (pageMembers, totalSoFar) => {
+          coreApi.callbacks.onResult?.(
+            `Page ${pageCount}: Loaded ${pageMembers.length} members (Total: ${totalSoFar})`,
+            'info',
+          );
+        },
+      },
+    );
 
     coreApi.callbacks.onResult?.(`Loaded ${allMembers.length} total members`, 'success');
     return allMembers;
@@ -92,6 +112,7 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
 
   return {
     removeUserFromGroup,
+    removeUserFromGroups,
     getAllGroupMembers,
     addUserToGroup,
   };

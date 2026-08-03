@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, IconButton, LoadingSpinner } from '../shared';
 import type { GroupMembership } from '../../../shared/types';
+import { oktaAdminEntityUrl } from '../../../shared/utils/oktaUrl';
 
 interface GroupMembershipsListProps {
   memberships: GroupMembership[];
@@ -77,13 +78,10 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
                     {oktaOrigin && (
                       <IconButton
                         label="Open group in Okta admin"
-                        onClick={() =>
-                          window.open(
-                            `${oktaOrigin}/admin/group/${membership.group.id}`,
-                            '_blank',
-                            'noopener,noreferrer',
-                          )
-                        }
+                        onClick={() => {
+                          const url = oktaAdminEntityUrl(oktaOrigin, 'group', membership.group.id);
+                          if (url) window.open(url, '_blank', 'noopener,noreferrer');
+                        }}
                         variant="ghost"
                         size="md"
                       >

@@ -53,8 +53,25 @@ export function createGroupBulkOperations(
 
             result.itemsProcessed = inactiveUsers.length;
 
-            for (const user of inactiveUsers) {
-              await removeUserFromGroup(groupId, groupName, user);
+            const outcome = await coreApi.runOperation(
+              'Remove inactive members',
+              inactiveUsers,
+              async (user) => {
+                await removeUserFromGroup(groupId, groupName, user);
+              },
+              {
+                stopOnError: () => true,
+                message: (p) => `Removing inactive members (${p.completed}/${p.total})`,
+              },
+            );
+            if (outcome.cancelled) {
+              throw new OperationCancelledError();
+            }
+            const rejected = outcome.results.find((r) => r.status === 'rejected');
+            if (rejected) {
+              throw rejected.error instanceof Error
+                ? rejected.error
+                : new Error('Failed to remove inactive members');
             }
             break;
           }
@@ -100,8 +117,6 @@ export function createGroupBulkOperations(
           errors: [error instanceof Error ? error.message : 'Unknown error'],
         });
       }
-
-      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     return results;

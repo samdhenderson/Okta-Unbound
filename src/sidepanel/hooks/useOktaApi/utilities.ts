@@ -1,29 +1,4 @@
-export function parseNextLink(linkHeader?: string): string | null {
-  if (!linkHeader) return null;
-
-  const links = linkHeader.split(',');
-  for (const link of links) {
-    if (link.includes('rel="next"')) {
-      const match = link.match(/<([^>]+)>/);
-      if (match) {
-        const fullUrl = new URL(match[1]);
-        return fullUrl.pathname + fullUrl.search;
-      }
-    }
-  }
-  return null;
-}
-
-export function nextPageUrl(
-  currentUrl: string,
-  linkHeader: string | undefined,
-  pageSize: number,
-): string | null {
-  if (pageSize === 0) return null;
-  const next = parseNextLink(linkHeader);
-  if (!next || next === currentUrl) return null;
-  return next;
-}
+export { parseNextLink, nextPageUrl } from '@/shared/utils/oktaPagination';
 
 export function deepMergeProfiles(
   baseProfile: Record<string, unknown>,

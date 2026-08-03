@@ -99,7 +99,7 @@ export function useRulesData({
 
           await RulesCache.set(
             response.rules || [],
-            [], // rawRules not available from formatted response
+            response.rawRules || [],
             response.stats || EMPTY_STATS,
             response.conflicts || [],
           );

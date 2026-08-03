@@ -1,0 +1,112 @@
+import { useState, useCallback, useRef, useEffect } from 'react';
+import type { OktaUser } from '../../shared/types';
+import type { Logger } from '../../shared/utils/logger';
+import { useOktaApi } from './useOktaApi';
+import { searchUsersRequest } from './searchUsersRequest';
+
+export interface UseDebouncedUserSearchOptions {
+  targetTabId: number | undefined;
+  onError: (message: string | null) => void;
+  onSearchStart?: () => void;
+  debounceMs: number;
+  minQueryLength: number;
+  log: Logger;
+}
+
+export interface UseDebouncedUserSearchReturn {
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  searchResults: OktaUser[];
+  setSearchResults: (users: OktaUser[]) => void;
+  isSearching: boolean;
+}
+
+export function useDebouncedUserSearch({
+  targetTabId,
+  onError,
+  onSearchStart,
+  debounceMs,
+  minQueryLength,
+  log,
+}: UseDebouncedUserSearchOptions): UseDebouncedUserSearchReturn {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<OktaUser[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
+
+  const performSearch = useCallback(
+    async (query: string) => {
+      if (!targetTabId) {
+        onError('No Okta tab connected');
+        return;
+      }
+
+      if (!query.trim()) {
+        onError('Please enter a search query');
+        return;
+      }
+
+      setIsSearching(true);
+      onError(null);
+      onSearchStart?.();
+
+      try {
+        log.debug('Searching for users', { queryLength: query.trim().length });
+
+        const response = await searchUsersRequest(makeApiRequest, query.trim());
+
+        if (response.success) {
+          setSearchResults(response.data || []);
+          log.debug('Found users:', response.data?.length);
+        } else {
+          onError(response.error || 'Failed to search users');
+          setSearchResults([]);
+        }
+      } catch (err: unknown) {
+        const error = err as Error;
+        onError(error.message || 'Failed to communicate with Okta tab');
+        setSearchResults([]);
+        log.error('Search error:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [targetTabId, onError, onSearchStart, makeApiRequest, log],
+  );
+
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (searchQuery.trim().length === 0) {
+      setSearchResults([]);
+      onError(null);
+      return;
+    }
+
+    if (searchQuery.trim().length < minQueryLength) {
+      return;
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      performSearch(searchQuery);
+    }, debounceMs);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [searchQuery, debounceMs, minQueryLength, performSearch, onError]);
+
+  return {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    setSearchResults,
+    isSearching,
+  };
+}

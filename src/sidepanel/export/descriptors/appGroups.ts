@@ -1,17 +1,10 @@
-import { z } from 'zod';
 import { formatDateForCSV } from '@/shared/utils/csvUtils';
+import { oktaAppGroupSchema, type OktaAppGroup } from '@/shared/schemas/okta';
 import type { EntityExport } from '../types';
 
-export const appGroupSchema = z
-  .object({
-    id: z.string(),
-    priority: z.number().optional(),
-    lastUpdated: z.string().nullish(),
-    profile: z.record(z.unknown()).optional(),
-  })
-  .passthrough();
+export const appGroupSchema = oktaAppGroupSchema;
 
-export type AppGroup = z.infer<typeof appGroupSchema>;
+export type AppGroup = OktaAppGroup;
 
 export const appGroupsDescriptor: EntityExport<AppGroup> = {
   id: 'app-groups',

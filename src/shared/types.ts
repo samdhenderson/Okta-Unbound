@@ -1,3 +1,5 @@
+import type { SchedulerState, SchedulerMetrics } from './scheduler/types';
+
 export interface OktaUser {
   id: string;
   status: UserStatus;
@@ -190,34 +192,10 @@ export interface GroupMembership {
 }
 
 export interface MessageRequest {
-  action:
-    | 'getGroupInfo'
-    | 'getUserInfo'
-    | 'getAppInfo'
-    | 'makeApiRequest'
-    | 'exportGroupMembers'
-    | 'fetchGroupRules'
-    | 'searchUsers'
-    | 'searchGroups'
-    | 'getUserGroups'
-    | 'getUserDetails'
-    | 'getUserContext'
-    | 'getOktaOrigin'
-    | 'activateRule'
-    | 'deactivateRule'
-    | 'getAllGroups'
-    | 'exportMultiGroupMembers';
+  action: 'getGroupInfo' | 'getUserInfo' | 'getAppInfo' | 'makeApiRequest' | 'getOktaOrigin';
   endpoint?: string;
   method?: string;
   body?: unknown;
-  groupId?: string;
-  groupName?: string;
-  format?: 'csv' | 'json';
-  statusFilter?: UserStatus | '';
-  query?: string;
-  userId?: string;
-  ruleId?: string;
-  groupIds?: string[];
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -227,6 +205,12 @@ export interface MessageResponse<T = any> extends ApiResponse<T> {
   formattedRules?: FormattedRule[];
   stats?: RuleStats;
   conflicts?: RuleConflict[];
+}
+
+export interface SchedulerStateChangedMessage {
+  action: 'schedulerStateChanged';
+  state: SchedulerState;
+  metrics: SchedulerMetrics;
 }
 
 export interface RuleStats {

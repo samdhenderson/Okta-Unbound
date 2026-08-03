@@ -4,9 +4,11 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   ReactNode,
 } from 'react';
 import type { SchedulerState, SchedulerMetrics } from '../../shared/scheduler/types';
+import type { SchedulerStateChangedMessage } from '../../shared/types';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('SchedulerContext');
@@ -63,9 +65,12 @@ export const SchedulerProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, [refreshState, refreshMetrics]);
 
   useEffect(() => {
-    const listener = (message: { action?: string; state?: SchedulerState }) => {
+    const listener = (message: Partial<SchedulerStateChangedMessage> & { action?: string }) => {
       if (message.action === 'schedulerStateChanged') {
         setState(message.state ?? null);
+        if (message.metrics) {
+          setMetrics(message.metrics);
+        }
       }
     };
 
@@ -103,21 +108,20 @@ export const SchedulerProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [refreshState]);
 
-  return (
-    <SchedulerContext.Provider
-      value={{
-        state,
-        metrics,
-        pause,
-        resume,
-        clearQueue,
-        refreshState,
-        refreshMetrics,
-      }}
-    >
-      {children}
-    </SchedulerContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      state,
+      metrics,
+      pause,
+      resume,
+      clearQueue,
+      refreshState,
+      refreshMetrics,
+    }),
+    [state, metrics, pause, resume, clearQueue, refreshState, refreshMetrics],
   );
+
+  return <SchedulerContext.Provider value={contextValue}>{children}</SchedulerContext.Provider>;
 };
 
 export const useScheduler = (): SchedulerContextType => {

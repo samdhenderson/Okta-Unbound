@@ -30,6 +30,15 @@ const SETTINGS_STORE = 'settings';
 class AuditStore {
   private dbPromise: Promise<IDBPDatabase<AuditDB>> | null = null;
 
+  private settingsCache: AuditSettings | null = null;
+
+  private static timestampRange(startDate?: Date, endDate?: Date): IDBKeyRange | null {
+    if (startDate && endDate) return IDBKeyRange.bound(startDate, endDate);
+    if (startDate) return IDBKeyRange.lowerBound(startDate);
+    if (endDate) return IDBKeyRange.upperBound(endDate);
+    return null;
+  }
+
   private async getDB(): Promise<IDBPDatabase<AuditDB>> {
     if (!this.dbPromise) {
       this.dbPromise = openDB<AuditDB>(DB_NAME, DB_VERSION, {
@@ -88,7 +97,10 @@ class AuditStore {
       } else if (filters.result) {
         results = await db.getAllFromIndex(STORE_NAME, 'result', filters.result);
       } else {
-        results = await db.getAll(STORE_NAME);
+        const range = AuditStore.timestampRange(filters.startDate, filters.endDate);
+        results = range
+          ? await db.getAllFromIndex(STORE_NAME, 'timestamp', range)
+          : await db.getAll(STORE_NAME);
       }
 
       results = results.filter((entry) => {
@@ -157,16 +169,19 @@ class AuditStore {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
 
-      const allEntries = await db.getAll(STORE_NAME);
-      const oldEntries = allEntries.filter((entry) => new Date(entry.timestamp) < cutoffDate);
-
       const tx = db.transaction(STORE_NAME, 'readwrite');
-      for (const entry of oldEntries) {
-        await tx.store.delete(entry.id);
+      let deleted = 0;
+      let cursor = await tx.store
+        .index('timestamp')
+        .openCursor(IDBKeyRange.upperBound(cutoffDate, true));
+      while (cursor) {
+        await cursor.delete();
+        deleted++;
+        cursor = await cursor.continue();
       }
       await tx.done;
 
-      log.debug(`Cleared ${oldEntries.length} old log entries`);
+      log.debug(`Cleared ${deleted} old log entries`);
     } catch (error) {
       log.error('Failed to clear old logs:', error);
     }
@@ -227,6 +242,9 @@ class AuditStore {
   }
 
   async getSettings(): Promise<AuditSettings> {
+    if (this.settingsCache) {
+      return this.settingsCache;
+    }
     try {
       const db = await this.getDB();
       const settings = await db.get(SETTINGS_STORE, 'default');
@@ -243,6 +261,7 @@ class AuditStore {
       const db = await this.getDB();
       const storedSettings = { ...settings, id: 'default' as const };
       await db.put(SETTINGS_STORE, storedSettings);
+      this.settingsCache = { ...settings };
       log.debug('Updated settings:', settings);
     } catch (error) {
       log.error('Failed to update settings:', error);

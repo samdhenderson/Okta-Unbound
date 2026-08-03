@@ -1,24 +1,13 @@
 import React from 'react';
 import type { OktaUser } from '../../../shared/types';
+import { userStatusVariant } from '../shared';
 
 interface UserSearchResultsProps {
   results: OktaUser[];
   onSelectUser: (user: OktaUser) => void;
 }
 
-const getStatusBadgeClass = (status: string) => {
-  switch (status) {
-    case 'ACTIVE':
-      return 'badge badge-success';
-    case 'DEPROVISIONED':
-      return 'badge badge-error';
-    case 'SUSPENDED':
-    case 'LOCKED_OUT':
-      return 'badge badge-warning';
-    default:
-      return 'badge badge-info';
-  }
-};
+const getStatusBadgeClass = (status: string) => `badge badge-${userStatusVariant(status)}`;
 
 const UserSearchResults: React.FC<UserSearchResultsProps> = ({ results, onSelectUser }) => {
   if (results.length === 0) {

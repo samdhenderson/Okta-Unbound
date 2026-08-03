@@ -1,7 +1,8 @@
 import type { CoreApi } from './core';
 import type { OktaFactor, MemberMfaResult, OktaUser } from '../../../shared/types';
 import { summarizeFactors } from '../../../shared/utils/mfaUtils';
-import { parseNextLink } from './utilities';
+import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { oktaAppListItemSchema, type OktaAppListItem } from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
@@ -23,7 +24,7 @@ export function createUserOperations(coreApi: CoreApi) {
   const getUserAppAssignments = async (userId: string): Promise<number> => {
     try {
       const response = await coreApi.makeApiRequest(
-        `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=200`,
+        `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=${OKTA_PAGE_SIZE}`,
       );
       if (response.success && response.data) {
         const firstPageCount = response.data.length;
@@ -46,21 +47,20 @@ export function createUserOperations(coreApi: CoreApi) {
 
   const getUserApps = async (userId: string): Promise<Array<{ id: string; label: string }>> => {
     const apps: Array<{ id: string; label: string }> = [];
-    let nextUrl: string | null = `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=200`;
 
     try {
-      while (nextUrl) {
-        const response = await coreApi.makeApiRequest(nextUrl);
-        if (!response.success || !response.data) {
-          break;
-        }
-
-        for (const app of response.data) {
-          apps.push({ id: app.id, label: app.label || app.name || app.id });
-        }
-
-        nextUrl = parseNextLink(response.headers?.link);
-      }
+      await fetchAllPages<OktaAppListItem>(
+        (url) => coreApi.makeApiRequest(url),
+        `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=${OKTA_PAGE_SIZE}`,
+        {
+          schema: oktaAppListItemSchema,
+          onPage: (page) => {
+            for (const app of page) {
+              apps.push({ id: app.id, label: app.label || app.name || app.id });
+            }
+          },
+        },
+      );
     } catch (error) {
       log.error(`Failed to list apps for user ${userId}:`, error);
     }
@@ -73,11 +73,14 @@ export function createUserOperations(coreApi: CoreApi) {
     onProgress?: (current: number, total: number) => void,
   ): Promise<Map<string, OktaUser>> => {
     const userDetailsMap = new Map<string, OktaUser>();
-    const batchSize = 3; // Match scheduler maxConcurrent
+    const total = userIds.length;
+    const reportInterval = 3;
+    let processed = 0;
 
-    for (let i = 0; i < userIds.length; i += batchSize) {
-      const batch = userIds.slice(i, i + batchSize);
-      const batchPromises = batch.map(async (userId) => {
+    await coreApi.runOperation(
+      'Load user details',
+      userIds,
+      async (userId) => {
         try {
           const response = await coreApi.makeApiRequest(
             `/api/v1/users/${userId}`,
@@ -86,24 +89,19 @@ export function createUserOperations(coreApi: CoreApi) {
             'low',
           );
           if (response.success && response.data) {
-            return { userId, data: response.data };
+            userDetailsMap.set(userId, response.data);
           }
-          return { userId, data: null };
         } catch (error) {
           log.error(`Failed to fetch user ${userId}:`, error);
-          return { userId, data: null };
+        } finally {
+          processed += 1;
+          if (processed % reportInterval === 0 || processed === total) {
+            onProgress?.(processed, total);
+          }
         }
-      });
-
-      const results = await Promise.all(batchPromises);
-      results.forEach(({ userId, data }) => {
-        if (data) {
-          userDetailsMap.set(userId, data);
-        }
-      });
-
-      onProgress?.(Math.min(i + batchSize, userIds.length), userIds.length);
-    }
+      },
+      { message: (p) => `Loading user details (${p.completed}/${p.total})` },
+    );
 
     return userDetailsMap;
   };

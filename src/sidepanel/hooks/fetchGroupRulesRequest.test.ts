@@ -93,6 +93,18 @@ describe('fetchGroupRulesRequest', () => {
     expect(result.rules?.[0].groupNames).toEqual(['00gAAAAAAAAAAAAAAAAA']);
   });
 
+  it('returns the raw rules alongside the formatted ones from a single fetch', async () => {
+    const ruleA = rawRule({ id: 'rA', name: 'A' });
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([ruleA])]]);
+
+    const result = await fetchGroupRulesRequest(makeApiRequest);
+
+    expect(result.success).toBe(true);
+    expect(result.rawRules).toEqual([ruleA]);
+    expect(result.rules?.map((r) => r.id)).toEqual(['rA']);
+    expect(makeApiRequest).toHaveBeenCalledTimes(1);
+  });
+
   it('stops paginating when Okta returns a next link on an empty page', async () => {
     const nextHeader = {
       link: '<https://acme.okta.com/api/v1/groups/rules?after=STUCK&limit=200>; rel="next"',

@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatDate } from '../../../shared/utils/dateFormat';
 
 interface RulesMetaRowProps {
   apiCost: number | null;
@@ -24,9 +25,7 @@ const RulesMetaRow: React.FC<RulesMetaRowProps> = ({ apiCost, lastFetchTime, has
           <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider">
             Cached:
           </span>
-          <span className="text-sm font-mono text-neutral-700">
-            {new Date(lastFetchTime).toLocaleString()}
-          </span>
+          <span className="text-sm font-mono text-neutral-700">{formatDate(lastFetchTime)}</span>
         </div>
       )}
     </div>

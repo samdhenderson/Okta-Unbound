@@ -1,7 +1,7 @@
 import type { CoreApi } from './core';
 import type { AuditLogEntry } from './types';
 import type { EntityExport, CellValue } from '@/sidepanel/export/types';
-import { parseNextLink } from './utilities';
+import { parseNextLink, nextPageUrl } from '@/shared/utils/oktaPagination';
 import { parseOktaList } from '@/shared/schemas/okta';
 import {
   generateCSV,
@@ -69,7 +69,7 @@ export function createExportEngineOperations(coreApi: CoreApi) {
         rows.length = cap;
         break;
       }
-      nextUrl = parseNextLink(response.headers?.link);
+      nextUrl = nextPageUrl(nextUrl, response.headers?.link, rawLength);
     }
 
     return { rows, fetched, dropped, capped };

@@ -54,6 +54,15 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
 
     getAllGroupMembers: asyncFn([]),
     removeUserFromGroup: asyncFn(),
+    removeUserFromGroups: asyncFn({
+      results: [],
+      total: 0,
+      completed: 0,
+      failed: 0,
+      skipped: 0,
+      stoppedByError: false,
+      cancelled: false,
+    }),
     addUserToGroup: asyncFn(),
     removeDeprovisioned: asyncFn(),
     getAllGroups: asyncFn([]),
@@ -71,11 +80,16 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     getUserGroupMemberships: asyncFn([]),
     searchUsers: asyncFn([]),
     getUserById: asyncFn(null),
+    searchApps: asyncFn([]),
     suspendUser: asyncFn(),
     unsuspendUser: asyncFn(),
     resetPassword: asyncFn(),
 
     exportMembers: asyncFn(),
+
+    fetchExportRows: asyncFn({ rows: [], fetched: 0, dropped: 0, capped: false }),
+    countExportRows: asyncFn({ count: 0, hasMore: false }),
+    runExport: asyncFn(),
 
     getAppPushGroupMappings: asyncFn([]),
     applyPushGroupMappings: asyncFn(),

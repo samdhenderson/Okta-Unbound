@@ -26,8 +26,12 @@ export function generateCSV(
   return [headerLine, ...dataLines].join('\n');
 }
 
-export function downloadCSV(content: string, filename: string): void {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+export function downloadCSV(
+  content: string,
+  filename: string,
+  mimeType = 'text/csv;charset=utf-8;',
+): void {
+  const blob = new Blob([content], { type: mimeType });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
 

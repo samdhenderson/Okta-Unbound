@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { GroupSummary } from '../../shared/types';
 import { liveSearchToGroupSummary } from '../components/groups/groupSummary';
+import { useDebouncedValue } from './useDebouncedValue';
 import { useOktaApi } from './useOktaApi';
 
 interface UseGroupLiveSearchOptions {
@@ -18,7 +19,7 @@ export function useGroupLiveSearch({
   const [liveSearchQuery, setLiveSearchQuery] = useState('');
   const [liveSearchResults, setLiveSearchResults] = useState<GroupSummary[]>([]);
   const [isLiveSearching, setIsLiveSearching] = useState(false);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debouncedQuery = useDebouncedValue(liveSearchQuery, 300);
 
   const { makeApiRequest } = useOktaApi({ targetTabId });
 
@@ -65,15 +66,9 @@ export function useGroupLiveSearch({
 
   useEffect(() => {
     if (searchMode === 'live') {
-      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = setTimeout(() => {
-        handleLiveSearch(liveSearchQuery);
-      }, 300);
-      return () => {
-        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      };
+      handleLiveSearch(debouncedQuery);
     }
-  }, [liveSearchQuery, searchMode, handleLiveSearch]);
+  }, [debouncedQuery, searchMode, handleLiveSearch]);
 
   const resetLiveSearch = useCallback(() => {
     setLiveSearchQuery('');

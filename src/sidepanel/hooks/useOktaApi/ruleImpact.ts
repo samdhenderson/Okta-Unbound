@@ -1,6 +1,9 @@
 import type { CoreApi } from './core';
 import type { OktaUser, OktaGroupRule, GroupType } from '../../../shared/types';
-import { parseNextLink } from './utilities';
+import { RulesCache } from '../../../shared/rulesCache';
+import { OperationCancelledError } from '../../../shared/scheduler/cancellation';
+import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { oktaGroupRuleSchema, type OktaGroupRuleResponse } from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 import {
   toImpactRule,
@@ -34,19 +37,21 @@ export function createRuleImpactOperations(
   getAllGroupMembers: (groupId: string) => Promise<OktaUser[]>,
 ): RuleImpactOperations {
   const fetchRawRules = async (): Promise<OktaGroupRule[]> => {
-    const all: OktaGroupRule[] = [];
-    let nextUrl: string | null = '/api/v1/groups/rules?limit=200';
-
-    while (nextUrl) {
-      const response = await coreApi.makeApiRequest(nextUrl, 'GET', undefined, 'low');
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to fetch group rules');
-      }
-      all.push(...((response.data as OktaGroupRule[]) || []));
-      nextUrl = parseNextLink(response.headers?.link);
+    const cached = await RulesCache.get();
+    if (cached && cached.rawRules.length > 0) {
+      log.debug('Serving raw rules from RulesCache', { count: cached.rawRules.length });
+      return cached.rawRules;
     }
 
-    return all;
+    const rules = await fetchAllPages<OktaGroupRuleResponse>(
+      (url) => coreApi.makeApiRequest(url, 'GET', undefined, 'low'),
+      `/api/v1/groups/rules?limit=${OKTA_PAGE_SIZE}`,
+      {
+        schema: oktaGroupRuleSchema,
+        errorMessage: 'Failed to fetch group rules',
+      },
+    );
+    return rules as unknown as OktaGroupRule[];
   };
 
   const fetchGroupMeta = async (
@@ -79,18 +84,43 @@ export function createRuleImpactOperations(
     const rawRules = await fetchRawRules();
     const impactRules = rawRules.map(toImpactRule);
 
-    const targets: TargetGroupMembers[] = [];
     const total = rule.groupIds.length;
+    const groupInputs = rule.groupIds.map((groupId, i) => ({
+      groupId,
+      fallbackName: rule.groupNames?.[i] || groupId,
+    }));
+    let started = 0;
 
-    for (let i = 0; i < total; i++) {
-      const groupId = rule.groupIds[i];
-      const fallbackName = rule.groupNames?.[i] || groupId;
-      opts?.onProgress?.(i + 1, total, `Loading members for ${fallbackName}…`);
+    const outcome = await coreApi.runOperation(
+      'Rule impact preview',
+      groupInputs,
+      async ({ groupId, fallbackName }): Promise<TargetGroupMembers> => {
+        started += 1;
+        opts?.onProgress?.(Math.min(started, total), total, `Loading members for ${fallbackName}…`);
 
-      const meta = await fetchGroupMeta(groupId, fallbackName);
-      const members = await getAllGroupMembers(groupId);
+        const meta = await fetchGroupMeta(groupId, fallbackName);
+        const members = await getAllGroupMembers(groupId);
+        return { groupId, groupName: meta.name, groupType: meta.type, members };
+      },
+      {
+        stopOnError: () => true,
+        message: (p) => `Loading rule targets (${p.completed}/${p.total})`,
+      },
+    );
 
-      targets.push({ groupId, groupName: meta.name, groupType: meta.type, members });
+    if (outcome.cancelled) {
+      throw new OperationCancelledError();
+    }
+    const rejected = outcome.results.find((r) => r.status === 'rejected');
+    if (rejected) {
+      throw rejected.error instanceof Error
+        ? rejected.error
+        : new Error('Failed to load rule target group');
+    }
+
+    const targets: TargetGroupMembers[] = [];
+    for (const r of outcome.results) {
+      if (r.status === 'fulfilled' && r.value) targets.push(r.value);
     }
 
     return summarizeRuleImpact(rule.id, rule.name, targets, impactRules);

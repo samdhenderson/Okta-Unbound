@@ -2,10 +2,12 @@ import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { resetEntityCache } from '../sidepanel/cache/entityCache';
+import { resetCurrentUserCache } from '../sidepanel/hooks/useOktaApi/currentUserCache';
 
 afterEach(() => {
   cleanup();
   resetEntityCache();
+  resetCurrentUserCache();
 });
 
 globalThis.chrome = {

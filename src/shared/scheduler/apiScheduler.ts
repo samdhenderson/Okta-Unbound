@@ -39,6 +39,8 @@ export class ApiScheduler {
   private cooldownEndsAt: number | null = null;
   private isPaused: boolean = false;
   private processingInterval: ReturnType<typeof setInterval> | null = null;
+  private isProcessing: boolean = false;
+  private reprocessRequested: boolean = false;
   private cancelGeneration: number = 0;
 
   private metrics: SchedulerMetrics = {
@@ -73,7 +75,7 @@ export class ApiScheduler {
     tabId: number,
     priority: RequestPriority = 'normal',
   ): Promise<RequestResult> {
-    const dedupKey = this.getGetDedupKey(method, endpoint);
+    const dedupKey = this.getGetDedupKey(method, endpoint, tabId);
 
     if (dedupKey) {
       const existing = this.coalescableGets.get(dedupKey);
@@ -123,6 +125,10 @@ export class ApiScheduler {
       this.metrics.totalRequests++;
       this.notifyStateChange();
 
+      this.startProcessing();
+
+      void Promise.resolve().then(() => this.processQueue());
+
       log.debug('Scheduled request:', {
         id: request.id,
         endpoint: endpoint.split('?')[0],
@@ -133,8 +139,8 @@ export class ApiScheduler {
     });
   }
 
-  private getGetDedupKey(method: string, endpoint: string): string | null {
-    return method.toUpperCase() === 'GET' ? `GET ${endpoint}` : null;
+  private getGetDedupKey(method: string, endpoint: string, tabId: number): string | null {
+    return method.toUpperCase() === 'GET' ? `GET ${tabId} ${endpoint}` : null;
   }
 
   private addToQueue(request: QueuedRequest): void {
@@ -162,58 +168,80 @@ export class ApiScheduler {
     log.debug('Started processing loop');
   }
 
-  stop(): void {
+  private stopProcessing(): void {
     if (this.processingInterval) {
       clearInterval(this.processingInterval);
       this.processingInterval = null;
+      log.debug('Stopped processing loop');
     }
-    log.debug('Stopped processing loop');
   }
 
-  private async processQueue(): Promise<void> {
+  stop(): void {
+    this.stopProcessing();
+  }
+
+  private processQueue(): void {
+    if (this.isProcessing) {
+      this.reprocessRequested = true;
+      return;
+    }
+    this.isProcessing = true;
+    try {
+      do {
+        this.reprocessRequested = false;
+        this.drainQueue();
+      } while (this.reprocessRequested);
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  private drainQueue(): void {
     if (this.isPaused) {
       this.updateStatus('paused');
       return;
     }
 
-    const interactiveBypass =
-      this.queue[0]?.priority === 'interactive' && !this.rateLimitDetector.isLimitExceeded();
-
-    if (this.cooldownEndsAt && Date.now() < this.cooldownEndsAt) {
-      if (!interactiveBypass) {
-        this.updateStatus('cooldown');
-        return;
-      }
-    } else if (this.cooldownEndsAt) {
+    if (this.cooldownEndsAt && Date.now() >= this.cooldownEndsAt) {
       log.debug('Cooldown ended, resuming processing');
       this.cooldownEndsAt = null;
     }
 
-    if (this.activeRequests.size >= this.config.maxConcurrent) {
-      this.updateStatus('processing');
-      return;
-    }
+    while (this.activeRequests.size < this.config.maxConcurrent && this.queue.length > 0) {
+      const interactiveBypass =
+        this.queue[0]?.priority === 'interactive' && !this.rateLimitDetector.isLimitExceeded();
 
-    if (
-      this.rateLimitDetector.isApproachingLimit(
-        this.config.minRemainingThreshold,
-        this.activeRequests.size,
-      )
-    ) {
-      if (!interactiveBypass) {
+      if (this.cooldownEndsAt && Date.now() < this.cooldownEndsAt && !interactiveBypass) {
+        this.updateStatus('cooldown');
+        return;
+      }
+
+      if (
+        this.rateLimitDetector.isApproachingLimit(
+          this.config.minRemainingThreshold,
+          this.activeRequests.size,
+        ) &&
+        !interactiveBypass
+      ) {
         this.enterCooldown();
         return;
       }
+
+      const request = this.queue.shift();
+      if (!request) return;
+
+      this.updateStatus('processing');
+      this.executeRequest(request);
     }
 
-    const request = this.queue.shift();
-    if (!request) {
+    if (this.queue.length > 0 || this.activeRequests.size > 0) {
+      this.updateStatus('processing');
+    } else if (this.cooldownEndsAt && Date.now() < this.cooldownEndsAt) {
+      this.updateStatus('cooldown');
+    } else {
       this.updateStatus('idle');
-      return;
+      this.stopProcessing();
     }
-
-    this.updateStatus('processing');
-    this.executeRequest(request);
   }
 
   private async executeRequest(request: QueuedRequest): Promise<void> {
@@ -267,6 +295,7 @@ export class ApiScheduler {
       }
     } finally {
       this.notifyStateChange();
+      this.processQueue();
     }
   }
 
@@ -360,6 +389,8 @@ export class ApiScheduler {
   resume(): void {
     this.isPaused = false;
     log.debug('Resumed');
+    this.startProcessing();
+    this.processQueue();
   }
 
   private updateStatus(status: SchedulerStatus): void {

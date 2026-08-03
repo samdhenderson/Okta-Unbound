@@ -2,6 +2,7 @@ import type { MessageRequest, MessageResponse, OperationCallbacks } from './type
 import type { RequestResult, RequestPriority } from '@/shared/scheduler/types';
 import { runBatch, type BatchProgress, type BatchOutcome } from '@/shared/scheduler/runBatch';
 import { createLogger } from '@/shared/utils/logger';
+import { getCachedCurrentUser, cacheCurrentUser } from './currentUserCache';
 
 const log = createLogger('useOktaApi');
 
@@ -90,13 +91,22 @@ export function createCoreApi(
   };
 
   const getCurrentUser = async (): Promise<{ email: string; id: string }> => {
+    if (targetTabId !== null) {
+      const cached = getCachedCurrentUser(targetTabId);
+      if (cached) return cached;
+    }
+
     try {
       const response = await makeApiRequest('/api/v1/users/me');
       if (response.success && response.data) {
-        return {
+        const identity = {
           email: response.data.profile?.email || 'unknown@unknown.com',
           id: response.data.id || 'unknown',
         };
+        if (targetTabId !== null) {
+          cacheCurrentUser(targetTabId, identity);
+        }
+        return identity;
       }
       return { email: 'unknown@unknown.com', id: 'unknown' };
     } catch (error) {

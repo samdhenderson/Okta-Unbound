@@ -24,7 +24,8 @@ import GroupSelectionBar, { type ActivePanel } from './groups/GroupSelectionBar'
 import GroupsListPanel from './groups/GroupsListPanel';
 import GroupSourceModal from './groups/GroupSourceModal';
 import GroupMergeModal from './groups/GroupMergeModal';
-import { getDateForFilename } from '../../shared/utils/csvUtils';
+import { downloadCSV, getDateForFilename } from '../../shared/utils/csvUtils';
+import { buildGroupsListCsv } from './groups/groupsListCsv';
 
 interface GroupsTabProps {
   targetTabId: number | null;
@@ -124,7 +125,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
 
   const handleExportSelection = useCallback(() => {
     if (selectedGroupIds.size === 0) {
-      alert('Please select at least one group');
+      setError('Please select at least one group');
       return;
     }
     setExportGroups(groups.filter((g) => selectedGroupIds.has(g.id)));
@@ -132,34 +133,11 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   }, [selectedGroupIds, groups]);
 
   const handleExportGroupsList = useCallback(() => {
-    const headers = [
-      'ID',
-      'Name',
-      'Description',
-      'Type',
-      'Member Count',
-      'Staleness Score',
-      'Push Status',
-    ];
-    const rows = filteredGroups.map((g) => [
-      g.id,
-      g.name,
-      g.description || '',
-      g.type || '',
-      String(g.memberCount ?? 0),
-      String(g.staleness?.score ?? ''),
-      g.pushMappings?.length ? `Pushed (${g.pushMappings.length})` : 'Not Pushed',
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `okta_groups_${getDateForFilename()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCSV(
+      buildGroupsListCsv(filteredGroups),
+      `okta_groups_${getDateForFilename()}.csv`,
+      'text/csv',
+    );
   }, [filteredGroups]);
 
   const togglePanel = useCallback((panel: ActivePanel) => {

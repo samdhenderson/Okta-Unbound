@@ -1,20 +1,10 @@
-import { z } from 'zod';
 import { formatDateForCSV } from '@/shared/utils/csvUtils';
+import { oktaAppUserSchema, type OktaAppUser } from '@/shared/schemas/okta';
 import type { EntityExport, ExportColumn } from '../types';
 
-const appUserSchema = z
-  .object({
-    id: z.string(),
-    status: z.string().optional(),
-    scope: z.string().optional(),
-    syncState: z.string().optional(),
-    created: z.string().nullish(),
-    lastUpdated: z.string().nullish(),
-    credentials: z.object({ userName: z.string().optional() }).passthrough().optional(),
-  })
-  .passthrough();
+const appUserSchema = oktaAppUserSchema;
 
-type AppUser = z.infer<typeof appUserSchema>;
+type AppUser = OktaAppUser;
 
 const appUserColumns: ExportColumn<AppUser>[] = [
   { id: 'id', label: 'User ID', group: 'base', defaultEnabled: true, accessor: (u) => u.id },

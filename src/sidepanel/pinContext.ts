@@ -1,7 +1,10 @@
 import type { GroupInfo, UserInfo } from '../shared/types';
+import type { PageType } from './hooks/useOktaPageContext';
+
+export type PinnablePageType = Extract<PageType, 'group' | 'user'>;
 
 export interface PinnedContext {
-  pageType: 'group' | 'user';
+  pageType: PinnablePageType;
   groupInfo: GroupInfo | null;
   userInfo: UserInfo | null;
   targetTabId: number;

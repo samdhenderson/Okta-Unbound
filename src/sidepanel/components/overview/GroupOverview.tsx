@@ -83,10 +83,14 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
     }
   }, [groupId]);
 
-  const statusCounts = members.reduce<Record<string, number>>((acc, user) => {
-    acc[user.status] = (acc[user.status] || 0) + 1;
-    return acc;
-  }, {});
+  const statusCounts = useMemo(
+    () =>
+      members.reduce<Record<string, number>>((acc, user) => {
+        acc[user.status] = (acc[user.status] || 0) + 1;
+        return acc;
+      }, {}),
+    [members],
+  );
 
   const deprovisionedCount = statusCounts['DEPROVISIONED'] || 0;
   const suspendedCount = statusCounts['SUSPENDED'] || 0;

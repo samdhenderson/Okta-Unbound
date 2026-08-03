@@ -1,48 +1,26 @@
 import React from 'react';
+import { Tabs } from './shared';
+import { TAB_DEFS, type TabType } from '../tabs';
 
-export type TabType = 'overview' | 'rules' | 'users' | 'groups' | 'export' | 'history';
+export type { TabType } from '../tabs';
 
 interface TabNavigationProps {
   activeTab: TabType;
   onTabChange: (tab: TabType) => void;
 }
 
-const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => {
-  const tabConfig = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'users', label: 'Users' },
-    { id: 'groups', label: 'Groups' },
-    { id: 'rules', label: 'Rules' },
-    { id: 'export', label: 'Export' },
-    { id: 'history', label: 'History' },
-  ];
+const TAB_ITEMS = TAB_DEFS.map(({ id, label }) => ({ key: id, label }));
 
-  return (
-    <nav className="sticky top-0 z-40 bg-white border-b border-neutral-200">
-      <div className="flex items-center overflow-x-auto" style={{ gap: '4px' }}>
-        {tabConfig.map((tab) => (
-          <button
-            key={tab.id}
-            className={`
-              relative px-4 py-2.5 text-sm font-medium transition-colors duration-100
-              ${
-                activeTab === tab.id
-                  ? 'text-primary-text'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50'
-              }
-            `}
-            style={{ fontFamily: 'var(--font-heading)', minHeight: '40px' }}
-            onClick={() => onTabChange(tab.id as TabType)}
-          >
-            {tab.label}
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-text" />
-            )}
-          </button>
-        ))}
-      </div>
-    </nav>
-  );
-};
+const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => (
+  <nav className="sticky top-0 z-40 bg-white">
+    <Tabs
+      tabs={TAB_ITEMS}
+      activeKey={activeTab}
+      onChange={(key) => onTabChange(key as TabType)}
+      variant="underline"
+      ariaLabel="Main sections"
+    />
+  </nav>
+);
 
 export default TabNavigation;

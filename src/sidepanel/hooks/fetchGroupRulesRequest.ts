@@ -12,6 +12,7 @@ type MakeApiRequest = CoreApi['makeApiRequest'];
 export interface FetchGroupRulesResult {
   success: boolean;
   rules?: FormattedRule[];
+  rawRules?: OktaGroupRule[];
   stats?: RuleStats;
   conflicts?: RuleConflict[];
   error?: string;
@@ -92,7 +93,7 @@ export async function fetchGroupRulesRequest(
     };
 
     log.debug('Rule stats', stats);
-    return { success: true, rules: formattedRules, stats, conflicts };
+    return { success: true, rules: formattedRules, rawRules: rules, stats, conflicts };
   } catch (error) {
     log.error('fetchGroupRules error', error);
     return {

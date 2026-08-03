@@ -3,15 +3,8 @@ import { createLogger } from '../shared/utils/logger';
 import { extractAppIdFromUrl, extractAppNameFromPage } from './pageContext';
 import { handleMakeApiRequest } from './apiRequest';
 import { injectIndicator } from './indicator';
-import { handleFetchGroupRules, handleActivateRule, handleDeactivateRule } from './ruleHandlers';
-import { handleGetGroupInfo, handleExportGroupMembers, handleSearchGroups } from './groupHandlers';
-import {
-  handleGetUserInfo,
-  handleSearchUsers,
-  handleGetUserGroups,
-  handleGetUserContext,
-  handleGetUserDetails,
-} from './userHandlers';
+import { handleGetGroupInfo } from './groupHandlers';
+import { handleGetUserInfo } from './userHandlers';
 
 const log = createLogger('Content');
 
@@ -54,74 +47,6 @@ chrome.runtime.onMessage.addListener(
           return true;
         }
         handleMakeApiRequest(request.endpoint, request.method, request.body).then(sendResponse);
-        return true;
-
-      case 'exportGroupMembers':
-        if (!request.groupId || !request.format) {
-          sendResponse({ success: false, error: 'Missing groupId or format' });
-          return true;
-        }
-        handleExportGroupMembers(request).then(sendResponse);
-        return true;
-
-      case 'fetchGroupRules':
-        handleFetchGroupRules(request.groupId).then(sendResponse);
-        return true;
-
-      case 'activateRule':
-        if (!request.ruleId) {
-          sendResponse({ success: false, error: 'Missing ruleId' });
-          return true;
-        }
-        handleActivateRule(request.ruleId).then(sendResponse);
-        return true;
-
-      case 'deactivateRule':
-        if (!request.ruleId) {
-          sendResponse({ success: false, error: 'Missing ruleId' });
-          return true;
-        }
-        handleDeactivateRule(request.ruleId).then(sendResponse);
-        return true;
-
-      case 'searchUsers':
-        if (!request.query) {
-          sendResponse({ success: false, error: 'Missing query' });
-          return true;
-        }
-        handleSearchUsers(request.query).then(sendResponse);
-        return true;
-
-      case 'searchGroups':
-        if (!request.query) {
-          sendResponse({ success: false, error: 'Missing query' });
-          return true;
-        }
-        handleSearchGroups(request.query).then(sendResponse);
-        return true;
-
-      case 'getUserGroups':
-        if (!request.userId) {
-          sendResponse({ success: false, error: 'Missing userId' });
-          return true;
-        }
-        handleGetUserGroups(request.userId).then(sendResponse);
-        return true;
-
-      case 'getUserDetails':
-        if (!request.userId) {
-          sendResponse({ success: false, error: 'Missing userId' });
-          return true;
-        }
-        handleGetUserDetails(request.userId).then(sendResponse);
-        return true;
-
-      case 'getUserContext':
-        if (!request.userId) {
-          sendResponse({ success: false, error: 'Missing userId' });
-          return true;
-        }
-        handleGetUserContext(request.userId).then(sendResponse);
         return true;
 
       case 'getOktaOrigin':
