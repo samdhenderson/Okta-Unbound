@@ -98,6 +98,19 @@ async function drillInto(uev: ReturnType<typeof userEvent.setup>, name: string) 
   await uev.click(within(row).getByRole('button', { name: 'View group details' }));
 }
 
+function scrollRoot(): HTMLElement {
+  const node = screen.getByTestId('app-scroll-root');
+  if (!Object.getOwnPropertyDescriptor(node, 'scrollTop')) {
+    Object.defineProperty(node, 'scrollTop', { value: 0, writable: true, configurable: true });
+  }
+  return node;
+}
+
+function scrollTo(node: HTMLElement, top: number) {
+  node.scrollTop = top;
+  node.dispatchEvent(new Event('scroll'));
+}
+
 const appCalls = () =>
   runtimeSendMessage.mock.calls.filter(([m]) => String(m?.endpoint ?? '').includes('/apps')).length;
 
@@ -201,6 +214,40 @@ describe('App tab lifetime', () => {
         ([keys]) => Array.isArray(keys) && keys.includes(GROUPS_CACHE_KEY),
       ),
     ).toHaveLength(cacheReads);
+  });
+
+  it("restores each tab's own scroll offset on return, not the offset it was left at", async () => {
+    const uev = userEvent.setup();
+    renderApp();
+
+    await openTab(uev, 'Groups');
+    await screen.findByLabelText('Select Engineering');
+
+    const root = scrollRoot();
+    scrollTo(root, 240);
+
+    await openTab(uev, 'Rules');
+    await screen.findByRole('heading', { name: 'Group Rules' });
+    scrollTo(root, 90);
+
+    await openTab(uev, 'Groups');
+    expect(root.scrollTop).toBe(240);
+
+    await openTab(uev, 'Rules');
+    expect(root.scrollTop).toBe(90);
+  });
+
+  it('opens a newly activated tab at the top rather than the previous tab’s offset', async () => {
+    const uev = userEvent.setup();
+    renderApp();
+
+    await openTab(uev, 'Groups');
+    await screen.findByLabelText('Select Engineering');
+    const root = scrollRoot();
+    scrollTo(root, 320);
+
+    await openTab(uev, 'Apps');
+    expect(root.scrollTop).toBe(0);
   });
 
   it('does not let a hidden Applications tab re-load the inventory when the Okta tab changes', async () => {

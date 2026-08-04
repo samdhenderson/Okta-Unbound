@@ -116,9 +116,6 @@ const RulesTab: React.FC<RulesTabProps> = ({
           if (savedState.searchQuery) setSearchQuery(savedState.searchQuery);
           if (savedState.activeFilter) setActiveFilter(savedState.activeFilter);
           if (savedState.sortMode) setSortMode(savedState.sortMode);
-          if (savedState.scrollPosition) {
-            setTimeout(() => window.scrollTo(0, savedState.scrollPosition), 100);
-          }
         }
       } catch (err) {
         log.error('Failed to load persisted state:', err);
@@ -174,17 +171,9 @@ const RulesTab: React.FC<RulesTabProps> = ({
         searchQuery,
         activeFilter,
         sortMode,
-        scrollPosition: window.scrollY,
       }).catch((err) => log.error('Failed to persist state:', err));
     }
   }, [rules, stats, data.lastFetchTime, searchQuery, activeFilter, sortMode]);
-
-  useEffect(() => {
-    if (!isActive) return;
-    const handleScroll = () => TabStateManager.updateScrollPosition('rules', window.scrollY);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isActive]);
 
   const toRuleImpactInput = (rule: FormattedRule): RuleImpactInput => ({
     id: rule.id,

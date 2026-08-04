@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy } from 'react';
 import ContextBar from './components/ContextBar';
 import PageHeader from './components/shared/PageHeader';
 import TabNavigation from './components/TabNavigation';
+import TabPanel from './components/TabPanel';
 import { migrateLegacyTabId, type TabType } from './tabs';
 import OverviewTab from './components/OverviewTab';
 import type { ExportRequest } from './components/export';
-import LoadingSpinner from './components/shared/LoadingSpinner';
 import ActivityBar from './components/ActivityBar';
 
 const RulesTab = lazy(() => import('./components/RulesTab'));
@@ -38,6 +38,8 @@ const App: React.FC = () => {
   useEffect(() => {
     setMountedTabs((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
   }, [activeTab]);
+
+  const scrollRootRef = useRef<HTMLDivElement>(null);
 
   const {
     groupInfo,
@@ -216,17 +218,19 @@ const App: React.FC = () => {
     if (!mountedTabs.has(tab)) return null;
     const isActive = tab === activeTab;
     return (
-      <div className={isActive ? 'tab-content active' : 'tab-content'} hidden={!isActive}>
-        <Suspense fallback={<LoadingSpinner size="lg" message="Loading tab..." centered />}>
-          {content(isActive)}
-        </Suspense>
-      </div>
+      <TabPanel isActive={isActive} scrollRef={scrollRootRef}>
+        {content(isActive)}
+      </TabPanel>
     );
   };
 
   return (
     <SchedulerProvider>
-      <div className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas">
+      <div
+        ref={scrollRootRef}
+        data-testid="app-scroll-root"
+        className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas"
+      >
         <ContextBar
           pageType={effective.pageType}
           entityName={entityName}

@@ -5,7 +5,6 @@ export type TabName = 'overview' | 'rules' | 'users' | 'groups' | 'history';
 
 export interface BaseTabState {
   lastVisited: number;
-  scrollPosition: number;
 }
 
 export interface RulesTabState extends BaseTabState {
