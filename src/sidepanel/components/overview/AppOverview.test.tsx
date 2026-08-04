@@ -67,7 +67,15 @@ describe('AppOverview', () => {
   });
 
   it('notes an app-specific authentication policy without linking to it', async () => {
-    api.getAppAccessPolicyId.mockResolvedValue('rstFAKE0123456789abc');
+    api.getAppById.mockResolvedValue({
+      id: '0oaPOLICY',
+      label: 'Salesforce',
+      _links: {
+        accessPolicy: {
+          href: 'https://example.okta.com/api/v1/policies/rstFAKE0123456789abc',
+        },
+      },
+    });
 
     render(
       <AppOverview appId="0oaPOLICY" appName="Salesforce" targetTabId={1} onExport={vi.fn()} />,

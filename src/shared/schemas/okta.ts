@@ -109,6 +109,7 @@ export const oktaAppListItemSchema = z
     signOnMode: z.string().optional(),
     created: z.string().nullish(),
     lastUpdated: z.string().nullish(),
+    _links: z.unknown().optional(),
   })
   .passthrough();
 

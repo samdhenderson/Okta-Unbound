@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { EmptyState, ScrollableList } from '../shared';
 import AppListItem from './AppListItem';
 import type { AppAssignmentCounts } from '../../hooks/useOktaApi/appOperations';
@@ -16,7 +16,7 @@ export interface AppsListPanelProps {
   fetchAssignmentCounts?: (appId: string) => Promise<AppAssignmentCounts | null>;
 }
 
-const AppsListPanel: React.FC<AppsListPanelProps> = ({
+const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel({
   loading,
   apps,
   hasApps,
@@ -26,43 +26,45 @@ const AppsListPanel: React.FC<AppsListPanelProps> = ({
   onReload,
   oktaOrigin,
   fetchAssignmentCounts,
-}) => (
-  <ScrollableList
-    loading={loading}
-    loadingMessage="Loading applications from Okta..."
-    className="mt-4"
-    testId="apps-list"
-    emptyState={
-      hasApps ? (
-        <EmptyState
-          icon="app"
-          title="No applications match your filters"
-          description="Try adjusting your search or status filter."
-          actions={
-            activeFilterCount > 0 || hasSearchQuery
-              ? [{ label: 'Clear filters', onClick: onClearFilters, variant: 'secondary' }]
-              : undefined
-          }
+}) {
+  return (
+    <ScrollableList
+      loading={loading}
+      loadingMessage="Loading applications from Okta..."
+      className="mt-4"
+      testId="apps-list"
+      emptyState={
+        hasApps ? (
+          <EmptyState
+            icon="app"
+            title="No applications match your filters"
+            description="Try adjusting your search or status filter."
+            actions={
+              activeFilterCount > 0 || hasSearchQuery
+                ? [{ label: 'Clear filters', onClick: onClearFilters, variant: 'secondary' }]
+                : undefined
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="app"
+            title="No applications loaded"
+            description="Load the org's application inventory to browse it here."
+            actions={[{ label: 'Load applications', onClick: onReload, variant: 'primary' }]}
+          />
+        )
+      }
+    >
+      {apps.map((app) => (
+        <AppListItem
+          key={app.id}
+          app={app}
+          oktaOrigin={oktaOrigin}
+          fetchAssignmentCounts={fetchAssignmentCounts}
         />
-      ) : (
-        <EmptyState
-          icon="app"
-          title="No applications loaded"
-          description="Load the org's application inventory to browse it here."
-          actions={[{ label: 'Load applications', onClick: onReload, variant: 'primary' }]}
-        />
-      )
-    }
-  >
-    {apps.map((app) => (
-      <AppListItem
-        key={app.id}
-        app={app}
-        oktaOrigin={oktaOrigin}
-        fetchAssignmentCounts={fetchAssignmentCounts}
-      />
-    ))}
-  </ScrollableList>
-);
+      ))}
+    </ScrollableList>
+  );
+});
 
 export default AppsListPanel;

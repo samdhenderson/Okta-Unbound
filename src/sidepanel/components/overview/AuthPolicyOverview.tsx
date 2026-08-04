@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import AlertMessage from '../shared/AlertMessage';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import StatCard from './shared/StatCard';
 import { useOktaApi } from '../../hooks/useOktaApi';
 import { useEntityQuery } from '../../cache/useEntityQuery';
 import type { OktaPolicyRule } from '@/shared/schemas/okta';
+
+const NO_RULES: readonly OktaPolicyRule[] = [];
 
 interface AuthPolicyOverviewProps {
   policyId: string;
@@ -45,11 +47,18 @@ const AuthPolicyOverview: React.FC<AuthPolicyOverviewProps> = ({
     enabled: Boolean(targetTabId && policyId),
   });
 
-  const rules = rulesData ?? [];
-  const sortedRules = [...rules].sort(
-    (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER),
+  const rules = rulesData ?? NO_RULES;
+  const sortedRules = useMemo(
+    () =>
+      [...rules].sort(
+        (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER),
+      ),
+    [rules],
   );
-  const activeCount = sortedRules.filter((rule) => rule.status === 'ACTIVE').length;
+  const activeCount = useMemo(
+    () => sortedRules.filter((rule) => rule.status === 'ACTIVE').length,
+    [sortedRules],
+  );
 
   return (
     <div className="space-y-6">

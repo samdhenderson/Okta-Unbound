@@ -24,7 +24,7 @@ const AssignmentCounts: React.FC<{
   fetchAssignmentCounts: (appId: string) => Promise<AppAssignmentCounts | null>;
 }> = ({ appId, enabled, fetchAssignmentCounts }) => {
   const { data, isLoading, error } = useEntityQuery<AppAssignmentCounts | null>(
-    ['appAssignments', appId],
+    ['appAssignmentCounts', appId],
     () => fetchAssignmentCounts(appId),
     { enabled },
   );

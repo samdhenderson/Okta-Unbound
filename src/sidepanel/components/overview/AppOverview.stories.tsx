@@ -36,7 +36,6 @@ const meta = {
       makeUseOktaApiValue({
         getAppById: fn(async () => appRecord()),
         getAppAssignmentCounts: fn(async () => ({ users: 1284, groups: 12 })),
-        getAppAccessPolicyId: fn(async () => null),
       }),
     );
   },
@@ -52,9 +51,15 @@ export const WithAppSpecificPolicy: Story = {
   beforeEach: () => {
     useOktaApi.mockReturnValue(
       makeUseOktaApiValue({
-        getAppById: fn(async () => appRecord({ id: '0oaFAKE002' })),
+        getAppById: fn(async () => ({
+          ...appRecord({ id: '0oaFAKE002' }),
+          _links: {
+            accessPolicy: {
+              href: 'https://example.okta.com/api/v1/policies/rstFAKE0123456789abc',
+            },
+          },
+        })),
         getAppAssignmentCounts: fn(async () => ({ users: 42, groups: 3 })),
-        getAppAccessPolicyId: fn(async () => 'rstFAKE0123456789abc'),
       }),
     );
   },
@@ -67,7 +72,6 @@ export const Inactive: Story = {
       makeUseOktaApiValue({
         getAppById: fn(async () => appRecord({ id: '0oaFAKE003', status: 'INACTIVE' })),
         getAppAssignmentCounts: fn(async () => ({ users: 0, groups: 0 })),
-        getAppAccessPolicyId: fn(async () => null),
       }),
     );
   },
@@ -80,7 +84,6 @@ export const EnrichmentUnavailable: Story = {
       makeUseOktaApiValue({
         getAppById: fn(async () => null),
         getAppAssignmentCounts: fn(async () => null),
-        getAppAccessPolicyId: fn(async () => null),
       }),
     );
   },

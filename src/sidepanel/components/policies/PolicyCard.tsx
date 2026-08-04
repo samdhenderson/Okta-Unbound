@@ -88,7 +88,19 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
       )}
     </div>
   );
-});
+}, arePolicyCardPropsEqual);
+
+function arePolicyCardPropsEqual(prev: PolicyCardProps, next: PolicyCardProps): boolean {
+  return (
+    prev.loadRules === next.loadRules &&
+    prev.policy.id === next.policy.id &&
+    prev.policy.name === next.policy.name &&
+    prev.policy.status === next.policy.status &&
+    prev.policy.description === next.policy.description &&
+    prev.policy.priority === next.policy.priority &&
+    prev.policy.system === next.policy.system
+  );
+}
 
 PolicyCard.displayName = 'PolicyCard';
 

@@ -98,6 +98,32 @@ async function drillInto(uev: ReturnType<typeof userEvent.setup>, name: string) 
   await uev.click(within(row).getByRole('button', { name: 'View group details' }));
 }
 
+const appCalls = () =>
+  runtimeSendMessage.mock.calls.filter(([m]) => String(m?.endpoint ?? '').includes('/apps')).length;
+
+async function retargetTo({ id, origin }: { id: number; origin?: string }) {
+  const probesBefore = tabsSendMessage.mock.calls.length;
+  const onUpdated = (chrome.tabs.onUpdated.addListener as ReturnType<typeof vi.fn>).mock
+    .calls[0][0] as (
+    tabId: number,
+    changeInfo: { status?: string; url?: string },
+    tab: typeof OKTA_TAB,
+  ) => void;
+
+  if (origin) {
+    tabsSendMessage.mockImplementation(async (_tabId: number, msg: { action: string }) => {
+      if (msg.action === 'getOktaOrigin') return { success: true, data: origin };
+      return { success: false };
+    });
+  }
+  const tab = { ...OKTA_TAB, id, url: `${origin ?? 'https://example.okta.com'}/admin/groups` };
+  (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([tab]);
+  onUpdated(id, { status: 'complete' }, tab);
+
+  await waitFor(() => expect(tabsSendMessage.mock.calls.length).toBeGreaterThan(probesBefore));
+  await new Promise((resolve) => setTimeout(resolve, 250));
+}
+
 describe('App tab lifetime', () => {
   it('mounts a tab only once it has been activated', async () => {
     const uev = userEvent.setup();
@@ -183,31 +209,34 @@ describe('App tab lifetime', () => {
 
     await openTab(uev, 'Apps');
     await screen.findByRole('heading', { name: 'Applications' });
-    await waitFor(() =>
-      expect(
-        runtimeSendMessage.mock.calls.some(([m]) => String(m?.endpoint ?? '').includes('/apps')),
-      ).toBe(true),
-    );
+    await waitFor(() => expect(appCalls()).toBeGreaterThan(0));
 
     await openTab(uev, 'Groups');
     await screen.findByLabelText('Select Engineering');
-    const appCalls = () =>
-      runtimeSendMessage.mock.calls.filter(([m]) => String(m?.endpoint ?? '').includes('/apps'))
-        .length;
     const before = appCalls();
 
-    const probesBefore = tabsSendMessage.mock.calls.length;
-    const onUpdated = (chrome.tabs.onUpdated.addListener as ReturnType<typeof vi.fn>).mock
-      .calls[0][0] as (
-      tabId: number,
-      changeInfo: { status?: string; url?: string },
-      tab: typeof OKTA_TAB,
-    ) => void;
-    (chrome.tabs.query as ReturnType<typeof vi.fn>).mockResolvedValue([{ ...OKTA_TAB, id: 2 }]);
-    onUpdated(2, { status: 'complete' }, { ...OKTA_TAB, id: 2 });
+    await retargetTo({ id: 2 });
+    expect(appCalls()).toBe(before);
 
-    await waitFor(() => expect(tabsSendMessage.mock.calls.length).toBeGreaterThan(probesBefore));
+    await openTab(uev, 'Apps');
     await new Promise((resolve) => setTimeout(resolve, 250));
+    expect(appCalls()).toBe(before);
+  });
+
+  it('re-fetches the inventory when the connected tab moves to a different org', async () => {
+    const uev = userEvent.setup();
+    renderApp();
+
+    await openTab(uev, 'Apps');
+    await screen.findByRole('heading', { name: 'Applications' });
+    await waitFor(() => expect(appCalls()).toBeGreaterThan(0));
+
+    await openTab(uev, 'Groups');
+    await screen.findByLabelText('Select Engineering');
+    const before = appCalls();
+
+    await retargetTo({ id: 2, origin: 'https://other.okta.com' });
+
     expect(appCalls()).toBe(before);
 
     await openTab(uev, 'Apps');

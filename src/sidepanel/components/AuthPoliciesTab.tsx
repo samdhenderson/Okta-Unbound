@@ -7,23 +7,13 @@ import PoliciesListPanel from './policies/PoliciesListPanel';
 import Icon from './overview/shared/Icon';
 import { useOktaApi } from '../hooks/useOktaApi';
 import { usePoliciesData } from '../hooks/usePoliciesData';
+import { filterPolicies } from './policies/policyFilters';
 import { getRelativeTime } from '../../shared/utils/dateFormat';
-import type { OktaPolicyListItem } from '../../shared/schemas/okta';
 
 interface AuthPoliciesTabProps {
   targetTabId?: number;
   oktaOrigin?: string | null;
   isActive?: boolean;
-}
-
-function filterPolicies(policies: OktaPolicyListItem[], query: string): OktaPolicyListItem[] {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return policies;
-  return policies.filter(
-    (policy) =>
-      (policy.name ?? '').toLowerCase().includes(needle) ||
-      (policy.description ?? '').toLowerCase().includes(needle),
-  );
 }
 
 const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive = true }) => {
@@ -53,6 +43,12 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
   const hasPolicies = policies.length > 0;
   const lastUpdatedLabel = lastFetchTime ? getRelativeTime(lastFetchTime) : null;
 
+  const handleRefresh = useCallback(
+    () => void loadPolicies(hasPolicies),
+    [loadPolicies, hasPolicies],
+  );
+  const handleLoad = useCallback(() => void loadPolicies(true), [loadPolicies]);
+
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
       <PageHeader
@@ -70,7 +66,7 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
           <Button
             variant={hasPolicies ? 'secondary' : 'primary'}
             icon="refresh"
-            onClick={() => loadPolicies(hasPolicies)}
+            onClick={handleRefresh}
             disabled={isLoading}
             loading={isLoading}
           >
@@ -107,7 +103,7 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
           isLoading={isLoading}
           policies={filteredPolicies}
           hasPolicies={hasPolicies}
-          onLoad={() => loadPolicies(true)}
+          onLoad={handleLoad}
           loadRules={api.getPolicyRules}
         />
       </div>

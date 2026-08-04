@@ -36,6 +36,16 @@ function trailingSegment(href: string): string | null {
   return segment ? segment : null;
 }
 
+export function extractAccessPolicyId(links: unknown): string | null {
+  const href = readAccessPolicyHref(links);
+  if (!href) return null;
+
+  const candidate = trailingSegment(href);
+  if (!candidate || !POLICY_ID_PATTERN.test(candidate)) return null;
+
+  return candidate;
+}
+
 export function createPolicyOperations(coreApi: CoreApi) {
   const listPolicies = async (
     type: OktaPolicyType = 'ACCESS_POLICY',
@@ -81,13 +91,7 @@ export function createPolicyOperations(coreApi: CoreApi) {
       );
       if (!response.success || !response.data || typeof response.data !== 'object') return null;
 
-      const href = readAccessPolicyHref((response.data as Record<string, unknown>)._links);
-      if (!href) return null;
-
-      const candidate = trailingSegment(href);
-      if (!candidate || !POLICY_ID_PATTERN.test(candidate)) return null;
-
-      return candidate;
+      return extractAccessPolicyId((response.data as Record<string, unknown>)._links);
     } catch {
       log.error('getAppAccessPolicyId failed', { code: 'app_access_policy_failed', appId });
       return null;

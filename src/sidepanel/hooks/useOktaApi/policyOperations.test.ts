@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createPolicyOperations, OKTA_POLICY_TYPES } from './policyOperations';
+import {
+  createPolicyOperations,
+  extractAccessPolicyId,
+  OKTA_POLICY_TYPES,
+} from './policyOperations';
 import type { CoreApi } from './core';
 
 function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
@@ -337,5 +341,38 @@ describe('getAppAccessPolicyId', () => {
     const { getAppAccessPolicyId } = createPolicyOperations(core);
 
     expect(await getAppAccessPolicyId('0oaFAKEapp000000001')).toBeNull();
+  });
+});
+
+describe('extractAccessPolicyId', () => {
+  const href = (id: string) => ({ accessPolicy: { href: `/api/v1/policies/${id}` } });
+
+  it('accepts both Okta policy id prefixes', () => {
+    expect(extractAccessPolicyId(href('rstFAKEpolicy00000001'))).toBe('rstFAKEpolicy00000001');
+    expect(extractAccessPolicyId(href('00pFAKEpolicy00000001'))).toBe('00pFAKEpolicy00000001');
+  });
+
+  it('ignores a query string, fragment and trailing slashes', () => {
+    expect(
+      extractAccessPolicyId({
+        accessPolicy: { href: '/api/v1/policies/rstFAKEpolicy00000001/?expand=x#frag' },
+      }),
+    ).toBe('rstFAKEpolicy00000001');
+  });
+
+  it('returns null for anything that is not an access-policy link', () => {
+    expect(extractAccessPolicyId(undefined)).toBeNull();
+    expect(extractAccessPolicyId(null)).toBeNull();
+    expect(extractAccessPolicyId('not an object')).toBeNull();
+    expect(extractAccessPolicyId({})).toBeNull();
+    expect(extractAccessPolicyId({ accessPolicy: {} })).toBeNull();
+    expect(extractAccessPolicyId({ accessPolicy: { href: 42 } })).toBeNull();
+  });
+
+  it('rejects a segment that does not look like an Okta policy id', () => {
+    expect(extractAccessPolicyId(href('../../admin'))).toBeNull();
+    expect(extractAccessPolicyId(href('rstTOOSHORT'))).toBeNull();
+    expect(extractAccessPolicyId(href('xyzFAKEpolicy00000001'))).toBeNull();
+    expect(extractAccessPolicyId({ accessPolicy: { href: '/api/v1/policies/' } })).toBeNull();
   });
 });

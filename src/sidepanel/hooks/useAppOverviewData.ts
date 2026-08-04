@@ -1,12 +1,8 @@
 import { useOktaApi } from './useOktaApi';
 import { useEntityQuery } from '../cache/useEntityQuery';
+import { extractAccessPolicyId } from './useOktaApi/policyOperations';
 import type { OktaAppListItem } from '@/shared/schemas/okta';
 import type { AppAssignmentCounts } from './useOktaApi/appOperations';
-
-export interface AppAssignmentSummary {
-  counts: AppAssignmentCounts | null;
-  accessPolicyId: string | null;
-}
 
 export interface AppOverviewData {
   app: OktaAppListItem | null;
@@ -17,7 +13,7 @@ export interface AppOverviewData {
 }
 
 export function useAppOverviewData(appId: string, targetTabId?: number | null): AppOverviewData {
-  const { getAppById, getAppAssignmentCounts, getAppAccessPolicyId } = useOktaApi({
+  const { getAppById, getAppAssignmentCounts } = useOktaApi({
     targetTabId: targetTabId ?? null,
   });
 
@@ -29,24 +25,18 @@ export function useAppOverviewData(appId: string, targetTabId?: number | null): 
     { enabled },
   );
 
-  const { data: assignments, isLoading: isLoadingAssignments } =
-    useEntityQuery<AppAssignmentSummary>(
-      ['appAssignments', appId],
-      async () => {
-        const [counts, accessPolicyId] = await Promise.all([
-          getAppAssignmentCounts(appId),
-          getAppAccessPolicyId(appId),
-        ]);
-        return { counts, accessPolicyId };
-      },
+  const { data: counts, isLoading: isLoadingAssignments } =
+    useEntityQuery<AppAssignmentCounts | null>(
+      ['appAssignmentCounts', appId],
+      () => getAppAssignmentCounts(appId),
       { enabled },
     );
 
   return {
     app: app ?? null,
     isLoadingApp,
-    counts: assignments?.counts ?? null,
-    accessPolicyId: assignments?.accessPolicyId ?? null,
+    counts: counts ?? null,
+    accessPolicyId: extractAccessPolicyId(app?._links),
     isLoadingAssignments,
   };
 }

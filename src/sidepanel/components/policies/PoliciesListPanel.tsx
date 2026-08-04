@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import PolicyCard from './PolicyCard';
 import ScrollableList from '../shared/ScrollableList';
 import EmptyState from '../shared/EmptyState';
@@ -21,36 +21,38 @@ const noPoliciesState = (onLoad: () => void) => (
   />
 );
 
-const PoliciesListPanel: React.FC<PoliciesListPanelProps> = ({
+const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function PoliciesListPanel({
   isLoading,
   policies,
   hasPolicies,
   onLoad,
   loadRules,
-}) => (
-  <div className="min-h-[400px]">
-    <ScrollableList
-      loading={isLoading}
-      loadingMessage="Loading auth policies…"
-      fillAvailable={false}
-      testId="policies-list"
-      emptyState={
-        hasPolicies ? (
-          <EmptyState
-            icon="search"
-            title="No Matching Policies"
-            description="No auth policies match your search."
-          />
-        ) : (
-          noPoliciesState(onLoad)
-        )
-      }
-    >
-      {policies.map((policy) => (
-        <PolicyCard key={policy.id} policy={policy} loadRules={loadRules} />
-      ))}
-    </ScrollableList>
-  </div>
-);
+}) {
+  return (
+    <div className="min-h-[400px]">
+      <ScrollableList
+        loading={isLoading}
+        loadingMessage="Loading auth policies…"
+        fillAvailable={false}
+        testId="policies-list"
+        emptyState={
+          hasPolicies ? (
+            <EmptyState
+              icon="search"
+              title="No Matching Policies"
+              description="No auth policies match your search."
+            />
+          ) : (
+            noPoliciesState(onLoad)
+          )
+        }
+      >
+        {policies.map((policy) => (
+          <PolicyCard key={policy.id} policy={policy} loadRules={loadRules} />
+        ))}
+      </ScrollableList>
+    </div>
+  );
+});
 
 export default PoliciesListPanel;
