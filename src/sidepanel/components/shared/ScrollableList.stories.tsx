@@ -100,6 +100,34 @@ export const WithMaxHeight: Story = {
   },
 };
 
+export const BoxParityLoading: Story = {
+  args: {
+    loading: true,
+    className: 'mt-4',
+    maxHeight: '300px',
+    fillAvailable: false,
+    skeleton: <Skeleton variant="row" count={4} label="Loading groups" />,
+    children: null,
+  },
+};
+
+export const BoxParityLoaded: Story = {
+  args: {
+    className: 'mt-4',
+    maxHeight: '300px',
+    fillAvailable: false,
+    children: (
+      <>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="p-3 bg-white border border-neutral-200 rounded-md">
+            Item {i + 1}
+          </div>
+        ))}
+      </>
+    ),
+  },
+};
+
 export const FillAvailable: Story = {
   args: {
     fillAvailable: true,

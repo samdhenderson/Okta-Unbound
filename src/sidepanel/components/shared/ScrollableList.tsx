@@ -29,28 +29,26 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   const childArray = React.Children.toArray(children);
   const isEmpty = childArray.length === 0;
 
-  if (loading) {
-    if (skeleton) {
-      return (
-        <div className={fillAvailable ? 'flex-1' : ''} data-testid={testId}>
-          {skeleton}
-        </div>
-      );
-    }
+  const boxClasses = (leading: string) =>
+    [leading, fillAvailable ? 'flex-1 min-h-0' : '', className].filter(Boolean).join(' ');
 
+  const containerStyle: React.CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
+
+  if (loading) {
     return (
-      <div
-        className={`flex items-center justify-center py-12 ${fillAvailable ? 'flex-1' : ''}`}
-        data-testid={testId}
-      >
-        <LoadingSpinner size="2xl" message={loadingMessage} centered />
+      <div className={boxClasses('overflow-hidden')} style={containerStyle} data-testid={testId}>
+        {skeleton ?? (
+          <div className="flex items-center justify-center py-12">
+            <LoadingSpinner size="2xl" message={loadingMessage} centered />
+          </div>
+        )}
       </div>
     );
   }
 
   if (isEmpty && emptyState) {
     return (
-      <div className={fillAvailable ? 'flex-1' : ''} data-testid={testId}>
+      <div className={boxClasses('overflow-hidden')} style={containerStyle} data-testid={testId}>
         {emptyState}
       </div>
     );
@@ -60,19 +58,13 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
     return null;
   }
 
-  const containerClasses = [
-    'overflow-y-auto',
-    fillAvailable ? 'flex-1 min-h-0' : '',
-    'scrollable-list',
-    className,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  const containerStyle: React.CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
-
   return (
-    <div ref={scrollRef} className={containerClasses} style={containerStyle} data-testid={testId}>
+    <div
+      ref={scrollRef}
+      className={boxClasses('overflow-y-auto scrollable-list')}
+      style={containerStyle}
+      data-testid={testId}
+    >
       <div className="space-y-3">{children}</div>
     </div>
   );
