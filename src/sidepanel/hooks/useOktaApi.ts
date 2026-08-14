@@ -38,7 +38,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
 
   const cancelOperation = useCallback(() => {
     cancelFns.current.cancel();
-    onResult?.('Operation cancelled by user', 'warning');
+    onResult?.({ message: 'Operation cancelled by user', type: 'warning' });
   }, [onResult]);
 
   const checkCancelled = useCallback(() => {

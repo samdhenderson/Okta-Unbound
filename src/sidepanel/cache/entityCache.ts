@@ -17,6 +17,7 @@ export interface EntityCacheOptions {
 export interface PeekedEntry<T> {
   data: T;
   isFresh: boolean;
+  fetchedAt: number;
 }
 
 interface StoredEntry<T> {
@@ -47,7 +48,11 @@ export function peekEntry<T>(key: EntityKey): PeekedEntry<T> | null {
   if (!entry) return null;
   const now = Date.now();
   entry.lastRead = now;
-  return { data: entry.data, isFresh: now <= entry.expiresAt };
+  return { data: entry.data, isFresh: now <= entry.expiresAt, fetchedAt: entry.timestamp };
+}
+
+export function peekFetchedAt(key: EntityKey): number | null {
+  return store.get(serializeKey(key))?.timestamp ?? null;
 }
 
 export function peek<T>(key: EntityKey): T | null {

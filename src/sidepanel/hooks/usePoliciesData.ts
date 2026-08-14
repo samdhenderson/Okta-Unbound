@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { getOrFetch, peek, type EntityKey } from '../cache/entityCache';
+import { getOrFetch, peek, peekFetchedAt, type EntityKey } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
 import { useOktaApi } from './useOktaApi';
 import type { OktaPolicyType } from './useOktaApi/index';
@@ -24,6 +24,11 @@ export interface UsePoliciesDataReturn {
   loadPolicies: (force?: boolean) => Promise<void>;
 }
 
+function isoFetchedAt(key: EntityKey): string | null {
+  const at = peekFetchedAt(key);
+  return at === null ? null : new Date(at).toISOString();
+}
+
 export function usePoliciesData({
   targetTabId,
   onError,
@@ -32,7 +37,9 @@ export function usePoliciesData({
     () => peek<OktaPolicyListItem[]>(POLICIES_CACHE_KEY) ?? [],
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<string | null>(() =>
+    isoFetchedAt(POLICIES_CACHE_KEY),
+  );
 
   const { listPolicies } = useOktaApi({ targetTabId: targetTabId ?? null });
 
@@ -53,7 +60,7 @@ export function usePoliciesData({
           { force },
         );
         setPolicies(loaded);
-        setLastFetchTime(new Date().toISOString());
+        setLastFetchTime(isoFetchedAt(POLICIES_CACHE_KEY));
         log.debug('Loaded auth policies', { type: AUTH_POLICY_TYPE, count: loaded.length });
       } catch (err) {
         onError(err instanceof Error ? err.message : 'Failed to load auth policies');

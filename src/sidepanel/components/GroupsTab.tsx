@@ -4,6 +4,7 @@ import Breadcrumbs from './shared/Breadcrumbs';
 import AlertMessage from './shared/AlertMessage';
 import Button from './shared/Button';
 import { useOktaApi } from '../hooks/useOktaApi';
+import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useGroupsLoader } from '../hooks/useGroupsLoader';
 import { useGroupLiveSearch } from '../hooks/useGroupLiveSearch';
 import { useGroupFilters } from '../hooks/useGroupFilters';
@@ -72,12 +73,9 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel>('none');
 
-  const handleResult = useCallback(
-    (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
-      if (type === 'error') setError(message);
-    },
-    [],
-  );
+  const handleResult = useCallback(({ message, type }: OperationResult) => {
+    if (type === 'error') setError(message);
+  }, []);
 
   const api = useOktaApi({ targetTabId, onResult: handleResult });
 

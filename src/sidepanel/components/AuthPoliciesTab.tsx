@@ -6,6 +6,7 @@ import AlertMessage from './shared/AlertMessage';
 import PoliciesListPanel from './policies/PoliciesListPanel';
 import Icon from './overview/shared/Icon';
 import { useOktaApi } from '../hooks/useOktaApi';
+import type { OperationResult } from '../hooks/useOktaApi/types';
 import { usePoliciesData } from '../hooks/usePoliciesData';
 import { filterPolicies } from './policies/policyFilters';
 import { getRelativeTime } from '../../shared/utils/dateFormat';
@@ -22,12 +23,9 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
 
   const handleError = useCallback((message: string) => setError(message || null), []);
 
-  const handleResult = useCallback(
-    (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
-      if (type === 'error') setError(message || null);
-    },
-    [],
-  );
+  const handleResult = useCallback(({ message, type }: OperationResult) => {
+    if (type === 'error') setError(message || null);
+  }, []);
 
   const api = useOktaApi({ targetTabId: targetTabId ?? null, onResult: handleResult });
   const { policies, isLoading, lastFetchTime, loadPolicies } = usePoliciesData({

@@ -5,6 +5,7 @@ import {
   invalidate,
   peek,
   peekEntry,
+  peekFetchedAt,
   registerDerived,
   resetEntityCache,
   serializeKey,
@@ -36,7 +37,24 @@ describe('entityCache', () => {
       setEntry('k', 'v', { ttl: 1000 });
       vi.advanceTimersByTime(1500);
       expect(peek('k')).toBeNull();
-      expect(peekEntry('k')).toEqual({ data: 'v', isFresh: false });
+      expect(peekEntry('k')).toEqual({
+        data: 'v',
+        isFresh: false,
+        fetchedAt: expect.any(Number),
+      });
+    });
+
+    it('reports when the entry was written, without counting as a read', () => {
+      vi.useFakeTimers();
+      setEntry('k', 'v');
+      const writtenAt = peekFetchedAt('k');
+      expect(writtenAt).toEqual(expect.any(Number));
+      expect(peekEntry('k')?.fetchedAt).toBe(writtenAt);
+
+      vi.advanceTimersByTime(10 * 60 * 1000);
+      expect(peekFetchedAt('k')).toBe(writtenAt);
+
+      expect(peekFetchedAt('never-written')).toBeNull();
     });
   });
 

@@ -48,7 +48,7 @@ export function useUserComparison({
   const [comparedUser, setComparedUser] = useState<OktaUser | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
-  const { contextApps, comparedApps, isLoadingApps, appsError, resetApps } = useComparisonApps({
+  const { contextApps, comparedApps, isLoadingApps, resetApps } = useComparisonApps({
     targetTabId,
     contextUserId: contextUser.id,
     comparedUser,
@@ -163,7 +163,7 @@ export function useUserComparison({
   const overallSimilarity = comparedUser ? Math.round((groupSimilarity + appSimilarity) / 2) : 0;
 
   const isLoading = isLoadingGroups || isLoadingApps;
-  const loadError = groupsError || appsError;
+  const loadError = groupsError;
 
   const contextName = userDisplayName(contextUser);
   const comparedName = comparedUser ? userDisplayName(comparedUser) : '';

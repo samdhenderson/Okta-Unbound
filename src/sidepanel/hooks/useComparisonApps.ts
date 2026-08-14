@@ -13,7 +13,6 @@ interface UseComparisonAppsReturn {
   contextApps: AppEntry[];
   comparedApps: AppEntry[];
   isLoadingApps: boolean;
-  appsError: string | null;
   resetApps: () => void;
 }
 
@@ -27,23 +26,17 @@ export function useComparisonApps({
   const [contextApps, setContextApps] = useState<AppEntry[]>([]);
   const [comparedApps, setComparedApps] = useState<AppEntry[]>([]);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
-  const [appsError, setAppsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!comparedUser) return;
 
     let cancelled = false;
     setIsLoadingApps(true);
-    setAppsError(null);
     Promise.all([getUserApps(contextUserId), getUserApps(comparedUser.id)])
       .then(([ctxApps, cmpApps]) => {
         if (cancelled) return;
         setContextApps(ctxApps);
         setComparedApps(cmpApps);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setAppsError(err instanceof Error ? err.message : 'Failed to load app assignments');
       })
       .finally(() => {
         if (!cancelled) setIsLoadingApps(false);
@@ -58,8 +51,7 @@ export function useComparisonApps({
   const resetApps = useCallback(() => {
     setContextApps([]);
     setComparedApps([]);
-    setAppsError(null);
   }, []);
 
-  return { contextApps, comparedApps, isLoadingApps, appsError, resetApps };
+  return { contextApps, comparedApps, isLoadingApps, resetApps };
 }

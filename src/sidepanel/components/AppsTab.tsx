@@ -9,6 +9,7 @@ import {
   type AppStatusFilter,
 } from './apps/appFilters';
 import { useOktaApi } from '../hooks/useOktaApi';
+import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useAppsData } from '../hooks/useAppsData';
 
 export interface AppsTabProps {
@@ -24,12 +25,9 @@ const AppsTab: React.FC<AppsTabProps> = ({ targetTabId, oktaOrigin, isActive = t
   const [sortBy, setSortBy] = useState<AppSortField>('label');
   const [sortDesc, setSortDesc] = useState(false);
 
-  const handleResult = useCallback(
-    (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
-      if (type === 'error') setError(message);
-    },
-    [],
-  );
+  const handleResult = useCallback(({ message, type }: OperationResult) => {
+    if (type === 'error') setError(message);
+  }, []);
 
   const api = useOktaApi({ targetTabId, onResult: handleResult });
 

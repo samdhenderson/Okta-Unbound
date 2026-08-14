@@ -15,6 +15,7 @@ import { filterRules } from '../../shared/ruleUtils';
 import { findMergeableRuleGroups, type MergeableRuleGroup } from '../../shared/rules/consolidation';
 import { sortRules, type RuleSortMode } from '../../shared/rules/similarity';
 import { useOktaApi } from '../hooks/useOktaApi';
+import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useRuleImpact } from '../hooks/useRuleImpact';
 import { useRulesData } from '../hooks/useRulesData';
 import { useRuleLifecycle } from '../hooks/useRuleLifecycle';
@@ -62,12 +63,9 @@ const RulesTab: React.FC<RulesTabProps> = ({
 
   const handleError = useCallback((message: string) => setError(message || null), []);
 
-  const handleResult = useCallback(
-    (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
-      if (type === 'error') setError(message || null);
-    },
-    [],
-  );
+  const handleResult = useCallback(({ message, type }: OperationResult) => {
+    if (type === 'error') setError(message || null);
+  }, []);
 
   const api = useOktaApi({ targetTabId: targetTabId ?? null, onResult: handleResult });
   const impact = useRuleImpact(api.captureRuleImpact);

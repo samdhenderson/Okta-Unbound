@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getOrFetch, peek, type EntityKey } from '../cache/entityCache';
+import { getOrFetch, peek, peekFetchedAt, type EntityKey } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
 import { createLogger } from '../../shared/utils/logger';
@@ -11,6 +11,11 @@ type OktaApi = ReturnType<typeof useOktaApi>;
 
 export function appsCacheKey(oktaOrigin?: string | null): EntityKey {
   return cacheKeys.apps(oktaOrigin);
+}
+
+function isoFetchedAt(key: EntityKey): string | null {
+  const at = peekFetchedAt(key);
+  return at === null ? null : new Date(at).toISOString();
 }
 
 export interface UseAppsDataOptions {
@@ -41,7 +46,7 @@ export function useAppsData({
     () => peek<OktaAppListItem[]>(cacheKey) ?? [],
   );
   const [isLoading, setIsLoading] = useState(false);
-  const [lastFetchTime, setLastFetchTime] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<string | null>(() => isoFetchedAt(cacheKey));
 
   const getAllAppsRef = useRef(api.getAllApps);
   getAllAppsRef.current = api.getAllApps;
@@ -63,7 +68,7 @@ export function useAppsData({
           { force },
         );
         setApps(loaded);
-        setLastFetchTime(new Date().toISOString());
+        setLastFetchTime(isoFetchedAt(cacheKey));
         log.debug('Loaded applications', { count: loaded.length });
       } catch (err) {
         onError(err instanceof Error ? err.message : 'Failed to load applications');
@@ -80,7 +85,7 @@ export function useAppsData({
     if (seededFor.current === cacheKey) return;
     seededFor.current = cacheKey;
     setApps(peek<OktaAppListItem[]>(cacheKey) ?? []);
-    setLastFetchTime(null);
+    setLastFetchTime(isoFetchedAt(cacheKey));
   }, [cacheKey]);
 
   const autoLoadedFor = useRef<string | null>(null);
