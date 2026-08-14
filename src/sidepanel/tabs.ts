@@ -1,15 +1,23 @@
+import type { IconType } from './components/overview/shared/Icon';
+
 export type TabType =
   'overview' | 'rules' | 'users' | 'groups' | 'apps' | 'policies' | 'export' | 'history';
 
-export const TAB_DEFS: ReadonlyArray<{ id: TabType; label: string }> = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'users', label: 'Users' },
-  { id: 'groups', label: 'Groups' },
-  { id: 'apps', label: 'Apps' },
-  { id: 'rules', label: 'Rules' },
-  { id: 'policies', label: 'Auth Policies' },
-  { id: 'export', label: 'Export' },
-  { id: 'history', label: 'History' },
+export interface TabDef {
+  id: TabType;
+  label: string;
+  icon: IconType;
+}
+
+export const TAB_DEFS: ReadonlyArray<TabDef> = [
+  { id: 'overview', label: 'Overview', icon: 'chart' },
+  { id: 'users', label: 'Users', icon: 'user' },
+  { id: 'groups', label: 'Groups', icon: 'users' },
+  { id: 'apps', label: 'Apps', icon: 'app' },
+  { id: 'rules', label: 'Rules', icon: 'bolt' },
+  { id: 'policies', label: 'Policies', icon: 'shield' },
+  { id: 'export', label: 'Export', icon: 'download' },
+  { id: 'history', label: 'History', icon: 'clipboard' },
 ];
 
 const LEGACY_TAB_MAP: Readonly<Record<string, TabType>> = {

@@ -13,6 +13,7 @@ import { useGroupMembersCache } from '../hooks/useGroupMembersCache';
 import { useGroupMerge } from '../hooks/useGroupMerge';
 import { useViewStack } from '../hooks/useViewStack';
 import { useScrollPreservation } from '../hooks/useScrollPreservation';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { GroupSummary } from '../../shared/types';
 import GroupExportModal from './groups/GroupExportModal';
 import GroupComparisonModal from './groups/GroupComparisonModal';
@@ -66,6 +67,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'live' | 'cached'>('live');
   const [showFilters, setShowFilters] = useState(false);
+
+  const reducedMotion = useReducedMotion();
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportGroups, setExportGroups] = useState<GroupSummary[]>([]);
@@ -166,7 +169,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     const scrollT = setTimeout(() => {
       document
         .querySelector(`[data-group-id="${selectedGroupId}"]`)
-        ?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+        ?.scrollIntoView?.({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
     }, 150);
     const clearT = setTimeout(() => onGroupSelected?.(), 2500);
     return () => {
@@ -237,7 +240,14 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         <div
-          className={nav.isRoot ? 'flex flex-col h-[calc(100vh-280px)] min-h-[400px]' : 'hidden'}
+          className={
+            nav.isRoot
+              ? // `animate-pop-in` (arrive from the left) only after a real pop — the
+                `flex flex-col h-[calc(100vh-280px)] min-h-[400px] ${
+                  nav.transition === 'pop' ? 'animate-pop-in' : ''
+                }`
+              : 'hidden'
+          }
         >
           <div className="shrink-0 space-y-3">
             <div className="flex gap-2">
@@ -360,7 +370,13 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
         </div>
 
         {detailGroup && (
-          <div ref={detailViewRef} tabIndex={-1} className="focus:outline-none">
+          <div
+            ref={detailViewRef}
+            tabIndex={-1}
+            className={`focus:outline-none ${
+              nav.transition === 'pop' ? 'animate-pop-in' : 'animate-push-in'
+            }`}
+          >
             <GroupDetailView
               group={detailGroup}
               targetTabId={targetTabId}

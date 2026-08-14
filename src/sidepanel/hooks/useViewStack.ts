@@ -20,12 +20,15 @@ export interface UseViewStackOptions<TEntry> {
   manageFocus?: boolean;
 }
 
+export type ViewStackTransition = 'push' | 'pop' | null;
+
 export interface ViewStack<TEntry> {
   entries: readonly TEntry[];
   currentEntry: TEntry | undefined;
   depth: number;
   isRoot: boolean;
   trail: ViewStackCrumb[];
+  transition: ViewStackTransition;
   push: (entry: TEntry) => void;
   pop: () => void;
   popTo: (depth: number) => void;
@@ -39,7 +42,10 @@ export function useViewStack<TEntry>({
   viewRef,
   manageFocus = true,
 }: UseViewStackOptions<TEntry>): ViewStack<TEntry> {
-  const [entries, setEntries] = useState<readonly TEntry[]>([]);
+  const [{ entries, transition }, setState] = useState<{
+    entries: readonly TEntry[];
+    transition: ViewStackTransition;
+  }>({ entries: [], transition: null });
   const depth = entries.length;
 
   const focusOrigins = useRef<(HTMLElement | null)[]>([]);
@@ -48,20 +54,28 @@ export function useViewStack<TEntry>({
 
   const push = useCallback((entry: TEntry) => {
     pendingOrigin.current = document.activeElement as HTMLElement | null;
-    setEntries((prev) => [...prev, entry]);
+    setState((prev) => ({ entries: [...prev.entries, entry], transition: 'push' }));
   }, []);
 
   const popTo = useCallback((targetDepth: number) => {
     const next = Math.max(0, targetDepth);
-    setEntries((prev) => (next >= prev.length ? prev : prev.slice(0, next)));
+    setState((prev) =>
+      next >= prev.entries.length
+        ? prev
+        : { entries: prev.entries.slice(0, next), transition: 'pop' },
+    );
   }, []);
 
   const pop = useCallback(() => {
-    setEntries((prev) => (prev.length === 0 ? prev : prev.slice(0, prev.length - 1)));
+    setState((prev) =>
+      prev.entries.length === 0
+        ? prev
+        : { entries: prev.entries.slice(0, prev.entries.length - 1), transition: 'pop' },
+    );
   }, []);
 
   const reset = useCallback(() => {
-    setEntries((prev) => (prev.length === 0 ? prev : []));
+    setState((prev) => (prev.entries.length === 0 ? prev : { entries: [], transition: 'pop' }));
   }, []);
 
   useEffect(() => {
@@ -118,6 +132,7 @@ export function useViewStack<TEntry>({
     depth,
     isRoot: depth === 0,
     trail,
+    transition,
     push,
     pop,
     popTo,

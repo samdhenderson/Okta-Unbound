@@ -6,14 +6,31 @@ import { peek, setEntry, invalidate } from '../../cache/entityCache';
 import { cacheKeys } from '../../cache/keys';
 import { useProgress } from '../../contexts/ProgressContext';
 import AlertMessage, { type AlertMessageData } from '../shared/AlertMessage';
-import { Button, Modal } from '../shared';
-import LoadingSpinner from '../shared/LoadingSpinner';
+import { Button, Modal, Skeleton } from '../shared';
 import StatCard from './shared/StatCard';
 import MemberExplorer from './members/MemberExplorer';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../shared/types';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('GroupOverview');
+
+const STAT_SKELETON_LABELS = [
+  'Loading total members',
+  'Loading active members',
+  'Loading inactive members',
+  'Loading deprovisioned members',
+];
+
+const GroupOverviewSkeleton: React.FC = () => (
+  <div className="space-y-6">
+    <div className="grid grid-cols-2 gap-3">
+      {STAT_SKELETON_LABELS.map((label) => (
+        <Skeleton key={label} variant="card" label={label} />
+      ))}
+    </div>
+    <Skeleton variant="row" size="md" count={6} label="Loading group members" />
+  </div>
+);
 
 interface GroupOverviewProps {
   groupId: string;
@@ -124,7 +141,7 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   const cancelMfaConfirm = useCallback(() => setScanStatus('idle'), []);
 
   if (isLoading && members.length === 0) {
-    return <LoadingSpinner size="2xl" message="Loading group members..." centered />;
+    return <GroupOverviewSkeleton />;
   }
 
   if (error) {
@@ -143,19 +160,33 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <StatCard title="Total Members" value={members.length} color="primary" icon="users" />
-        <StatCard title="Active" value={statusCounts['ACTIVE'] || 0} color="success" icon="check" />
+        <StatCard
+          title="Total Members"
+          value={members.length}
+          color="primary"
+          icon="users"
+          countUp
+        />
+        <StatCard
+          title="Active"
+          value={statusCounts['ACTIVE'] || 0}
+          color="success"
+          icon="check"
+          countUp
+        />
         <StatCard
           title="Inactive"
           value={inactiveCount}
           color={inactiveCount > 0 ? 'warning' : 'success'}
           icon="alert"
+          countUp
         />
         <StatCard
           title="Deprovisioned"
           value={deprovisionedCount}
           color={deprovisionedCount > 0 ? 'danger' : 'success'}
           icon="trash"
+          countUp
         />
       </div>
 
@@ -185,6 +216,7 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
 
         <MemberExplorer
           members={members}
+          isReloading={isLoading}
           mfaResults={mfaResults}
           scanStatus={scanStatus}
           onRunScan={runMfaScan}

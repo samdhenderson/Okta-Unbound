@@ -7,6 +7,7 @@ interface ScrollableListProps {
   emptyState?: React.ReactNode;
   loading?: boolean;
   loadingMessage?: string;
+  skeleton?: React.ReactNode;
   maxHeight?: string;
   fillAvailable?: boolean;
   scrollRef?: React.Ref<HTMLDivElement>;
@@ -21,6 +22,7 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   loadingMessage = 'Loading...',
   maxHeight,
   fillAvailable = true,
+  skeleton,
   scrollRef,
   testId,
 }) => {
@@ -28,6 +30,14 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   const isEmpty = childArray.length === 0;
 
   if (loading) {
+    if (skeleton) {
+      return (
+        <div className={fillAvailable ? 'flex-1' : ''} data-testid={testId}>
+          {skeleton}
+        </div>
+      );
+    }
+
     return (
       <div
         className={`flex items-center justify-center py-12 ${fillAvailable ? 'flex-1' : ''}`}

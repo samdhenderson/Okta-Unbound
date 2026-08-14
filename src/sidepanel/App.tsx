@@ -3,6 +3,8 @@ import ContextBar from './components/ContextBar';
 import PageHeader from './components/shared/PageHeader';
 import TabNavigation from './components/TabNavigation';
 import TabPanel from './components/TabPanel';
+import TabJumpPalette from './components/TabJumpPalette';
+import { useCommandPalette } from './hooks/useCommandPalette';
 import { migrateLegacyTabId, type TabType } from './tabs';
 import OverviewTab from './components/OverviewTab';
 import type { ExportRequest } from './components/export';
@@ -40,6 +42,8 @@ const App: React.FC = () => {
   }, [activeTab]);
 
   const scrollRootRef = useRef<HTMLDivElement>(null);
+
+  const jumpPalette = useCommandPalette();
 
   const {
     groupInfo,
@@ -340,6 +344,13 @@ const App: React.FC = () => {
 
         <ActivityBar />
       </div>
+
+      <TabJumpPalette
+        isOpen={jumpPalette.isOpen}
+        onClose={jumpPalette.close}
+        activeTab={activeTab}
+        onSelect={handleTabChange}
+      />
     </SchedulerProvider>
   );
 };

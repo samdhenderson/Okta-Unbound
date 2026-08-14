@@ -51,6 +51,8 @@ export interface UseUsersTabStateReturn {
   refreshSelectedUserMemberships: () => void;
   lifecycle: ReturnType<typeof useUserLifecycleActions>;
   addToGroup: ReturnType<typeof useAddToGroup>;
+  confirmAddToGroup: () => Promise<void>;
+  recentlyAddedGroupId: string | null;
 }
 
 const compareCrumbLabel = (): string => 'Compare users';
@@ -70,6 +72,8 @@ export function useUsersTabState({
   const [error, setError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<AlertMessageData | null>(null);
   const [dismissedDetectedId, setDismissedDetectedId] = useState<string | null>(null);
+  const [recentlyAddedGroupId, setRecentlyAddedGroupId] = useState<string | null>(null);
+  const pendingAddGroupIdRef = useRef<string | null>(null);
 
   const nav = useViewStack<UserCompareEntry>({
     rootLabel: 'User Search',
@@ -97,6 +101,7 @@ export function useUsersTabState({
     async (user: OktaUser) => {
       if (!targetTabId) return;
 
+      setRecentlyAddedGroupId(null);
       setSelectedUser(user);
       await loadMemberships(user);
     },
@@ -107,9 +112,17 @@ export function useUsersTabState({
     async (user: OktaUser) => {
       invalidate(cacheKeys.userMemberships(user.id));
       await handleSelectUser(user);
+      setRecentlyAddedGroupId(pendingAddGroupIdRef.current);
     },
     [handleSelectUser],
   );
+
+  useEffect(() => {
+    if (!recentlyAddedGroupId) return;
+    const AFFIRM_FLASH_MS = 500;
+    const timer = window.setTimeout(() => setRecentlyAddedGroupId(null), AFFIRM_FLASH_MS);
+    return () => window.clearTimeout(timer);
+  }, [recentlyAddedGroupId]);
 
   const refreshSelectedUserMemberships = useCallback(() => {
     if (!selectedUser) return;
@@ -162,6 +175,7 @@ export function useUsersTabState({
     setSearchQuery('');
     setSearchResults([]);
     setSelectedUser(null);
+    setRecentlyAddedGroupId(null);
     clearMemberships();
     setError(null);
     setResultMessage(null);
@@ -186,6 +200,12 @@ export function useUsersTabState({
     onAdded: handleUserAddedToGroup,
     enabled: isActive,
   });
+
+  const { selectedGroup, confirmAddToGroup: confirmAddToGroupInner } = addToGroup;
+  const confirmAddToGroup = useCallback(() => {
+    pendingAddGroupIdRef.current = selectedGroup?.id ?? null;
+    return confirmAddToGroupInner();
+  }, [selectedGroup, confirmAddToGroupInner]);
 
   const dismissError = useCallback(() => setError(null), []);
   const dismissResultMessage = useCallback(() => setResultMessage(null), []);
@@ -222,5 +242,7 @@ export function useUsersTabState({
     refreshSelectedUserMemberships,
     lifecycle,
     addToGroup,
+    confirmAddToGroup,
+    recentlyAddedGroupId,
   };
 }

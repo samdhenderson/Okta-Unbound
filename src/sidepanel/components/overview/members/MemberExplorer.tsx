@@ -29,6 +29,7 @@ type FactorMode = 'off' | 'has' | 'missing';
 
 interface MemberExplorerProps {
   members: OktaUser[];
+  isReloading?: boolean;
   mfaResults: Map<string, MemberMfaResult> | null;
   scanStatus: MfaScanStatus;
   onRunScan: () => void;
@@ -41,6 +42,7 @@ const PAGE = 50;
 
 const MemberExplorer: React.FC<MemberExplorerProps> = ({
   members,
+  isReloading = false,
   mfaResults,
   scanStatus,
   onRunScan,
@@ -175,7 +177,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         <button
           type="button"
           onClick={() => setShowFilters((prev) => !prev)}
-          className={`px-4 py-2 rounded-md border text-sm font-medium transition-all duration-100 flex items-center gap-2 ${
+          className={`px-4 py-2 rounded-md border text-sm font-medium transition-all duration-(--dur-instant) flex items-center gap-2 ${
             showFilters || activeFilterCount > 0
               ? 'bg-primary-light border-primary text-primary-text'
               : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
@@ -255,6 +257,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         </div>
         <MemberList
           members={sorted}
+          loading={isReloading}
           mfaResults={mfaResults}
           mfaScanned={mfaScanned}
           visibleCount={visibleCount}

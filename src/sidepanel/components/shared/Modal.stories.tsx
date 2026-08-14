@@ -1,5 +1,6 @@
+import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import Button from './Button';
 import Modal from './Modal';
 
@@ -13,12 +14,16 @@ const meta = {
       description: {
         component:
           'Accessible modal dialog — the canonical overlay for all pop-up UI.\n\n' +
-          'Provides `role="dialog"` + `aria-modal`, a Tab focus-trap, autofocus into the panel, focus restoration on close, and Escape / overlay-click to dismiss. Four width presets (`sm | md | lg | xl`) and an optional footer bar for action buttons. Renders nothing when `isOpen` is false. Always use this rather than a bespoke overlay.',
+          'Provides `role="dialog"` + `aria-modal`, a Tab focus-trap, autofocus into the panel, focus restoration on close, and Escape / overlay-click to dismiss. Four width presets (`sm | md | lg | xl`) and an optional footer bar for action buttons. Renders nothing when `isOpen` is false. Always use this rather than a bespoke overlay.\n\n' +
+          'Closing is animated: the panel is held in the DOM for one exit animation, but is `aria-hidden` + `inert` for that window and focus returns to the trigger immediately — so `isOpen === false` means "gone" to every consumer from the first frame. Under `prefers-reduced-motion` the hold is skipped entirely. See the **Motion Showcase** story.',
       },
     },
   },
   argTypes: {
-    isOpen: { description: 'When false the modal renders nothing (unmounted).' },
+    isOpen: {
+      description:
+        'When false the modal closes — the panel is held for its exit animation (hidden from the accessible tree), then unmounted.',
+    },
     onClose: { description: 'Invoked on Escape, overlay click, or the header close button.' },
     title: { description: 'Dialog title; wired to `aria-labelledby`.' },
     children: { description: 'Body content.' },
@@ -111,5 +116,55 @@ export const WithLongContent: Story = {
 export const Closed: Story = {
   args: {
     isOpen: false,
+  },
+};
+
+const ExitDemo: React.FC<React.ComponentProps<typeof Modal>> = (args) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="p-6">
+      <Button onClick={() => setOpen(true)}>Open modal</Button>
+      <Modal
+        {...args}
+        isOpen={open}
+        onClose={() => setOpen(false)}
+        footer={
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        }
+      />
+    </div>
+  );
+};
+
+export const MotionShowcase: Story = {
+  parameters: { motion: 'on' },
+  args: {
+    title: 'Confirm removal',
+    children: <p>Closing this dialog animates it out; focus returns to the trigger at once.</p>,
+  },
+  render: (args) => <ExitDemo {...args} />,
+};
+
+export const ExitInteraction: Story = {
+  args: {
+    title: 'Confirm removal',
+    children: <p>This dialog is opened and dismissed by the interaction test.</p>,
+  },
+  render: (args) => <ExitDemo {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole('button', { name: 'Open modal' });
+
+    await userEvent.click(trigger);
+    const dialog = await canvas.findByRole('dialog');
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => expect(dialog.isConnected).toBe(false));
+    expect(canvas.queryByRole('dialog')).toBeNull();
+
+    expect(document.activeElement).toBe(trigger);
   },
 };

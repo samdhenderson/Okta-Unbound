@@ -1,5 +1,6 @@
-import React, { memo } from 'react';
-import { EmptyState, ScrollableList } from '../shared';
+import React, { memo, useRef } from 'react';
+import { useStaggerReveal } from '../../hooks/useStaggerReveal';
+import { EmptyState, ScrollableList, Skeleton } from '../shared';
 import AppListItem from './AppListItem';
 import type { AppAssignmentCounts } from '../../hooks/useOktaApi/appOperations';
 import type { OktaAppListItem } from '../../../shared/schemas/okta';
@@ -27,10 +28,16 @@ const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel(
   oktaOrigin,
   fetchAssignmentCounts,
 }) {
+  const staggerRef = useRef<HTMLDivElement>(null);
+  useStaggerReveal(staggerRef);
+
   return (
     <ScrollableList
       loading={loading}
       loadingMessage="Loading applications from Okta..."
+      skeleton={
+        <Skeleton variant="row" size="lg" count={6} label="Loading applications from Okta..." />
+      }
       className="mt-4"
       testId="apps-list"
       emptyState={
@@ -55,14 +62,18 @@ const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel(
         )
       }
     >
-      {apps.map((app) => (
-        <AppListItem
-          key={app.id}
-          app={app}
-          oktaOrigin={oktaOrigin}
-          fetchAssignmentCounts={fetchAssignmentCounts}
-        />
-      ))}
+      {apps.length > 0 && (
+        <div ref={staggerRef} className="space-y-3 rise-in-stagger">
+          {apps.map((app) => (
+            <AppListItem
+              key={app.id}
+              app={app}
+              oktaOrigin={oktaOrigin}
+              fetchAssignmentCounts={fetchAssignmentCounts}
+            />
+          ))}
+        </div>
+      )}
     </ScrollableList>
   );
 });

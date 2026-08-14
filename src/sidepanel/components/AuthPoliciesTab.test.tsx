@@ -106,7 +106,11 @@ describe('AuthPoliciesTab', () => {
     expect(api.getPolicyRules).toHaveBeenCalledWith('rstFAKE000000000001');
 
     await user.click(screen.getByRole('button', { name: 'Hide rules for Any two factors' }));
-    expect(screen.queryByTestId('policy-rules-list')).not.toBeInTheDocument();
+    const disclosure = within(screen.getByTestId('policy-rstFAKE000000000001')).getByTestId(
+      'policy-rules-disclosure',
+    );
+    expect(disclosure).toHaveAttribute('data-open', 'false');
+    expect(disclosure).toHaveAttribute('inert');
 
     await user.click(screen.getByRole('button', { name: 'Show rules for Any two factors' }));
     expect(await screen.findByTestId('policy-rules-list')).toBeInTheDocument();

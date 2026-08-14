@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 
 interface CollapsibleSectionProps {
   title: string;
@@ -14,17 +14,20 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   itemCount,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const bodyId = useId();
 
   return (
-    <div className="rounded-md border border-neutral-200 bg-white overflow-hidden transition-all duration-100">
+    <div className="rounded-md border border-neutral-200 bg-white overflow-hidden">
       <button
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left font-semibold text-neutral-900 bg-white hover:bg-neutral-50 transition-all duration-100 border-b border-neutral-200"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left font-semibold text-neutral-900 bg-white hover:bg-neutral-50 transition-colors duration-(--dur-instant) border-b border-neutral-200"
         onClick={() => setIsOpen(!isOpen)}
         type="button"
+        aria-expanded={isOpen}
+        aria-controls={bodyId}
       >
         <div className="flex items-center gap-3">
           <svg
-            className={`w-4 h-4 text-neutral-400 transition-transform duration-100 ${isOpen ? 'rotate-90' : ''}`}
+            className={`w-4 h-4 text-neutral-400 transition-transform duration-(--dur-instant) ease-standard ${isOpen ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -39,7 +42,11 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
           )}
         </div>
       </button>
-      {isOpen && <div className="p-5">{children}</div>}
+      <div id={bodyId} className="disclose" data-open={isOpen} inert={!isOpen || undefined}>
+        <div>
+          <div className="p-5">{children}</div>
+        </div>
+      </div>
     </div>
   );
 };

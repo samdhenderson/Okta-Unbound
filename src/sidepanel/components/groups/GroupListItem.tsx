@@ -9,7 +9,7 @@ import type { GroupSummary } from '../../../shared/types';
 import { oktaAdminEntityUrl } from '../../../shared/utils/oktaUrl';
 
 const REVEAL_ON_HOVER =
-  'opacity-0 transition-opacity duration-100 ' +
+  'opacity-0 transition-opacity duration-(--dur-instant) ' +
   'group-hover/row:opacity-100 group-focus-within/row:opacity-100 ' +
   'focus-within:opacity-100 [@media(hover:none)]:opacity-100';
 
@@ -34,6 +34,8 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
     isHighlighted = false,
   }) => {
     const [expanded, setExpanded] = useState(false);
+    const [everExpanded, setEverExpanded] = useState(false);
+    if (expanded && !everExpanded) setEverExpanded(true);
     const breakdown = useCachedMemberSource(group.id);
     const model = useMemo(() => summarizeGroupRow(group, breakdown), [group, breakdown]);
 
@@ -70,11 +72,11 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
     return (
       <div
         data-group-id={group.id}
-        className={`group/row rounded-md border transition-colors duration-100 ${
+        className={`group/row rounded-md border transition-colors duration-(--dur-instant) ${
           selected
             ? 'border-primary bg-primary-light'
             : 'border-neutral-200 bg-white hover:border-neutral-500'
-        } ${isHighlighted ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+        } ${isHighlighted ? 'ring-2 ring-primary ring-offset-2 animate-affirm-flash' : ''}`}
       >
         <div className="relative flex items-start gap-2 px-3 py-2">
           {onOpenDetail && (
@@ -152,7 +154,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
                   <Icon
                     type="chevron-right"
                     size="sm"
-                    className={`transition-transform duration-100 ${expanded ? 'rotate-90' : ''}`}
+                    className={`transition-transform duration-(--dur-instant) ${expanded ? 'rotate-90' : ''}`}
                   />
                 </IconButton>
               </div>
@@ -171,8 +173,13 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
           </div>
         </div>
 
-        <div id={detailsId} hidden={!expanded}>
-          {expanded && <GroupListItemDetails group={group} breakdown={breakdown} />}
+        <div
+          id={detailsId}
+          className="disclose"
+          data-open={expanded}
+          inert={!expanded || undefined}
+        >
+          <div>{everExpanded && <GroupListItemDetails group={group} breakdown={breakdown} />}</div>
         </div>
       </div>
     );

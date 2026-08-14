@@ -20,8 +20,17 @@ const withProviders: Decorator = (Story) => (
   </ErrorBoundary>
 );
 
+const withMotion: Decorator = (Story, context) => (
+  <div
+    data-motion={context.parameters.motion === 'on' ? 'on' : 'off'}
+    style={{ display: 'contents' }}
+  >
+    <Story />
+  </div>
+);
+
 const preview: Preview = {
-  decorators: [withProviders],
+  decorators: [withMotion, withProviders],
   parameters: {
     controls: {
       matchers: {

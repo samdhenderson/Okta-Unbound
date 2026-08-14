@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useId, useRef } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Icon from '../overview/shared/Icon';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface ModalProps {
   isOpen: boolean;
@@ -20,10 +21,53 @@ const sizeClasses = {
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+const EXIT_MS = 140;
+
 const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer, size = 'md' }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const reduced = useReducedMotion();
+
+  const [present, setPresent] = useState(isOpen);
+  const [closing, setClosing] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(isOpen);
+
+  if (prevOpen !== isOpen) {
+    setPrevOpen(isOpen);
+    if (isOpen) {
+      setPresent(true);
+      setClosing(false);
+    } else if (present) {
+      if (reduced) setPresent(false);
+      else setClosing(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!closing) return;
+    const panel = panelRef.current;
+
+    const finish = (event?: { target: unknown }) => {
+      if (event && event.target !== panel) return;
+      setPresent(false);
+      setClosing(false);
+    };
+
+    const timer = window.setTimeout(finish, EXIT_MS);
+    panel?.addEventListener('animationend', finish);
+    panel?.addEventListener('transitionend', finish);
+    return () => {
+      window.clearTimeout(timer);
+      panel?.removeEventListener('animationend', finish);
+      panel?.removeEventListener('transitionend', finish);
+    };
+  }, [closing]);
+
+  const requestClose = useCallback(() => {
+    if (closing) return;
+    onClose();
+  }, [closing, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -42,7 +86,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
     (e: React.KeyboardEvent<HTMLDivElement>) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onClose();
+        requestClose();
         return;
       }
       if (e.key !== 'Tab') return;
@@ -66,23 +110,29 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
         first.focus();
       }
     },
-    [onClose],
+    [requestClose],
   );
 
-  if (!isOpen) return null;
+  if (!present) return null;
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center z-50 animate-in fade-in duration-100 isolate"
-      onClick={onClose}
+      className={`fixed inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center z-50 isolate ${
+        closing ? 'animate-overlay-out pointer-events-none' : 'animate-overlay-in'
+      }`}
+      onClick={requestClose}
     >
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-hidden={closing || undefined}
+        inert={closing || undefined}
         tabIndex={-1}
-        className={`bg-white rounded-md shadow-xl ${sizeClasses[size]} w-full mx-4 my-4 max-h-[calc(100vh-2rem)] flex flex-col animate-in zoom-in-95 slide-in-from-bottom-4 duration-100 focus:outline-none`}
+        className={`bg-white rounded-md shadow-xl ${sizeClasses[size]} w-full mx-4 my-4 max-h-[calc(100vh-2rem)] flex flex-col focus:outline-none ${
+          closing ? 'animate-panel-out' : 'animate-panel-in'
+        }`}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
         style={{ fontFamily: 'var(--font-primary)' }}
@@ -92,8 +142,8 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
             {title}
           </h3>
           <button
-            onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-700 transition-colors duration-100 p-1 rounded-md hover:bg-neutral-50"
+            onClick={requestClose}
+            className="text-neutral-400 hover:text-neutral-700 transition-colors duration-(--dur-instant) p-1 rounded-md hover:bg-neutral-50"
             aria-label="Close modal"
           >
             <Icon type="close" size="md" />

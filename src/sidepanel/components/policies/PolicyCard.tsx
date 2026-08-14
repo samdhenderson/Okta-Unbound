@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from 'react';
+import React, { memo, useCallback, useId, useState } from 'react';
 import IconButton from '../shared/IconButton';
 import PolicyRulesList from './PolicyRulesList';
 import { useEntityQuery } from '../../cache/useEntityQuery';
@@ -12,6 +12,7 @@ interface PolicyCardProps {
 
 const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const rulesId = useId();
 
   const toggleExpanded = useCallback(() => setIsExpanded((prev) => !prev), []);
 
@@ -27,7 +28,7 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
 
   return (
     <div
-      className="overflow-hidden rounded-md border border-neutral-200 bg-white transition-all duration-100 hover:border-neutral-300"
+      className="overflow-hidden rounded-md border border-neutral-200 bg-white transition-all duration-(--dur-instant) hover:border-neutral-300"
       style={{ fontFamily: 'var(--font-primary)' }}
       data-testid={`policy-${policy.id}`}
     >
@@ -59,12 +60,13 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
           label={isExpanded ? `Hide rules for ${name}` : `Show rules for ${name}`}
           variant="ghost"
           size="md"
-          active={isExpanded}
+          expanded={isExpanded}
+          controls={rulesId}
           className="shrink-0"
           onClick={toggleExpanded}
         >
           <svg
-            className={`h-4 w-4 transition-transform duration-100 ${isExpanded ? 'rotate-90' : ''}`}
+            className={`h-4 w-4 transition-transform duration-(--dur-instant) ${isExpanded ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -74,18 +76,26 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
         </IconButton>
       </div>
 
-      {isExpanded && (
-        <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 pb-4 pt-3">
-          <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
-            Rules
-          </div>
-          <PolicyRulesList rules={rules} isLoading={isLoading} error={error} />
-          <div className="border-t border-neutral-200 pt-2 text-xs text-neutral-600">
-            <span className="font-semibold">Policy ID:</span>{' '}
-            <span className="font-mono text-neutral-500">{policy.id}</span>
+      <div
+        id={rulesId}
+        className="disclose"
+        data-open={isExpanded}
+        data-testid="policy-rules-disclosure"
+        inert={!isExpanded || undefined}
+      >
+        <div>
+          <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 pb-4 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
+              Rules
+            </div>
+            <PolicyRulesList rules={rules} isLoading={isLoading} error={error} />
+            <div className="border-t border-neutral-200 pt-2 text-xs text-neutral-600">
+              <span className="font-semibold">Policy ID:</span>{' '}
+              <span className="font-mono text-neutral-500">{policy.id}</span>
+            </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }, arePolicyCardPropsEqual);

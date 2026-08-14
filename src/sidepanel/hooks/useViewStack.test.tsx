@@ -119,6 +119,49 @@ describe('useViewStack', () => {
     });
   });
 
+  describe('transition direction', () => {
+    it('is null before the first navigation, so the initial render never animates', () => {
+      const { result } = renderStack();
+
+      expect(result.current.transition).toBeNull();
+    });
+
+    it('reports push and pop, and commits the direction with the entries', () => {
+      const { result } = renderStack();
+
+      act(() => result.current.push(ENGINEERING));
+      expect(result.current.transition).toBe('push');
+      expect(result.current.depth).toBe(1);
+
+      act(() => result.current.pop());
+      expect(result.current.transition).toBe('pop');
+      expect(result.current.depth).toBe(0);
+    });
+
+    it('reports pop for popTo and reset', () => {
+      const { result } = renderStack();
+
+      act(() => result.current.push(ENGINEERING));
+      act(() => result.current.push(PLATFORM));
+      act(() => result.current.popTo(1));
+      expect(result.current.transition).toBe('pop');
+
+      act(() => result.current.push(ON_CALL));
+      act(() => result.current.reset());
+      expect(result.current.transition).toBe('pop');
+    });
+
+    it('stays null when a pop is a no-op at the root', () => {
+      const { result } = renderStack();
+
+      act(() => result.current.pop());
+      act(() => result.current.popTo(3));
+      act(() => result.current.reset());
+
+      expect(result.current.transition).toBeNull();
+    });
+  });
+
   describe('breadcrumb trail', () => {
     it('is a single non-actionable root crumb at the root', () => {
       const { result } = renderStack();

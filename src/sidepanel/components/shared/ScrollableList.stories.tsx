@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import ScrollableList from './ScrollableList';
+import Skeleton from './Skeleton';
 
 const meta = {
   title: 'Shared/ScrollableList',
@@ -11,7 +12,7 @@ const meta = {
       description: {
         component:
           'Independently scrollable list container with built-in loading and empty states.\n\n' +
-          'Renders a `LoadingSpinner` while `loading`, the `emptyState` node when it has no children, otherwise a scroll region (its own scrollbar) that by default flex-grows to fill available space so surrounding chrome stays visible.',
+          'Renders a `LoadingSpinner` while `loading`, the `emptyState` node when it has no children, otherwise a scroll region (its own scrollbar) that by default flex-grows to fill available space so surrounding chrome stays visible. A caller whose loading state has a known shape can pass a `Skeleton` via `skeleton` instead of the default spinner.',
       },
     },
   },
@@ -21,6 +22,10 @@ const meta = {
     emptyState: { description: 'Content to show when there are no children.' },
     loading: { description: 'Shows a loading spinner when true.' },
     loadingMessage: { description: 'Custom message for the loading state.' },
+    skeleton: {
+      description:
+        'Optional known-shape placeholder (typically a `Skeleton`) shown instead of the default spinner while `loading` is true.',
+    },
     maxHeight: { description: 'Optional explicit max-height (e.g. "400px", "50vh").' },
     fillAvailable: { description: 'If true (default), uses flex-grow to fill remaining space.' },
     testId: { description: 'Test id applied to the container.' },
@@ -56,6 +61,14 @@ export const LoadingWithMessage: Story = {
   args: {
     loading: true,
     loadingMessage: 'Fetching groups...',
+    children: null,
+  },
+};
+
+export const LoadingWithSkeleton: Story = {
+  args: {
+    loading: true,
+    skeleton: <Skeleton variant="row" count={4} label="Loading groups" />,
     children: null,
   },
 };

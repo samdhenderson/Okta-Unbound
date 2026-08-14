@@ -25,7 +25,7 @@ const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 }) => {
   const spinner = (
     <div
-      className={`inline-block animate-spin rounded-full border-neutral-200 border-t-primary ${sizeClasses[size]} ${className}`}
+      className={`motion-exempt inline-block animate-spin rounded-full border-neutral-200 border-t-primary ${sizeClasses[size]} ${className}`}
       role="status"
       aria-label="Loading"
     />

@@ -75,8 +75,8 @@ const AuthPolicyOverview: React.FC<AuthPolicyOverviewProps> = ({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <StatCard title="Total Rules" value={rules.length} color="primary" icon="list" />
-        <StatCard title="Active Rules" value={activeCount} color="success" icon="check" />
+        <StatCard title="Total Rules" value={rules.length} color="primary" icon="list" countUp />
+        <StatCard title="Active Rules" value={activeCount} color="success" icon="check" countUp />
       </div>
 
       <div className="bg-white rounded-md border border-neutral-200 p-6">

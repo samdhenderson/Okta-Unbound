@@ -13,6 +13,7 @@ export interface UserDetailPanelProps {
   isLoadingMemberships: boolean;
   currentGroupId?: string;
   onNavigateToRule?: (ruleId: string) => void;
+  recentlyAddedGroupId?: string | null;
   isLifecycleLoading: boolean;
   pendingLifecycleAction: LifecycleAction | null;
   onRequestLifecycleAction: (action: LifecycleAction) => void;
@@ -29,6 +30,7 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   isLoadingMemberships,
   currentGroupId,
   onNavigateToRule,
+  recentlyAddedGroupId,
   isLifecycleLoading,
   pendingLifecycleAction,
   onRequestLifecycleAction,
@@ -38,7 +40,7 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   onAddToGroup,
 }) => {
   return (
-    <div className="space-y-6 animate-in slide-in-from-top-4 duration-500">
+    <div className="space-y-6 animate-rise-in">
       <UserProfileCard
         user={user}
         oktaOrigin={oktaOrigin}
@@ -61,6 +63,7 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
         currentGroupId={currentGroupId}
         oktaOrigin={oktaOrigin}
         onNavigateToRule={onNavigateToRule}
+        recentlyAddedGroupId={recentlyAddedGroupId}
         actions={
           <>
             <Button

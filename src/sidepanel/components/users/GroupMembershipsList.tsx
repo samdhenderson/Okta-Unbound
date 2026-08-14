@@ -20,6 +20,7 @@ interface GroupMembershipsListProps {
   oktaOrigin?: string | null;
   onNavigateToRule?: (ruleId: string) => void;
   actions?: React.ReactNode;
+  recentlyAddedGroupId?: string | null;
 }
 
 interface RuleAttributionBlockProps {
@@ -104,6 +105,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   oktaOrigin,
   onNavigateToRule,
   actions,
+  recentlyAddedGroupId,
 }) => {
   const highlightCurrentGroup = (groupId: string) => {
     return currentGroupId && groupId === currentGroupId;
@@ -130,12 +132,13 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
             <div
               key={membership.group.id}
               className={`
-                rounded-md border p-4 transition-all duration-100
+                rounded-md border p-4 transition-all duration-(--dur-instant)
                 ${
                   highlightCurrentGroup(membership.group.id)
                     ? 'border-primary bg-primary-light ring-1 ring-primary/20'
                     : 'border-neutral-200 bg-white hover:border-neutral-500'
                 }
+                ${membership.group.id === recentlyAddedGroupId ? 'animate-affirm-flash' : ''}
               `}
             >
               <div className="flex items-start justify-between gap-4 mb-3">

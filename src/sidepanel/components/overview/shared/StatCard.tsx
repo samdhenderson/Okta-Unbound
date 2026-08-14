@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon, { type IconType } from './Icon';
+import { useCountUp } from '../../../hooks/useCountUp';
 
 interface StatCardProps {
   title: string;
@@ -8,6 +9,7 @@ interface StatCardProps {
   icon?: IconType;
   subtitle?: string;
   onClick?: () => void;
+  countUp?: boolean;
 }
 
 const colorConfigs = {
@@ -55,12 +57,19 @@ const StatCard: React.FC<StatCardProps> = ({
   icon,
   subtitle,
   onClick,
+  countUp = false,
 }) => {
   const config = colorConfigs[color];
 
+  const numericValue = typeof value === 'number' ? value : null;
+  const countedValue = useCountUp(numericValue ?? 0, {
+    enabled: countUp && numericValue !== null,
+  });
+  const displayValue = numericValue === null ? value : countedValue.toLocaleString();
+
   const baseClasses = `
     relative overflow-hidden rounded-md border p-4
-    transition-all duration-100 ease-out
+    transition-colors duration-(--dur-instant) ease-standard
     ${config.cardBg} ${config.border}
     ${onClick ? 'cursor-pointer hover:border-neutral-300' : ''}
   `.trim();
@@ -76,10 +85,10 @@ const StatCard: React.FC<StatCardProps> = ({
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</p>
           <p
-            className={`mt-2 text-3xl font-bold ${config.textColor} tracking-tight truncate`}
+            className={`mt-2 text-3xl font-bold ${config.textColor} tracking-tight truncate tabular-nums`}
             style={{ fontFamily: 'var(--font-primary)' }}
           >
-            {typeof value === 'number' ? value.toLocaleString() : value}
+            {displayValue}
           </p>
           {subtitle && (
             <p className="mt-1.5 text-xs font-medium text-neutral-500 truncate">{subtitle}</p>

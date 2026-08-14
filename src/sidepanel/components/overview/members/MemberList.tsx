@@ -1,11 +1,13 @@
 import React, { useEffect, useRef } from 'react';
+import { useStaggerReveal } from '../../../hooks/useStaggerReveal';
 import type { OktaUser, MemberMfaResult } from '../../../../shared/types';
 import ScrollableList from '../../shared/ScrollableList';
-import { Button } from '../../shared';
+import { Button, Skeleton } from '../../shared';
 import MemberRow from './MemberRow';
 
 interface MemberListProps {
   members: OktaUser[];
+  loading?: boolean;
   mfaResults: Map<string, MemberMfaResult> | null;
   mfaScanned: boolean;
   visibleCount: number;
@@ -17,12 +19,16 @@ const PAGE = 50;
 
 const MemberList: React.FC<MemberListProps> = ({
   members,
+  loading = false,
   mfaResults,
   mfaScanned,
   visibleCount,
   onLoadMore,
   oktaOrigin,
 }) => {
+  const staggerRef = useRef<HTMLDivElement>(null);
+  useStaggerReveal(staggerRef);
+
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const hasMore = visibleCount < members.length;
   const visible = members.slice(0, visibleCount);
@@ -41,7 +47,7 @@ const MemberList: React.FC<MemberListProps> = ({
     return () => observer.disconnect();
   }, [hasMore, onLoadMore]);
 
-  if (members.length === 0) {
+  if (!loading && members.length === 0) {
     return (
       <div className="text-center py-10 text-sm text-neutral-500">
         No members match the current search and filters.
@@ -51,16 +57,23 @@ const MemberList: React.FC<MemberListProps> = ({
 
   return (
     <div className="flex flex-col">
-      <ScrollableList maxHeight="50vh" fillAvailable={false}>
-        {visible.map((user) => (
-          <MemberRow
-            key={user.id}
-            user={user}
-            mfa={mfaResults?.get(user.id)}
-            mfaScanned={mfaScanned}
-            oktaOrigin={oktaOrigin}
-          />
-        ))}
+      <ScrollableList
+        maxHeight="50vh"
+        fillAvailable={false}
+        loading={loading}
+        skeleton={<Skeleton variant="row" size="md" count={6} label="Reloading members" />}
+      >
+        <div ref={staggerRef} className="space-y-3 rise-in-stagger">
+          {visible.map((user) => (
+            <MemberRow
+              key={user.id}
+              user={user}
+              mfa={mfaResults?.get(user.id)}
+              mfaScanned={mfaScanned}
+              oktaOrigin={oktaOrigin}
+            />
+          ))}
+        </div>
         {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
       </ScrollableList>
 

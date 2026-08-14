@@ -77,7 +77,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
                   <AlertMessage
                     message={{ text: state.error, type: 'danger' }}
                     onDismiss={state.dismissError}
-                    className="animate-in slide-in-from-top-2 duration-300"
+                    className="animate-rise-in"
                   />
                 )}
 
@@ -85,7 +85,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
                   <AlertMessage
                     message={state.resultMessage}
                     onDismiss={state.dismissResultMessage}
-                    className="animate-in slide-in-from-top-2 duration-300"
+                    className="animate-rise-in"
                   />
                 )}
               </>
@@ -100,6 +100,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
               isLoadingMemberships={state.isLoadingMemberships}
               currentGroupId={currentGroupId}
               onNavigateToRule={onNavigateToRule}
+              recentlyAddedGroupId={state.recentlyAddedGroupId}
               isLifecycleLoading={lifecycle.isLifecycleLoading}
               pendingLifecycleAction={lifecycle.pendingLifecycleAction}
               onRequestLifecycleAction={lifecycle.setPendingLifecycleAction}
@@ -144,7 +145,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
         onClearSelectedGroup={addToGroup.clearSelectedGroup}
         isAddingToGroup={addToGroup.isAddingToGroup}
         onClose={addToGroup.closeModal}
-        onConfirm={addToGroup.confirmAddToGroup}
+        onConfirm={state.confirmAddToGroup}
       />
     </div>
   );

@@ -37,7 +37,7 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
   toggleSort,
   clearFilters,
 }) => (
-  <div className="p-4 bg-white rounded-md border border-neutral-200 space-y-4 animate-in slide-in-from-top-2 duration-100">
+  <div className="p-4 bg-white rounded-md border border-neutral-200 space-y-4 animate-rise-in">
     {activeFilterCount > 0 && (
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-neutral-500">Active:</span>

@@ -4,10 +4,13 @@ import Icon from '../overview/shared/Icon';
 import type { GroupCollection, GroupSummary } from '../../../shared/types';
 import { createLogger } from '../../../shared/utils/logger';
 import { formatDateShort } from '../../../shared/utils/dateFormat';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const log = createLogger('GroupCollections');
 
 const COLLECTIONS_STORAGE_KEY = 'okta_unbound_group_collections';
+
+const DELETE_EXIT_MS = 140;
 
 interface GroupCollectionsProps {
   selectedGroupIds: Set<string>;
@@ -32,6 +35,8 @@ const GroupCollections: React.FC<GroupCollectionsProps> = ({
   const [newDescription, setNewDescription] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [exitingId, setExitingId] = useState<string | null>(null);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     chrome.storage.local.get([COLLECTIONS_STORAGE_KEY], (result) => {
@@ -68,12 +73,32 @@ const GroupCollections: React.FC<GroupCollectionsProps> = ({
     setShowCreate(false);
   }, [newName, newDescription, selectedGroupIds, collections, saveCollections]);
 
+  const commitDelete = useCallback((id: string) => {
+    setCollections((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      chrome.storage.local.set({ [COLLECTIONS_STORAGE_KEY]: JSON.stringify(next) });
+      return next;
+    });
+    setExitingId((prev) => (prev === id ? null : prev));
+  }, []);
+
   const handleDelete = useCallback(
     (id: string) => {
-      saveCollections(collections.filter((c) => c.id !== id));
+      if (reducedMotion) {
+        commitDelete(id);
+        return;
+      }
+      setExitingId(id);
     },
-    [collections, saveCollections],
+    [reducedMotion, commitDelete],
   );
+
+  useEffect(() => {
+    if (!exitingId) return;
+    const id = exitingId;
+    const timer = window.setTimeout(() => commitDelete(id), DELETE_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [exitingId, commitDelete]);
 
   const handleRename = useCallback(
     (id: string) => {
@@ -184,7 +209,15 @@ const GroupCollections: React.FC<GroupCollectionsProps> = ({
         )}
 
         {collections.map((col) => (
-          <div key={col.id} className="p-3 border-b border-neutral-100 last:border-b-0">
+          <div
+            key={col.id}
+            className={`p-3 border-b border-neutral-100 last:border-b-0 ${
+              col.id === exitingId ? 'pointer-events-none animate-collapse-out' : ''
+            }`}
+            onAnimationEnd={() => {
+              if (col.id === exitingId) commitDelete(col.id);
+            }}
+          >
             {editingId === col.id ? (
               <div className="flex gap-2">
                 <Input

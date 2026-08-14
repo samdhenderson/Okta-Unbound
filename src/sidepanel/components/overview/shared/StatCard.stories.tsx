@@ -16,7 +16,13 @@ const meta = {
           'Presentational only. Numeric values are localized with thousands separators; ' +
           'string values render verbatim. The `color` prop selects a semantic icon/border ' +
           'token set (`primary`, `success`, `warning`, `danger`, `neutral`). Passing ' +
-          '`onClick` turns the whole card into a clickable button.',
+          '`onClick` turns the whole card into a clickable button.\n\n' +
+          'A card can opt into `countUp`, which interpolates a numeric value up to its ' +
+          'figure over `--dur-tell` when it first resolves and whenever it changes — the ' +
+          'motion that says "this number just arrived" rather than "this was always here". ' +
+          'It never fires on an incidental re-render, and is instant under ' +
+          '`prefers-reduced-motion`. The value is always rendered with `tabular-nums`, so ' +
+          'the card cannot twitch as the digits change.',
       },
     },
   },
@@ -30,6 +36,10 @@ const meta = {
     icon: { description: 'Optional icon shown at the top-right.' },
     subtitle: { description: 'Optional caption below the value.' },
     onClick: { description: 'When provided, makes the card a clickable button.' },
+    countUp: {
+      description:
+        'Count a numeric value up to its figure over `--dur-tell` when it resolves or changes. Ignored for string values; instant under reduced motion.',
+    },
   },
   args: {
     title: 'Active Users',
@@ -108,5 +118,26 @@ export const LargeNumber: Story = {
     title: 'Total Records',
     value: 1234567,
     color: 'primary',
+  },
+};
+
+export const CountUp: Story = {
+  parameters: { motion: 'on' },
+  args: {
+    title: 'Total Members',
+    value: 4820,
+    color: 'primary',
+    icon: 'users',
+    countUp: true,
+  },
+};
+
+export const CountUpReducedMotion: Story = {
+  args: {
+    title: 'Total Members',
+    value: 4820,
+    color: 'primary',
+    icon: 'users',
+    countUp: true,
   },
 };

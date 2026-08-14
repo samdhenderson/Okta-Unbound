@@ -150,6 +150,10 @@ const meta = {
     actions: {
       description: 'Caller-supplied header controls, rendered on the right of the title row.',
     },
+    recentlyAddedGroupId: {
+      description:
+        'Id of a group just successfully added this session; its row plays a one-shot `animate-affirm-flash` success flash.',
+    },
   },
 } satisfies Meta<typeof GroupMembershipsList>;
 
@@ -198,4 +202,9 @@ export const AmbiguousAttribution: Story = {
 
 export const WithoutUser: Story = {
   args: { memberships: [formattedRuleMembership], user: undefined },
+};
+
+export const RecentlyAddedGroupFlash: Story = {
+  args: { recentlyAddedGroupId: ruleMembership.group.id },
+  parameters: { motion: 'on' },
 };

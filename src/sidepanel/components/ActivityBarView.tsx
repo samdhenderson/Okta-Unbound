@@ -42,7 +42,9 @@ const MetricSlot: React.FC<{
 const CollapseChevron: React.FC<{ collapsed: boolean }> = ({ collapsed }) => (
   <svg
     aria-hidden="true"
-    className={`h-4 w-4 transition-transform duration-100 ${collapsed ? '' : 'rotate-90'}`}
+    className={`h-4 w-4 transition-transform duration-(--dur-quick) ease-standard ${
+      collapsed ? '' : 'rotate-90'
+    }`}
     fill="none"
     stroke="currentColor"
     viewBox="0 0 24 24"
@@ -64,7 +66,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
   const statusDot = (
     <div
       aria-hidden="true"
-      className={`h-2 w-2 shrink-0 rounded-full shadow-sm ${view.busy ? 'animate-pulse' : ''}`}
+      className={`motion-exempt h-2 w-2 shrink-0 rounded-full shadow-sm ${view.busy ? 'animate-pulse' : ''}`}
       style={{ backgroundColor: view.statusColorVar }}
     />
   );
@@ -103,7 +105,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
       className="h-1 w-full bg-neutral-100"
     >
       <div
-        className="h-full bg-primary transition-all duration-150"
+        className="motion-exempt h-full bg-primary transition-[width] duration-(--dur-tell) ease-standard"
         style={{ width: `${view.percentage}%` }}
       />
     </div>
