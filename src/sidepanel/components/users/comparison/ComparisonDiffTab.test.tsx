@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import ComparisonDiffTab, { type CellDirection } from './ComparisonDiffTab';
+import ComparisonDiffTab from './ComparisonDiffTab';
 import type { ParityRow } from './comparisonAnalytics';
 
 const baseProps = {
@@ -86,17 +86,17 @@ describe('the row states the comparison', () => {
     expect(screen.getByTitle('Alice Context does not have this')).toBeInTheDocument();
   });
 
-  it('NAMES the side that holds the item, so the row reads without a header', () => {
+  it('NAMES BOTH sides, so neither has to be inferred from position', () => {
     render(<ComparisonDiffTab {...baseProps} rows={[row()]} />);
 
     const li = rowFor('VPN Access');
     expect(within(li).getByText('Bob Compared')).toBeInTheDocument();
-    expect(within(li).queryByText('Alice Context')).not.toBeInTheDocument();
+    expect(within(li).getByText('Alice Context')).toBeInTheDocument();
   });
 
-  it('tells the caller which way the marker lies, so an arrow can point inward', () => {
-    const toContext = vi.fn((_row: ParityRow, _direction: CellDirection) => null);
-    const toCompared = vi.fn((_row: ParityRow, _direction: CellDirection) => null);
+  it('hands each cell the name of the user who would RECEIVE the item', () => {
+    const toContext = vi.fn((_row: ParityRow, _recipientName: string) => null);
+    const toCompared = vi.fn((_row: ParityRow, _recipientName: string) => null);
 
     render(
       <ComparisonDiffTab
@@ -110,27 +110,8 @@ describe('the row states the comparison', () => {
       />,
     );
 
-    expect(toContext.mock.calls[0][1]).toBe('right');
-    expect(toCompared.mock.calls[0][1]).toBe('left');
-  });
-
-  it('gives each side an equal share of the row, so no action overflows its cell', () => {
-    render(
-      <ComparisonDiffTab
-        {...baseProps}
-        rows={[row()]}
-        renderContextAction={() => <button type="button">Add</button>}
-      />,
-    );
-
-    const li = rowFor('VPN Access');
-    const held = within(li).getByTitle('Bob Compared has this');
-    const action = within(li).getByRole('button', { name: 'Add' }).parentElement;
-
-    for (const cell of [held, action]) {
-      expect(cell?.className).toContain('flex-1');
-      expect(cell?.className).not.toContain('w-20');
-    }
+    expect(toContext.mock.calls[0][1]).toBe('Alice Context');
+    expect(toCompared.mock.calls[0][1]).toBe('Bob Compared');
   });
 });
 
@@ -202,8 +183,8 @@ describe('carried forward from the bucket suite', () => {
     const action = within(li).getByRole('button', { name: 'Add' });
     const detail = within(li).getByText(/Likely added by rule/);
 
-    const column = detail.parentElement;
-    expect(column).toContainElement(within(li).getByTitle('VPN Access'));
+    const column = within(li).getByTitle('VPN Access').parentElement;
+    expect(column).toContainElement(detail);
     expect(column).not.toContainElement(action);
   });
 
@@ -216,7 +197,9 @@ describe('carried forward from the bucket suite', () => {
       />,
     );
 
-    const column = within(rowFor('VPN Access')).getByText('Managed by app').parentElement;
+    const li = rowFor('VPN Access');
+    const column = within(li).getByTitle('VPN Access').parentElement;
+    expect(column).toContainElement(within(li).getByText('Managed by app'));
     expect(column?.className).toContain('items-start');
     expect(column?.className).toContain('flex-col');
   });

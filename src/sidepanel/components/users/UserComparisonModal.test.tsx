@@ -229,7 +229,8 @@ function rowFor(label: string): HTMLElement {
   return li;
 }
 
-const addButtonFor = (label: string) => within(rowFor(label)).getByRole('button', { name: 'Add' });
+const addButtonFor = (label: string) =>
+  within(rowFor(label)).getByRole('button', { name: /^Add / });
 
 function bucketTitleOf(label: string): string {
   const li = rowFor(label);
@@ -417,7 +418,7 @@ describe('UserComparisonModal', () => {
       await openComparison();
       await gotoTab('Apps');
 
-      expect(screen.queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Add / })).not.toBeInTheDocument();
     });
   });
 
@@ -444,7 +445,7 @@ describe('UserComparisonModal', () => {
 
       expect(bucketTitleOf('Compared Only Group 1')).toBe('Shared');
       expect(
-        within(rowFor('Compared Only Group 1')).queryByRole('button', { name: 'Add' }),
+        within(rowFor('Compared Only Group 1')).queryByRole('button', { name: /^Add / }),
       ).toBeNull();
 
       expect(tab('Groups')).toHaveTextContent('2');
@@ -476,7 +477,7 @@ describe('UserComparisonModal', () => {
 
       await waitFor(() => expect(bucketTitleOf('Context Only Group')).toBe('Shared'));
       expect(
-        within(rowFor('Context Only Group')).queryByRole('button', { name: 'Add' }),
+        within(rowFor('Context Only Group')).queryByRole('button', { name: /^Add / }),
       ).toBeNull();
 
       expect(onGroupsChanged).not.toHaveBeenCalled();

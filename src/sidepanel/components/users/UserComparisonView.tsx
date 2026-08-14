@@ -7,28 +7,12 @@ import ComparisonSearchPhase from './comparison/ComparisonSearchPhase';
 import ComparisonHero from './comparison/ComparisonHero';
 import ComparisonTabBar from './comparison/ComparisonTabBar';
 import ComparisonOverviewTab from './comparison/ComparisonOverviewTab';
-import ComparisonDiffTab, { type CellDirection } from './comparison/ComparisonDiffTab';
+import ComparisonDiffTab from './comparison/ComparisonDiffTab';
 import AppScopeIndicator from './comparison/AppScopeIndicator';
 import GroupSourceIndicator from './comparison/GroupSourceIndicator';
 import { groupParityRows, appParityRows } from './comparison/comparisonAnalytics';
 import type { UserComparisonState } from '../../hooks/useUserComparison';
 import type { OktaUser } from '../../../shared/types';
-
-const AddLabel: React.FC<{ direction: CellDirection }> = ({ direction }) => (
-  <span className="inline-flex items-center gap-1">
-    {direction === 'left' && (
-      <span aria-hidden="true" className="text-base leading-none">
-        ←
-      </span>
-    )}
-    Add
-    {direction === 'right' && (
-      <span aria-hidden="true" className="text-base leading-none">
-        →
-      </span>
-    )}
-  </span>
-);
 
 export interface UserComparisonViewProps {
   contextUser: OktaUser;
@@ -199,33 +183,37 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
                   rows={groupParityRows(groupBuckets)}
                   noun="group"
                   emptyText="Neither user is in any groups."
-                  renderContextAction={(row, direction) => {
+                  renderContextAction={(row, recipientName) => {
                     const m = groupBuckets.onlyCompared.find((b) => b.group.id === row.id);
                     if (!m || m.group.type === 'APP_GROUP') return null;
                     return (
                       <Button
                         size="sm"
                         variant="primary"
+                        icon="plus"
+                        fullWidth
                         loading={addingGroupId === m.group.id}
                         disabled={addingGroupId !== null}
                         onClick={() => addToContext(m.group)}
                       >
-                        <AddLabel direction={direction} />
+                        Add {recipientName}
                       </Button>
                     );
                   }}
-                  renderComparedAction={(row, direction) => {
+                  renderComparedAction={(row, recipientName) => {
                     const m = groupBuckets.onlyContext.find((b) => b.group.id === row.id);
                     if (!m || m.group.type === 'APP_GROUP') return null;
                     return (
                       <Button
                         size="sm"
                         variant="primary"
+                        icon="plus"
+                        fullWidth
                         loading={addingGroupId === m.group.id}
                         disabled={addingGroupId !== null}
                         onClick={() => addToCompared(m.group)}
                       >
-                        <AddLabel direction={direction} />
+                        Add {recipientName}
                       </Button>
                     );
                   }}
