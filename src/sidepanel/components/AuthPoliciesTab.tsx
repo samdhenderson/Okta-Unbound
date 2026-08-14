@@ -22,7 +22,14 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
 
   const handleError = useCallback((message: string) => setError(message || null), []);
 
-  const api = useOktaApi({ targetTabId: targetTabId ?? null, onResult: handleError });
+  const handleResult = useCallback(
+    (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
+      if (type === 'error') setError(message || null);
+    },
+    [],
+  );
+
+  const api = useOktaApi({ targetTabId: targetTabId ?? null, onResult: handleResult });
   const { policies, isLoading, lastFetchTime, loadPolicies } = usePoliciesData({
     targetTabId,
     onError: handleError,

@@ -4,7 +4,7 @@ import { useEntityQuery } from '../../cache/useEntityQuery';
 import { peek, setEntry, invalidate } from '../../cache/entityCache';
 import { cacheKeys } from '../../cache/keys';
 import { useProgress } from '../../contexts/ProgressContext';
-import AlertMessage from '../shared/AlertMessage';
+import AlertMessage, { type AlertMessageData } from '../shared/AlertMessage';
 import { Button, Modal } from '../shared';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import StatCard from './shared/StatCard';
@@ -36,9 +36,13 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   const [mfaResults, setMfaResults] = useState<Map<string, MemberMfaResult> | null>(null);
   const [scanStatus, setScanStatus] = useState<MfaScanStatus>('idle');
 
+  const [operationResult, setOperationResult] = useState<AlertMessageData | null>(null);
   const handleResult = useCallback(
     (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
       log.debug(`${type}:`, message);
+      if (type === 'error' || type === 'warning') {
+        setOperationResult({ text: message, type: type === 'error' ? 'danger' : 'warning' });
+      }
     },
     [],
   );
@@ -136,6 +140,10 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
 
   return (
     <div className="space-y-6">
+      {operationResult && (
+        <AlertMessage message={operationResult} onDismiss={() => setOperationResult(null)} />
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <StatCard title="Total Members" value={members.length} color="primary" icon="users" />
         <StatCard title="Active" value={statusCounts['ACTIVE'] || 0} color="success" icon="check" />
