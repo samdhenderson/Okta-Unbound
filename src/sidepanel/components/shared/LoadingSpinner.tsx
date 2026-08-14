@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type SpinnerSize = 'sm' | 'md' | 'lg';
+export type SpinnerSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
 interface LoadingSpinnerProps {
   size?: SpinnerSize;
@@ -11,12 +11,14 @@ interface LoadingSpinnerProps {
 
 const sizeClasses: Record<SpinnerSize, string> = {
   sm: 'h-4 w-4 border-2',
-  md: 'h-8 w-8 border-3',
-  lg: 'h-12 w-12 border-4',
+  md: 'h-5 w-5 border-2',
+  lg: 'h-6 w-6 border-3',
+  xl: 'h-8 w-8 border-3',
+  '2xl': 'h-12 w-12 border-4',
 };
 
 const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
-  size = 'md',
+  size = 'xl',
   message,
   centered = false,
   className = '',

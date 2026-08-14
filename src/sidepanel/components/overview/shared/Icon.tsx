@@ -29,15 +29,17 @@ export type IconType =
   | 'clipboard'
   | 'clipboard-check'
   | 'chevron-left'
-  | 'chevron-right';
+  | 'chevron-right'
+  | 'close';
 
 interface IconProps {
   type: IconType;
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
 const sizeClasses = {
+  xs: 'w-3 h-3',
   sm: 'w-4 h-4',
   md: 'w-5 h-5',
   lg: 'w-6 h-6',
@@ -317,6 +319,16 @@ const Icon: React.FC<IconProps> = ({ type, className = '', size = 'md' }) => {
     'chevron-right': (
       <svg className={baseClasses} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+      </svg>
+    ),
+    close: (
+      <svg className={baseClasses} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M6 18L18 6M6 6l12 12"
+        />
       </svg>
     ),
   };

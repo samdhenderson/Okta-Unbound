@@ -78,7 +78,7 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Consolidate rule" size="lg" footer={footer}>
-      {phase === 'loading' && <LoadingSpinner size="md" centered message="Loading rule…" />}
+      {phase === 'loading' && <LoadingSpinner size="xl" centered message="Loading rule…" />}
 
       {phase === 'select' && (
         <div className="space-y-3">
@@ -179,7 +179,7 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
       )}
 
       {phase === 'running' && (
-        <LoadingSpinner size="md" centered message="Creating the new rule and retiring the old…" />
+        <LoadingSpinner size="xl" centered message="Creating the new rule and retiring the old…" />
       )}
 
       {phase === 'error' && (

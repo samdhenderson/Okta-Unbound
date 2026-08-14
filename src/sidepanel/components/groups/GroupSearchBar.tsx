@@ -1,4 +1,6 @@
 import React from 'react';
+import { Input, LoadingSpinner } from '../shared';
+import Icon from '../overview/shared/Icon';
 
 interface GroupSearchBarProps {
   searchMode: 'live' | 'cached';
@@ -18,41 +20,28 @@ const GroupSearchBar: React.FC<GroupSearchBarProps> = ({
   isLiveSearching,
 }) => (
   <div className="relative flex-1">
-    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-      <svg
-        className="h-5 w-5 text-neutral-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-        />
-      </svg>
-    </div>
     {searchMode === 'live' ? (
-      <input
+      <Input
         type="text"
         placeholder="Search groups by name..."
         value={liveSearchQuery}
-        onChange={(e) => onLiveSearchQueryChange(e.target.value)}
-        className="w-full pl-11 pr-4 py-3 bg-white border border-neutral-200 rounded-md text-sm placeholder-neutral-400 focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary transition-all duration-100"
+        onChange={onLiveSearchQueryChange}
+        size="lg"
+        icon={<Icon type="search" size="md" />}
       />
     ) : (
-      <input
+      <Input
         type="text"
         placeholder="Search by name, description, ID — or /regex/"
         value={searchQuery}
-        onChange={(e) => onSearchQueryChange(e.target.value)}
-        className="w-full pl-11 pr-4 py-3 bg-white border border-neutral-200 rounded-md text-sm placeholder-neutral-400 focus:outline-none focus:outline-2 focus:outline-offset-2 focus:outline-primary focus:border-primary transition-all duration-100"
+        onChange={onSearchQueryChange}
+        size="lg"
+        icon={<Icon type="search" size="md" />}
       />
     )}
     {isLiveSearching && (
       <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-        <div className="w-5 h-5 border-2 border-neutral-200 border-t-primary rounded-full animate-spin"></div>
+        <LoadingSpinner size="md" />
       </div>
     )}
   </div>

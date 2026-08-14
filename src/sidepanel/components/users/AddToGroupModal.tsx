@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Modal, LoadingSpinner } from '../shared';
+import { Button, Modal, Input, LoadingSpinner } from '../shared';
 import type { GroupSearchResult } from '../../hooks/useAddToGroup';
 
 interface AddToGroupModalProps {
@@ -58,21 +58,14 @@ const AddToGroupModal: React.FC<AddToGroupModalProps> = ({
     >
       <div className="space-y-4">
         <div className="relative">
-          <label className="block text-sm font-medium text-neutral-700 mb-1">
-            Search for a group
-          </label>
-          <input
+          <Input
+            label="Search for a group"
             type="text"
             value={groupSearchQuery}
-            onChange={(e) => onGroupSearchQueryChange(e.target.value)}
+            onChange={onGroupSearchQueryChange}
             placeholder="Type to search by group name..."
-            className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            trailing={isSearchingGroups ? <LoadingSpinner size="sm" /> : undefined}
           />
-          {isSearchingGroups && (
-            <div className="absolute right-3 top-8">
-              <LoadingSpinner size="sm" />
-            </div>
-          )}
 
           {showGroupDropdown && groupSearchResults.length > 0 && !selectedGroup && (
             <div className="absolute z-10 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-48 overflow-y-auto">

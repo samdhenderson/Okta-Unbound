@@ -1,5 +1,7 @@
 import React from 'react';
 
+export type InputSize = 'sm' | 'md' | 'lg';
+
 interface InputProps {
   value: string;
   onChange: (value: string) => void;
@@ -11,12 +13,45 @@ interface InputProps {
   ariaLabel?: string;
   hint?: string;
   fullWidth?: boolean;
+  size?: InputSize;
   icon?: React.ReactNode;
+  trailing?: React.ReactNode;
+  trailingInteractive?: boolean;
   className?: string;
   autoFocus?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   inputRef?: React.Ref<HTMLInputElement>;
 }
+
+const sizeClasses: Record<InputSize, string> = {
+  sm: 'px-3 py-1.5 text-xs', // 30px
+  md: 'px-3 py-2 text-sm', // 38px
+  lg: 'px-4 py-3 text-sm', // 46px
+};
+
+const leadingInsetClasses: Record<InputSize, string> = {
+  sm: 'left-3',
+  md: 'left-3',
+  lg: 'left-4',
+};
+
+const trailingInsetClasses: Record<InputSize, string> = {
+  sm: 'right-3',
+  md: 'right-3',
+  lg: 'right-4',
+};
+
+const leadingPaddingClasses: Record<InputSize, string> = {
+  sm: 'pl-9',
+  md: 'pl-10',
+  lg: 'pl-11',
+};
+
+const trailingPaddingClasses: Record<InputSize, string> = {
+  sm: 'pr-10',
+  md: 'pr-11',
+  lg: 'pr-12',
+};
 
 const Input: React.FC<InputProps> = ({
   value,
@@ -29,21 +64,33 @@ const Input: React.FC<InputProps> = ({
   ariaLabel,
   hint,
   fullWidth = true,
+  size = 'md',
   icon,
+  trailing,
+  trailingInteractive = false,
   className = '',
   autoFocus = false,
   onKeyDown,
   inputRef,
 }) => {
   const inputClasses = `
-    px-3 py-2 text-sm
+    ${sizeClasses[size]}
     border rounded-md bg-white
     transition-all duration-100
     focus:outline-2 focus:outline-offset-2 focus:outline-primary
     disabled:bg-neutral-50 disabled:text-neutral-500 disabled:cursor-not-allowed
     ${error ? 'border-danger focus:border-danger' : 'border-neutral-300 focus:border-primary'}
-    ${icon ? 'pl-10' : ''}
+    ${icon ? leadingPaddingClasses[size] : ''}
+    ${trailing ? trailingPaddingClasses[size] : ''}
     ${fullWidth ? 'w-full' : ''}
+  `
+    .trim()
+    .replace(/\s+/g, ' ');
+
+  const trailingClasses = `
+    absolute ${trailingInsetClasses[size]} top-1/2 -translate-y-1/2
+    flex items-center text-neutral-400
+    ${trailingInteractive ? '' : 'pointer-events-none'}
   `
     .trim()
     .replace(/\s+/g, ' ');
@@ -53,7 +100,12 @@ const Input: React.FC<InputProps> = ({
       {label && <label className="block text-sm font-medium text-neutral-700 mb-2">{label}</label>}
       <div className="relative">
         {icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400">{icon}</div>
+          <div
+            aria-hidden="true"
+            className={`pointer-events-none absolute ${leadingInsetClasses[size]} top-1/2 -translate-y-1/2 text-neutral-400`}
+          >
+            {icon}
+          </div>
         )}
         <input
           ref={inputRef}
@@ -68,6 +120,7 @@ const Input: React.FC<InputProps> = ({
           className={inputClasses}
           style={{ fontFamily: 'var(--font-primary)' }}
         />
+        {trailing && <div className={trailingClasses}>{trailing}</div>}
       </div>
       {hint && !error && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
       {error && (
