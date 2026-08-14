@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { OperationCancelledError } from '../../shared/scheduler/cancellation';
 import {
   getOrFetch,
   peek,
@@ -46,10 +47,10 @@ export function useEntityQuery<T>(
   }, [serialized]);
 
   useEffect(() => {
-    if (!enabled) return;
     let cancelled = false;
 
     const entry = peekEntry<T>(keyRef.current);
+
     if (entry?.isFresh) {
       setData(entry.data);
       setIsStale(false);
@@ -60,8 +61,14 @@ export function useEntityQuery<T>(
 
     setData(entry ? entry.data : null);
     setIsStale(Boolean(entry));
-    setIsLoading(!entry);
     setError(null);
+
+    if (!enabled) {
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(!entry);
 
     getOrFetch<T>(keyRef.current, () => fetcherRef.current(), { ttl })
       .then((fetched) => {
@@ -71,6 +78,7 @@ export function useEntityQuery<T>(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
+        if (err instanceof OperationCancelledError) return;
         setError(err instanceof Error ? err.message : 'Failed to load');
       })
       .finally(() => {
@@ -93,7 +101,9 @@ export function useEntityQuery<T>(
       setData(fetched);
       setIsStale(false);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load');
+      if (!(err instanceof OperationCancelledError)) {
+        setError(err instanceof Error ? err.message : 'Failed to load');
+      }
     } finally {
       setIsLoading(false);
     }
