@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, IconButton, LoadingSpinner } from '../shared';
+import { Button, IconButton, Skeleton } from '../shared';
 import ClauseChecklist from '../groups/detail/ClauseChecklist';
 import type {
   GroupMembership,
@@ -121,7 +121,9 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
       </div>
 
       {isLoading ? (
-        <LoadingSpinner size="2xl" message="Loading group memberships..." centered />
+        <div className="p-4">
+          <Skeleton variant="row" size="lg" count={4} label="Loading group memberships..." />
+        </div>
       ) : memberships.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-neutral-500 text-sm">This user is not a member of any groups</p>

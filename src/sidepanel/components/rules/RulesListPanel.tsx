@@ -3,6 +3,7 @@ import { useStaggerReveal } from '../../hooks/useStaggerReveal';
 import RuleCard from '../RuleCard';
 import EmptyState from '../shared/EmptyState';
 import ScrollableList from '../shared/ScrollableList';
+import Skeleton from '../shared/Skeleton';
 import type { FormattedRule } from '../../../shared/types';
 
 interface RulesListPanelProps {
@@ -32,11 +33,14 @@ const RulesListPanel: React.FC<RulesListPanelProps> = ({
 }) => {
   const setStaggerRef = useStaggerReveal();
 
+  const loadingMessage = selectedRuleId ? 'Loading requested rule…' : 'Loading rules...';
+
   return (
     <div className="min-h-[400px]">
       <ScrollableList
         loading={isLoading}
-        loadingMessage={selectedRuleId ? 'Loading requested rule…' : 'Loading rules...'}
+        loadingMessage={loadingMessage}
+        skeleton={<Skeleton variant="row" size="lg" count={6} label={loadingMessage} />}
         fillAvailable={false}
         testId="rules-list"
         emptyState={

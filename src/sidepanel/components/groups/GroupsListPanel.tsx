@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useStaggerReveal } from '../../hooks/useStaggerReveal';
 import EmptyState from '../shared/EmptyState';
 import ScrollableList from '../shared/ScrollableList';
+import Skeleton from '../shared/Skeleton';
 import Button from '../shared/Button';
 import GroupListItem from './GroupListItem';
 import type { GroupSummary } from '../../../shared/types';
@@ -89,6 +90,9 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
       <ScrollableList
         loading={loading}
         loadingMessage="Loading groups from Okta..."
+        skeleton={
+          <Skeleton variant="row" size="sm" count={6} label="Loading groups from Okta..." />
+        }
         className="mt-4"
         scrollRef={scrollRef}
         emptyState={
