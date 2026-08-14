@@ -53,7 +53,6 @@ const ComparisonSearchPhase: React.FC<ComparisonSearchPhaseProps> = ({
         </div>
         <input
           type="text"
-          autoFocus
           className="w-full rounded-md border border-neutral-200 bg-white pl-10 pr-4 py-3 text-sm placeholder-neutral-400 transition-all duration-100 focus:border-primary focus:outline-2 focus:outline-offset-2 focus:outline-primary"
           placeholder="Search by email, name, or login…"
           value={searchQuery}

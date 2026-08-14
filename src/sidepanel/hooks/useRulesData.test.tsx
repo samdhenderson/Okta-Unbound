@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import { useRulesData } from './useRulesData';
 import { ProgressProvider } from '../contexts/ProgressContext';
 import { RulesCache } from '../../shared/rulesCache';
+import type { RulesCacheEntry } from '../../shared/rulesCache';
+import { formatRuleForDisplay } from '../../shared/ruleUtils';
 import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
 import type { FormattedRule, OktaGroupRule, RuleStats } from '../../shared/types';
 
@@ -93,5 +95,118 @@ describe('useRulesData cache population', () => {
     });
 
     expect(rulesCacheSet).toHaveBeenCalledWith([formattedRule], [], stats, []);
+  });
+});
+
+describe('useRulesData cache hit', () => {
+  const otherRawRule: OktaGroupRule = {
+    id: '0prFAKE2',
+    name: 'Rule Two',
+    status: 'INACTIVE',
+    type: 'group_rule',
+    created: '2021-01-01T00:00:00.000Z',
+    lastUpdated: '2024-06-01T00:00:00.000Z',
+    actions: { assignUserToGroups: { groupIds: ['00gFAKE2'] } },
+  };
+
+  const cachedRules: FormattedRule[] = [rawRule, otherRawRule].map((r) =>
+    formatRuleForDisplay(r, undefined, []),
+  );
+  const cachedStats: RuleStats = { total: 2, active: 1, inactive: 1, conflicts: 0 };
+  const CACHED_AT = Date.parse('2026-05-01T12:00:00.000Z');
+
+  const cacheEntry: RulesCacheEntry = {
+    rules: cachedRules,
+    rawRules: [rawRule, otherRawRule],
+    stats: cachedStats,
+    conflicts: [],
+    timestamp: CACHED_AT,
+    ttl: 5 * 60 * 1000,
+  };
+
+  beforeEach(() => {
+    rulesCacheGet.mockResolvedValue(cacheEntry);
+  });
+
+  it('serves rules and stats from the cache without touching the network', async () => {
+    const { result } = renderHook(
+      () => useRulesData({ targetTabId: 1, onError: vi.fn(), currentGroupId: '00gFAKE1' }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.loadRules();
+    });
+
+    expect(rulesCacheGet).toHaveBeenCalledTimes(1);
+    expect(fetchRules).not.toHaveBeenCalled();
+    expect(rulesCacheSet).not.toHaveBeenCalled();
+    expect(result.current.rules).toEqual(cachedRules);
+    expect(result.current.stats).toEqual(cachedStats);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('reports a zero API cost and the cache entry timestamp as the last fetch time', async () => {
+    const { result } = renderHook(() => useRulesData({ targetTabId: 1, onError: vi.fn() }), {
+      wrapper,
+    });
+
+    await act(async () => {
+      await result.current.loadRules();
+    });
+
+    expect(result.current.apiCost).toBe(0);
+    expect(result.current.lastFetchTime).toBe(new Date(CACHED_AT).toISOString());
+  });
+
+  it('clears any previous error banner on a cache hit', async () => {
+    const onError = vi.fn();
+    const { result } = renderHook(() => useRulesData({ targetTabId: 1, onError }), { wrapper });
+
+    await act(async () => {
+      await result.current.loadRules();
+    });
+
+    expect(onError).toHaveBeenCalledWith('');
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves rules with a falsy affectsCurrentGroup even when currentGroupId targets them', async () => {
+    const { result } = renderHook(
+      () => useRulesData({ targetTabId: 1, onError: vi.fn(), currentGroupId: '00gFAKE1' }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.loadRules();
+    });
+
+    const ruleOne = result.current.rules.find((r) => r.id === '0prFAKE1');
+    expect(ruleOne?.groupIds).toContain('00gFAKE1');
+    expect(ruleOne?.affectsCurrentGroup).toBeFalsy();
+    expect(result.current.rules.every((r) => !r.affectsCurrentGroup)).toBe(true);
+  });
+
+  it('bypasses the cache entirely when loadRules is forced', async () => {
+    fetchRules.mockResolvedValue({
+      success: true,
+      rules: [formattedRule],
+      rawRules: [rawRule],
+      stats,
+      conflicts: [],
+    });
+    const { result } = renderHook(
+      () => useRulesData({ targetTabId: 1, onError: vi.fn(), currentGroupId: '00gFAKE1' }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.loadRules(true);
+    });
+
+    expect(rulesCacheGet).not.toHaveBeenCalled();
+    expect(fetchRules).toHaveBeenCalledTimes(1);
+    expect(result.current.rules).toEqual([formattedRule]);
+    expect(result.current.apiCost).toBe(1);
   });
 });

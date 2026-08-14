@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import UserComparisonModal from './UserComparisonModal';
 import type { OktaUser, OktaGroup, GroupMembership } from '../../../shared/types';
@@ -63,6 +63,8 @@ const gComparedOnly2 = group('g4', 'Compared Only Group 2');
 const membership = (g: OktaGroup): GroupMembership => ({
   group: g,
   membershipType: 'DIRECT',
+  rules: [],
+  attribution: 'exact',
 });
 
 const CONTEXT_GROUPS: GroupMembership[] = [membership(gShared), membership(gContextOnly)];
@@ -214,7 +216,13 @@ const tab = (name: 'Overview' | 'Groups' | 'Apps') =>
 
 const gotoTab = async (name: 'Overview' | 'Groups' | 'Apps') => userEvent.click(tab(name));
 
+function showAllRows(): void {
+  const all = screen.queryByRole('button', { name: /^All / });
+  if (all && all.getAttribute('aria-pressed') !== 'true') fireEvent.click(all);
+}
+
 function rowFor(label: string): HTMLElement {
+  showAllRows();
   const span = screen.getByTitle(label);
   const li = span.closest('li');
   if (!li) throw new Error(`No row found for "${label}"`);
@@ -224,23 +232,20 @@ function rowFor(label: string): HTMLElement {
 const addButtonFor = (label: string) => within(rowFor(label)).getByRole('button', { name: 'Add' });
 
 function bucketTitleOf(label: string): string {
-  const card = rowFor(label).closest('div.overflow-hidden');
-  if (!card) throw new Error(`No bucket card for "${label}"`);
-  return (
-    card.querySelector('[title]')?.getAttribute('title') ??
-    (() => {
-      throw new Error('no bucket title');
-    })()
-  );
+  const li = rowFor(label);
+  const inContext = li.querySelector('[title="Alice Context has this"]') !== null;
+  const inCompared = li.querySelector('[title="Bob Compared has this"]') !== null;
+  if (!inContext && !inCompared) throw new Error(`No side holds "${label}"`);
+  if (inContext && inCompared) return 'Shared';
+  return inCompared ? 'Only Bob Compared' : 'Only Alice Context';
 }
 
 function bucketItems(title: string): string[] {
-  const heading = screen.getByTitle(title);
-  const card = heading.closest('div.overflow-hidden');
-  if (!card) throw new Error(`No bucket card titled "${title}"`);
-  return Array.from(card.querySelectorAll('li')).map((li) =>
-    (li.querySelector('span[title]')?.textContent ?? '').trim(),
-  );
+  showAllRows();
+  return Array.from(document.querySelectorAll('li'))
+    .filter((li) => li.querySelector('span[title]'))
+    .map((li) => (li.querySelector('span[title]')?.textContent ?? '').trim())
+    .filter((label) => label !== '' && bucketTitleOf(label) === title);
 }
 
 const getUserAppsCalls = () =>
@@ -361,7 +366,7 @@ describe('UserComparisonModal', () => {
       expect(mockRuntimeSendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'scheduleApiRequest',
-          endpoint: '/api/v1/apps?filter=user.id+eq+"cmp-1"&limit=200',
+          endpoint: '/api/v1/apps?filter=user.id+eq+"cmp-1"&limit=200&expand=user/cmp-1',
           method: 'GET',
           tabId: TAB_ID,
           priority: 'normal',
@@ -402,7 +407,7 @@ describe('UserComparisonModal', () => {
       await userEvent.click(addButtonFor('Compared Only Group 1'));
       await waitFor(() => expect(bucketItems('Shared')).toContain('Compared Only Group 1'));
 
-      expect(bucketItems('Shared')).toEqual(['Shared Group A', 'Compared Only Group 1']);
+      expect(bucketItems('Shared')).toEqual(['Compared Only Group 1', 'Shared Group A']);
       expect(bucketItems('Only Bob Compared')).toEqual(['Compared Only Group 2']);
       expect(bucketItems('Only Alice Context')).toEqual(['Context Only Group']);
     });

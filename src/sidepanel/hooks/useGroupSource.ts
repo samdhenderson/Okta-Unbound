@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
-import type { GroupSummary, MembershipRule } from '../../shared/types';
+import type { GroupSummary } from '../../shared/types';
 import { useOktaApi } from './useOktaApi';
 import {
   summarizeMemberSources,
   type MemberSourceBreakdown,
 } from '../../shared/membership/groupSource';
 import { writeMemberSource } from '../cache/memberSourceCache';
+import { getOrFetch } from '../cache/entityCache';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('useGroupSource');
@@ -56,9 +57,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
       getGroupRulesForGroup(nextGroup.id)
         .then((rules) => {
           if (runId !== runIdRef.current) return;
-          setFeedingRules(
-            (rules as MembershipRule[]).map((r) => ({ id: r.id, name: r.name, status: r.status })),
-          );
+          setFeedingRules(rules.map((r) => ({ id: r.id, name: r.name, status: r.status })));
           setRulesStatus('done');
         })
         .catch((err) => {
@@ -77,13 +76,16 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     setMemberStatus('loading');
     setError(null);
 
-    Promise.all([getAllGroupMembers(group.id), getGroupRulesForGroup(group.id)])
+    Promise.all([
+      getOrFetch(['groupMembers', group.id], () => getAllGroupMembers(group.id)),
+      getGroupRulesForGroup(group.id),
+    ])
       .then(([members, rules]) => {
         if (runId !== runIdRef.current) return;
         const summary = summarizeMemberSources(
           { id: group.id, name: group.name, type: group.type },
           members,
-          rules as MembershipRule[],
+          rules,
         );
         setBreakdown(summary);
         writeMemberSource(group.id, summary);

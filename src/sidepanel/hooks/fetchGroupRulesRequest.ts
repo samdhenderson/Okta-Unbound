@@ -27,7 +27,7 @@ function groupIdsReferencedBy(rule: OktaGroupRule): string[] {
   return [...ids, ...inExpression];
 }
 
-async function loadCachedGroupNames(): Promise<Map<string, string>> {
+export async function loadCachedGroupNames(): Promise<Map<string, string>> {
   const nameById = new Map<string, string>();
   try {
     const stored = await chrome.storage.local.get(GROUPS_CACHE_KEY);

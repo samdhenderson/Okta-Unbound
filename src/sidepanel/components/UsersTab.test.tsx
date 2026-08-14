@@ -411,7 +411,7 @@ describe('membership classification (in-file heuristic)', () => {
     expect(screen.queryByText('Eng auto-assign')).not.toBeInTheDocument();
   });
 
-  it('CHARACTERIZED: degrades to all-DIRECT (no error) when rules cannot be fetched', async () => {
+  it('reports memberships as UNKNOWN, not a confident DIRECT, when rules cannot be fetched', async () => {
     route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
     rulesCacheGet.mockResolvedValue(null);
     route(GROUP_RULES, () => ({ success: false, error: 'nope' }));
@@ -421,7 +421,11 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(screen.getByText('DIRECT')).toBeInTheDocument();
+    expect(screen.getByText('UNKNOWN')).toBeInTheDocument();
+    expect(screen.queryByText('DIRECT')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('This user was added directly to the group (not through a rule)'),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText('nope')).not.toBeInTheDocument();
   });
 });
@@ -442,17 +446,19 @@ describe('compare entry point', () => {
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
   }
 
-  it('opens the comparison modal from the Compare action', async () => {
+  it('pushes the comparison view from the Compare action', async () => {
     await renderWithSelectedUser();
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
+    expect(screen.queryByRole('button', { name: 'Back to user' })).not.toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Compare/ }));
     });
 
-    const dialog = await screen.findByRole('dialog');
-    expect(dialog).toHaveAccessibleName('Compare with another user');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Compare users');
+    expect(screen.getByRole('button', { name: 'Back to user' })).toBeInTheDocument();
   });
 });
 

@@ -76,9 +76,7 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
     }
   };
 
-  const getGroupRulesForGroup = async (
-    groupId: string,
-  ): Promise<FormattedRule[] | OktaGroupRule[]> => {
+  const getGroupRulesForGroup = async (groupId: string): Promise<FormattedRule[]> => {
     try {
       const cachedRules = await RulesCache.getRulesForGroup(groupId);
       if (cachedRules.length > 0 || (await RulesCache.isFresh())) {
@@ -87,14 +85,9 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       }
 
       log.debug(`Cache miss - fetching all rules for group ${groupId}`);
-      const { rawRules } = await fetchAndCacheAllGroupRules();
+      const { rules } = await fetchAndCacheAllGroupRules();
 
-      const groupRules = rawRules.filter((rule) => {
-        const targetGroupIds = rule.actions?.assignUserToGroups?.groupIds || [];
-        return targetGroupIds.includes(groupId);
-      });
-
-      return groupRules;
+      return rules.filter((rule) => rule.groupIds.includes(groupId));
     } catch (error) {
       log.error(`Failed to get rules for group ${groupId}:`, error);
       return [];

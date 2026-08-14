@@ -10,10 +10,13 @@ import {
   bucketApps,
   type TabKey,
 } from '../components/users/comparison/comparisonAnalytics';
+import { classifyAccessCauses } from '../components/users/comparison/accessCause';
+import { loadCachedGroupNames } from './fetchGroupRulesRequest';
 import type { OktaUser, GroupMembership } from '../../shared/types';
 
-interface UseUserComparisonOptions {
-  isOpen: boolean;
+export interface UseUserComparisonOptions {
+  isActive: boolean;
+  searchEnabled?: boolean;
   contextUser: OktaUser;
   contextGroups: GroupMembership[];
   targetTabId: number;
@@ -21,7 +24,8 @@ interface UseUserComparisonOptions {
 }
 
 export function useUserComparison({
-  isOpen,
+  isActive,
+  searchEnabled,
   contextUser,
   contextGroups,
   targetTabId,
@@ -29,12 +33,14 @@ export function useUserComparison({
 }: UseUserComparisonOptions) {
   const { searchQuery, setSearchQuery, searchResults, isSearching, clearSearch } = useUserSearch({
     targetTabId,
+    enabled: searchEnabled ?? isActive,
   });
 
   const {
     memberships: comparedGroups,
     isLoading: isLoadingGroups,
     error: groupsError,
+    rules: ruleInventory,
     loadMemberships,
     clearMemberships,
   } = useUserMemberships({ targetTabId });
@@ -71,7 +77,7 @@ export function useUserComparison({
   });
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!isActive) {
       setComparedUser(null);
       resetApps();
       resetCopyState();
@@ -79,7 +85,7 @@ export function useUserComparison({
       clearSearch();
       clearMemberships();
     }
-  }, [isOpen, resetApps, resetCopyState, clearSearch, clearMemberships]);
+  }, [isActive, resetApps, resetCopyState, clearSearch, clearMemberships]);
 
   useEffect(() => {
     if (comparedUser) loadMemberships(comparedUser);
@@ -110,6 +116,39 @@ export function useUserComparison({
     [contextApps, comparedApps],
   );
 
+  const causes = useMemo(() => {
+    if (ruleInventory.status === 'unresolved') return undefined;
+    return classifyAccessCauses({
+      onlyCompared: groupBuckets.onlyCompared,
+      contextUser,
+      rules: ruleInventory.status === 'available' ? ruleInventory.rules : null,
+      contextGroups,
+    });
+  }, [groupBuckets.onlyCompared, contextUser, contextGroups, ruleInventory]);
+
+  const [cachedGroupNames, setCachedGroupNames] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
+
+  useEffect(() => {
+    if (!isActive) return;
+    let cancelled = false;
+    void loadCachedGroupNames().then((names) => {
+      if (!cancelled) setCachedGroupNames(names);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isActive]);
+
+  const resolveGroupName = useMemo(() => {
+    const byId = new Map(cachedGroupNames);
+    for (const membership of [...contextGroups, ...comparedGroups]) {
+      byId.set(membership.group.id, membership.group.profile.name);
+    }
+    return (groupId: string): string | undefined => byId.get(groupId);
+  }, [cachedGroupNames, contextGroups, comparedGroups]);
+
   const groupDiffCount = groupBuckets.onlyCompared.length + groupBuckets.onlyContext.length;
   const appDiffCount = appBuckets.onlyCompared.length + appBuckets.onlyContext.length;
 
@@ -139,6 +178,7 @@ export function useUserComparison({
     setActiveTab,
     groupBuckets,
     appBuckets,
+    causes,
     groupDiffCount,
     appDiffCount,
     groupSimilarity,
@@ -153,7 +193,10 @@ export function useUserComparison({
     addToCompared,
     contextName,
     comparedName,
+    resolveGroupName,
     selectUser,
     changeUser,
   };
 }
+
+export type UserComparisonState = ReturnType<typeof useUserComparison>;

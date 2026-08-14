@@ -1,17 +1,24 @@
 import React from 'react';
 import Icon from '../../overview/shared/Icon';
-import type { OktaGroup } from '../../../../shared/types';
-import type { AppEntry } from './comparisonAnalytics';
+import CauseWorklist from './CauseWorklist';
+import type { AccessCause } from './accessCause';
+import type { ClauseGroupReference } from '../../../../shared/rules/explainExpression';
+import type { AppEntry, GroupBuckets } from './comparisonAnalytics';
 
 interface ComparisonOverviewTabProps {
   contextName: string;
   comparedName: string;
-  groupBuckets: { onlyCompared: OktaGroup[]; shared: OktaGroup[]; onlyContext: OktaGroup[] };
+  groupBuckets: GroupBuckets;
   appBuckets: { onlyCompared: AppEntry[]; shared: AppEntry[]; onlyContext: AppEntry[] };
   groupSimilarity: number;
   appSimilarity: number;
   onJumpToGroups: () => void;
   onJumpToApps: () => void;
+  causes?: readonly AccessCause[];
+  onViewClauses?: (cause: AccessCause) => void;
+  renderGroupAction?: (reference: ClauseGroupReference) => React.ReactNode;
+  renderBlockingGroupAction?: (reference: ClauseGroupReference) => React.ReactNode;
+  resolveGroupName?: (groupId: string) => string | undefined;
 }
 
 const ComparisonOverviewTab: React.FC<ComparisonOverviewTabProps> = ({
@@ -23,6 +30,11 @@ const ComparisonOverviewTab: React.FC<ComparisonOverviewTabProps> = ({
   appSimilarity,
   onJumpToGroups,
   onJumpToApps,
+  causes,
+  onViewClauses,
+  renderGroupAction,
+  renderBlockingGroupAction,
+  resolveGroupName,
 }) => (
   <div className="space-y-4">
     <OverviewCard
@@ -46,6 +58,15 @@ const ComparisonOverviewTab: React.FC<ComparisonOverviewTabProps> = ({
       shared={appBuckets.shared.length}
       onlyCompared={appBuckets.onlyCompared.length}
       onJump={onJumpToApps}
+    />
+    <CauseWorklist
+      causes={causes}
+      contextName={contextName}
+      comparedName={comparedName}
+      onViewClauses={onViewClauses}
+      renderGroupAction={renderGroupAction}
+      renderBlockingGroupAction={renderBlockingGroupAction}
+      resolveGroupName={resolveGroupName}
     />
   </div>
 );

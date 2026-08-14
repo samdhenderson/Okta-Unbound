@@ -191,13 +191,13 @@ export interface MembershipRule {
   userAttributes?: string[];
 }
 
-export type MembershipAttribution = 'exact' | 'inferred';
+export type MembershipAttribution = 'exact' | 'inferred' | 'ambiguous';
 
 export interface GroupMembership {
   group: OktaGroup;
   membershipType: 'DIRECT' | 'RULE_BASED' | 'UNKNOWN';
-  rule?: MembershipRule;
-  attribution?: MembershipAttribution;
+  rules: MembershipRule[];
+  attribution: MembershipAttribution;
 }
 
 export interface MessageRequest {

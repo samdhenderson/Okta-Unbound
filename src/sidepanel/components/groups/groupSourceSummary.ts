@@ -1,6 +1,12 @@
 import type { GroupSummary, GroupType } from '../../../shared/types';
 import type { MemberSourceBreakdown } from '../../../shared/membership/groupSource';
-import { toMemberSourceBuckets, type MemberSourceBucket } from './memberSourceBuckets';
+import {
+  toMemberSourceBuckets,
+  toMemberSourceSegments,
+  type MemberSourceBucket,
+} from './memberSourceBuckets';
+
+export const COMPACT_RULE_SEGMENTS = 3;
 
 export interface GroupTypeBadge {
   label: string;
@@ -122,8 +128,12 @@ export function describeMemberSource(
     };
   }
 
-  const segments = toMemberSourceBuckets(breakdown).filter((bucket) => bucket.count > 0);
-  const summary = segments
+  const segments = toMemberSourceSegments(breakdown, {
+    maxRules: COMPACT_RULE_SEGMENTS,
+  }).filter((bucket) => bucket.count > 0);
+
+  const summary = toMemberSourceBuckets(breakdown)
+    .filter((bucket) => bucket.count > 0)
     .map((bucket) => `${bucket.label} ${bucket.count.toLocaleString()}`)
     .join(' · ');
 

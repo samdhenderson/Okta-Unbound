@@ -110,6 +110,7 @@ export const oktaAppListItemSchema = z
     created: z.string().nullish(),
     lastUpdated: z.string().nullish(),
     _links: z.unknown().optional(),
+    _embedded: z.unknown().optional(),
   })
   .passthrough();
 
@@ -150,6 +151,18 @@ export const oktaAppUserSchema = z
   .passthrough();
 
 export type OktaAppUser = z.infer<typeof oktaAppUserSchema>;
+
+export type AppAssignmentScope = 'USER' | 'GROUP';
+
+export function extractAppAssignmentScope(embedded: unknown): AppAssignmentScope | undefined {
+  if (typeof embedded !== 'object' || embedded === null) return undefined;
+
+  const parsed = oktaAppUserSchema.safeParse((embedded as Record<string, unknown>).user);
+  if (!parsed.success) return undefined;
+
+  const { scope } = parsed.data;
+  return scope === 'USER' || scope === 'GROUP' ? scope : undefined;
+}
 
 export const oktaAppGroupSchema = z
   .object({

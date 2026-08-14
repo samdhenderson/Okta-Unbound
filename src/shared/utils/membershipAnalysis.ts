@@ -1,8 +1,37 @@
-import type { OktaGroup, OktaUser, MembershipRule, GroupMembership } from '../types';
+import type {
+  OktaGroup,
+  OktaUser,
+  MembershipRule,
+  GroupMembership,
+  MembershipAttribution,
+} from '../types';
 import { tryEvaluateRuleExpression, type RuleMatchOutcome } from '../ruleEvaluator';
 import { createLogger } from './logger';
 
 const log = createLogger('membershipAnalysis');
+
+export interface AttributionSemantics {
+  evidence: 'fact' | 'deduction';
+  namesRules: boolean;
+}
+
+const ATTRIBUTION_SEMANTICS: Record<MembershipAttribution, AttributionSemantics> = {
+  exact: { evidence: 'fact', namesRules: true },
+  inferred: { evidence: 'deduction', namesRules: true },
+  ambiguous: { evidence: 'deduction', namesRules: false },
+};
+
+export function attributionSemantics(attribution: MembershipAttribution): AttributionSemantics {
+  return ATTRIBUTION_SEMANTICS[attribution];
+}
+
+export function isDeducedAttribution(attribution: MembershipAttribution): boolean {
+  return ATTRIBUTION_SEMANTICS[attribution].evidence === 'deduction';
+}
+
+export function attributionNamesRules(attribution: MembershipAttribution): boolean {
+  return ATTRIBUTION_SEMANTICS[attribution].namesRules;
+}
 
 function isUserExcludedFromRule(rule: MembershipRule, userId: string): boolean {
   const excludedUsers = rule.conditions?.people?.users?.exclude || [];
@@ -13,9 +42,9 @@ function conditionExpressionOf(rule: MembershipRule): string {
   return rule.conditionExpression || rule.conditions?.expression?.value || '';
 }
 
-function inferBestMatchRule(rules: MembershipRule[], user: OktaUser): MembershipRule {
-  for (const rule of rules) {
-    const condition = conditionExpressionOf(rule);
+function scoreCandidateRules(rules: MembershipRule[], user: OktaUser): MembershipRule[] {
+  return rules.filter((rule) => {
+    const condition = conditionExpressionOf(rule).toLowerCase();
     const userAttrs = rule.userAttributes || [];
 
     let attributesMatch = 0;
@@ -27,20 +56,31 @@ function inferBestMatchRule(rules: MembershipRule[], user: OktaUser): Membership
 
       if (userValue !== undefined && userValue !== null && userValue !== '') {
         const valueStr = String(userValue).toLowerCase();
-        const conditionLower = condition.toLowerCase();
-
-        if (conditionLower.includes(valueStr) || conditionLower.includes(`"${valueStr}"`)) {
+        if (condition.includes(valueStr) || condition.includes(`"${valueStr}"`)) {
           attributesMatch++;
         }
       }
     }
 
-    if (attributesChecked > 0 && attributesMatch >= attributesChecked * 0.5) {
-      return rule;
-    }
-  }
+    return attributesChecked > 0 && attributesMatch >= attributesChecked * 0.5;
+  });
+}
 
-  return rules[0];
+type Classification = Pick<GroupMembership, 'membershipType' | 'rules' | 'attribution'>;
+
+const direct = (): Classification => ({
+  membershipType: 'DIRECT',
+  rules: [],
+  attribution: 'exact',
+});
+
+export function unclassifiedMemberships(groups: OktaGroup[]): GroupMembership[] {
+  return groups.map((group) => ({
+    group,
+    membershipType: 'UNKNOWN' as const,
+    rules: [],
+    attribution: 'ambiguous' as const,
+  }));
 }
 
 export function analyzeMemberships(
@@ -57,90 +97,73 @@ export function analyzeMemberships(
   );
   log.debug('Total groups:', groups.length);
 
-  return groups.map((group) => {
-    if (group.type === 'APP_GROUP') {
-      log.debug(`Group ${group.id}: APP_GROUP (application managed)`);
-      return {
-        group: group,
-        membershipType: 'RULE_BASED' as const,
-        rule: undefined,
-        attribution: 'exact' as const,
-      };
-    }
+  return groups.map((group) => ({ group, ...classify(group, rules, user) }));
+}
 
-    const matchingRules = rules.filter((rule) => {
-      if (rule.status !== 'ACTIVE') return false;
-      const groupIds = rule.groupIds || rule.actions?.assignUserToGroups?.groupIds || [];
-      return groupIds.includes(group.id);
-    });
+function classify(group: OktaGroup, rules: MembershipRule[], user: OktaUser): Classification {
+  if (group.type === 'APP_GROUP') {
+    log.debug(`Group ${group.id}: APP_GROUP (application managed)`);
+    return { membershipType: 'RULE_BASED', rules: [], attribution: 'exact' };
+  }
 
-    log.debug(`Group ${group.id}: Found ${matchingRules.length} active rules`);
-
-    if (matchingRules.length === 0) {
-      log.debug(`Group ${group.id}: DIRECT (no active rules)`);
-      return {
-        group: group,
-        membershipType: 'DIRECT' as const,
-        rule: undefined,
-        attribution: 'exact' as const,
-      };
-    }
-
-    const rulesWithoutExclusion = matchingRules.filter(
-      (rule) => !isUserExcludedFromRule(rule, user.id),
-    );
-
-    if (rulesWithoutExclusion.length === 0) {
-      log.debug(`Group ${group.id}: DIRECT (user excluded from all ${matchingRules.length} rules)`);
-      return {
-        group: group,
-        membershipType: 'DIRECT' as const,
-        rule: undefined,
-        attribution: 'exact' as const,
-      };
-    }
-
-    if (rulesWithoutExclusion.length < matchingRules.length) {
-      const excludedRules = matchingRules.filter((rule) => isUserExcludedFromRule(rule, user.id));
-      log.debug(`Group ${group.id}: User excluded from ${excludedRules.length} rule(s)`);
-    }
-
-    const outcomes = rulesWithoutExclusion.map((rule): [MembershipRule, RuleMatchOutcome] => [
-      rule,
-      tryEvaluateRuleExpression(conditionExpressionOf(rule), user),
-    ]);
-
-    const matched = outcomes.find(([, outcome]) => outcome === 'match');
-    if (matched) {
-      const [rule] = matched;
-      log.debug(`Group ${group.id}: RULE_BASED (rule: ${rule.id}, attribution: exact)`);
-      return {
-        group: group,
-        membershipType: 'RULE_BASED' as const,
-        rule,
-        attribution: 'exact' as const,
-      };
-    }
-
-    const anyUnevaluable = outcomes.some(([, outcome]) => outcome === 'unevaluable');
-    if (!anyUnevaluable) {
-      log.debug(`Group ${group.id}: DIRECT (no rule condition matches; attribution: exact)`);
-      return {
-        group: group,
-        membershipType: 'DIRECT' as const,
-        rule: undefined,
-        attribution: 'exact' as const,
-      };
-    }
-
-    const bestMatchRule = inferBestMatchRule(rulesWithoutExclusion, user);
-    log.debug(`Group ${group.id}: RULE_BASED (rule: ${bestMatchRule.id}, attribution: inferred)`);
-
-    return {
-      group: group,
-      membershipType: 'RULE_BASED' as const,
-      rule: bestMatchRule,
-      attribution: 'inferred' as const,
-    };
+  const targetingRules = rules.filter((rule) => {
+    if (rule.status !== 'ACTIVE') return false;
+    const groupIds = rule.groupIds || rule.actions?.assignUserToGroups?.groupIds || [];
+    return groupIds.includes(group.id);
   });
+
+  log.debug(`Group ${group.id}: Found ${targetingRules.length} active rules`);
+
+  if (targetingRules.length === 0) {
+    log.debug(`Group ${group.id}: DIRECT (no active rules)`);
+    return direct();
+  }
+
+  const candidates = targetingRules.filter((rule) => !isUserExcludedFromRule(rule, user.id));
+
+  if (candidates.length === 0) {
+    log.debug(`Group ${group.id}: DIRECT (user excluded from all ${targetingRules.length} rules)`);
+    return direct();
+  }
+
+  if (candidates.length < targetingRules.length) {
+    log.debug(
+      `Group ${group.id}: user excluded from ${targetingRules.length - candidates.length} rule(s)`,
+    );
+  }
+
+  const outcomes = candidates.map((rule): [MembershipRule, RuleMatchOutcome] => [
+    rule,
+    tryEvaluateRuleExpression(conditionExpressionOf(rule), user),
+  ]);
+
+  const matched = outcomes.filter(([, outcome]) => outcome === 'match').map(([rule]) => rule);
+  if (matched.length > 0) {
+    log.debug(
+      `Group ${group.id}: RULE_BASED (${matched.length} matched rule(s), evidence: proven)`,
+    );
+    return { membershipType: 'RULE_BASED', rules: matched, attribution: 'exact' };
+  }
+
+  const unevaluated = outcomes
+    .filter(([, outcome]) => outcome === 'unevaluable')
+    .map(([rule]) => rule);
+  if (unevaluated.length === 0) {
+    log.debug(`Group ${group.id}: DIRECT (no rule condition matches; evidence: proven)`);
+    return direct();
+  }
+
+  const scored = scoreCandidateRules(unevaluated, user);
+  if (scored.length > 0) {
+    log.debug(
+      `Group ${group.id}: RULE_BASED (${scored.length} scored rule(s), evidence: attribute-in-condition)`,
+    );
+    return { membershipType: 'RULE_BASED', rules: scored, attribution: 'inferred' };
+  }
+
+  const attribution: MembershipAttribution = unevaluated.length === 1 ? 'inferred' : 'ambiguous';
+  log.debug(
+    `Group ${group.id}: RULE_BASED (${unevaluated.length} unevaluable candidate(s), evidence: ${attribution === 'inferred' ? 'sole-candidate' : 'none'})`,
+  );
+  return { membershipType: 'RULE_BASED', rules: unevaluated, attribution };
 }

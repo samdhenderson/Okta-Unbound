@@ -9,6 +9,7 @@ interface UseUserSearchOptions {
   targetTabId: number | undefined;
   debounceMs?: number;
   minQueryLength?: number;
+  enabled?: boolean;
 }
 
 interface UseUserSearchReturn {
@@ -24,6 +25,7 @@ export function useUserSearch({
   targetTabId,
   debounceMs = 600,
   minQueryLength = 2,
+  enabled = true,
 }: UseUserSearchOptions): UseUserSearchReturn {
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +36,7 @@ export function useUserSearch({
       debounceMs,
       minQueryLength,
       log,
+      enabled,
     });
 
   const clearSearch = useCallback(() => {

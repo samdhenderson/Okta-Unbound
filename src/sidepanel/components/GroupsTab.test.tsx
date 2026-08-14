@@ -1218,7 +1218,7 @@ describe('prop brokering', () => {
   });
 
   it('onFetchMembers uses the current targetTabId even though it is memoized on []', async () => {
-    route(/^\/api\/v1\/groups\/g1\/users\?limit=200$/, () => ({
+    route(/^\/api\/v1\/groups\/g1\/users\?limit=200&expand=group-rules$/, () => ({
       success: true,
       headers: {},
       data: [user('u1')],
@@ -1234,7 +1234,10 @@ describe('prop brokering', () => {
     });
 
     expect(runtimeSendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: '/api/v1/groups/g1/users?limit=200', tabId: 5 }),
+      expect.objectContaining({
+        endpoint: '/api/v1/groups/g1/users?limit=200&expand=group-rules',
+        tabId: 5,
+      }),
     );
   });
 
@@ -1277,7 +1280,7 @@ describe('prop brokering', () => {
 
 describe('groupMembersCache', () => {
   it('onFetchMembers populates the cache immutably and the Cross-Search badge reflects it', async () => {
-    route(/^\/api\/v1\/groups\/a\/users\?limit=200$/, () => ({
+    route(/^\/api\/v1\/groups\/a\/users\?limit=200&expand=group-rules$/, () => ({
       success: true,
       headers: {},
       data: [user('u1')],
@@ -1297,7 +1300,7 @@ describe('groupMembersCache', () => {
   it('compareGroups mutates the cache Map in place: no refetch, and no badge update', async () => {
     const uev = userEvent.setup();
     let memberFetches = 0;
-    route(/^\/api\/v1\/groups\/[ab]\/users\?limit=200$/, () => {
+    route(/^\/api\/v1\/groups\/[ab]\/users\?limit=200&expand=group-rules$/, () => {
       memberFetches++;
       return { success: true, headers: {}, data: [user('u1'), user('u2')] };
     });

@@ -10,6 +10,10 @@ const log = createLogger('RulesTab');
 
 const EMPTY_STATS: RuleStats = { total: 0, active: 0, inactive: 0, conflicts: 0 };
 
+function toOrgWideRules(rules: FormattedRule[] | undefined): FormattedRule[] {
+  return (rules ?? []).map(({ affectsCurrentGroup: _scoped, ...rest }) => rest);
+}
+
 export interface RulesDataSnapshot {
   rules?: FormattedRule[] | null;
   stats?: RuleStats | null;
@@ -98,7 +102,7 @@ export function useRulesData({
           setLastFetchTime(new Date().toISOString());
 
           await RulesCache.set(
-            response.rules || [],
+            toOrgWideRules(response.rules),
             response.rawRules || [],
             response.stats || EMPTY_STATS,
             response.conflicts || [],

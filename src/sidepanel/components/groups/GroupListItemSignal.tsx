@@ -19,8 +19,8 @@ const GroupListItemSignal: React.FC<GroupListItemSignalProps> = ({ model }) => {
           {source.segments.map((segment) => (
             <span
               key={segment.key}
-              className={segment.barClass}
-              style={{ width: `${segment.percent}%` }}
+              className={`min-w-0.5 ${segment.barClass}`}
+              style={{ width: `${segment.percent}%`, backgroundColor: segment.color }}
             />
           ))}
         </span>

@@ -1,16 +1,89 @@
 import React from 'react';
 import { Button, IconButton, LoadingSpinner } from '../shared';
-import type { GroupMembership } from '../../../shared/types';
+import ClauseChecklist from '../groups/detail/ClauseChecklist';
+import type {
+  GroupMembership,
+  MembershipAttribution,
+  MembershipRule,
+  OktaUser,
+} from '../../../shared/types';
 import { oktaAdminEntityUrl } from '../../../shared/utils/oktaUrl';
+
+const conditionExpressionOf = (rule: MembershipRule): string =>
+  rule.conditionExpression || rule.conditions?.expression?.value || '';
 
 interface GroupMembershipsListProps {
   memberships: GroupMembership[];
+  user?: OktaUser;
   isLoading: boolean;
   currentGroupId?: string;
   oktaOrigin?: string | null;
   onNavigateToRule?: (ruleId: string) => void;
   actions?: React.ReactNode;
 }
+
+interface RuleAttributionBlockProps {
+  rule: MembershipRule;
+  attribution: MembershipAttribution;
+  user?: OktaUser;
+  onNavigateToRule?: (ruleId: string) => void;
+}
+
+const attributionLabel: Record<MembershipAttribution, string> = {
+  exact: 'Added by Rule:',
+  inferred: 'Likely added by rule:',
+  ambiguous: 'Possible rule:',
+};
+
+const RuleAttributionBlock: React.FC<RuleAttributionBlockProps> = ({
+  rule,
+  attribution,
+  user,
+  onNavigateToRule,
+}) => (
+  <div className="p-3 bg-primary-light rounded-md border border-primary-highlight">
+    <div className="flex items-center gap-2 mb-2">
+      <svg
+        className="w-4 h-4 text-primary-text"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M13 10V3L4 14h7v7l9-11h-7z"
+        />
+      </svg>
+      <span className="text-sm font-semibold text-primary-dark">
+        {attributionLabel[attribution]}
+      </span>
+      <span className="text-sm text-primary-text">{rule.name}</span>
+      {onNavigateToRule && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onNavigateToRule(rule.id)}
+          title="View this rule in Rules tab"
+          className="ml-auto"
+        >
+          View Rule
+        </Button>
+      )}
+    </div>
+    <div className="mt-2">
+      <span className="text-xs font-semibold text-primary-text block mb-1">Condition:</span>
+      {user ? (
+        <ClauseChecklist expression={conditionExpressionOf(rule)} user={user} />
+      ) : (
+        <code className="block text-xs font-mono text-neutral-900 bg-white p-2 rounded-md border border-primary-highlight overflow-x-auto break-words whitespace-pre-wrap">
+          {conditionExpressionOf(rule) || 'No condition expression'}
+        </code>
+      )}
+    </div>
+  </div>
+);
 
 const getMembershipTypeBadge = (type: string) => {
   switch (type) {
@@ -25,6 +98,7 @@ const getMembershipTypeBadge = (type: string) => {
 
 const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   memberships,
+  user,
   isLoading,
   currentGroupId,
   oktaOrigin,
@@ -117,46 +191,17 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
                 </div>
               </div>
 
-              {membership.membershipType === 'RULE_BASED' && membership.rule && (
-                <div className="mt-3 p-3 bg-primary-light rounded-md border border-primary-highlight">
-                  <div className="flex items-center gap-2 mb-2">
-                    <svg
-                      className="w-4 h-4 text-primary-text"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M13 10V3L4 14h7v7l9-11h-7z"
-                      />
-                    </svg>
-                    <span className="text-sm font-semibold text-primary-dark">Added by Rule:</span>
-                    <span className="text-sm text-primary-text">{membership.rule.name}</span>
-                    {onNavigateToRule && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onNavigateToRule(membership.rule!.id)}
-                        title="View this rule in Rules tab"
-                        className="ml-auto"
-                      >
-                        View Rule
-                      </Button>
-                    )}
-                  </div>
-                  {membership.rule.conditions?.expression?.value && (
-                    <div className="mt-2">
-                      <span className="text-xs font-semibold text-primary-text block mb-1">
-                        Condition:
-                      </span>
-                      <code className="block text-xs font-mono text-neutral-900 bg-white p-2 rounded-md border border-primary-highlight overflow-x-auto">
-                        {membership.rule.conditions.expression.value}
-                      </code>
-                    </div>
-                  )}
+              {membership.membershipType === 'RULE_BASED' && membership.rules.length > 0 && (
+                <div className="mt-3 space-y-3">
+                  {membership.rules.map((rule) => (
+                    <RuleAttributionBlock
+                      key={rule.id}
+                      rule={rule}
+                      attribution={membership.attribution}
+                      user={user}
+                      onNavigateToRule={onNavigateToRule}
+                    />
+                  ))}
                 </div>
               )}
 

@@ -21,6 +21,43 @@ const MAX_EXPRESSION_LENGTH = 4096;
 
 type ExprValue = string | number | boolean | null;
 
+export type RuleExprValue = ExprValue;
+
+export type RuleUnevaluableReason =
+  | 'empty'
+  | 'too-long'
+  | 'parse-error'
+  | 'unsupported-operator'
+  | 'group-membership-fn'
+  | 'group-name-regex'
+  | 'unknown-fn'
+  | 'fn-arity'
+  | 'unsupported-node'
+  | 'operand-type'
+  | 'not-a-boolean'
+  | 'walk-failed';
+
+export interface RuleGroupContextEntry {
+  readonly id: string;
+  readonly name: string;
+}
+
+export type RuleGroupContext = readonly RuleGroupContextEntry[];
+
+export interface RuleEvaluationOptions {
+  readonly user: OktaUser;
+  readonly groups?: RuleGroupContext;
+}
+
+interface EvaluationWalkOptions extends RuleEvaluationOptions {
+  readonly onUnresolved?: (reason: RuleUnevaluableReason) => void;
+}
+
+interface GrammarWalkOptions {
+  readonly onUnsupported?: (reason: RuleUnevaluableReason) => void;
+  readonly hasGroupContext?: boolean;
+}
+
 const UNRESOLVED: unique symbol = Symbol('unresolved');
 type Unresolved = typeof UNRESOLVED;
 
@@ -35,6 +72,11 @@ const INEQUALITY_OPERATORS = new Set(['!=', '!==', 'ne']);
 const RELATIONAL_OPERATORS = new Set(['<', '>', '<=', '>=']);
 const AND_OPERATORS = new Set(['&&', 'and', 'AND']);
 const OR_OPERATORS = new Set(['||', 'or', 'OR']);
+
+export const RULE_CONNECTIVE_OPERATORS: ReadonlySet<string> = new Set([
+  ...AND_OPERATORS,
+  ...OR_OPERATORS,
+]);
 
 const SUPPORTED_BINARY_OPERATORS: ReadonlySet<string> = new Set([
   ...EQUALITY_OPERATORS,
@@ -100,6 +142,22 @@ export const GROUP_MEMBERSHIP_FUNCTIONS: ReadonlySet<string> = new Set([
   'isMemberOfGroupNameRegex',
 ]);
 
+const GROUP_NAME_REGEX_FUNCTION = 'isMemberOfGroupNameRegex';
+
+interface GroupMembershipFunction {
+  readonly matches: (group: RuleGroupContextEntry, argument: string) => boolean;
+  readonly variadic: boolean;
+}
+
+const GROUP_MEMBERSHIP_IMPLEMENTATIONS: ReadonlyMap<string, GroupMembershipFunction> = new Map([
+  ['isMemberOfGroup', { matches: (g, a) => g.id === a, variadic: false }],
+  ['isMemberOfAnyGroup', { matches: (g, a) => g.id === a, variadic: true }],
+  ['isMemberOfGroupName', { matches: (g, a) => g.name === a, variadic: false }],
+  ['isMemberOfAnyGroupName', { matches: (g, a) => g.name === a, variadic: true }],
+  ['isMemberOfGroupNameStartsWith', { matches: (g, a) => g.name.startsWith(a), variadic: false }],
+  ['isMemberOfGroupNameContains', { matches: (g, a) => g.name.includes(a), variadic: false }],
+]);
+
 function isLiteral(node: jsep.Expression): node is jsep.Literal {
   return node.type === 'Literal';
 }
@@ -134,17 +192,34 @@ function calleeName(node: jsep.CallExpression): string | undefined {
   return undefined;
 }
 
+const PARSE_CACHE_LIMIT = 128;
+
+const parseCache = new Map<string, jsep.Expression | undefined>();
+
+function rememberParse(
+  expression: string,
+  ast: jsep.Expression | undefined,
+): jsep.Expression | undefined {
+  if (parseCache.size >= PARSE_CACHE_LIMIT) {
+    const oldest = parseCache.keys().next();
+    if (!oldest.done) parseCache.delete(oldest.value);
+  }
+  parseCache.set(expression, ast);
+  return ast;
+}
+
 function parseExpression(expression: string): jsep.Expression | undefined {
   if (!expression || !expression.trim()) return undefined;
   if (expression.length > MAX_EXPRESSION_LENGTH) {
     log.debug('Rule expression rejected', { reason: 'too-long', length: expression.length });
     return undefined;
   }
+  if (parseCache.has(expression)) return parseCache.get(expression);
   try {
-    return jsep(expression.trim());
+    return rememberParse(expression, jsep(expression.trim()));
   } catch {
     log.debug('Rule expression rejected', { reason: 'parse-error' });
-    return undefined;
+    return rememberParse(expression, undefined);
   }
 }
 
@@ -152,13 +227,23 @@ function truthiness(result: EvalResult): boolean | Unresolved {
   return isUnresolved(result) ? UNRESOLVED : Boolean(result);
 }
 
-function resolveMember(node: jsep.MemberExpression, user: OktaUser): EvalResult {
-  if (node.computed) return UNRESOLVED;
-  const { object, property } = node;
-  if (!isIdentifier(object) || object.name !== 'user') return UNRESOLVED;
-  if (!isIdentifier(property)) return UNRESOLVED;
+function giveUp(reason: RuleUnevaluableReason, options: EvaluationWalkOptions): Unresolved {
+  options.onUnresolved?.(reason);
+  return UNRESOLVED;
+}
 
-  const raw = (user.profile as Record<string, unknown>)[property.name];
+function giveUpLogged(reason: RuleUnevaluableReason, options: EvaluationWalkOptions): Unresolved {
+  log.debug('Rule expression not evaluable', { reason });
+  return giveUp(reason, options);
+}
+
+function resolveMember(node: jsep.MemberExpression, options: EvaluationWalkOptions): EvalResult {
+  if (node.computed) return giveUp('unsupported-node', options);
+  const { object, property } = node;
+  if (!isIdentifier(object) || object.name !== 'user') return giveUp('unsupported-node', options);
+  if (!isIdentifier(property)) return giveUp('unsupported-node', options);
+
+  const raw = (options.user.profile as Record<string, unknown>)[property.name];
   if (raw === undefined || raw === null) return null;
   if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') return raw;
   return String(raw);
@@ -180,8 +265,15 @@ function evaluateOr(left: EvalResult, right: EvalResult): EvalResult {
   return false;
 }
 
-function evaluateRelational(operator: string, left: EvalResult, right: EvalResult): EvalResult {
-  if (typeof left !== 'number' || typeof right !== 'number') return UNRESOLVED;
+function evaluateRelational(
+  operator: string,
+  left: EvalResult,
+  right: EvalResult,
+  options: EvaluationWalkOptions,
+): EvalResult {
+  if (typeof left !== 'number' || typeof right !== 'number') {
+    return giveUp('operand-type', options);
+  }
   switch (operator) {
     case '<':
       return left < right;
@@ -192,14 +284,14 @@ function evaluateRelational(operator: string, left: EvalResult, right: EvalResul
     case '>=':
       return left >= right;
     default:
-      return UNRESOLVED;
+      return giveUp('unsupported-operator', options);
   }
 }
 
-function evaluateBinary(node: jsep.BinaryExpression, user: OktaUser): EvalResult {
+function evaluateBinary(node: jsep.BinaryExpression, options: EvaluationWalkOptions): EvalResult {
   const { operator } = node;
-  const left = evaluateNode(node.left, user);
-  const right = evaluateNode(node.right, user);
+  const left = evaluateNode(node.left, options);
+  const right = evaluateNode(node.right, options);
 
   if (AND_OPERATORS.has(operator)) return evaluateAnd(left, right);
   if (OR_OPERATORS.has(operator)) return evaluateOr(left, right);
@@ -208,73 +300,110 @@ function evaluateBinary(node: jsep.BinaryExpression, user: OktaUser): EvalResult
 
   if (EQUALITY_OPERATORS.has(operator)) return left === right;
   if (INEQUALITY_OPERATORS.has(operator)) return left !== right;
-  if (RELATIONAL_OPERATORS.has(operator)) return evaluateRelational(operator, left, right);
+  if (RELATIONAL_OPERATORS.has(operator)) {
+    return evaluateRelational(operator, left, right, options);
+  }
 
-  log.debug('Rule expression not evaluable', { reason: 'unsupported-operator' });
-  return UNRESOLVED;
+  return giveUpLogged('unsupported-operator', options);
 }
 
-function evaluateCall(node: jsep.CallExpression, user: OktaUser): EvalResult {
+function evaluateGroupMembershipCall(
+  node: jsep.CallExpression,
+  name: string,
+  options: EvaluationWalkOptions,
+): EvalResult {
+  if (name === GROUP_NAME_REGEX_FUNCTION) return giveUpLogged('group-name-regex', options);
+
+  const { groups } = options;
+  if (!groups) return giveUpLogged('group-membership-fn', options);
+
+  const fn = GROUP_MEMBERSHIP_IMPLEMENTATIONS.get(name);
+  if (!fn) return giveUpLogged('group-membership-fn', options);
+
+  const wrongArity = fn.variadic ? node.arguments.length < 1 : node.arguments.length !== 1;
+  if (wrongArity) return giveUpLogged('fn-arity', options);
+
+  const targets: string[] = [];
+  for (const argument of node.arguments) {
+    const value = evaluateNode(argument, options);
+    if (isUnresolved(value)) return UNRESOLVED;
+    if (typeof value !== 'string') return giveUp('operand-type', options);
+    targets.push(value);
+  }
+
+  return targets.some((target) => groups.some((group) => fn.matches(group, target)));
+}
+
+function evaluateCall(node: jsep.CallExpression, options: EvaluationWalkOptions): EvalResult {
   const name = calleeName(node);
   const fn = name ? SUPPORTED_FUNCTIONS.get(name) : undefined;
   if (!name || !fn) {
-    log.debug('Rule expression not evaluable', {
-      reason: name && GROUP_MEMBERSHIP_FUNCTIONS.has(name) ? 'group-membership-fn' : 'unknown-fn',
-    });
-    return UNRESOLVED;
+    if (name && GROUP_MEMBERSHIP_FUNCTIONS.has(name)) {
+      return evaluateGroupMembershipCall(node, name, options);
+    }
+    return giveUpLogged('unknown-fn', options);
   }
   if (node.arguments.length !== fn.arity) {
-    log.debug('Rule expression not evaluable', { reason: 'fn-arity' });
-    return UNRESOLVED;
+    return giveUpLogged('fn-arity', options);
   }
 
   const args: ExprValue[] = [];
   for (const argument of node.arguments) {
-    const value = evaluateNode(argument, user);
+    const value = evaluateNode(argument, options);
     if (isUnresolved(value)) return UNRESOLVED;
     args.push(value);
   }
-  return fn.evaluate(args);
+  const result = fn.evaluate(args);
+  return isUnresolved(result) ? giveUp('operand-type', options) : result;
 }
 
-function evaluateNode(node: jsep.Expression, user: OktaUser): EvalResult {
+function evaluateNode(node: jsep.Expression, options: EvaluationWalkOptions): EvalResult {
   if (isLiteral(node)) {
     const { value } = node;
     if (value === null) return null;
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
       return value;
     }
-    return UNRESOLVED; // e.g. a regular-expression literal
+    return giveUp('unsupported-node', options); // e.g. a regular-expression literal
   }
-  if (isMemberExpression(node)) return resolveMember(node, user);
-  if (isCallExpression(node)) return evaluateCall(node, user);
-  if (isBinaryExpression(node)) return evaluateBinary(node, user);
+  if (isMemberExpression(node)) return resolveMember(node, options);
+  if (isCallExpression(node)) return evaluateCall(node, options);
+  if (isBinaryExpression(node)) return evaluateBinary(node, options);
   if (isUnaryExpression(node)) {
-    if (node.operator !== '!') return UNRESOLVED;
-    const argument = truthiness(evaluateNode(node.argument, user));
+    if (node.operator !== '!') return giveUp('unsupported-node', options);
+    const argument = truthiness(evaluateNode(node.argument, options));
     return isUnresolved(argument) ? UNRESOLVED : !argument;
   }
-  log.debug('Rule expression not evaluable', { reason: 'unsupported-node' });
-  return UNRESOLVED;
+  return giveUpLogged('unsupported-node', options);
+}
+
+function evaluateAst(ast: jsep.Expression, options: EvaluationWalkOptions): EvalResult {
+  try {
+    return evaluateNode(ast, options);
+  } catch {
+    return giveUpLogged('walk-failed', options);
+  }
 }
 
 function evaluate(expression: string, user: OktaUser): EvalResult {
   const ast = parseExpression(expression);
   if (!ast) return UNRESOLVED;
-  try {
-    return evaluateNode(ast, user);
-  } catch {
-    log.debug('Rule expression not evaluable', { reason: 'walk-failed' });
-    return UNRESOLVED;
-  }
+  return evaluateAst(ast, { user });
 }
 
 export type RuleMatchOutcome = 'match' | 'no-match' | 'unevaluable';
 
-export function tryEvaluateRuleExpression(expression: string, user: OktaUser): RuleMatchOutcome {
-  if (!canEvaluateClientSide(expression)) return 'unevaluable';
+export function tryEvaluateRuleExpression(
+  expression: string,
+  user: OktaUser,
+  groups?: RuleGroupContext,
+): RuleMatchOutcome {
+  const ast = parseExpression(expression);
+  if (!ast) return 'unevaluable';
 
-  const result = evaluate(expression, user);
+  if (!canEvaluateAst(ast, { hasGroupContext: groups !== undefined })) return 'unevaluable';
+
+  const result = evaluateAst(ast, { user, groups });
   if (typeof result !== 'boolean') return 'unevaluable';
   return result ? 'match' : 'no-match';
 }
@@ -284,49 +413,160 @@ export function evaluateRuleExpression(expression: string, user: OktaUser): bool
   return isUnresolved(result) ? false : Boolean(result);
 }
 
-function isSupportedNode(node: jsep.Expression): boolean {
+function reject(reason: RuleUnevaluableReason, options: GrammarWalkOptions): false {
+  options.onUnsupported?.(reason);
+  return false;
+}
+
+function isSupportedNode(node: jsep.Expression, options: GrammarWalkOptions = {}): boolean {
   if (isLiteral(node)) {
     const { value } = node;
-    return (
+    const supported =
       value === null ||
       typeof value === 'string' ||
       typeof value === 'number' ||
-      typeof value === 'boolean'
-    );
+      typeof value === 'boolean';
+    return supported || reject('unsupported-node', options);
   }
   if (isMemberExpression(node)) {
-    return (
+    const supported =
       !node.computed &&
       isIdentifier(node.object) &&
       node.object.name === 'user' &&
-      isIdentifier(node.property)
-    );
+      isIdentifier(node.property);
+    return supported || reject('unsupported-node', options);
   }
   if (isCallExpression(node)) {
     const name = calleeName(node);
     const fn = name ? SUPPORTED_FUNCTIONS.get(name) : undefined;
-    if (!fn || node.arguments.length !== fn.arity) return false;
-    return node.arguments.every(isSupportedNode);
+    if (!fn) {
+      if (!name || !GROUP_MEMBERSHIP_FUNCTIONS.has(name)) return reject('unknown-fn', options);
+      if (name === GROUP_NAME_REGEX_FUNCTION) return reject('group-name-regex', options);
+      if (!options.hasGroupContext) return reject('group-membership-fn', options);
+      const membershipFn = GROUP_MEMBERSHIP_IMPLEMENTATIONS.get(name);
+      if (!membershipFn) return reject('group-membership-fn', options);
+      const wrongArity = membershipFn.variadic
+        ? node.arguments.length < 1
+        : node.arguments.length !== 1;
+      if (wrongArity) return reject('fn-arity', options);
+      return node.arguments.every((argument) => isSupportedNode(argument, options));
+    }
+    if (node.arguments.length !== fn.arity) return reject('fn-arity', options);
+    return node.arguments.every((argument) => isSupportedNode(argument, options));
   }
   if (isUnaryExpression(node)) {
-    return node.operator === '!' && isSupportedNode(node.argument);
+    if (node.operator !== '!') return reject('unsupported-node', options);
+    return isSupportedNode(node.argument, options);
   }
   if (isBinaryExpression(node)) {
-    return (
-      SUPPORTED_BINARY_OPERATORS.has(node.operator) &&
-      isSupportedNode(node.left) &&
-      isSupportedNode(node.right)
-    );
+    if (!SUPPORTED_BINARY_OPERATORS.has(node.operator)) {
+      return reject('unsupported-operator', options);
+    }
+    return isSupportedNode(node.left, options) && isSupportedNode(node.right, options);
   }
-  return false;
+  return reject('unsupported-node', options);
+}
+
+function canEvaluateAst(ast: jsep.Expression, options: GrammarWalkOptions = {}): boolean {
+  try {
+    return isSupportedNode(ast, options);
+  } catch {
+    return reject('walk-failed', options);
+  }
 }
 
 export function canEvaluateClientSide(expression: string): boolean {
   const ast = parseExpression(expression);
   if (!ast) return false;
-  try {
-    return isSupportedNode(ast);
-  } catch {
-    return false;
+  return canEvaluateAst(ast);
+}
+
+export type ParsedRuleExpression =
+  | {
+      readonly ok: true;
+      readonly ast: jsep.Expression;
+    }
+  | {
+      readonly ok: false;
+      readonly reasonCode: Extract<RuleUnevaluableReason, 'empty' | 'too-long' | 'parse-error'>;
+    };
+
+export function parseRuleExpression(expression: string): ParsedRuleExpression {
+  const ast = parseExpression(expression);
+  if (ast) return { ok: true, ast };
+  if (!expression || !expression.trim()) return { ok: false, reasonCode: 'empty' };
+  if (expression.length > MAX_EXPRESSION_LENGTH) return { ok: false, reasonCode: 'too-long' };
+  return { ok: false, reasonCode: 'parse-error' };
+}
+
+export type RuleNodeSupport =
+  | { readonly supported: true }
+  | { readonly supported: false; readonly reasonCode: RuleUnevaluableReason };
+
+export function checkRuleNodeSupport(
+  node: jsep.Expression,
+  options: { readonly hasGroupContext?: boolean } = {},
+): RuleNodeSupport {
+  let reasonCode: RuleUnevaluableReason | undefined;
+  const supported = canEvaluateAst(node, {
+    hasGroupContext: options.hasGroupContext,
+    onUnsupported: (reason) => {
+      reasonCode ??= reason;
+    },
+  });
+  return supported
+    ? { supported: true }
+    : { supported: false, reasonCode: reasonCode ?? 'walk-failed' };
+}
+
+export type RuleNodeEvaluation =
+  | { readonly resolved: true; readonly value: RuleExprValue }
+  | { readonly resolved: false; readonly reasonCode: RuleUnevaluableReason };
+
+export function evaluateRuleNode(
+  node: jsep.Expression,
+  options: RuleEvaluationOptions,
+): RuleNodeEvaluation {
+  let reasonCode: RuleUnevaluableReason | undefined;
+  const result = evaluateAst(node, {
+    ...options,
+    onUnresolved: (reason) => {
+      reasonCode ??= reason;
+    },
+  });
+  return isUnresolved(result)
+    ? { resolved: false, reasonCode: reasonCode ?? 'operand-type' }
+    : { resolved: true, value: result };
+}
+
+export type RuleMatchResult =
+  | { readonly outcome: 'match' }
+  | { readonly outcome: 'no-match' }
+  | { readonly outcome: 'unevaluable'; readonly reasonCode: RuleUnevaluableReason };
+
+export function evaluateParsedRule(
+  ast: jsep.Expression,
+  options: RuleEvaluationOptions,
+): RuleMatchResult {
+  const support = checkRuleNodeSupport(ast, { hasGroupContext: options.groups !== undefined });
+  if (!support.supported) return { outcome: 'unevaluable', reasonCode: support.reasonCode };
+
+  const evaluation = evaluateRuleNode(ast, options);
+  if (!evaluation.resolved) {
+    return { outcome: 'unevaluable', reasonCode: evaluation.reasonCode };
   }
+  if (typeof evaluation.value !== 'boolean') {
+    return { outcome: 'unevaluable', reasonCode: 'not-a-boolean' };
+  }
+  return { outcome: evaluation.value ? 'match' : 'no-match' };
+}
+
+export function tryEvaluateRuleExpressionDetailed(
+  expression: string,
+  user: OktaUser,
+  groups?: RuleGroupContext,
+): RuleMatchResult {
+  const parsed = parseRuleExpression(expression);
+  if (!parsed.ok) return { outcome: 'unevaluable', reasonCode: parsed.reasonCode };
+  return evaluateParsedRule(parsed.ast, { user, groups });
 }

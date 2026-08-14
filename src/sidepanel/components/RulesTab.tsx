@@ -8,6 +8,7 @@ import RulesStatsGrid from './rules/RulesStatsGrid';
 import RulesToolbar, { type RulesFilterType } from './rules/RulesToolbar';
 import RulesListPanel from './rules/RulesListPanel';
 import RulesMergeBanner from './rules/RulesMergeBanner';
+import CurrentGroupRuleRelations from './rules/CurrentGroupRuleRelations';
 import RuleConsolidationModal from './RuleConsolidationModal';
 import type { FormattedRule, OktaGroupRule } from '../../shared/types';
 import { filterRules } from '../../shared/ruleUtils';
@@ -24,6 +25,9 @@ import type { RulesTabState } from '../../shared/tabState/types';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('RulesTab');
+
+const targetsGroup = (rule: FormattedRule, groupId?: string): boolean =>
+  groupId ? rule.groupIds.includes(groupId) : false;
 
 interface RulesTabProps {
   targetTabId?: number;
@@ -196,8 +200,19 @@ const RulesTab: React.FC<RulesTabProps> = ({
     if (ruleId) void lifecycle.deactivateRule(ruleId);
   };
 
+  const scopedRules = React.useMemo(
+    () =>
+      rules.map((r) => {
+        const affectsCurrentGroup = targetsGroup(r, currentGroupId);
+        return Boolean(r.affectsCurrentGroup) === affectsCurrentGroup
+          ? r
+          : { ...r, affectsCurrentGroup };
+      }),
+    [rules, currentGroupId],
+  );
+
   const filteredRules = React.useMemo(() => {
-    let result = filterRules(rules, searchQuery);
+    let result = filterRules(scopedRules, searchQuery);
     switch (activeFilter) {
       case 'active':
         result = result.filter((r) => r.status === 'ACTIVE');
@@ -206,11 +221,11 @@ const RulesTab: React.FC<RulesTabProps> = ({
         result = result.filter((r) => r.conflicts && r.conflicts.length > 0);
         break;
       case 'current-group':
-        result = result.filter((r) => r.affectsCurrentGroup);
+        result = result.filter((r) => targetsGroup(r, currentGroupId));
         break;
     }
     return sortRules(result, sortMode);
-  }, [rules, searchQuery, activeFilter, sortMode]);
+  }, [scopedRules, searchQuery, activeFilter, sortMode, currentGroupId]);
 
   useEffect(() => {
     if (!activeRuleId || rules.length === 0) return;
@@ -277,6 +292,14 @@ const RulesTab: React.FC<RulesTabProps> = ({
           <RulesMergeBanner
             clusters={mergeableClusters}
             onMerge={handleMergeCluster}
+            onFocusRule={setFocusRuleId}
+          />
+        )}
+
+        {rules.length > 0 && (
+          <CurrentGroupRuleRelations
+            rules={rules}
+            currentGroupId={currentGroupId}
             onFocusRule={setFocusRuleId}
           />
         )}

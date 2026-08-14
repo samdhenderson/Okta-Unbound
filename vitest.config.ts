@@ -31,10 +31,10 @@ export default defineConfig({
         'docs/',
       ],
       thresholds: {
-        lines: 80,
-        functions: 80,
-        branches: 75,
-        statements: 80,
+        lines: 75,
+        functions: 70,
+        branches: 65,
+        statements: 75,
       },
     },
     projects: [

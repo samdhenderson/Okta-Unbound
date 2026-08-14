@@ -3,7 +3,11 @@ import type { OktaUser } from './types';
 import type { BatchOutcome } from '@/shared/scheduler/runBatch';
 import { logAction } from '../../../shared/undoManager';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
-import { oktaUserListItemSchema, type OktaUserListItem } from '@/shared/schemas/okta';
+import {
+  GROUP_RULES_EXPAND,
+  memberWithGroupRulesSchema,
+  type MemberWithGroupRules,
+} from '@/shared/membership/memberRuleAttribution';
 
 export function createGroupMemberOperations(coreApi: CoreApi) {
   const removeUserFromGroup = async (
@@ -59,11 +63,12 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
   const getAllGroupMembers = async (groupId: string): Promise<OktaUser[]> => {
     let pageCount = 0;
 
-    const allMembers: OktaUser[] = await fetchAllPages<OktaUserListItem>(
+    const allMembers: OktaUser[] = await fetchAllPages<MemberWithGroupRules>(
       (url) => coreApi.makeApiRequest(url),
-      `/api/v1/groups/${groupId}/users?limit=${OKTA_PAGE_SIZE}`,
+      `/api/v1/groups/${groupId}/users?limit=${OKTA_PAGE_SIZE}&expand=${GROUP_RULES_EXPAND}`,
       {
-        schema: oktaUserListItemSchema,
+        schema: memberWithGroupRulesSchema,
+        preserveParams: ['expand'],
         errorMessage: 'Failed to fetch group members',
         onBeforePage: (pageNumber) => {
           pageCount = pageNumber;

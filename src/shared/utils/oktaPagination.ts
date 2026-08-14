@@ -30,6 +30,30 @@ export function nextPageUrl(
   return next;
 }
 
+function rawQueryParam(url: string, name: string): string | null {
+  const queryStart = url.indexOf('?');
+  if (queryStart === -1) return null;
+
+  for (const pair of url.slice(queryStart + 1).split('&')) {
+    if (!pair) continue;
+    const eq = pair.indexOf('=');
+    const key = eq === -1 ? pair : pair.slice(0, eq);
+    if (key === name) return eq === -1 ? '' : pair.slice(eq + 1);
+  }
+  return null;
+}
+
+function preserveQueryParams(nextUrl: string, firstUrl: string, names: string[]): string {
+  let result = nextUrl;
+  for (const name of names) {
+    if (rawQueryParam(result, name) !== null) continue;
+    const value = rawQueryParam(firstUrl, name);
+    if (value === null) continue;
+    result += `${result.includes('?') ? '&' : '?'}${name}=${value}`;
+  }
+  return result;
+}
+
 export interface PaginatedPageResult {
   success: boolean;
   data?: unknown;
@@ -41,6 +65,7 @@ export interface FetchAllPagesOptions<T> {
   onPage?: (items: T[], totalSoFar: number) => void;
   onBeforePage?: (pageNumber: number) => void;
   schema?: z.ZodType<T, z.ZodTypeDef, unknown>;
+  preserveParams?: string[];
   maxPages?: number;
   context?: string;
   errorMessage?: string;
@@ -51,7 +76,7 @@ export async function fetchAllPages<T = unknown>(
   firstUrl: string,
   options: FetchAllPagesOptions<T> = {},
 ): Promise<T[]> {
-  const { onPage, onBeforePage, schema, maxPages, errorMessage } = options;
+  const { onPage, onBeforePage, schema, maxPages, errorMessage, preserveParams } = options;
   const context = options.context ?? firstUrl.split('?')[0];
   const all: T[] = [];
   let url: string | null = firstUrl;
@@ -74,7 +99,13 @@ export async function fetchAllPages<T = unknown>(
     onPage?.(items, all.length);
 
     if (maxPages !== undefined && pageCount >= maxPages) break;
-    url = nextPageUrl(url, response.headers?.link, rawPageSize);
+
+    const rawNext = nextPageUrl(url, response.headers?.link, rawPageSize);
+    const next =
+      rawNext !== null && preserveParams?.length
+        ? preserveQueryParams(rawNext, firstUrl, preserveParams)
+        : rawNext;
+    url = next === url ? null : next;
   }
 
   return all;

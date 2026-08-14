@@ -2,7 +2,12 @@ import type { CoreApi } from './core';
 import type { OktaFactor, MemberMfaResult, OktaUser } from '../../../shared/types';
 import { summarizeFactors } from '../../../shared/utils/mfaUtils';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
-import { oktaAppListItemSchema, type OktaAppListItem } from '@/shared/schemas/okta';
+import {
+  oktaAppListItemSchema,
+  extractAppAssignmentScope,
+  type OktaAppListItem,
+  type AppAssignmentScope,
+} from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
@@ -45,18 +50,24 @@ export function createUserOperations(coreApi: CoreApi) {
     }
   };
 
-  const getUserApps = async (userId: string): Promise<Array<{ id: string; label: string }>> => {
-    const apps: Array<{ id: string; label: string }> = [];
+  const getUserApps = async (
+    userId: string,
+  ): Promise<Array<{ id: string; label: string; scope?: AppAssignmentScope }>> => {
+    const apps: Array<{ id: string; label: string; scope?: AppAssignmentScope }> = [];
 
     try {
       await fetchAllPages<OktaAppListItem>(
         (url) => coreApi.makeApiRequest(url),
-        `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=${OKTA_PAGE_SIZE}`,
+        `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=${OKTA_PAGE_SIZE}&expand=user/${userId}`,
         {
           schema: oktaAppListItemSchema,
           onPage: (page) => {
             for (const app of page) {
-              apps.push({ id: app.id, label: app.label || app.name || app.id });
+              apps.push({
+                id: app.id,
+                label: app.label || app.name || app.id,
+                scope: extractAppAssignmentScope(app._embedded),
+              });
             }
           },
         },

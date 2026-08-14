@@ -14,8 +14,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Split-screen header showing both users and their overall Jaccard match %.\n\n' +
-          'Each side renders a per-user gradient avatar (hue derived from the user id), label, name, and email/login; the center chip shows the whole-percent similarity, tone-coded by overlap. While `isLoading`, the chip renders placeholder glyphs instead of the computed percentage. Presentational leaf of the comparison modal.',
+          'Compact header naming both users, with their overall Jaccard match % as a standard overlap bar.\n\n' +
+          'Each side renders a per-user gradient avatar (hue derived from the user id), its label, and the display name (the email rides on the `title`, since at side-panel width a second line truncated to nothing). Below them the whole-percent similarity is labelled and drawn as a full-width `rounded-full` bar, tone-coded by overlap — the same bar idiom the Overview tab and the members spread bar use, and one with no minimum width to overflow the panel. While `isLoading`, placeholder glyphs replace the percentage and the bar renders empty. Presentational leaf of the comparison surface.',
       },
     },
   },
@@ -33,7 +33,8 @@ const meta = {
     contextName: { description: 'Display name for the context user.' },
     comparedName: { description: 'Display name for the compared user.' },
     similarity: {
-      description: 'Overall similarity as a whole percent (0–100), shown in the center chip.',
+      description:
+        'Overall similarity as a whole percent (0–100), shown as the label and the bar fill.',
     },
     isLoading: {
       description: 'When true, renders placeholder glyphs instead of the match percentage.',

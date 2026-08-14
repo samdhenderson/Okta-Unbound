@@ -343,3 +343,81 @@ describe('RulesTab characterization', () => {
     expect(screen.getByTestId('rule-r1')).toHaveAttribute('data-highlighted', 'true');
   });
 });
+
+describe('RulesTab current-group filter', () => {
+  it('scopes to the current group for rules served from the org-wide cache', async () => {
+    rulesCacheGet.mockResolvedValue({
+      rules: [
+        rule({
+          id: 'r1',
+          name: 'Feeds Current Group',
+          groupIds: ['g1'],
+          affectsCurrentGroup: false,
+        }),
+        rule({
+          id: 'r2',
+          name: 'Feeds Another Group',
+          groupIds: ['g2'],
+          affectsCurrentGroup: false,
+        }),
+      ],
+      stats,
+      conflicts: [],
+      timestamp: Date.now(),
+    });
+
+    renderTab({ currentGroupId: 'g1' });
+    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Current Group' }));
+
+    expect(screen.getByTestId('rule-r1')).toBeInTheDocument();
+    expect(screen.queryByTestId('rule-r2')).not.toBeInTheDocument();
+  });
+
+  it('excludes a rule that does not target the current group, even if flagged', async () => {
+    rulesCacheGet.mockResolvedValue({
+      rules: [
+        rule({ id: 'r1', name: 'Feeds Current Group', groupIds: ['g0', 'g1'] }),
+        rule({
+          id: 'r2',
+          name: 'Stale Flag Rule',
+          groupIds: ['g2'],
+          affectsCurrentGroup: true,
+        }),
+      ],
+      stats,
+      conflicts: [],
+      timestamp: Date.now(),
+    });
+
+    renderTab({ currentGroupId: 'g1' });
+    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Current Group' }));
+
+    expect(screen.getByTestId('rule-r1')).toBeInTheDocument();
+    expect(screen.queryByTestId('rule-r2')).not.toBeInTheDocument();
+  });
+
+  it('yields an empty list when the restored filter has no current group', async () => {
+    loadTabState.mockResolvedValue({
+      cachedRules: [
+        rule({ id: 'r1', groupIds: ['g1'], affectsCurrentGroup: true }),
+        rule({ id: 'r2', name: 'Sales Rule', groupIds: ['g2'] }),
+      ],
+      cachedStats: stats,
+      lastFetchTime: new Date('2024-01-01').toISOString(),
+      activeFilter: 'current-group',
+    });
+
+    renderTab();
+
+    await waitFor(() => expect(screen.getByText('No Matching Rules')).toBeInTheDocument());
+    expect(screen.queryByTestId('rule-r1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('rule-r2')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Current Group' })).not.toBeInTheDocument();
+  });
+});
