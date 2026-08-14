@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOktaApi } from '../../hooks/useOktaApi';
 import { useEntityQuery } from '../../cache/useEntityQuery';
 import { peek, setEntry, invalidate } from '../../cache/entityCache';
+import { cacheKeys } from '../../cache/keys';
 import { useProgress } from '../../contexts/ProgressContext';
 import AlertMessage from '../shared/AlertMessage';
 import { Button, Modal } from '../shared';
@@ -66,7 +67,7 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
     error,
     refetch: refetchMembers,
   } = useEntityQuery<OktaUser[]>(
-    ['groupMembers', groupId],
+    cacheKeys.groupMembers(groupId),
     async () => (await getAllGroupMembers(groupId)) ?? [],
     { enabled: Boolean(targetTabId && groupId) },
   );

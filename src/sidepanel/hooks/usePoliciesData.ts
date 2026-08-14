@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { getOrFetch, peek, type EntityKey } from '../cache/entityCache';
+import { cacheKeys } from '../cache/keys';
 import { useOktaApi } from './useOktaApi';
 import type { OktaPolicyType } from './useOktaApi/index';
 import { createLogger } from '../../shared/utils/logger';
@@ -9,7 +10,7 @@ const log = createLogger('usePoliciesData');
 
 export const AUTH_POLICY_TYPE: OktaPolicyType = 'ACCESS_POLICY';
 
-export const POLICIES_CACHE_KEY: EntityKey = ['policies', AUTH_POLICY_TYPE];
+export const POLICIES_CACHE_KEY: EntityKey = cacheKeys.policies(AUTH_POLICY_TYPE);
 
 export interface UsePoliciesDataOptions {
   targetTabId?: number;

@@ -1,6 +1,7 @@
 import React, { memo, useCallback, useState } from 'react';
 import { IconButton, LoadingSpinner, OpenInOktaLink } from '../shared';
 import { useEntityQuery } from '../../cache/useEntityQuery';
+import { cacheKeys } from '../../cache/keys';
 import type { AppAssignmentCounts } from '../../hooks/useOktaApi/appOperations';
 import type { OktaAppListItem } from '../../../shared/schemas/okta';
 import { formatDate, formatDateShort } from '../../../shared/utils/dateFormat';
@@ -24,7 +25,7 @@ const AssignmentCounts: React.FC<{
   fetchAssignmentCounts: (appId: string) => Promise<AppAssignmentCounts | null>;
 }> = ({ appId, enabled, fetchAssignmentCounts }) => {
   const { data, isLoading, error } = useEntityQuery<AppAssignmentCounts | null>(
-    ['appAssignmentCounts', appId],
+    cacheKeys.appAssignmentCounts(appId),
     () => fetchAssignmentCounts(appId),
     { enabled },
   );

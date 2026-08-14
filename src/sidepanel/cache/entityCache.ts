@@ -4,6 +4,8 @@ const log = createLogger('EntityCache');
 
 const DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
 
+export const MAX_ENTRIES = 500;
+
 const KEY_SEP = '\u0000';
 
 export type EntityKey = string | ReadonlyArray<string | number>;
@@ -21,11 +23,14 @@ interface StoredEntry<T> {
   data: T;
   timestamp: number;
   expiresAt: number;
+  lastRead: number;
 }
 
 const store = new Map<string, StoredEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 const subscribers = new Map<string, Set<() => void>>();
+
+const derivedOf = new Map<string, Set<string>>();
 
 export function serializeKey(key: EntityKey): string {
   return typeof key === 'string' ? key : key.map(String).join(KEY_SEP);
@@ -40,7 +45,9 @@ function notify(serialized: string): void {
 export function peekEntry<T>(key: EntityKey): PeekedEntry<T> | null {
   const entry = store.get(serializeKey(key)) as StoredEntry<T> | undefined;
   if (!entry) return null;
-  return { data: entry.data, isFresh: Date.now() <= entry.expiresAt };
+  const now = Date.now();
+  entry.lastRead = now;
+  return { data: entry.data, isFresh: now <= entry.expiresAt };
 }
 
 export function peek<T>(key: EntityKey): T | null {
@@ -55,13 +62,60 @@ export function setEntry<T>(key: EntityKey, data: T, options: EntityCacheOptions
     data,
     timestamp: now,
     expiresAt: now + (options.ttl ?? DEFAULT_TTL),
+    lastRead: now,
   });
   log.debug('Set entry', { key: serialized });
+  evictIfOverCapacity();
   notify(serialized);
 }
 
+function evictIfOverCapacity(): void {
+  if (store.size <= MAX_ENTRIES) return;
+
+  const now = Date.now();
+  const candidates: Array<{ serialized: string; expired: boolean; entry: StoredEntry<unknown> }> =
+    [];
+  for (const [serialized, entry] of store) {
+    if (subscribers.has(serialized) || inFlight.has(serialized)) continue;
+    candidates.push({ serialized, expired: now > entry.expiresAt, entry });
+  }
+
+  candidates.sort((a, b) => {
+    if (a.expired !== b.expired) return a.expired ? -1 : 1;
+    if (a.expired) return a.entry.expiresAt - b.entry.expiresAt;
+    return a.entry.lastRead - b.entry.lastRead;
+  });
+
+  let evicted = 0;
+  for (const { serialized } of candidates) {
+    if (store.size <= MAX_ENTRIES) break;
+    store.delete(serialized);
+    evicted++;
+  }
+
+  if (evicted > 0) log.debug('Evicted entries', { count: evicted, size: store.size });
+  if (store.size > MAX_ENTRIES) {
+    log.debug('Over capacity with nothing evictable', { size: store.size });
+  }
+}
+
 export function invalidate(key: EntityKey): void {
-  const target = serializeKey(key);
+  invalidateSerialized(serializeKey(key), new Set());
+}
+
+export function registerDerived(derivedPrefix: string, sourcePrefix: string): void {
+  let set = derivedOf.get(sourcePrefix);
+  if (!set) {
+    set = new Set();
+    derivedOf.set(sourcePrefix, set);
+  }
+  set.add(derivedPrefix);
+}
+
+function invalidateSerialized(target: string, seen: Set<string>): void {
+  if (seen.has(target)) return;
+  seen.add(target);
+
   const childPrefix = target + KEY_SEP;
   const removed: string[] = [];
   for (const serialized of store.keys()) {
@@ -75,6 +129,13 @@ export function invalidate(key: EntityKey): void {
     notify(serialized);
   }
   if (removed.length) log.debug('Invalidated', { key: target, count: removed.length });
+
+  const [prefix, ...scope] = target.split(KEY_SEP);
+  const derived = derivedOf.get(prefix);
+  if (!derived) return;
+  for (const derivedPrefix of derived) {
+    invalidateSerialized([derivedPrefix, ...scope].join(KEY_SEP), seen);
+  }
 }
 
 function fetchAndStore<T>(

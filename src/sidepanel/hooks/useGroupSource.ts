@@ -7,6 +7,7 @@ import {
 } from '../../shared/membership/groupSource';
 import { writeMemberSource } from '../cache/memberSourceCache';
 import { getOrFetch } from '../cache/entityCache';
+import { cacheKeys } from '../cache/keys';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('useGroupSource');
@@ -77,7 +78,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     setError(null);
 
     Promise.all([
-      getOrFetch(['groupMembers', group.id], () => getAllGroupMembers(group.id)),
+      getOrFetch(cacheKeys.groupMembers(group.id), () => getAllGroupMembers(group.id)),
       getGroupRulesForGroup(group.id),
     ])
       .then(([members, rules]) => {

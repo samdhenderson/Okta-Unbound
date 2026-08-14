@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import type { OktaUser, GroupMembership, OktaGroup, FormattedRule } from '../../shared/types';
 import { RulesCache } from '../../shared/rulesCache';
 import { getOrFetch, peek, invalidate } from '../cache/entityCache';
+import { cacheKeys } from '../cache/keys';
 import { analyzeMemberships, unclassifiedMemberships } from '../../shared/utils/membershipAnalysis';
 import { createLogger } from '../../shared/utils/logger';
 import { useOktaApi } from './useOktaApi';
@@ -102,7 +103,7 @@ export function useUserMemberships({
       reportError(null);
 
       if (!options?.force) {
-        const cached = peek<GroupMembership[]>(['userMemberships', user.id]);
+        const cached = peek<GroupMembership[]>(cacheKeys.userMemberships(user.id));
         if (cached) {
           setMemberships(cached);
           reportLoading(false);
@@ -117,7 +118,7 @@ export function useUserMemberships({
 
       try {
         const analyzedMemberships = await getOrFetch<GroupMembership[]>(
-          ['userMemberships', user.id],
+          cacheKeys.userMemberships(user.id),
           async () => {
             log.debug('Loading memberships for user:', user.id);
 
@@ -148,7 +149,7 @@ export function useUserMemberships({
           { force: options?.force },
         );
 
-        if (degraded) invalidate(['userMemberships', user.id]);
+        if (degraded) invalidate(cacheKeys.userMemberships(user.id));
 
         setMemberships(analyzedMemberships);
         log.debug('Loaded memberships:', { count: analyzedMemberships.length, degraded });

@@ -3,6 +3,7 @@ import type React from 'react';
 import type { GroupMembership, OktaUser, UserInfo } from '../../shared/types';
 import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { invalidate } from '../cache/entityCache';
+import { cacheKeys } from '../cache/keys';
 import { userDisplayName } from '../../shared/utils/userDisplay';
 import { useUserContext } from './useUserContext';
 import { useUserMemberships } from './useUserMemberships';
@@ -104,7 +105,7 @@ export function useUsersTabState({
 
   const handleUserAddedToGroup = useCallback(
     async (user: OktaUser) => {
-      invalidate(['userMemberships', user.id]);
+      invalidate(cacheKeys.userMemberships(user.id));
       await handleSelectUser(user);
     },
     [handleSelectUser],
@@ -112,7 +113,7 @@ export function useUsersTabState({
 
   const refreshSelectedUserMemberships = useCallback(() => {
     if (!selectedUser) return;
-    invalidate(['userMemberships', selectedUser.id]);
+    invalidate(cacheKeys.userMemberships(selectedUser.id));
     void loadMemberships(selectedUser, { force: true });
   }, [selectedUser, loadMemberships]);
 

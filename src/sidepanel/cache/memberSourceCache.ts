@@ -1,10 +1,13 @@
-import { peek, setEntry, subscribe, type EntityKey } from './entityCache';
+import { peek, registerDerived, setEntry, subscribe, type EntityKey } from './entityCache';
+import { cacheKeys, TTL_LONG } from './keys';
 import type { MemberSourceBreakdown } from '../../shared/membership/groupSource';
 
-export const MEMBER_SOURCE_TTL = 30 * 60 * 1000;
+registerDerived('memberSource', 'groupMembers');
+
+export const MEMBER_SOURCE_TTL = TTL_LONG;
 
 export function memberSourceKey(groupId: string): EntityKey {
-  return ['memberSource', groupId];
+  return cacheKeys.memberSource(groupId);
 }
 
 export function readMemberSource(groupId: string): MemberSourceBreakdown | null {
