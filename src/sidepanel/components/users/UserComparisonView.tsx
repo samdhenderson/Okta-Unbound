@@ -57,6 +57,8 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
     groupSimilarity,
     appSimilarity,
     overallSimilarity,
+    similarityScope,
+    appsIncomplete,
     isLoading,
     loadError,
     addingGroupId,
@@ -99,6 +101,7 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
             contextName={contextName}
             comparedName={comparedName}
             similarity={overallSimilarity}
+            scopeNote={similarityScope === 'groups-only' ? 'groups only' : undefined}
             isLoading={isLoading}
           />
 
@@ -125,6 +128,15 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
                 <AlertMessage
                   message={{ text: addError, type: 'danger' }}
                   onDismiss={() => setAddError(null)}
+                />
+              )}
+
+              {appsIncomplete && (
+                <AlertMessage
+                  message={{
+                    text: 'Some app assignments could not be loaded. The app comparison is incomplete, and the match score covers groups only.',
+                    type: 'warning',
+                  }}
                 />
               )}
 
@@ -230,7 +242,11 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
                   comparedName={comparedName}
                   rows={appParityRows(appBuckets)}
                   noun="app"
-                  emptyText="Neither user is assigned any apps."
+                  emptyText={
+                    appsIncomplete
+                      ? 'App assignments could not be loaded for this comparison.'
+                      : 'Neither user is assigned any apps.'
+                  }
                   renderMeta={(row) => {
                     if (row.inContext && row.inCompared) {
                       return <AppScopeIndicator state="notCompared" />;

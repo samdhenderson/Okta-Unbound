@@ -48,11 +48,13 @@ export function useUserComparison({
   const [comparedUser, setComparedUser] = useState<OktaUser | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
-  const { contextApps, comparedApps, isLoadingApps, resetApps } = useComparisonApps({
-    targetTabId,
-    contextUserId: contextUser.id,
-    comparedUser,
-  });
+  const { contextApps, comparedApps, isLoadingApps, appsIncomplete, resetApps } = useComparisonApps(
+    {
+      targetTabId,
+      contextUserId: contextUser.id,
+      comparedUser,
+    },
+  );
 
   const onComparedGroupsChanged = useCallback(() => {
     if (comparedUser) void loadMemberships(comparedUser, { force: true });
@@ -156,11 +158,19 @@ export function useUserComparison({
     groupBuckets.shared.length,
     groupBuckets.shared.length + groupBuckets.onlyCompared.length + groupBuckets.onlyContext.length,
   );
-  const appSimilarity = jaccard(
-    appBuckets.shared.length,
-    appBuckets.shared.length + appBuckets.onlyCompared.length + appBuckets.onlyContext.length,
-  );
-  const overallSimilarity = comparedUser ? Math.round((groupSimilarity + appSimilarity) / 2) : 0;
+  const appSimilarity = appsIncomplete
+    ? null
+    : jaccard(
+        appBuckets.shared.length,
+        appBuckets.shared.length + appBuckets.onlyCompared.length + appBuckets.onlyContext.length,
+      );
+
+  const overallSimilarity = !comparedUser
+    ? 0
+    : appSimilarity === null
+      ? groupSimilarity
+      : Math.round((groupSimilarity + appSimilarity) / 2);
+  const similarityScope: 'both' | 'groups-only' = appSimilarity === null ? 'groups-only' : 'both';
 
   const isLoading = isLoadingGroups || isLoadingApps;
   const loadError = groupsError;
@@ -184,6 +194,8 @@ export function useUserComparison({
     groupSimilarity,
     appSimilarity,
     overallSimilarity,
+    similarityScope,
+    appsIncomplete,
     isLoading,
     loadError,
     addingGroupId,

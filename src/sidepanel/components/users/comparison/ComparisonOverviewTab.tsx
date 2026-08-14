@@ -11,7 +11,7 @@ interface ComparisonOverviewTabProps {
   groupBuckets: GroupBuckets;
   appBuckets: { onlyCompared: AppEntry[]; shared: AppEntry[]; onlyContext: AppEntry[] };
   groupSimilarity: number;
-  appSimilarity: number;
+  appSimilarity: number | null;
   onJumpToGroups: () => void;
   onJumpToApps: () => void;
   causes?: readonly AccessCause[];
@@ -74,7 +74,7 @@ const ComparisonOverviewTab: React.FC<ComparisonOverviewTabProps> = ({
 interface OverviewCardProps {
   icon: 'users' | 'app';
   heading: string;
-  similarity: number;
+  similarity: number | null;
   contextName: string;
   comparedName: string;
   onlyContext: number;
@@ -127,7 +127,9 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
 
       <div className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-3 text-xs">
         <span className="text-neutral-500">
-          {total} total · {similarity}% overlap
+          {similarity === null
+            ? `at least ${total} · overlap unavailable`
+            : `${total} total · ${similarity}% overlap`}
         </span>
         {onlyCompared > 0 && icon === 'users' && (
           <span className="flex items-center gap-1 font-semibold text-primary-text">

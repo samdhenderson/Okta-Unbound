@@ -12,6 +12,17 @@ import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
 
+export interface UserAppAssignment {
+  id: string;
+  label: string;
+  scope?: AppAssignmentScope;
+}
+
+export interface UserAppsResult {
+  apps: UserAppAssignment[];
+  complete: boolean;
+}
+
 export function createUserOperations(coreApi: CoreApi) {
   const getUserLastLogin = async (userId: string): Promise<Date | null> => {
     try {
@@ -50,10 +61,8 @@ export function createUserOperations(coreApi: CoreApi) {
     }
   };
 
-  const getUserApps = async (
-    userId: string,
-  ): Promise<Array<{ id: string; label: string; scope?: AppAssignmentScope }>> => {
-    const apps: Array<{ id: string; label: string; scope?: AppAssignmentScope }> = [];
+  const getUserApps = async (userId: string): Promise<UserAppsResult> => {
+    const apps: UserAppAssignment[] = [];
 
     try {
       await fetchAllPages<OktaAppListItem>(
@@ -74,9 +83,10 @@ export function createUserOperations(coreApi: CoreApi) {
       );
     } catch (error) {
       log.error(`Failed to list apps for user ${userId}:`, error);
+      return { apps, complete: false };
     }
 
-    return apps;
+    return { apps, complete: true };
   };
 
   const batchGetUserDetails = async (

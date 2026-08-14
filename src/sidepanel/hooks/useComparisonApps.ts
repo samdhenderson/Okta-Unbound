@@ -13,6 +13,7 @@ interface UseComparisonAppsReturn {
   contextApps: AppEntry[];
   comparedApps: AppEntry[];
   isLoadingApps: boolean;
+  appsIncomplete: boolean;
   resetApps: () => void;
 }
 
@@ -26,6 +27,7 @@ export function useComparisonApps({
   const [contextApps, setContextApps] = useState<AppEntry[]>([]);
   const [comparedApps, setComparedApps] = useState<AppEntry[]>([]);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
+  const [appsIncomplete, setAppsIncomplete] = useState(false);
 
   useEffect(() => {
     if (!comparedUser) return;
@@ -33,10 +35,11 @@ export function useComparisonApps({
     let cancelled = false;
     setIsLoadingApps(true);
     Promise.all([getUserApps(contextUserId), getUserApps(comparedUser.id)])
-      .then(([ctxApps, cmpApps]) => {
+      .then(([context, compared]) => {
         if (cancelled) return;
-        setContextApps(ctxApps);
-        setComparedApps(cmpApps);
+        setContextApps(context.apps);
+        setComparedApps(compared.apps);
+        setAppsIncomplete(!context.complete || !compared.complete);
       })
       .finally(() => {
         if (!cancelled) setIsLoadingApps(false);
@@ -51,7 +54,8 @@ export function useComparisonApps({
   const resetApps = useCallback(() => {
     setContextApps([]);
     setComparedApps([]);
+    setAppsIncomplete(false);
   }, []);
 
-  return { contextApps, comparedApps, isLoadingApps, resetApps };
+  return { contextApps, comparedApps, isLoadingApps, appsIncomplete, resetApps };
 }

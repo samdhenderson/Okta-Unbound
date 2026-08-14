@@ -57,6 +57,8 @@ const comparison = (over: Partial<UserComparisonState> = {}): UserComparisonStat
   groupSimilarity: 0,
   appSimilarity: 0,
   overallSimilarity: 0,
+  similarityScope: 'both',
+  appsIncomplete: false,
   isLoading: false,
   loadError: null,
   addingGroupId: null,
@@ -173,6 +175,31 @@ export const Loading: Story = {
 
 export const LoadError: Story = {
   args: { comparison: loaded({ loadError: 'Failed to load memberships' }) },
+};
+
+export const AppsIncomplete: Story = {
+  args: {
+    comparison: loaded({
+      appsIncomplete: true,
+      appSimilarity: null,
+      similarityScope: 'groups-only',
+      overallSimilarity: 33,
+    }),
+  },
+};
+
+export const AppsIncompleteOnAppsTab: Story = {
+  args: {
+    comparison: loaded({
+      activeTab: 'apps',
+      appsIncomplete: true,
+      appSimilarity: null,
+      similarityScope: 'groups-only',
+      overallSimilarity: 33,
+      appBuckets: { onlyCompared: [], shared: [], onlyContext: [] },
+      appDiffCount: 0,
+    }),
+  },
 };
 
 export const AddError: Story = {

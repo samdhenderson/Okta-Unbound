@@ -687,23 +687,34 @@ describe('UserComparisonModal', () => {
     });
   });
 
-  describe('app-fetch resilience (riskyBit: appsError is unreachable dead state)', () => {
-    it('CHARACTERIZED: a failing scheduled /api/v1/apps request renders as "0 apps", never as an error', async () => {
+  describe('app-fetch resilience', () => {
+    it('a failing scheduled /api/v1/apps request is caveated, not reported as "0 apps"', async () => {
       scenario.appsResponse = async () => ({ success: false, error: '500 from Okta' });
 
       render(<Harness />);
       await openComparison();
 
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      expect(screen.getByText('13%')).toBeInTheDocument(); // Math.round((25 + 0) / 2) = 13
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /Some app assignments could not be loaded/,
+      );
+      expect(screen.getByRole('tab', { name: /Apps/ })).toBeInTheDocument();
+
+      expect(screen.getByText('25%')).toBeInTheDocument();
+      expect(screen.getByText('Match · groups only')).toBeInTheDocument();
+      expect(screen.queryByText('13%')).not.toBeInTheDocument();
+
+      expect(screen.getByText('at least 0 · overlap unavailable')).toBeInTheDocument();
 
       await gotoTab('Apps');
       expect(bucketItems('Only Bob Compared')).toEqual([]);
       expect(bucketItems('Shared')).toEqual([]);
       expect(bucketItems('Only Alice Context')).toEqual([]);
+      expect(
+        screen.getByText('App assignments could not be loaded for this comparison.'),
+      ).toBeInTheDocument();
     });
 
-    it('CHARACTERIZED: a thrown app request is also swallowed into an empty list', async () => {
+    it('a thrown app request is caveated the same way as a failed response', async () => {
       scenario.appsResponse = async () => {
         throw new Error('port closed');
       };
@@ -711,8 +722,20 @@ describe('UserComparisonModal', () => {
       render(<Harness />);
       await openComparison();
 
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      expect(screen.getByText('0 total · 0% overlap')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        /Some app assignments could not be loaded/,
+      );
+      expect(screen.getByText('at least 0 · overlap unavailable')).toBeInTheDocument();
+      expect(screen.queryByText('0 total · 0% overlap')).not.toBeInTheDocument();
+    });
+
+    it('leaves the groups card alone — only the app half is caveated', async () => {
+      scenario.appsResponse = async () => ({ success: false, error: '500 from Okta' });
+
+      render(<Harness />);
+      await openComparison();
+
+      expect(screen.getByText('4 total · 25% overlap')).toBeInTheDocument();
     });
   });
 

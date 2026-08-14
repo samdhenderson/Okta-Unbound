@@ -36,6 +36,10 @@ const meta = {
       description:
         'Overall similarity as a whole percent (0–100), shown as the label and the bar fill.',
     },
+    scopeNote: {
+      description:
+        'What the percentage covers, when that is less than everything — e.g. "groups only" while the app half could not be read. Appended to the `Match` label.',
+    },
     isLoading: {
       description: 'When true, renders placeholder glyphs instead of the match percentage.',
     },
@@ -53,6 +57,10 @@ export const HighMatch: Story = {
 
 export const LowMatch: Story = {
   args: { similarity: 8 },
+};
+
+export const ScopedToGroups: Story = {
+  args: { similarity: 25, scopeNote: 'groups only' },
 };
 
 export const Loading: Story = {

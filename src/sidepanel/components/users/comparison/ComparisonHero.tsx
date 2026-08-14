@@ -9,6 +9,7 @@ interface ComparisonHeroProps {
   contextName: string;
   comparedName: string;
   similarity: number;
+  scopeNote?: string;
   isLoading: boolean;
 }
 
@@ -18,6 +19,7 @@ const ComparisonHero: React.FC<ComparisonHeroProps> = ({
   contextName,
   comparedName,
   similarity,
+  scopeNote,
   isLoading,
 }) => (
   <div className="overflow-hidden rounded-lg border border-neutral-200 bg-gradient-to-br from-white via-white to-primary-light/40 p-3">
@@ -30,8 +32,8 @@ const ComparisonHero: React.FC<ComparisonHeroProps> = ({
     </div>
 
     <div className="mt-3 flex items-baseline justify-between gap-2">
-      <span className="text-[10px] font-bold tracking-[0.12em] text-neutral-500 uppercase">
-        {isLoading ? '— —' : 'Match'}
+      <span className="min-w-0 truncate text-[10px] font-bold tracking-[0.12em] text-neutral-500 uppercase">
+        {isLoading ? '— —' : scopeNote ? `Match · ${scopeNote}` : 'Match'}
       </span>
       <span
         className="font-mono text-sm leading-none font-bold"
