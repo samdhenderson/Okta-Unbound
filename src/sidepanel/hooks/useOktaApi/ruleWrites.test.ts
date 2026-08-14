@@ -2,20 +2,13 @@ import { describe, it, expect, vi } from 'vitest';
 import { createRuleWriteOperations } from './ruleWrites';
 import type { CoreApi } from './core';
 import type { CreateRulePayload } from '../../../shared/rules/consolidation';
+import { makeFakeCore } from '@/test/factories/coreApi';
 
-function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
-  return {
-    targetTabId: 1,
-    sendMessage: vi.fn(),
+const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
+  makeFakeCore({
     makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getCurrentUser: vi.fn().mockResolvedValue({ email: 'admin@example.com', id: 'admin' }),
-    checkCancelled: vi.fn(),
-    resetCancellation: vi.fn(),
-    runOperation: vi.fn(),
-    callbacks: {},
     ...overrides,
-  } as CoreApi;
-}
+  });
 
 function validRule(overrides: Record<string, unknown> = {}) {
   return {

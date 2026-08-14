@@ -3,6 +3,7 @@ import { createGroupDiscoveryOperations } from './groupDiscovery';
 import type { CoreApi } from './core';
 import { RulesCache } from '../../../shared/rulesCache';
 import { formatRuleForDisplay } from '../../../shared/ruleUtils';
+import { makeFakeCore } from '@/test/factories/coreApi';
 
 vi.mock('../../../shared/rulesCache', () => ({
   RulesCache: {
@@ -18,19 +19,11 @@ const getRulesForGroupMock = vi.mocked(RulesCache.getRulesForGroup);
 const isFreshMock = vi.mocked(RulesCache.isFresh);
 const setMock = vi.mocked(RulesCache.set);
 
-function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
-  return {
-    targetTabId: 1,
-    sendMessage: vi.fn(),
+const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
+  makeFakeCore({
     makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: {} }),
-    getCurrentUser: vi.fn().mockResolvedValue({ email: 'admin@example.com', id: 'admin' }),
-    checkCancelled: vi.fn(),
-    resetCancellation: vi.fn(),
-    runOperation: vi.fn(),
-    callbacks: {},
     ...overrides,
-  } as CoreApi;
-}
+  });
 
 const NEXT_LINK =
   '<https://fake.okta.example.com/api/v1/groups?after=CURSOR2&limit=200&expand=stats>; rel="next"';

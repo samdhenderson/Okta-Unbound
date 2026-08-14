@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createGroupCleanupOperations } from './groupCleanup';
 import type { CoreApi } from './core';
+import { makeFakeCore } from '@/test/factories/coreApi';
 
 vi.mock('../../../shared/undoManager', () => ({
   logBulkRemoveAction: vi.fn().mockResolvedValue(undefined),
@@ -9,14 +10,8 @@ vi.mock('../../../shared/storage/auditStore', () => ({
   auditStore: { logOperation: vi.fn().mockResolvedValue(undefined) },
 }));
 
-function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
-  return {
-    targetTabId: 1,
-    sendMessage: vi.fn(),
-    makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: [], headers: {} }),
-    getCurrentUser: vi.fn().mockResolvedValue({ email: 'admin@example.com', id: 'admin' }),
-    checkCancelled: vi.fn(),
-    resetCancellation: vi.fn(),
+const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
+  makeFakeCore({
     runOperation: vi.fn(
       async (_name, items: unknown[], task: (item: unknown, index: number) => unknown) => {
         const results: Array<{ status: string; item: unknown; error?: unknown }> = [];
@@ -35,10 +30,8 @@ function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
         return { results, completed, failed, cancelled: false, stoppedByError: false };
       },
     ),
-    callbacks: {},
     ...overrides,
-  } as unknown as CoreApi;
-}
+  });
 
 const deprovisionedMember = {
   id: '00uFAKE1',

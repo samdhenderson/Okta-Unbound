@@ -6,6 +6,7 @@ import { oktaUserListItemSchema, type OktaUserListItem } from '@/shared/schemas/
 import { OperationCancelledError } from '@/shared/scheduler/cancellation';
 import { downloadCSV } from '@/shared/utils/csvUtils';
 import { auditStore } from '@/shared/storage/auditStore';
+import { makeFakeCore, FAKE_ADMIN } from '@/test/factories/coreApi';
 
 vi.mock('@/shared/utils/csvUtils', async (importActual) => {
   const actual = await importActual<typeof import('@/shared/utils/csvUtils')>();
@@ -78,19 +79,11 @@ function nextLink(path: string): string {
   return `<https://acme.okta.com${path}>; rel="next"`;
 }
 
-function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
-  return {
-    targetTabId: 1,
-    sendMessage: vi.fn(),
-    makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: [], headers: {} }),
-    getCurrentUser: vi.fn().mockResolvedValue({ email: 'admin@example.com', id: '00uFAKEADMIN' }),
-    checkCancelled: vi.fn(),
-    resetCancellation: vi.fn(),
-    runOperation: vi.fn(),
-    callbacks: {},
+const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
+  makeFakeCore({
+    getCurrentUser: vi.fn().mockResolvedValue({ ...FAKE_ADMIN, id: '00uFAKEADMIN' }),
     ...overrides,
-  } as CoreApi;
-}
+  });
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -1,20 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createGroupBulkOperations } from './groupBulkOps';
 import type { CoreApi } from './core';
+import { makeFakeCore } from '@/test/factories/coreApi';
 import type { OktaUser } from './types';
 import { OperationCancelledError } from '../../../shared/scheduler/cancellation';
 import type { BulkOperation } from '../../../shared/types';
 
-function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
-  return {
-    targetTabId: 1,
-    sendMessage: vi.fn(),
+const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
+  makeFakeCore({
     makeApiRequest: vi
       .fn()
       .mockResolvedValue({ success: true, data: { profile: { name: 'Group' } } }),
     getCurrentUser: vi.fn().mockResolvedValue({ email: 'admin', id: 'admin' }),
-    checkCancelled: vi.fn(),
-    resetCancellation: vi.fn(),
     runOperation: vi.fn(
       async (
         _name: string,
@@ -58,10 +55,8 @@ function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
         };
       },
     ),
-    callbacks: {},
     ...overrides,
-  } as unknown as CoreApi;
-}
+  });
 
 function removeUserOp(targetGroups: string[]): BulkOperation {
   return {

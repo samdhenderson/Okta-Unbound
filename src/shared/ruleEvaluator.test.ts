@@ -1,94 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import {
-  canEvaluateClientSide,
   checkRuleNodeSupport,
   evaluateParsedRule,
-  evaluateRuleExpression,
   evaluateRuleNode,
   parseRuleExpression,
   tryEvaluateRuleExpression,
   tryEvaluateRuleExpressionDetailed,
   RULE_CONNECTIVE_OPERATORS,
+  type RuleNodeEvaluation,
 } from './ruleEvaluator';
 import type { OktaUser } from './types';
 
-describe('ruleEvaluator', () => {
-  const mockUser: OktaUser = {
-    id: '123',
-    status: 'ACTIVE',
-    profile: {
-      login: 'test@example.com',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-      department: 'Engineering',
-      title: 'Developer',
-      city: 'San Francisco',
-      managerId: '456',
-    },
-  };
+const gateAccepts = (expression: string): boolean => {
+  const parsed = parseRuleExpression(expression);
+  return parsed.ok && checkRuleNodeSupport(parsed.ast).supported;
+};
 
-  it('should match simple equality string comparison', () => {
-    const expression = 'user.department == "Engineering"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-
-  it('should fail simple equality mismatch', () => {
-    const expression = 'user.department == "Sales"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(false);
-  });
-
-  it('should match "eq" operator', () => {
-    const expression = 'user.department eq "Engineering"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-
-  it('should match AND logic', () => {
-    const expression = 'user.department == "Engineering" and user.title == "Developer"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-
-  it('should match OR logic', () => {
-    const expression = 'user.department == "Sales" or user.title == "Developer"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-
-  it('should handle parenthesis', () => {
-    const expression =
-      '(user.department == "Sales" or user.department == "Engineering") and user.city == "San Francisco"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-
-  it('should handle missing attributes (treat as null)', () => {
-    const expression = 'user.division == null';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-
-  it('should return false for unsupported group functions for now', () => {
-    const expression = 'isMemberOfGroup("00g123")';
-    const originalWarn = console.warn;
-    console.warn = () => {};
-
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(false);
-
-    console.warn = originalWarn;
-  });
-
-  it('should return false for invalid expression syntax', () => {
-    const expression = 'user.department =='; // Syntax error
-    const originalWarn = console.warn;
-    console.warn = () => {};
-
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(false);
-
-    console.warn = originalWarn;
-  });
-
-  it('should handle values with spaces', () => {
-    const expression = 'user.city == "San Francisco"';
-    expect(evaluateRuleExpression(expression, mockUser)).toBe(true);
-  });
-});
+const walkUngated = (expression: string, user: OktaUser): RuleNodeEvaluation => {
+  const parsed = parseRuleExpression(expression);
+  if (!parsed.ok) return { resolved: false, reasonCode: parsed.reasonCode };
+  return evaluateRuleNode(parsed.ast, { user });
+};
 
 describe('tryEvaluateRuleExpression', () => {
   const user: OktaUser = {
@@ -139,6 +71,25 @@ describe('tryEvaluateRuleExpression', () => {
     it('returns match for a negation of an unsatisfied condition', () => {
       expect(tryEvaluateRuleExpression('!(user.department == "Sales")', user)).toBe('match');
     });
+
+    it('returns match when only the second disjunct of an `or` holds', () => {
+      expect(
+        tryEvaluateRuleExpression('user.department == "Sales" or user.title == "Developer"', user),
+      ).toBe('match');
+    });
+
+    it('returns match for a parenthesised disjunction conjoined with a further clause', () => {
+      expect(
+        tryEvaluateRuleExpression(
+          '(user.department == "Sales" or user.department == "Engineering") and user.city == "San Francisco"',
+          user,
+        ),
+      ).toBe('match');
+    });
+
+    it('returns match for an absent attribute compared against null', () => {
+      expect(tryEvaluateRuleExpression('user.division == null', user)).toBe('match');
+    });
   });
 
   describe('no-match — reserved for expressions that were fully understood', () => {
@@ -186,7 +137,7 @@ describe('tryEvaluateRuleExpression', () => {
     });
 
     it('is unevaluable when the gate rejects a group-membership function', () => {
-      expect(canEvaluateClientSide('isMemberOfGroup("00gFAKE")')).toBe(false);
+      expect(gateAccepts('isMemberOfGroup("00gFAKE")')).toBe(false);
       expect(tryEvaluateRuleExpression('isMemberOfGroup("00gFAKE")', user)).toBe('unevaluable');
       expect(tryEvaluateRuleExpression('isMemberOfGroupName("Engineering")', user)).toBe(
         'unevaluable',
@@ -206,7 +157,7 @@ describe('tryEvaluateRuleExpression', () => {
     });
 
     it('is unevaluable when the gate rejects app context', () => {
-      expect(canEvaluateClientSide('app.clientId == "x"')).toBe(false);
+      expect(gateAccepts('app.clientId == "x"')).toBe(false);
       expect(tryEvaluateRuleExpression('app.clientId == "x"', user)).toBe('unevaluable');
     });
 
@@ -264,31 +215,31 @@ describe('tryEvaluateRuleExpression', () => {
   });
 });
 
-describe('canEvaluateClientSide', () => {
+describe('the grammar gate, over whole expressions', () => {
   it('accepts the supported subset', () => {
-    expect(canEvaluateClientSide('user.department == "Engineering"')).toBe(true);
-    expect(canEvaluateClientSide('user.a eq "x" or user.b ne "y"')).toBe(true);
-    expect(canEvaluateClientSide('String.stringContains(user.email, "@example.com")')).toBe(true);
+    expect(gateAccepts('user.department == "Engineering"')).toBe(true);
+    expect(gateAccepts('user.a eq "x" or user.b ne "y"')).toBe(true);
+    expect(gateAccepts('String.stringContains(user.email, "@example.com")')).toBe(true);
   });
 
   it('rejects group-membership and app-context expressions (historical contract)', () => {
-    expect(canEvaluateClientSide('isMemberOfGroupName("Eng")')).toBe(false);
-    expect(canEvaluateClientSide('app.id == "0oaFAKE"')).toBe(false);
+    expect(gateAccepts('isMemberOfGroupName("Eng")')).toBe(false);
+    expect(gateAccepts('app.id == "0oaFAKE"')).toBe(false);
   });
 
   it('rejects expressions that parse but use unsupported grammar', () => {
-    expect(canEvaluateClientSide('user.department + "x" == "y"')).toBe(false);
-    expect(canEvaluateClientSide('String.substring(user.email, 0, 3) == "ada"')).toBe(false);
+    expect(gateAccepts('user.department + "x" == "y"')).toBe(false);
+    expect(gateAccepts('String.substring(user.email, 0, 3) == "ada"')).toBe(false);
   });
 
   it('rejects unparseable and empty input', () => {
-    expect(canEvaluateClientSide('user.department ==')).toBe(false);
-    expect(canEvaluateClientSide('')).toBe(false);
+    expect(gateAccepts('user.department ==')).toBe(false);
+    expect(gateAccepts('')).toBe(false);
   });
 
   it('accepts boolean and numeric literals', () => {
-    expect(canEvaluateClientSide('user.active == true')).toBe(true);
-    expect(canEvaluateClientSide('user.employeeNumber >= 10')).toBe(true);
+    expect(gateAccepts('user.active == true')).toBe(true);
+    expect(gateAccepts('user.employeeNumber >= 10')).toBe(true);
   });
 });
 
@@ -310,13 +261,15 @@ describe('supported subset', () => {
 
   it('implements the allow-listed String functions', () => {
     expect(
-      evaluateRuleExpression('String.toUpperCase(user.department) == "ENGINEERING"', user),
-    ).toBe(true);
-    expect(evaluateRuleExpression('String.len(user.firstName) == 3', user)).toBe(true);
-    expect(evaluateRuleExpression('String.append(user.firstName, " L") == "Ada L"', user)).toBe(
-      true,
+      tryEvaluateRuleExpression('String.toUpperCase(user.department) == "ENGINEERING"', user),
+    ).toBe('match');
+    expect(tryEvaluateRuleExpression('String.len(user.firstName) == 3', user)).toBe('match');
+    expect(tryEvaluateRuleExpression('String.append(user.firstName, " L") == "Ada L"', user)).toBe(
+      'match',
     );
-    expect(evaluateRuleExpression('String.endsWith(user.email, "example.com")', user)).toBe(true);
+    expect(tryEvaluateRuleExpression('String.endsWith(user.email, "example.com")', user)).toBe(
+      'match',
+    );
   });
 
   it('rejects a String function applied to a non-string attribute', () => {
@@ -326,70 +279,65 @@ describe('supported subset', () => {
   });
 
   it('supports the numeric ordering operators, and only on numbers', () => {
-    expect(evaluateRuleExpression('user.employeeNumber < 100', user)).toBe(true);
-    expect(evaluateRuleExpression('user.employeeNumber <= 42', user)).toBe(true);
-    expect(evaluateRuleExpression('user.employeeNumber >= 43', user)).toBe(false);
+    expect(tryEvaluateRuleExpression('user.employeeNumber < 100', user)).toBe('match');
+    expect(tryEvaluateRuleExpression('user.employeeNumber <= 42', user)).toBe('match');
+    expect(tryEvaluateRuleExpression('user.employeeNumber >= 43', user)).toBe('no-match');
     expect(tryEvaluateRuleExpression('user.department > "A"', user)).toBe('unevaluable');
   });
 
   it('supports inequality and boolean attributes', () => {
-    expect(evaluateRuleExpression('user.department != "Sales"', user)).toBe(true);
-    expect(evaluateRuleExpression('user.active == true', user)).toBe(true);
-    expect(evaluateRuleExpression('!user.active', user)).toBe(false);
+    expect(tryEvaluateRuleExpression('user.department != "Sales"', user)).toBe('match');
+    expect(tryEvaluateRuleExpression('user.active == true', user)).toBe('match');
+    expect(tryEvaluateRuleExpression('!user.active', user)).toBe('no-match');
   });
 
   it('stringifies a non-scalar profile value rather than failing', () => {
-    expect(evaluateRuleExpression('user.roles == "admin,dev"', user)).toBe(true);
+    expect(tryEvaluateRuleExpression('user.roles == "admin,dev"', user)).toBe('match');
   });
 
-  describe('three-valued logic (legacy API coerces "unresolved" to false)', () => {
+  describe('three-valued logic', () => {
     it('resolves an OR whose other side is true', () => {
       expect(
-        evaluateRuleExpression(
-          'isMemberOfGroup("00gFAKE") || user.department == "Engineering"',
-          user,
-        ),
-      ).toBe(true);
+        walkUngated('isMemberOfGroup("00gFAKE") || user.department == "Engineering"', user),
+      ).toEqual({ resolved: true, value: true });
     });
 
     it('resolves an AND whose other side is false', () => {
-      expect(
-        evaluateRuleExpression('isMemberOfGroup("00gFAKE") && user.department == "Sales"', user),
-      ).toBe(false);
+      expect(walkUngated('isMemberOfGroup("00gFAKE") && user.department == "Sales"', user)).toEqual(
+        { resolved: true, value: false },
+      );
     });
 
-    it('stays unresolved (→ false) when the known side cannot decide it', () => {
+    it('stays unresolved when the known side cannot decide it', () => {
       expect(
-        evaluateRuleExpression(
-          'isMemberOfGroup("00gFAKE") && user.department == "Engineering"',
-          user,
-        ),
+        walkUngated('isMemberOfGroup("00gFAKE") && user.department == "Engineering"', user)
+          .resolved,
       ).toBe(false);
     });
 
     it('propagates an unresolved argument out of a supported call', () => {
-      expect(
-        evaluateRuleExpression('String.startsWith(isMemberOfGroup("00gFAKE"), "a")', user),
-      ).toBe(false);
+      expect(walkUngated('String.startsWith(isMemberOfGroup("00gFAKE"), "a")', user).resolved).toBe(
+        false,
+      );
     });
   });
 
-  describe('rejections reachable only through the ungated API', () => {
+  describe('rejections reachable only through the ungated walk', () => {
     it('rejects computed and non-user member access', () => {
-      expect(evaluateRuleExpression('user["department"] == "Engineering"', user)).toBe(false);
-      expect(evaluateRuleExpression('app.id == "0oaFAKE"', user)).toBe(false);
-      expect(evaluateRuleExpression('user.a.b == 1', user)).toBe(false);
+      expect(walkUngated('user["department"] == "Engineering"', user).resolved).toBe(false);
+      expect(walkUngated('app.id == "0oaFAKE"', user).resolved).toBe(false);
+      expect(walkUngated('user.a.b == 1', user).resolved).toBe(false);
     });
 
     it('rejects a nested callee, an unsupported operator and a bare identifier', () => {
-      expect(evaluateRuleExpression('user.a.b("x") == 1', user)).toBe(false);
-      expect(evaluateRuleExpression('user.employeeNumber % 2 == 0', user)).toBe(false);
-      expect(evaluateRuleExpression('department == "Engineering"', user)).toBe(false);
+      expect(walkUngated('user.a.b("x") == 1', user).resolved).toBe(false);
+      expect(walkUngated('user.employeeNumber % 2 == 0', user).resolved).toBe(false);
+      expect(walkUngated('department == "Engineering"', user).resolved).toBe(false);
     });
 
     it('rejects a wrong-arity call and a non-"!" unary operator', () => {
-      expect(evaluateRuleExpression('String.startsWith(user.firstName)', user)).toBe(false);
-      expect(evaluateRuleExpression('-user.employeeNumber == -42', user)).toBe(false);
+      expect(walkUngated('String.startsWith(user.firstName)', user).resolved).toBe(false);
+      expect(walkUngated('-user.employeeNumber == -42', user).resolved).toBe(false);
     });
   });
 });
@@ -433,29 +381,29 @@ describe('parse memoisation', () => {
   it('caches a parse failure so an ungrammatical expression is not re-parsed', () => {
     const bad = ungrammatical('memoFailureCached');
 
-    expect(canEvaluateClientSide(bad)).toBe(false);
+    expect(gateAccepts(bad)).toBe(false);
     expect(parseAttempts()).toBe(1);
 
-    expect(canEvaluateClientSide(bad)).toBe(false);
+    expect(gateAccepts(bad)).toBe(false);
     expect(tryEvaluateRuleExpression(bad, user)).toBe('unevaluable');
-    expect(evaluateRuleExpression(bad, user)).toBe(false);
+    expect(tryEvaluateRuleExpressionDetailed(bad, user).outcome).toBe('unevaluable');
     expect(parseAttempts()).toBe(1);
   });
 
   it(`evicts the oldest entry only once a ${PARSE_CACHE_LIMIT + 1}th expression arrives`, () => {
     const victim = ungrammatical('memoEviction');
 
-    for (let i = 0; i < PARSE_CACHE_LIMIT; i++) canEvaluateClientSide(filler('pre', i));
+    for (let i = 0; i < PARSE_CACHE_LIMIT; i++) gateAccepts(filler('pre', i));
 
-    canEvaluateClientSide(victim); // newest of PARSE_CACHE_LIMIT entries
+    gateAccepts(victim); // newest of PARSE_CACHE_LIMIT entries
     expect(parseAttempts()).toBe(1);
 
-    for (let i = 0; i < PARSE_CACHE_LIMIT - 1; i++) canEvaluateClientSide(filler('post', i));
-    expect(canEvaluateClientSide(victim)).toBe(false);
+    for (let i = 0; i < PARSE_CACHE_LIMIT - 1; i++) gateAccepts(filler('post', i));
+    expect(gateAccepts(victim)).toBe(false);
     expect(parseAttempts()).toBe(1);
 
-    canEvaluateClientSide(filler('post', PARSE_CACHE_LIMIT - 1));
-    expect(canEvaluateClientSide(victim)).toBe(false);
+    gateAccepts(filler('post', PARSE_CACHE_LIMIT - 1));
+    expect(gateAccepts(victim)).toBe(false);
     expect(parseAttempts()).toBe(2);
   });
 
@@ -467,14 +415,14 @@ describe('parse memoisation', () => {
       profile: { ...user.profile, department: 'Sales' },
     } as unknown as OktaUser;
 
-    expect(canEvaluateClientSide(expression)).toBe(true);
+    expect(gateAccepts(expression)).toBe(true);
     expect(tryEvaluateRuleExpression(expression, user)).toBe('match');
     expect(tryEvaluateRuleExpression(expression, otherUser)).toBe('no-match');
-    expect(evaluateRuleExpression(expression, user)).toBe(true);
+    expect(tryEvaluateRuleExpressionDetailed(expression, user)).toEqual({ outcome: 'match' });
 
     expect(tryEvaluateRuleExpression(expression, user)).toBe('match');
     expect(tryEvaluateRuleExpression(expression, otherUser)).toBe('no-match');
-    expect(canEvaluateClientSide(expression)).toBe(true);
+    expect(gateAccepts(expression)).toBe(true);
   });
 });
 
@@ -595,7 +543,7 @@ describe('AST seam', () => {
     });
   });
 
-  it('gates a sub-tree with the same allow-list as canEvaluateClientSide', () => {
+  it('gates a sub-tree with the same allow-list as a whole expression', () => {
     const parsed = parseRuleExpression('isMemberOfGroup("00gFAKE") && user.department == "Eng"');
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;

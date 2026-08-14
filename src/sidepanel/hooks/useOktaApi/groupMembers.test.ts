@@ -1,20 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createGroupMemberOperations } from './groupMembers';
 import type { CoreApi } from './core';
+import { makeFakeCore } from '@/test/factories/coreApi';
 
-function makeCore(overrides: Partial<CoreApi> = {}): CoreApi {
-  return {
-    targetTabId: 1,
-    sendMessage: vi.fn(),
-    makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: [], headers: {} }),
-    getCurrentUser: vi.fn().mockResolvedValue({ email: 'admin@example.com', id: 'admin' }),
-    checkCancelled: vi.fn(),
-    resetCancellation: vi.fn(),
-    runOperation: vi.fn(),
-    callbacks: {},
-    ...overrides,
-  } as CoreApi;
-}
+const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi => makeFakeCore(overrides);
 
 const validMember = {
   id: '00uFAKE1',

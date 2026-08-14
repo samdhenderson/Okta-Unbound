@@ -385,12 +385,6 @@ function evaluateAst(ast: jsep.Expression, options: EvaluationWalkOptions): Eval
   }
 }
 
-function evaluate(expression: string, user: OktaUser): EvalResult {
-  const ast = parseExpression(expression);
-  if (!ast) return UNRESOLVED;
-  return evaluateAst(ast, { user });
-}
-
 export type RuleMatchOutcome = 'match' | 'no-match' | 'unevaluable';
 
 export function tryEvaluateRuleExpression(
@@ -406,11 +400,6 @@ export function tryEvaluateRuleExpression(
   const result = evaluateAst(ast, { user, groups });
   if (typeof result !== 'boolean') return 'unevaluable';
   return result ? 'match' : 'no-match';
-}
-
-export function evaluateRuleExpression(expression: string, user: OktaUser): boolean {
-  const result = evaluate(expression, user);
-  return isUnresolved(result) ? false : Boolean(result);
 }
 
 function reject(reason: RuleUnevaluableReason, options: GrammarWalkOptions): false {
@@ -473,12 +462,6 @@ function canEvaluateAst(ast: jsep.Expression, options: GrammarWalkOptions = {}):
   } catch {
     return reject('walk-failed', options);
   }
-}
-
-export function canEvaluateClientSide(expression: string): boolean {
-  const ast = parseExpression(expression);
-  if (!ast) return false;
-  return canEvaluateAst(ast);
 }
 
 export type ParsedRuleExpression =

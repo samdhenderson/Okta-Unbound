@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import GroupCleanupPanel from './GroupCleanupPanel';
-import { mockGroup } from '../../../test/mocks/handlers';
+import { mockGroup } from '../../../test/mocks/fixtures';
 import type { GroupSummary } from '../../../shared/types';
 
 function makeGroup(overrides: Partial<GroupSummary> & { id: string; name: string }): GroupSummary {

@@ -1,12 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import {
-  canEvaluateClientSide,
+  checkRuleNodeSupport,
+  parseRuleExpression,
   tryEvaluateRuleExpression,
   GROUP_MEMBERSHIP_FUNCTIONS,
   SUPPORTED_FUNCTIONS,
   type RuleMatchOutcome,
 } from './ruleEvaluator';
 import type { OktaUser } from './types';
+
+const gateAccepts = (expression: string): boolean => {
+  const parsed = parseRuleExpression(expression);
+  return parsed.ok && checkRuleNodeSupport(parsed.ast).supported;
+};
 
 const user: OktaUser = {
   id: '00uFAKE0000000000000',
@@ -493,7 +499,7 @@ describe('ruleEvaluator parity — tryEvaluateRuleExpression outcome table', () 
   });
 
   it('never answers no-match for an expression the gate rejects', () => {
-    const gateRejected = OUTCOME_CASES.filter((c) => !canEvaluateClientSide(c.expression));
+    const gateRejected = OUTCOME_CASES.filter((c) => !gateAccepts(c.expression));
     expect(gateRejected.length).toBeGreaterThan(0);
     for (const { name, expression } of gateRejected) {
       expect(tryEvaluateRuleExpression(expression, user), name).toBe('unevaluable');
@@ -503,7 +509,7 @@ describe('ruleEvaluator parity — tryEvaluateRuleExpression outcome table', () 
   it('only ever answers match/no-match for expressions the gate accepts', () => {
     for (const { name, expression, expected } of OUTCOME_CASES) {
       if (expected === 'unevaluable') continue;
-      expect(canEvaluateClientSide(expression), name).toBe(true);
+      expect(gateAccepts(expression), name).toBe(true);
     }
   });
 
@@ -766,15 +772,15 @@ const GATE_CASES: readonly GateCase[] = [
   },
 ];
 
-describe('ruleEvaluator parity — canEvaluateClientSide gate table', () => {
+describe('ruleEvaluator parity — grammar gate table', () => {
   it.each(GATE_CASES)('$name', ({ expression, expected }) => {
-    expect(canEvaluateClientSide(expression)).toBe(expected);
+    expect(gateAccepts(expression)).toBe(expected);
   });
 
   it('is a pure predicate: repeated calls agree (parse memoisation must not drift)', () => {
     for (const { name, expression, expected } of GATE_CASES) {
-      expect(canEvaluateClientSide(expression), name).toBe(expected);
-      expect(canEvaluateClientSide(expression), name).toBe(expected);
+      expect(gateAccepts(expression), name).toBe(expected);
+      expect(gateAccepts(expression), name).toBe(expected);
     }
   });
 
