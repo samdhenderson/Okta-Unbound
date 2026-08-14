@@ -26,8 +26,7 @@ const MemberList: React.FC<MemberListProps> = ({
   onLoadMore,
   oktaOrigin,
 }) => {
-  const staggerRef = useRef<HTMLDivElement>(null);
-  useStaggerReveal(staggerRef);
+  const setStaggerRef = useStaggerReveal();
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const hasMore = visibleCount < members.length;
@@ -63,7 +62,7 @@ const MemberList: React.FC<MemberListProps> = ({
         loading={loading}
         skeleton={<Skeleton variant="row" size="md" count={6} label="Reloading members" />}
       >
-        <div ref={staggerRef} className="space-y-3 rise-in-stagger">
+        <div ref={setStaggerRef} className="space-y-3 rise-in-stagger">
           {visible.map((user) => (
             <MemberRow
               key={user.id}

@@ -45,8 +45,7 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
   highlightedGroupId,
   scrollRef,
 }) => {
-  const staggerRef = useRef<HTMLDivElement>(null);
-  useStaggerReveal(staggerRef);
+  const setStaggerRef = useStaggerReveal();
 
   const [visibleCount, setVisibleCount] = useState(PAGE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -115,7 +114,7 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
         }
       >
         {visibleGroups.length > 0 && (
-          <div ref={staggerRef} className="rise-in-stagger space-y-3">
+          <div ref={setStaggerRef} className="rise-in-stagger space-y-3">
             {visibleGroups.map((group) => (
               <GroupListItem
                 key={group.id}

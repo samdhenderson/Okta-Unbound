@@ -1,18 +1,19 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useReducedMotion } from './useReducedMotion';
 
 const STEP_MS = 24;
 
 const CASCADE_BUDGET_MS = 320;
 
-export function useStaggerReveal(
-  containerRef: React.RefObject<HTMLElement | null>,
-  enabled = true,
-): void {
+export function useStaggerReveal(enabled = true): (node: HTMLElement | null) => void {
   const reduced = useReducedMotion();
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+
+  const setStaggerRef = useCallback((node: HTMLElement | null) => {
+    setContainer(node);
+  }, []);
 
   useEffect(() => {
-    const container = containerRef.current;
     if (!container || !enabled || reduced) return;
     if (typeof IntersectionObserver !== 'function') return;
 
@@ -55,5 +56,7 @@ export function useStaggerReveal(
       mutations?.disconnect();
       container.removeAttribute('data-stagger-reveal');
     };
-  }, [containerRef, enabled, reduced]);
+  }, [container, enabled, reduced]);
+
+  return setStaggerRef;
 }
