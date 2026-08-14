@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import PageHeader from './shared/PageHeader';
 import Button from './shared/Button';
 import Input from './shared/Input';
@@ -7,6 +7,7 @@ import PoliciesListPanel from './policies/PoliciesListPanel';
 import Icon from './overview/shared/Icon';
 import { useOktaApi } from '../hooks/useOktaApi';
 import type { OperationResult } from '../hooks/useOktaApi/types';
+import { useOwedLoad } from '../hooks/useOwedLoad';
 import { usePoliciesData } from '../hooks/usePoliciesData';
 import { filterPolicies } from './policies/policyFilters';
 import { getRelativeTime } from '../../shared/utils/dateFormat';
@@ -33,12 +34,9 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
     onError: handleError,
   });
 
-  const autoLoadedRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!isActive || targetTabId == null || autoLoadedRef.current === targetTabId) return;
-    autoLoadedRef.current = targetTabId;
+  useOwedLoad(targetTabId ?? null, isActive, () => {
     void loadPolicies(false);
-  }, [isActive, targetTabId, loadPolicies]);
+  });
 
   const filteredPolicies = useMemo(
     () => filterPolicies(policies, searchQuery),

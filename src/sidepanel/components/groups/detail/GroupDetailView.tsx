@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import GroupIdentitySection from './GroupIdentitySection';
 import GroupMembershipSourceSection from './GroupMembershipSourceSection';
 import GroupRulesSection from './GroupRulesSection';
 import GroupPushSection from './GroupPushSection';
 import GroupMetadataSection from './GroupMetadataSection';
 import { useGroupSource } from '../../../hooks/useGroupSource';
+import { useOwedLoad } from '../../../hooks/useOwedLoad';
 import { useGroupRuleReferences } from '../../../hooks/useGroupRuleReferences';
 import type { GroupSummary } from '../../../../shared/types';
 
@@ -29,24 +30,14 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   const references = useGroupRuleReferences(group.id, targetTabId ?? undefined, isActive);
 
   const { open, analyzeMembers } = source;
-  const openOwedRef = useRef(true);
-  useEffect(() => {
-    openOwedRef.current = true;
-  }, [open, group]);
-  useEffect(() => {
-    if (!isActive || !openOwedRef.current) return;
-    openOwedRef.current = false;
+  useOwedLoad(group.id, isActive, () => {
     open(group);
-  }, [isActive, open, group]);
+  });
 
-  const autoAnalyzedRef = useRef<string | null>(null);
   const openedGroupId = source.group?.id;
-  useEffect(() => {
-    if (!autoAnalyze || openedGroupId !== group.id) return;
-    if (autoAnalyzedRef.current === group.id) return;
-    autoAnalyzedRef.current = group.id;
+  useOwedLoad(group.id, autoAnalyze && openedGroupId === group.id, () => {
     analyzeMembers();
-  }, [autoAnalyze, openedGroupId, group.id, analyzeMembers]);
+  });
 
   return (
     <div className="space-y-3" data-testid="group-detail-view">

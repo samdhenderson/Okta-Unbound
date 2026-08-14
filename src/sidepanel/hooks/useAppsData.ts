@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getOrFetch, peek, peekFetchedAt, type EntityKey } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
+import { useOwedLoad } from './useOwedLoad';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
 import { createLogger } from '../../shared/utils/logger';
 import type { useOktaApi } from './useOktaApi';
@@ -88,14 +89,13 @@ export function useAppsData({
     setLastFetchTime(isoFetchedAt(cacheKey));
   }, [cacheKey]);
 
-  const autoLoadedFor = useRef<string | null>(null);
-  useEffect(() => {
-    if (!enabled || targetTabId == null) return;
-    const target = `${targetTabId}\u0000${oktaOrigin ?? ''}`;
-    if (autoLoadedFor.current === target) return;
-    autoLoadedFor.current = target;
-    void loadApps();
-  }, [enabled, targetTabId, oktaOrigin, loadApps]);
+  useOwedLoad(
+    targetTabId == null ? null : `${targetTabId}\u0000${oktaOrigin ?? ''}`,
+    enabled,
+    () => {
+      void loadApps();
+    },
+  );
 
   return { apps, isLoading, lastFetchTime, loadApps };
 }

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useOwedLoad } from './useOwedLoad';
 import { useOktaApi } from './useOktaApi';
 import { extractReferencedGroupIds } from '../../shared/rules/groupRuleIndex';
 import { createLogger } from '../../shared/utils/logger';
@@ -41,14 +42,7 @@ export function useGroupRuleReferences(
     setError(null);
   }
 
-  const owedRef = useRef(true);
-  useEffect(() => {
-    owedRef.current = true;
-  }, [groupId, ensureGroupRulesLoaded]);
-
-  useEffect(() => {
-    if (!enabled || !owedRef.current) return;
-    owedRef.current = false;
+  useOwedLoad(targetTabId == null ? groupId : `${targetTabId}:${groupId}`, enabled, () => {
     const runId = ++runIdRef.current;
 
     ensureGroupRulesLoaded()
@@ -77,7 +71,7 @@ export function useGroupRuleReferences(
         setError(err instanceof Error ? err.message : 'Failed to load referencing rules');
         setStatus('error');
       });
-  }, [enabled, groupId, ensureGroupRulesLoaded]);
+  });
 
   return { rules, status, error };
 }
