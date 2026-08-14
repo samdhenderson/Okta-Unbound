@@ -14,7 +14,9 @@ const withProviders: Decorator = (Story) => (
   <ErrorBoundary>
     <ProgressProvider>
       <SchedulerProvider>
-        <Story />
+        <div style={{ fontFamily: 'var(--font-primary)', display: 'contents' }}>
+          <Story />
+        </div>
       </SchedulerProvider>
     </ProgressProvider>
   </ErrorBoundary>

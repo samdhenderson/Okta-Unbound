@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStaggerReveal } from '../../hooks/useStaggerReveal';
 import type { OktaUser } from '../../../shared/types';
-import { userStatusVariant, type UserStatusVariant } from '../shared';
+import { ListRow, userStatusVariant, type UserStatusVariant } from '../shared';
 
 interface UserSearchResultsProps {
   results: OktaUser[];
@@ -36,22 +36,26 @@ const UserSearchResults: React.FC<UserSearchResultsProps> = ({ results, onSelect
       </div>
       <div ref={setStaggerRef} className="space-y-3 rise-in-stagger">
         {results.map((user) => (
-          <div
+          <ListRow
             key={user.id}
-            className="group bg-white rounded-md border border-neutral-200 p-5 cursor-pointer transition-all duration-(--dur-instant) hover:border-neutral-500"
+            as="button"
+            density="comfortable"
             onClick={() => onSelectUser(user)}
+            className="group"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-neutral-900 mb-1 group-hover:text-primary-text transition-colors duration-(--dur-instant)">
+                <h4 className="mb-1 text-sm font-semibold text-neutral-900 group-hover:text-primary-text transition-colors duration-(--dur-instant)">
                   {user.profile.firstName} {user.profile.lastName}
                 </h4>
-                <p className="text-sm text-neutral-600 mb-1">{user.profile.email}</p>
-                <p className="text-xs text-neutral-500 font-mono">Login: {user.profile.login}</p>
+                <div className="mb-1 text-xs text-neutral-600">{user.profile.email}</div>
+                <div className="font-mono text-xs text-neutral-500">
+                  Login: {user.profile.login}
+                </div>
               </div>
               <span className={getStatusBadgeClass(user.status)}>{user.status}</span>
             </div>
-          </div>
+          </ListRow>
         ))}
       </div>
     </div>

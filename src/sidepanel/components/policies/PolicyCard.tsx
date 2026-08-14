@@ -1,5 +1,6 @@
 import React, { memo, useCallback, useId, useState } from 'react';
-import IconButton from '../shared/IconButton';
+import { IconButton, ListRow } from '../shared';
+import Icon from '../overview/shared/Icon';
 import PolicyRulesList from './PolicyRulesList';
 import { useEntityQuery } from '../../cache/useEntityQuery';
 import type { OktaPolicyListItem, OktaPolicyRule } from '../../../shared/schemas/okta';
@@ -27,17 +28,38 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
   const name = policy.name ?? policy.id;
 
   return (
-    <div
-      className="overflow-hidden rounded-md border border-neutral-200 bg-white transition-all duration-(--dur-instant) hover:border-neutral-300"
-      style={{ fontFamily: 'var(--font-primary)' }}
-      data-testid={`policy-${policy.id}`}
+    <ListRow
+      density="comfortable"
+      testId={`policy-${policy.id}`}
+      body={
+        <div
+          id={rulesId}
+          className="disclose"
+          data-open={isExpanded}
+          data-testid="policy-rules-disclosure"
+          inert={!isExpanded || undefined}
+        >
+          <div>
+            <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 pb-4 pt-3">
+              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
+                Rules
+              </div>
+              <PolicyRulesList rules={rules} isLoading={isLoading} error={error} />
+              <div className="border-t border-neutral-200 pt-2 text-xs text-neutral-600">
+                <span className="font-semibold">Policy ID:</span>{' '}
+                <span className="font-mono text-neutral-500">{policy.id}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
     >
-      <div className="flex items-start justify-between gap-4 p-4">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-semibold text-neutral-900">{name}</h3>
             <span
-              className={`rounded-md border px-2 py-0.5 text-xs font-semibold ${policyStatusClasses(policy.status)}`}
+              className={`rounded-md border px-2 py-0.5 text-xs font-medium ${policyStatusClasses(policy.status)}`}
             >
               {policyStatusLabel(policy.status)}
             </span>
@@ -53,7 +75,7 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
             )}
           </div>
           {policy.description && (
-            <p className="truncate text-sm text-neutral-600">{policy.description}</p>
+            <p className="truncate text-xs text-neutral-600">{policy.description}</p>
           )}
         </div>
         <IconButton
@@ -65,38 +87,14 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
           className="shrink-0"
           onClick={toggleExpanded}
         >
-          <svg
-            className={`h-4 w-4 transition-transform duration-(--dur-instant) ${isExpanded ? 'rotate-90' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
+          <Icon
+            type="chevron-right"
+            size="sm"
+            className={`transition-transform duration-(--dur-instant) ${isExpanded ? 'rotate-90' : ''}`}
+          />
         </IconButton>
       </div>
-
-      <div
-        id={rulesId}
-        className="disclose"
-        data-open={isExpanded}
-        data-testid="policy-rules-disclosure"
-        inert={!isExpanded || undefined}
-      >
-        <div>
-          <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 pb-4 pt-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
-              Rules
-            </div>
-            <PolicyRulesList rules={rules} isLoading={isLoading} error={error} />
-            <div className="border-t border-neutral-200 pt-2 text-xs text-neutral-600">
-              <span className="font-semibold">Policy ID:</span>{' '}
-              <span className="font-mono text-neutral-500">{policy.id}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </ListRow>
   );
 }, arePolicyCardPropsEqual);
 
