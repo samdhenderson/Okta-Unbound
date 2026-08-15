@@ -193,11 +193,22 @@ export interface MembershipRule {
 
 export type MembershipAttribution = 'exact' | 'inferred' | 'ambiguous';
 
+export interface OktaAttributedRule {
+  id: string;
+  name: string;
+}
+
+export interface MembershipProvenance {
+  source: 'okta';
+  rules: OktaAttributedRule[];
+}
+
 export interface GroupMembership {
   group: OktaGroup;
   membershipType: 'DIRECT' | 'RULE_BASED' | 'UNKNOWN';
   rules: MembershipRule[];
   attribution: MembershipAttribution;
+  provenance?: MembershipProvenance;
 }
 
 export interface MessageRequest {

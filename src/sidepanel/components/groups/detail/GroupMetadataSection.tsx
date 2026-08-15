@@ -1,6 +1,5 @@
 import React from 'react';
-import { CopyButton } from '../../shared';
-import DetailSection from './DetailSection';
+import { CopyButton, DetailSection } from '../../shared';
 import { formatDate } from '../../../../shared/utils/dateFormat';
 
 interface GroupMetadataSectionProps {

@@ -1,6 +1,5 @@
 import React from 'react';
-import { AlertMessage, Button, LoadingSpinner } from '../../shared';
-import DetailSection from './DetailSection';
+import { AlertMessage, Button, DetailSection, LoadingSpinner } from '../../shared';
 import MemberSourceMeter from './MemberSourceMeter';
 import RuleLinkRow from './RuleLinkRow';
 import { toRuleAttributionRows } from '../memberSourceBuckets';

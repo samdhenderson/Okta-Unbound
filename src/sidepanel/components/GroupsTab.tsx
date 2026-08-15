@@ -37,6 +37,7 @@ interface GroupsTabProps {
   onNavigateToRule?: (ruleId: string) => void;
   selectedGroupId?: string | null;
   onGroupSelected?: () => void;
+  onExportGroup?: (groupId: string, groupName: string) => void;
   isActive?: boolean;
 }
 
@@ -63,6 +64,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   selectedGroupId,
   onGroupSelected,
   isActive = true,
+  onExportGroup,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'live' | 'cached'>('live');
@@ -384,6 +386,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
               onNavigateToRule={onNavigateToRule}
               autoAnalyze={autoAnalyzeGroupId === detailGroup.id}
               isActive={isActive}
+              onExportGroup={onExportGroup}
             />
           </div>
         )}

@@ -18,6 +18,7 @@ interface UserProfileCardProps {
   showCollapsibleSections?: boolean;
   oktaOrigin?: string | null;
   showOktaLink?: boolean;
+  showName?: boolean;
   afterCard?: React.ReactNode;
 }
 
@@ -41,6 +42,7 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
   showCollapsibleSections = true,
   oktaOrigin,
   showOktaLink = true,
+  showName = true,
   afterCard,
 }) => {
   const sections = useMemo(() => {
@@ -80,7 +82,12 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
   return (
     <div className="space-y-4">
-      <UserIdentity user={user} oktaOrigin={oktaOrigin} showOktaLink={showOktaLink} />
+      <UserIdentity
+        user={user}
+        oktaOrigin={oktaOrigin}
+        showOktaLink={showOktaLink}
+        showName={showName}
+      />
 
       {afterCard}
 

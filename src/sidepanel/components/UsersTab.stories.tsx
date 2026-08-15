@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
 import UsersTab from './UsersTab';
 
 const meta = {
@@ -21,7 +20,6 @@ const meta = {
   args: {
     targetTabId: 1,
     currentGroupId: undefined,
-    onNavigateToRule: fn(),
   },
   argTypes: {
     targetTabId: {
@@ -31,9 +29,6 @@ const meta = {
     currentGroupId: {
       description:
         'Id of the currently detected group; highlights that group in the membership list.',
-    },
-    onNavigateToRule: {
-      description: 'Navigates to the Rules tab and deep-links to the rule that added a membership.',
     },
     selectedUserId: {
       description:

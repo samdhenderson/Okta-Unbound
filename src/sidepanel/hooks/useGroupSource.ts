@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import type { GroupSummary } from '../../shared/types';
+import type { GroupSummary, OktaUser } from '../../shared/types';
 import { useOktaApi } from './useOktaApi';
 import {
   summarizeMemberSources,
@@ -29,6 +29,7 @@ export interface UseGroupSourceReturn {
   error: string | null;
   open: (group: GroupSummary) => void;
   analyzeMembers: () => void;
+  resummarize: (members: OktaUser[]) => void;
   close: () => void;
 }
 
@@ -44,6 +45,8 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
   const [error, setError] = useState<string | null>(null);
 
   const runIdRef = useRef(0);
+
+  const lastRulesRef = useRef<Parameters<typeof summarizeMemberSources>[2] | null>(null);
 
   const open = useCallback(
     (nextGroup: GroupSummary) => {
@@ -83,6 +86,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     ])
       .then(([members, rules]) => {
         if (runId !== runIdRef.current) return;
+        lastRulesRef.current = rules;
         const summary = summarizeMemberSources(
           { id: group.id, name: group.name, type: group.type },
           members,
@@ -100,6 +104,21 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
       });
   }, [group, getAllGroupMembers, getGroupRulesForGroup]);
 
+  const resummarize = useCallback(
+    (members: OktaUser[]) => {
+      const rules = lastRulesRef.current;
+      if (!group || !rules) return;
+      const summary = summarizeMemberSources(
+        { id: group.id, name: group.name, type: group.type },
+        members,
+        rules,
+      );
+      setBreakdown(summary);
+      writeMemberSource(group.id, summary);
+    },
+    [group],
+  );
+
   const close = useCallback(() => {
     runIdRef.current++;
     setGroup(null);
@@ -108,6 +127,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     setBreakdown(null);
     setMemberStatus('idle');
     setError(null);
+    lastRulesRef.current = null;
   }, []);
 
   return {
@@ -119,6 +139,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     error,
     open,
     analyzeMembers,
+    resummarize,
     close,
   };
 }

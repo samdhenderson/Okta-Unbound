@@ -176,7 +176,8 @@ describe('UsersTab sub-navigation', () => {
     const uev = userEvent.setup();
     await renderWithAda(uev);
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace');
+    expect(screen.getByRole('button', { name: 'Back to search' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Back to user' })).not.toBeInTheDocument();
 
     await pushCompare(uev);
@@ -191,17 +192,18 @@ describe('UsersTab sub-navigation', () => {
     await renderWithAda(uev);
 
     const view = screen.getByTestId('user-comparison-view');
-    const body = view.previousElementSibling as HTMLElement;
+    const detail = screen.getByTestId('user-detail-view');
 
     expect(view.parentElement).toHaveClass('max-w-7xl', 'mx-auto', 'px-6', 'py-6');
-    expect(body).toContainElement(screen.getByRole('button', { name: /Compare/ }));
+    expect(detail.parentElement).toBe(view.parentElement);
+    expect(detail).toContainElement(screen.getByRole('button', { name: /Compare/ }));
 
-    expect(body.className).toBe('space-y-6');
+    expect(detail.className).toBe('space-y-6 focus:outline-none');
     expect(view.className).toBe('hidden');
 
     await pushCompare(uev);
 
-    expect(body.className).toBe('hidden');
+    expect(detail.className).toBe('hidden');
     expect(view.className).toBe('space-y-6 focus:outline-none');
   });
 
@@ -353,7 +355,7 @@ describe('UsersTab sub-navigation', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Back to user' })).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace');
     expect(screen.getByRole('button', { name: /Compare/ }).closest('div.hidden')).toBeNull();
   });
 

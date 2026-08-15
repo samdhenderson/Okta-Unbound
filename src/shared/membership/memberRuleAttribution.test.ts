@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   GROUP_RULES_EXPAND,
+  interpretGroupRules,
   readEmbeddedGroupRules,
   memberWithGroupRulesSchema,
 } from './memberRuleAttribution';
@@ -122,5 +123,45 @@ describe('memberWithGroupRulesSchema', () => {
       embedded === undefined ? { ...validMember } : { ...validMember, _embedded: embedded };
 
     expect(memberWithGroupRulesSchema.safeParse(input).success).toBe(true);
+  });
+});
+
+describe('interpretGroupRules', () => {
+  it('reports the rules Okta names, collapsing a repeated id', () => {
+    expect(
+      interpretGroupRules([
+        { id: '0prFAKE1', name: 'Eng feeder' },
+        { id: '0prFAKE1', name: 'Eng feeder' },
+        { id: '0prFAKE2', name: 'Contractor feeder' },
+      ]),
+    ).toEqual({
+      state: 'rules',
+      rules: [
+        { id: '0prFAKE1', name: 'Eng feeder' },
+        { id: '0prFAKE2', name: 'Contractor feeder' },
+      ],
+    });
+  });
+
+  it('reports an EMPTY array as a positive "no rule manages this membership"', () => {
+    expect(interpretGroupRules([])).toEqual({ state: 'no-rules' });
+  });
+
+  it.each([
+    ['undefined', undefined],
+    ['null', null],
+    ['a string', 'nope'],
+    ['an object', { 'group-rules': [] }],
+    ['an array of unusable entries', [null, {}, { id: 42 }]],
+  ])('degrades %s to unknown rather than to "no rule"', (_label, raw) => {
+    expect(interpretGroupRules(raw)).toEqual({ state: 'unknown' });
+  });
+
+  it('is the reading the embed reader delegates to', () => {
+    const rules = [{ id: '0prFAKE1', name: 'Eng feeder' }];
+
+    expect(readEmbeddedGroupRules(row({ 'group-rules': rules }))).toEqual(
+      interpretGroupRules(rules),
+    );
   });
 });

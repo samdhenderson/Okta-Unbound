@@ -219,7 +219,7 @@ describe('user search: 600ms debounce contract', () => {
     typeInto(userSearchInput(), 'ada');
 
     for (let i = 0; i < 5; i++) {
-      rerender(<UsersTab targetTabId={1} currentGroupId={`x${i}`} onNavigateToRule={() => {}} />);
+      rerender(<UsersTab targetTabId={1} currentGroupId={`x${i}`} />);
       await advance(50);
     }
     await advance(600);
@@ -310,7 +310,7 @@ describe('detected user: manual-load banner', () => {
     const { rerender } = render(<UsersTab targetTabId={1} currentGroupId="a" />);
 
     for (let i = 0; i < 3; i++) {
-      rerender(<UsersTab targetTabId={1} currentGroupId={`b${i}`} onNavigateToRule={() => {}} />);
+      rerender(<UsersTab targetTabId={1} currentGroupId={`b${i}`} />);
       await flush();
     }
 
@@ -378,7 +378,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
     expect(screen.getByText('RULE BASED')).toBeInTheDocument();
-    expect(screen.getByText('Eng auto-assign')).toBeInTheDocument();
+    expect(screen.getAllByText(/Eng auto-assign/).length).toBeGreaterThan(0);
   });
 
   it('classifies a group with no active rules as DIRECT', async () => {
@@ -391,9 +391,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
     expect(screen.getByText('DIRECT')).toBeInTheDocument();
-    expect(
-      screen.getByText('This user was added directly to the group (not through a rule)'),
-    ).toBeInTheDocument();
+    expect(screen.getByText('Added directly')).toBeInTheDocument();
   });
 
   it('classifies an excluded user as DIRECT even when an active rule targets the group', async () => {
@@ -449,7 +447,7 @@ describe('compare entry point', () => {
   it('pushes the comparison view from the Compare action', async () => {
     await renderWithSelectedUser();
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace');
     expect(screen.queryByRole('button', { name: 'Back to user' })).not.toBeInTheDocument();
 
     await act(async () => {

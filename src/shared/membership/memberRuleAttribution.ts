@@ -29,7 +29,10 @@ export function readEmbeddedGroupRules(member: unknown): MemberRuleAttribution {
 
   if (!(GROUP_RULES_EXPAND in embedded)) return UNKNOWN;
 
-  const raw = (embedded as Record<string, unknown>)[GROUP_RULES_EXPAND];
+  return interpretGroupRules((embedded as Record<string, unknown>)[GROUP_RULES_EXPAND]);
+}
+
+export function interpretGroupRules(raw: unknown): MemberRuleAttribution {
   if (!Array.isArray(raw)) return UNKNOWN;
   if (raw.length === 0) return { state: 'no-rules' };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import DetailSection from './DetailSection';
+import { DetailSection } from '../../shared';
 import type { PushGroupMapping } from '../../../../shared/types';
 
 interface GroupPushSectionProps {

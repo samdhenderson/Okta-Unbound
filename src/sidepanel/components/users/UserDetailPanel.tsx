@@ -1,9 +1,9 @@
 import React from 'react';
-import { Button } from '../shared';
 import GroupMembershipsList from './GroupMembershipsList';
 import UserLifecycleActions from './UserLifecycleActions';
 import UserProfileCard from './UserProfileCard';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
+import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
 import type { LifecycleAction } from '../../hooks/useUserLifecycleActions';
 
 export interface UserDetailPanelProps {
@@ -12,15 +12,13 @@ export interface UserDetailPanelProps {
   memberships: GroupMembership[];
   isLoadingMemberships: boolean;
   currentGroupId?: string;
-  onNavigateToRule?: (ruleId: string) => void;
   recentlyAddedGroupId?: string | null;
   isLifecycleLoading: boolean;
   pendingLifecycleAction: LifecycleAction | null;
   onRequestLifecycleAction: (action: LifecycleAction) => void;
   onCancelLifecycleAction: () => void;
   onConfirmLifecycleAction: () => void;
-  onCompare: () => void;
-  onAddToGroup: () => void;
+  onProveMembershipSource?: (groupId: string) => Promise<MemberRuleAttribution>;
 }
 
 const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
@@ -29,21 +27,20 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   memberships,
   isLoadingMemberships,
   currentGroupId,
-  onNavigateToRule,
   recentlyAddedGroupId,
   isLifecycleLoading,
   pendingLifecycleAction,
   onRequestLifecycleAction,
   onCancelLifecycleAction,
   onConfirmLifecycleAction,
-  onCompare,
-  onAddToGroup,
+  onProveMembershipSource,
 }) => {
   return (
     <div className="space-y-6 animate-rise-in">
       <UserProfileCard
         user={user}
         oktaOrigin={oktaOrigin}
+        showName={false}
         afterCard={
           <UserLifecycleActions
             user={user}
@@ -62,30 +59,8 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
         isLoading={isLoadingMemberships}
         currentGroupId={currentGroupId}
         oktaOrigin={oktaOrigin}
-        onNavigateToRule={onNavigateToRule}
         recentlyAddedGroupId={recentlyAddedGroupId}
-        actions={
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="users"
-              onClick={onCompare}
-              disabled={isLoadingMemberships}
-              title="Compare group & app access with another user"
-            >
-              Compare
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onAddToGroup}
-              disabled={isLoadingMemberships}
-            >
-              Add to Group
-            </Button>
-          </>
-        }
+        onProveMembershipSource={onProveMembershipSource}
       />
     </div>
   );

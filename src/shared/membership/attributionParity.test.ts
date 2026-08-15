@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { summarizeMemberSources, type GroupIdentity } from './groupSource';
-import { readEmbeddedGroupRules } from './memberRuleAttribution';
+import { interpretGroupRules, readEmbeddedGroupRules } from './memberRuleAttribution';
+import { withMembershipProvenance } from './provenance';
 import {
   analyzeMemberships,
   attributionNamesRules,
@@ -218,6 +219,73 @@ describe('attribution parity between the group view and the user view', () => {
       const identity = scenario.identity ?? GROUP;
       expect(groupViewVerdict(identity, scenario.rules, scenario.user).deduced).toBe(
         userViewVerdict(identity, scenario.rules, scenario.user).deduced,
+      );
+    }
+  });
+});
+
+describe('attribution parity after an explicit per-row proof (ADR-0031)', () => {
+  function provenUserViewVerdict(
+    identity: GroupIdentity,
+    rules: MembershipRule[],
+    user: OktaUser,
+    proof: unknown,
+  ): Verdict {
+    const [membership] = analyzeMemberships([asOktaGroup(identity)], rules, user);
+    const { provenance } = withMembershipProvenance(membership, interpretGroupRules(proof));
+    if (!provenance) throw new Error('Okta did not answer: there is no proof to read');
+
+    return {
+      managed: provenance.rules.length > 0 ? 'rule' : 'manual',
+      namedRuleIds: provenance.rules.map((r) => r.id).sort(),
+      deduced: false,
+    };
+  }
+
+  const divergent = scenarios.filter((scenario) => scenario.oktaAsserts);
+
+  it('has divergent scenarios to close, or this suite proves nothing', () => {
+    expect(divergent.length).toBeGreaterThan(0);
+  });
+
+  it.each(divergent)('proving "$name" makes the user path match the group path', (scenario) => {
+    const identity = scenario.identity ?? GROUP;
+
+    const embedded = readEmbeddedGroupRules(scenario.user);
+    const proof = embedded.state === 'rules' ? embedded.rules : [];
+
+    const proven = provenUserViewVerdict(identity, scenario.rules, scenario.user, proof);
+
+    expect(proven).toEqual(scenario.groupView);
+    expect(proven).not.toEqual(scenario.userView);
+  });
+
+  it('reproduces the group path for a member Okta says no rule feeds', () => {
+    const user = member();
+    const rules = [unevaluableRule('0prFAKEone', 'Contractors')];
+
+    expect(userViewVerdict(GROUP, rules, user)).toEqual(rule('rule', ['0prFAKEone'], true));
+    expect(provenUserViewVerdict(GROUP, rules, user, [])).toEqual(rule('manual', [], false));
+  });
+
+  it('leaves the heuristic standing when the proof yields no answer', () => {
+    const user = member();
+    const rules = [unevaluableRule('0prFAKEone', 'Contractors')];
+
+    for (const noAnswer of [undefined, null, 'nope', {}, [{ nope: true }]]) {
+      const [membership] = analyzeMemberships([asOktaGroup(GROUP)], rules, user);
+      const result = withMembershipProvenance(membership, interpretGroupRules(noAnswer));
+
+      expect(result.provenance).toBeUndefined();
+      expect(userViewVerdict(GROUP, rules, user)).toEqual(rule('rule', ['0prFAKEone'], true));
+    }
+  });
+
+  it('still requires the two paths to agree where Okta asserted nothing', () => {
+    for (const scenario of scenarios.filter((s) => !s.oktaAsserts)) {
+      const identity = scenario.identity ?? GROUP;
+      expect(userViewVerdict(identity, scenario.rules, scenario.user)).toEqual(
+        groupViewVerdict(identity, scenario.rules, scenario.user),
       );
     }
   });

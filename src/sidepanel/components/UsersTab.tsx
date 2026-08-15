@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import PageHeader from './shared/PageHeader';
 import Breadcrumbs from './shared/Breadcrumbs';
 import AlertMessage from './shared/AlertMessage';
+import { ActionBar, Button } from './shared';
 import { AddToGroupModal, UserComparisonPanel, UserDetailPanel, UserSearchPanel } from './users';
 import { useUsersTabState } from '../hooks/useUsersTabState';
 import { userDisplayName } from '../../shared/utils/userDisplay';
@@ -9,7 +10,6 @@ import { userDisplayName } from '../../shared/utils/userDisplay';
 interface UsersTabProps {
   targetTabId?: number;
   currentGroupId?: string;
-  onNavigateToRule?: (ruleId: string) => void;
   selectedUserId?: string | null;
   onUserSelected?: () => void;
   isActive?: boolean;
@@ -18,7 +18,6 @@ interface UsersTabProps {
 const UsersTab: React.FC<UsersTabProps> = ({
   targetTabId,
   currentGroupId,
-  onNavigateToRule,
   selectedUserId,
   onUserSelected,
   isActive = true,
@@ -31,33 +30,38 @@ const UsersTab: React.FC<UsersTabProps> = ({
     isActive,
     compareViewRef,
   });
-  const { selectedUser, memberships, lifecycle, addToGroup, nav, isCompareOpen } = state;
+  const { selectedUser, memberships, lifecycle, addToGroup, nav, isDetailOpen, isCompareOpen } =
+    state;
 
-  const compareEntry = nav.currentEntry;
-  const compareName =
-    compareEntry && selectedUser?.id === compareEntry.userId
+  const currentEntry = nav.currentEntry;
+  const currentName =
+    currentEntry && selectedUser?.id === currentEntry.userId
       ? userDisplayName(selectedUser)
-      : compareEntry?.userName;
+      : currentEntry?.userName;
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
       <PageHeader
-        title={isCompareOpen ? 'Compare users' : 'User Search'}
+        title={
+          isCompareOpen ? 'Compare users' : isDetailOpen ? (currentName ?? 'User') : 'User Search'
+        }
         subtitle={
           isCompareOpen
-            ? `${compareName} vs. another user`
-            : 'Search users and analyze their group memberships'
+            ? `${currentName} vs. another user`
+            : isDetailOpen
+              ? undefined
+              : 'Search users and analyze their group memberships'
         }
-        onBack={isCompareOpen ? nav.pop : undefined}
-        backLabel="Back to user"
-        breadcrumbs={isCompareOpen ? <Breadcrumbs items={nav.trail} /> : undefined}
+        onBack={nav.isRoot ? undefined : nav.pop}
+        backLabel={isCompareOpen ? 'Back to user' : 'Back to search'}
+        breadcrumbs={nav.isRoot ? undefined : <Breadcrumbs items={nav.trail} />}
         badge={
           selectedUser ? { text: `${memberships.length} Groups`, variant: 'primary' } : undefined
         }
       />
 
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className={isCompareOpen ? 'hidden' : 'space-y-6'}>
+        <div className={nav.isRoot ? 'space-y-6' : 'hidden'}>
           <UserSearchPanel
             searchQuery={state.searchQuery}
             onSearchQueryChange={state.setSearchQuery}
@@ -91,44 +95,73 @@ const UsersTab: React.FC<UsersTabProps> = ({
               </>
             }
           />
-
-          {selectedUser && (
-            <UserDetailPanel
-              user={selectedUser}
-              oktaOrigin={state.oktaOrigin}
-              memberships={memberships}
-              isLoadingMemberships={state.isLoadingMemberships}
-              currentGroupId={currentGroupId}
-              onNavigateToRule={onNavigateToRule}
-              recentlyAddedGroupId={state.recentlyAddedGroupId}
-              isLifecycleLoading={lifecycle.isLifecycleLoading}
-              pendingLifecycleAction={lifecycle.pendingLifecycleAction}
-              onRequestLifecycleAction={lifecycle.setPendingLifecycleAction}
-              onCancelLifecycleAction={() => lifecycle.setPendingLifecycleAction(null)}
-              onConfirmLifecycleAction={lifecycle.confirmLifecycleAction}
-              onCompare={state.openCompare}
-              onAddToGroup={addToGroup.openModal}
-            />
-          )}
         </div>
 
-        {selectedUser && targetTabId != null && (
-          <div
-            ref={compareViewRef}
-            tabIndex={-1}
-            data-testid="user-comparison-view"
-            className={isCompareOpen ? 'space-y-6 focus:outline-none' : 'hidden'}
-          >
-            <UserComparisonPanel
-              oktaOrigin={state.oktaOrigin}
-              isActive={isCompareOpen}
-              searchEnabled={isCompareOpen && isActive}
-              contextUser={selectedUser}
-              contextGroups={memberships}
-              targetTabId={targetTabId}
-              onGroupsChanged={state.refreshSelectedUserMemberships}
-            />
-          </div>
+        {selectedUser && (
+          <>
+            <div
+              ref={isDetailOpen ? compareViewRef : undefined}
+              tabIndex={-1}
+              data-testid="user-detail-view"
+              className={isDetailOpen ? 'space-y-6 focus:outline-none' : 'hidden'}
+            >
+              <ActionBar ariaLabel={`Actions for ${userDisplayName(selectedUser)}`}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon="users"
+                  onClick={state.openCompare}
+                  disabled={state.isLoadingMemberships}
+                  title="Compare group & app access with another user"
+                >
+                  Compare
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="plus"
+                  onClick={addToGroup.openModal}
+                  disabled={state.isLoadingMemberships}
+                >
+                  Add to Group
+                </Button>
+              </ActionBar>
+
+              <UserDetailPanel
+                user={selectedUser}
+                oktaOrigin={state.oktaOrigin}
+                memberships={memberships}
+                isLoadingMemberships={state.isLoadingMemberships}
+                currentGroupId={currentGroupId}
+                recentlyAddedGroupId={state.recentlyAddedGroupId}
+                isLifecycleLoading={lifecycle.isLifecycleLoading}
+                pendingLifecycleAction={lifecycle.pendingLifecycleAction}
+                onRequestLifecycleAction={lifecycle.setPendingLifecycleAction}
+                onCancelLifecycleAction={() => lifecycle.setPendingLifecycleAction(null)}
+                onConfirmLifecycleAction={lifecycle.confirmLifecycleAction}
+                onProveMembershipSource={state.proveMembershipSource}
+              />
+            </div>
+
+            {targetTabId != null && (
+              <div
+                ref={isCompareOpen ? compareViewRef : undefined}
+                tabIndex={-1}
+                data-testid="user-comparison-view"
+                className={isCompareOpen ? 'space-y-6 focus:outline-none' : 'hidden'}
+              >
+                <UserComparisonPanel
+                  oktaOrigin={state.oktaOrigin}
+                  isActive={isCompareOpen}
+                  searchEnabled={isCompareOpen && isActive}
+                  contextUser={selectedUser}
+                  contextGroups={memberships}
+                  targetTabId={targetTabId}
+                  onGroupsChanged={state.refreshSelectedUserMemberships}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -5,11 +5,27 @@ import { logAction } from '../../../shared/undoManager';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import {
   GROUP_RULES_EXPAND,
+  interpretGroupRules,
   memberWithGroupRulesSchema,
+  type MemberRuleAttribution,
   type MemberWithGroupRules,
 } from '@/shared/membership/memberRuleAttribution';
+import { createLogger } from '@/shared/utils/logger';
 
-export function createGroupMemberOperations(coreApi: CoreApi) {
+const log = createLogger('useOktaApi');
+
+function groupRulesPayload(data: unknown): unknown {
+  if (Array.isArray(data)) return data;
+  if (typeof data === 'object' && data !== null && GROUP_RULES_EXPAND in data) {
+    return (data as Record<string, unknown>)[GROUP_RULES_EXPAND];
+  }
+  return undefined;
+}
+
+export function createGroupMemberOperations(
+  coreApi: CoreApi,
+  onMembershipChanged?: (groupId: string) => void,
+) {
   const removeUserFromGroup = async (
     groupId: string,
     groupName: string,
@@ -20,6 +36,8 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
       `/api/v1/groups/${groupId}/users/${user.id}`,
       'DELETE',
     );
+
+    if (result.success) onMembershipChanged?.(groupId);
 
     if (result.success && !skipUndoLog) {
       await logAction(
@@ -49,6 +67,7 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
       groupIds,
       async (groupId) => {
         await coreApi.makeApiRequest(`/api/v1/groups/${groupId}/users/${userId}`, 'DELETE');
+        onMembershipChanged?.(groupId);
         completedCount += 1;
         onProgress?.(completedCount, groupIds.length);
       },
@@ -90,6 +109,26 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
     return allMembers;
   };
 
+  const getMembershipRuleProof = async (
+    groupId: string,
+    userId: string,
+  ): Promise<MemberRuleAttribution> => {
+    const result = await coreApi.makeApiRequest(
+      `/api/v1/groups/${groupId}/users/${userId}/group-rules`,
+    );
+
+    if (!result.success) {
+      log.warn('Membership rule proof unavailable', {
+        groupId,
+        userId,
+        status: result.status,
+      });
+      return { state: 'unknown' };
+    }
+
+    return interpretGroupRules(groupRulesPayload(result.data));
+  };
+
   const addUserToGroup = async (
     groupId: string,
     groupName: string,
@@ -104,6 +143,7 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
     );
 
     if (result.success) {
+      onMembershipChanged?.(groupId);
       await logAction(`Added ${user.profile.firstName} ${user.profile.lastName} to ${groupName}`, {
         type: 'ADD_USER_TO_GROUP',
         userId: user.id,
@@ -125,6 +165,7 @@ export function createGroupMemberOperations(coreApi: CoreApi) {
     removeUserFromGroup,
     removeUserFromGroups,
     getAllGroupMembers,
+    getMembershipRuleProof,
     addUserToGroup,
   };
 }

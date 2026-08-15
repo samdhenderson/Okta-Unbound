@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface DetailSectionProps {
+export interface DetailSectionProps {
   title: string;
   description?: string;
   actions?: React.ReactNode;

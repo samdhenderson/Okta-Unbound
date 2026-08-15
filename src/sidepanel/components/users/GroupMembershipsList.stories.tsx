@@ -126,7 +126,6 @@ const meta = {
     memberships: [directMembership, ruleMembership],
     user,
     isLoading: false,
-    onNavigateToRule: fn(),
   },
   argTypes: {
     memberships: {
@@ -144,15 +143,16 @@ const meta = {
       description:
         'Okta origin used to build admin-console deep links; links are hidden when absent.',
     },
-    onNavigateToRule: {
-      description: 'Invoked with a rule id to navigate to that rule in the Rules tab.',
-    },
     actions: {
       description: 'Caller-supplied header controls, rendered on the right of the title row.',
     },
     recentlyAddedGroupId: {
       description:
         'Id of a group just successfully added this session; its row plays a one-shot `animate-affirm-flash` success flash.',
+    },
+    onProveMembershipSource: {
+      description:
+        'Asks Okta which rules manage one membership (`GET /api/v1/groups/{groupId}/users/{userId}/group-rules`). Supplied, every row gains a "Prove it" action; omitted, the surface is unchanged. **One API call per row**, so it only ever runs from that click.',
     },
   },
 } satisfies Meta<typeof GroupMembershipsList>;
@@ -202,6 +202,30 @@ export const AmbiguousAttribution: Story = {
 
 export const WithoutUser: Story = {
   args: { memberships: [formattedRuleMembership], user: undefined },
+};
+
+export const ProvableAgainstOkta: Story = {
+  args: {
+    memberships: [ambiguousMembership, directMembership],
+    onProveMembershipSource: async () => ({
+      state: 'rules',
+      rules: [{ id: '0prFAKEhr', name: 'HR sync' }],
+    }),
+  },
+};
+
+export const ProvenManualAdd: Story = {
+  args: {
+    memberships: [ambiguousMembership],
+    onProveMembershipSource: async () => ({ state: 'no-rules' }),
+  },
+};
+
+export const ProofUnanswered: Story = {
+  args: {
+    memberships: [ambiguousMembership],
+    onProveMembershipSource: async () => ({ state: 'unknown' }),
+  },
 };
 
 export const RecentlyAddedGroupFlash: Story = {

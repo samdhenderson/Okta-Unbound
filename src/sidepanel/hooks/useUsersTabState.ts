@@ -1,8 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type React from 'react';
 import type { GroupMembership, OktaUser, UserInfo } from '../../shared/types';
 import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { invalidate } from '../cache/entityCache';
+import { useOktaApi } from './useOktaApi';
+import type { MemberRuleAttribution } from '../../shared/membership/memberRuleAttribution';
 import { cacheKeys } from '../cache/keys';
 import { userDisplayName } from '../../shared/utils/userDisplay';
 import { useUserContext } from './useUserContext';
@@ -21,10 +23,17 @@ export interface UseUsersTabStateOptions {
   compareViewRef?: React.RefObject<HTMLElement | null>;
 }
 
-export interface UserCompareEntry {
-  userId: string;
-  userName: string;
-}
+export type UsersViewEntry =
+  | {
+      kind: 'detail';
+      userId: string;
+      userName: string;
+    }
+  | {
+      kind: 'compare';
+      userId: string;
+      userName: string;
+    };
 
 export interface UseUsersTabStateReturn {
   oktaOrigin: string | null;
@@ -44,8 +53,10 @@ export interface UseUsersTabStateReturn {
   dismissDetectedUser: () => void;
   selectUser: (user: OktaUser) => Promise<void>;
   clearSearch: () => void;
-  nav: ViewStack<UserCompareEntry>;
+  nav: ViewStack<UsersViewEntry>;
+  isDetailOpen: boolean;
   isCompareOpen: boolean;
+  proveMembershipSource?: (groupId: string) => Promise<MemberRuleAttribution>;
   openCompare: () => void;
   closeCompare: () => void;
   refreshSelectedUserMemberships: () => void;
@@ -55,9 +66,10 @@ export interface UseUsersTabStateReturn {
   recentlyAddedGroupId: string | null;
 }
 
-const compareCrumbLabel = (): string => 'Compare users';
+const viewCrumbLabel = (entry: UsersViewEntry): string =>
+  entry.kind === 'compare' ? 'Compare users' : entry.userName;
 
-const compareCrumbKey = (entry: UserCompareEntry): string => `compare-${entry.userId}`;
+const viewCrumbKey = (entry: UsersViewEntry): string => `${entry.kind}-${entry.userId}`;
 
 export function useUsersTabState({
   targetTabId,
@@ -75,13 +87,15 @@ export function useUsersTabState({
   const [recentlyAddedGroupId, setRecentlyAddedGroupId] = useState<string | null>(null);
   const pendingAddGroupIdRef = useRef<string | null>(null);
 
-  const nav = useViewStack<UserCompareEntry>({
+  const nav = useViewStack<UsersViewEntry>({
     rootLabel: 'User Search',
-    getLabel: compareCrumbLabel,
-    getKey: compareCrumbKey,
+    getLabel: viewCrumbLabel,
+    getKey: viewCrumbKey,
     viewRef: compareViewRef,
   });
-  const isCompareOpen = !nav.isRoot;
+  const currentView = nav.currentEntry?.kind ?? 'search';
+  const isDetailOpen = currentView === 'detail';
+  const isCompareOpen = currentView === 'compare';
 
   const { memberships, loadMemberships, clearMemberships } = useUserMemberships({
     targetTabId,
@@ -97,15 +111,31 @@ export function useUsersTabState({
   const { searchQuery, setSearchQuery, searchResults, setSearchResults, isSearching } =
     useUsersTabSearch({ targetTabId, onError: setError, onSearchStart, enabled: isActive });
 
+  const detailUserIdRef = useRef<string | null>(null);
+  const { push: pushView } = nav;
+  const showUserDetail = useCallback(
+    (user: OktaUser) => {
+      if (detailUserIdRef.current === user.id) return;
+      detailUserIdRef.current = user.id;
+      pushView({ kind: 'detail', userId: user.id, userName: userDisplayName(user) });
+    },
+    [pushView],
+  );
+
+  useEffect(() => {
+    if (nav.isRoot) detailUserIdRef.current = null;
+  }, [nav.isRoot]);
+
   const handleSelectUser = useCallback(
     async (user: OktaUser) => {
       if (!targetTabId) return;
 
       setRecentlyAddedGroupId(null);
       setSelectedUser(user);
+      showUserDetail(user);
       await loadMemberships(user);
     },
-    [targetTabId, loadMemberships],
+    [targetTabId, loadMemberships, showUserDetail],
   );
 
   const handleUserAddedToGroup = useCallback(
@@ -135,11 +165,19 @@ export function useUsersTabState({
     setSearchQuery('');
   }, [setSearchResults, setSearchQuery]);
 
+  const onDetectedUserSelected = useCallback(
+    (user: OktaUser | null) => {
+      setSelectedUser(user);
+      if (user) showUserDetail(user);
+    },
+    [showUserDetail],
+  );
+
   const { loadDetectedUser, loadUserById } = useDetectedUser({
     targetTabId,
     detectedUserId: userInfo?.userId,
     loadMemberships,
-    onSelectUser: setSelectedUser,
+    onSelectUser: onDetectedUserSelected,
     onError: setError,
     onLoadingChange: setIsLoadingMemberships,
     onResetSearch,
@@ -210,11 +248,20 @@ export function useUsersTabState({
   const dismissError = useCallback(() => setError(null), []);
   const dismissResultMessage = useCallback(() => setResultMessage(null), []);
 
-  const { push: pushCompare, pop: popCompare } = nav;
+  const { getMembershipRuleProof } = useOktaApi({ targetTabId: targetTabId ?? null });
+  const proveMembershipSource = useMemo(
+    () =>
+      selectedUser && targetTabId
+        ? (groupId: string) => getMembershipRuleProof(groupId, selectedUser.id)
+        : undefined,
+    [selectedUser, targetTabId, getMembershipRuleProof],
+  );
+
+  const { pop: popCompare } = nav;
   const openCompare = useCallback(() => {
     if (!selectedUser) return;
-    pushCompare({ userId: selectedUser.id, userName: userDisplayName(selectedUser) });
-  }, [selectedUser, pushCompare]);
+    pushView({ kind: 'compare', userId: selectedUser.id, userName: userDisplayName(selectedUser) });
+  }, [selectedUser, pushView]);
   const closeCompare = popCompare;
 
   return {
@@ -236,7 +283,9 @@ export function useUsersTabState({
     selectUser: handleSelectUser,
     clearSearch,
     nav,
+    isDetailOpen,
     isCompareOpen,
+    proveMembershipSource,
     openCompare,
     closeCompare,
     refreshSelectedUserMemberships,

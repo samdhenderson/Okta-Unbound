@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGroupSource } from './useGroupSource';
 import { OKTA_PAGE_SIZE } from '../../shared/utils/oktaPagination';
 import { setEntry, resetEntityCache } from '../cache/entityCache';
-import type { GroupSummary, OktaGroupRule } from '../../shared/types';
+import type { GroupSummary, OktaGroupRule, OktaUser } from '../../shared/types';
 
 const runtimeSendMessage = chrome.runtime.sendMessage as ReturnType<typeof vi.fn>;
 const storageGet = chrome.storage.local.get as ReturnType<typeof vi.fn>;
@@ -35,7 +35,7 @@ const feedingRule: OktaGroupRule = {
   actions: { assignUserToGroups: { groupIds: [GROUP_ID] } },
 };
 
-function makeMember(index: number) {
+function makeMember(index: number): OktaUser {
   return {
     id: `00uFAKE${index}`,
     status: 'ACTIVE',
@@ -218,5 +218,48 @@ describe('useGroupSource entity-cache reuse', () => {
 
     expect(result.current.breakdown?.total).toBe(MEMBER_COUNT);
     expect(memberPageEndpoints()).toHaveLength(Math.ceil(MEMBER_COUNT / OKTA_PAGE_SIZE));
+  });
+});
+
+describe('useGroupSource.resummarize', () => {
+  it('re-splits a changed roster without scheduling a single request', async () => {
+    installHarness(3);
+    const { result } = renderHook(() => useGroupSource(1));
+
+    await act(async () => {
+      result.current.open(group);
+    });
+    await waitFor(() => expect(result.current.rulesStatus).toBe('done'));
+    await act(async () => {
+      result.current.analyzeMembers();
+    });
+    await waitFor(() => expect(result.current.memberStatus).toBe('done'));
+    expect(result.current.breakdown?.total).toBe(3);
+
+    const before = scheduledEndpoints().length;
+
+    await act(async () => {
+      result.current.resummarize([makeMember(0), makeMember(1)]);
+    });
+
+    expect(result.current.breakdown?.total).toBe(2);
+    expect(scheduledEndpoints()).toHaveLength(before);
+  });
+
+  it('is a no-op before an analysis has run, since there is no split to correct', async () => {
+    installHarness(3);
+    const { result } = renderHook(() => useGroupSource(1));
+
+    await act(async () => {
+      result.current.open(group);
+    });
+    await waitFor(() => expect(result.current.rulesStatus).toBe('done'));
+
+    await act(async () => {
+      result.current.resummarize([makeMember(0)]);
+    });
+
+    expect(result.current.breakdown).toBeNull();
+    expect(result.current.memberStatus).toBe('idle');
   });
 });

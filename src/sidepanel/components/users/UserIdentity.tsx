@@ -9,6 +9,7 @@ interface UserIdentityProps {
   oktaOrigin?: string | null;
   showOktaLink?: boolean;
   showId?: boolean;
+  showName?: boolean;
 }
 
 const VARIANT_CLASSES: Record<UserStatusVariant, string> = {
@@ -29,6 +30,7 @@ const UserIdentity: React.FC<UserIdentityProps> = ({
   oktaOrigin,
   showOktaLink = true,
   showId = true,
+  showName = true,
 }) => {
   const { copied: idCopied, copy: copyId } = useCopyToClipboard();
 
@@ -48,9 +50,11 @@ const UserIdentity: React.FC<UserIdentityProps> = ({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-base font-bold text-neutral-900 truncate">
-              {user.profile.firstName} {user.profile.lastName}
-            </h2>
+            {showName && (
+              <h2 className="text-base font-bold text-neutral-900 truncate">
+                {user.profile.firstName} {user.profile.lastName}
+              </h2>
+            )}
             <span className={getStatusBadgeClass(user.status)}>{user.status}</span>
           </div>
 

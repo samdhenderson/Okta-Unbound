@@ -4,6 +4,8 @@ import { useProgressOptional } from '../contexts/ProgressContext';
 import { createCancellation } from '../../shared/scheduler/cancellation';
 import { createCoreApi } from './useOktaApi/core';
 import { createGroupMemberOperations } from './useOktaApi/groupMembers';
+import { invalidate } from '../cache/entityCache';
+import { cacheKeys } from '../cache/keys';
 import { createGroupCleanupOperations } from './useOktaApi/groupCleanup';
 import { createGroupBulkOperations } from './useOktaApi/groupBulkOps';
 import { createGroupDiscoveryOperations } from './useOktaApi/groupDiscovery';
@@ -84,7 +86,13 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
     [targetTabId, checkCancelled, resetCancellation, progressBridge, onResult, onProgress],
   );
 
-  const groupMemberOps = useMemo(() => createGroupMemberOperations(coreApi), [coreApi]);
+  const groupMemberOps = useMemo(
+    () =>
+      createGroupMemberOperations(coreApi, (groupId) =>
+        invalidate(cacheKeys.groupMembers(groupId)),
+      ),
+    [coreApi],
+  );
   const groupCleanupOps = useMemo(
     () => createGroupCleanupOperations(coreApi, groupMemberOps.removeUserFromGroup),
     [coreApi, groupMemberOps],
@@ -139,6 +147,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       makeApiRequest: coreApi.makeApiRequest,
 
       getAllGroupMembers: groupMemberOps.getAllGroupMembers,
+      getMembershipRuleProof: groupMemberOps.getMembershipRuleProof,
       removeUserFromGroup: groupMemberOps.removeUserFromGroup,
       removeUserFromGroups: groupMemberOps.removeUserFromGroups,
       addUserToGroup: groupMemberOps.addUserToGroup,
