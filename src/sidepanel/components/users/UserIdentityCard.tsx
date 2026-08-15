@@ -1,15 +1,12 @@
 import React from 'react';
 import type { OktaUser } from '../../../shared/types';
-import { IconButton, OpenInOktaLink, userStatusVariant, type UserStatusVariant } from '../shared';
-import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
-import Icon from '../overview/shared/Icon';
+import { CopyableId, OpenInOktaLink, userStatusVariant, type UserStatusVariant } from '../shared';
 
-interface UserIdentityProps {
+interface UserIdentityCardProps {
   user: OktaUser;
   oktaOrigin?: string | null;
   showOktaLink?: boolean;
   showId?: boolean;
-  showName?: boolean;
 }
 
 const VARIANT_CLASSES: Record<UserStatusVariant, string> = {
@@ -25,19 +22,12 @@ const getStatusBadgeClass = (status: string): string => {
   return `${base} ${VARIANT_CLASSES[userStatusVariant(status)]}`;
 };
 
-const UserIdentity: React.FC<UserIdentityProps> = ({
+const UserIdentityCard: React.FC<UserIdentityCardProps> = ({
   user,
   oktaOrigin,
   showOktaLink = true,
   showId = true,
-  showName = true,
 }) => {
-  const { copied: idCopied, copy: copyId } = useCopyToClipboard();
-
-  const handleCopyId = () => {
-    copyId(user.id);
-  };
-
   const initials =
     `${user.profile.firstName?.[0] ?? '?'}${user.profile.lastName?.[0] ?? ''}`.toUpperCase();
 
@@ -50,11 +40,9 @@ const UserIdentity: React.FC<UserIdentityProps> = ({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            {showName && (
-              <h2 className="text-base font-bold text-neutral-900 truncate">
-                {user.profile.firstName} {user.profile.lastName}
-              </h2>
-            )}
+            <h2 className="text-base font-bold text-neutral-900 truncate">
+              {user.profile.firstName} {user.profile.lastName}
+            </h2>
             <span className={getStatusBadgeClass(user.status)}>{user.status}</span>
           </div>
 
@@ -70,24 +58,7 @@ const UserIdentity: React.FC<UserIdentityProps> = ({
 
           <div className="text-xs text-neutral-700 mt-0.5 truncate">{user.profile.email}</div>
 
-          {showId && (
-            <div className="flex items-center gap-1 mt-1">
-              <code className="text-[11px] font-mono text-neutral-500 truncate">{user.id}</code>
-              <IconButton
-                label={idCopied ? 'Copied!' : 'Copy user id'}
-                onClick={handleCopyId}
-                variant="ghost"
-                size="sm"
-                className="shrink-0"
-              >
-                <Icon
-                  type={idCopied ? 'clipboard-check' : 'clipboard'}
-                  size="sm"
-                  className={`w-3.5 h-3.5 ${idCopied ? 'text-success-text' : ''}`}
-                />
-              </IconButton>
-            </div>
-          )}
+          {showId && <CopyableId value={user.id} label="Copy user id" className="mt-1" />}
 
           {user.profile.genderPronouns && (
             <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 text-[11px] font-medium rounded-md border border-purple-200 mt-1.5">
@@ -106,4 +77,4 @@ const UserIdentity: React.FC<UserIdentityProps> = ({
   );
 };
 
-export default UserIdentity;
+export default UserIdentityCard;

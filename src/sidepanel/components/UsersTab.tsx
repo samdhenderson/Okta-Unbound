@@ -2,8 +2,9 @@ import React, { useRef } from 'react';
 import PageHeader from './shared/PageHeader';
 import Breadcrumbs from './shared/Breadcrumbs';
 import AlertMessage from './shared/AlertMessage';
-import { ActionBar, Button } from './shared';
+import { ActionBar, Button, EntityIdentity, OpenInOktaLink } from './shared';
 import { AddToGroupModal, UserComparisonPanel, UserDetailPanel, UserSearchPanel } from './users';
+import { userIdentity } from './users/userIdentity';
 import { useUsersTabState } from '../hooks/useUsersTabState';
 import { userDisplayName } from '../../shared/utils/userDisplay';
 
@@ -30,14 +31,32 @@ const UsersTab: React.FC<UsersTabProps> = ({
     isActive,
     compareViewRef,
   });
-  const { selectedUser, memberships, lifecycle, addToGroup, nav, isDetailOpen, isCompareOpen } =
-    state;
+  const {
+    selectedUser,
+    memberships,
+    isLoadingMemberships,
+    lifecycle,
+    addToGroup,
+    nav,
+    isDetailOpen,
+    isCompareOpen,
+  } = state;
 
   const currentEntry = nav.currentEntry;
   const currentName =
     currentEntry && selectedUser?.id === currentEntry.userId
       ? userDisplayName(selectedUser)
       : currentEntry?.userName;
+
+  const detailUser =
+    isDetailOpen && !isCompareOpen && currentEntry && selectedUser?.id === currentEntry.userId
+      ? selectedUser
+      : undefined;
+  const identity = detailUser
+    ? userIdentity(detailUser, {
+        groupCount: isLoadingMemberships ? undefined : memberships.length,
+      })
+    : undefined;
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
@@ -55,8 +74,24 @@ const UsersTab: React.FC<UsersTabProps> = ({
         onBack={nav.isRoot ? undefined : nav.pop}
         backLabel={isCompareOpen ? 'Back to user' : 'Back to search'}
         breadcrumbs={nav.isRoot ? undefined : <Breadcrumbs items={nav.trail} />}
+        sticky={isActive}
+        identityKey={identity?.key}
+        identity={identity ? <EntityIdentity rows={identity.rows} /> : undefined}
         badge={
-          selectedUser ? { text: `${memberships.length} Groups`, variant: 'primary' } : undefined
+          identity
+            ? identity.badge
+            : selectedUser
+              ? { text: `${memberships.length} Groups`, variant: 'primary' }
+              : undefined
+        }
+        actions={
+          identity?.link && (
+            <OpenInOktaLink
+              oktaOrigin={state.oktaOrigin}
+              entityType={identity.link.entityType}
+              entityId={identity.link.entityId}
+            />
+          )
         }
       />
 

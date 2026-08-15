@@ -49,9 +49,6 @@ const minimalUser: OktaUser = {
   },
 };
 
-const suspendedUser: OktaUser = mockUsers.find((u) => u.status === 'SUSPENDED') ?? baseUser;
-const deprovisionedUser: OktaUser = mockUsers.find((u) => u.status === 'DEPROVISIONED') ?? baseUser;
-
 const meta = {
   title: 'Users/UserProfileCard',
   component: UserProfileCard,
@@ -62,7 +59,8 @@ const meta = {
       description: {
         component:
           "Presentational card summarizing a single Okta user's profile.\n\n" +
-          'Renders the compact UserIdentity header, an optional `afterCard` slot (e.g. lifecycle-action controls), and tabbed detail sections (Account / Org / Contact / Prefs / Custom) plus an **All** tab — a flat, searchable list of every profile attribute. Sections with no data self-hide, so a minimal user collapses to just Account + All. Used by the Users tab.',
+          'Renders an optional `afterCard` slot (e.g. lifecycle-action controls) and tabbed detail sections (Account / Org / Contact / Prefs / Custom) plus an **All** tab — a flat, searchable list of every profile attribute. Sections with no data self-hide, so a minimal user collapses to just Account + All. Used by the Users tab.\n\n' +
+          'It no longer opens with an identity card: the tab’s `PageHeader` describes the user on this rung (ADR-0032).',
       },
     },
   },
@@ -72,20 +70,11 @@ const meta = {
   argTypes: {
     user: { description: 'The user to render.' },
     showCollapsibleSections: {
-      description:
-        'When true (default), renders the tabbed detail sections below the identity header.',
-    },
-    oktaOrigin: {
-      description:
-        'Okta origin used to build the "Open in Okta" admin link; the link is hidden when absent.',
-    },
-    showOktaLink: {
-      description:
-        'Whether to render the identity header\'s "Open in Okta" deep link. Defaults to `true`.',
+      description: 'When true (default), renders the tabbed detail sections.',
     },
     afterCard: {
       description:
-        'Optional content rendered between the identity header and the detail sections (renders regardless of `showCollapsibleSections`).',
+        'Optional content rendered above the detail sections (renders regardless of `showCollapsibleSections`).',
     },
   },
 } satisfies Meta<typeof UserProfileCard>;
@@ -99,20 +88,8 @@ export const MinimalProfile: Story = {
   args: { user: minimalUser },
 };
 
-export const Suspended: Story = {
-  args: { user: suspendedUser },
-};
-
-export const Deprovisioned: Story = {
-  args: { user: deprovisionedUser },
-};
-
 export const WithoutCollapsibleSections: Story = {
   args: { showCollapsibleSections: false },
-};
-
-export const WithOktaOriginLink: Story = {
-  args: { oktaOrigin: 'https://example.okta.com' },
 };
 
 export const WithAfterCardSlot: Story = {

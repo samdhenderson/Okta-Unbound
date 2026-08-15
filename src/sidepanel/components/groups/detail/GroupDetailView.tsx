@@ -1,5 +1,4 @@
 import React from 'react';
-import GroupIdentitySection from './GroupIdentitySection';
 import GroupMembershipSourceSection from './GroupMembershipSourceSection';
 import GroupMembersSection from './GroupMembersSection';
 import GroupAccessSection from './GroupAccessSection';
@@ -17,7 +16,6 @@ import type { GroupSummary } from '../../../../shared/types';
 interface GroupDetailViewProps {
   group: GroupSummary;
   targetTabId: number | null;
-  oktaOrigin?: string;
   onNavigateToRule?: (ruleId: string) => void;
   autoAnalyze?: boolean;
   isActive?: boolean;
@@ -27,7 +25,6 @@ interface GroupDetailViewProps {
 const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   group,
   targetTabId,
-  oktaOrigin,
   onNavigateToRule,
   autoAnalyze = false,
   isActive = true,
@@ -67,8 +64,6 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
           Export members
         </Button>
       </ActionBar>
-
-      <GroupIdentitySection group={group} oktaOrigin={oktaOrigin} />
 
       <GroupMembershipSourceSection
         memberCount={group.memberCount}
@@ -126,6 +121,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
 
       <GroupMetadataSection
         groupId={group.id}
+        description={group.description}
         created={group.created}
         lastUpdated={group.lastUpdated}
       />

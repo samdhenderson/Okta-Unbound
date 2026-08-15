@@ -22,7 +22,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
     className={`
       flex flex-wrap items-center gap-2
       rounded-md border border-neutral-200 bg-white p-2
-      ${sticky ? 'sticky top-0 z-10' : ''}
+      ${sticky ? 'sticky top-[calc(var(--rail-h,0px)+var(--header-h,0px))] z-10' : ''}
       ${className}
     `
       .trim()

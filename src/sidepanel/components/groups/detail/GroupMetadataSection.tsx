@@ -4,6 +4,7 @@ import { formatDate } from '../../../../shared/utils/dateFormat';
 
 interface GroupMetadataSectionProps {
   groupId: string;
+  description?: string;
   created?: Date;
   lastUpdated?: Date;
 }
@@ -17,11 +18,20 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 
 const GroupMetadataSection: React.FC<GroupMetadataSectionProps> = ({
   groupId,
+  description,
   created,
   lastUpdated,
 }) => (
-  <DetailSection title="Metadata">
+  <DetailSection title="About">
     <div className="space-y-3">
+      <Field label="Description">
+        {description?.trim() ? (
+          description
+        ) : (
+          <span className="text-neutral-500 italic">No description in Okta.</span>
+        )}
+      </Field>
+
       <Field label="Group ID">
         <div className="flex items-center gap-2">
           <code className="min-w-0 flex-1 truncate font-mono text-xs text-neutral-900">

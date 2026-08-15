@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import UserIdentity from './UserIdentity';
+import UserIdentityCard from './UserIdentityCard';
 import { mockUsers } from '../../../test/mocks/fixtures';
 import type { OktaUser } from '../../../shared/types';
 
@@ -30,8 +30,8 @@ const minimalUser: OktaUser = {
 const suspendedUser: OktaUser = mockUsers.find((u) => u.status === 'SUSPENDED') ?? baseUser;
 
 const meta = {
-  title: 'Users/UserIdentity',
-  component: UserIdentity,
+  title: 'Users/UserIdentityCard',
+  component: UserIdentityCard,
   tags: ['autodocs'],
   parameters: {
     layout: 'padded',
@@ -58,7 +58,7 @@ const meta = {
         'Whether to show the copyable user id row. Defaults to `true`; the Overview passes `false`.',
     },
   },
-} satisfies Meta<typeof UserIdentity>;
+} satisfies Meta<typeof UserIdentityCard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

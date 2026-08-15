@@ -20,7 +20,11 @@ const TabPanel: React.FC<TabPanelProps> = ({ isActive, scrollRef, children }) =>
   }, [isActive, scrollRef]);
 
   return (
-    <div className={isActive ? 'tab-content active' : 'tab-content'} hidden={!isActive}>
+    <div
+      data-header-scope
+      className={isActive ? 'tab-content active' : 'tab-content'}
+      hidden={!isActive}
+    >
       <Suspense fallback={<LoadingSpinner size="2xl" message="Loading tab..." centered />}>
         {children}
       </Suspense>

@@ -496,6 +496,7 @@ describe('lifecycle actions', () => {
     ).toBeInTheDocument();
     expect(schedulerEndpoints().filter((e) => e === '/api/v1/users/u1')).toHaveLength(1);
     expect(screen.getAllByText('SUSPENDED').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('tab', { name: /Org/ }));
     expect(screen.getByText('Engineering')).toBeInTheDocument();
   });
 

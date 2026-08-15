@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import StatCard from './shared/StatCard';
-import { UserIdentity, UserComparisonModal } from '../users';
+import { UserIdentityCard, UserComparisonModal } from '../users';
 import { formatDateShort, getRelativeTime } from '../../../shared/utils/dateFormat';
 import { useUserMemberships } from '../../hooks/useUserMemberships';
 import { useOktaApi } from '../../hooks/useOktaApi';
@@ -94,7 +94,7 @@ const UserOverview: React.FC<UserOverviewProps> = ({
     <div className="space-y-6">
       {userDetails && (
         <div className="space-y-2">
-          <UserIdentity
+          <UserIdentityCard
             user={userDetails}
             oktaOrigin={oktaOrigin}
             showOktaLink={false}

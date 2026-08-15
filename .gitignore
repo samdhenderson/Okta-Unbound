@@ -65,3 +65,5 @@ manifest.v2.json
 storybook-static
 .storybook/generated
 shots/
+
+# design-sync (claude.ai/design) — transient build + verification state

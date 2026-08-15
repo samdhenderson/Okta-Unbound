@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import type { OktaUser } from '../../../shared/types';
 import { Tabs, Input, type TabItem } from '../shared';
 import Icon from '../overview/shared/Icon';
-import UserIdentity from './UserIdentity';
 import {
   getAccountFields,
   getOrgFields,
@@ -16,9 +15,6 @@ import {
 interface UserProfileCardProps {
   user: OktaUser;
   showCollapsibleSections?: boolean;
-  oktaOrigin?: string | null;
-  showOktaLink?: boolean;
-  showName?: boolean;
   afterCard?: React.ReactNode;
 }
 
@@ -40,9 +36,6 @@ const FieldGrid: React.FC<{ fields: ProfileField[] }> = ({ fields }) => (
 const UserProfileCard: React.FC<UserProfileCardProps> = ({
   user,
   showCollapsibleSections = true,
-  oktaOrigin,
-  showOktaLink = true,
-  showName = true,
   afterCard,
 }) => {
   const sections = useMemo(() => {
@@ -82,13 +75,6 @@ const UserProfileCard: React.FC<UserProfileCardProps> = ({
 
   return (
     <div className="space-y-4">
-      <UserIdentity
-        user={user}
-        oktaOrigin={oktaOrigin}
-        showOktaLink={showOktaLink}
-        showName={showName}
-      />
-
       {afterCard}
 
       {showCollapsibleSections && (

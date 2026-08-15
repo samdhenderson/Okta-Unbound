@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Icon from '../overview/shared/Icon';
 import IconButton from './IconButton';
+import Badge, { type BadgeVariant } from './Badge';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { usePublishedHeight } from '../../hooks/usePublishedHeight';
+import { useStuck } from '../../hooks/useStuck';
+
+const SWAP_MS = 220;
 
 interface PageHeaderProps {
   title: string;
@@ -12,17 +18,12 @@ interface PageHeaderProps {
   breadcrumbs?: React.ReactNode;
   badge?: {
     text: string;
-    variant?: 'primary' | 'success' | 'warning' | 'error' | 'neutral';
+    variant?: BadgeVariant;
   };
+  identity?: React.ReactNode;
+  identityKey?: string;
+  sticky?: boolean;
 }
-
-const badgeVariants = {
-  primary: 'bg-primary-light text-primary-text border-primary-highlight',
-  success: 'bg-success-light text-success-text border-success-light',
-  warning: 'bg-warning-light text-warning-text border-warning-light',
-  error: 'bg-danger-light text-danger-text border-danger-light',
-  neutral: 'bg-neutral-50 text-neutral-600 border-neutral-200',
-};
 
 const PageHeader: React.FC<PageHeaderProps> = ({
   title,
@@ -33,7 +34,51 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   backLabel = 'Back',
   leading,
   breadcrumbs,
+  identity,
+  identityKey,
+  sticky = false,
 }) => {
+  const reduced = useReducedMotion();
+  const headerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const pinned = useStuck(sentinelRef, headerRef, sticky);
+
+  usePublishedHeight(headerRef, '--header-h', {
+    scopeSelector: '[data-header-scope]',
+    enabled: sticky,
+  });
+
+  const latest = useRef(identity);
+  useEffect(() => {
+    latest.current = identity;
+  });
+
+  const [held, setHeld] = useState<{ key: string | undefined; node: React.ReactNode }>({
+    key: identityKey,
+    node: identity,
+  });
+  const [fading, setFading] = useState(false);
+
+  if (held.key !== identityKey && !fading) {
+    setHeld({ key: identityKey, node: held.node });
+    setFading(true);
+  }
+
+  useEffect(() => {
+    if (!fading) return;
+    const finish = () => {
+      setHeld((prev) => ({ key: prev.key, node: latest.current }));
+      setFading(false);
+    };
+    if (reduced) {
+      finish();
+      return;
+    }
+    const timer = window.setTimeout(finish, SWAP_MS);
+    return () => window.clearTimeout(timer);
+  }, [fading, reduced]);
+
   const leadingNode =
     leading ??
     (onBack ? (
@@ -42,34 +87,58 @@ const PageHeader: React.FC<PageHeaderProps> = ({
       </IconButton>
     ) : null);
 
+  const shownIdentity = fading ? held.node : identity;
+  const regionOpen = Boolean(shownIdentity) && !fading && !pinned;
+
+  const hasRegion = Boolean(identity) || fading;
+  const align = hasRegion ? 'items-start' : 'items-center';
+
   return (
-    <div className="bg-white border-b border-neutral-200">
-      <div className="px-5 py-4 flex items-center justify-between gap-4">
-        <div className="flex-1 min-w-0 flex items-center gap-2">
-          {leadingNode && <div className="shrink-0">{leadingNode}</div>}
-          <div className="flex-1 min-w-0">
-            {breadcrumbs && <div className="mb-1">{breadcrumbs}</div>}
-            <div className="flex items-center gap-2">
+    <>
+      {sticky && <div ref={sentinelRef} aria-hidden="true" className="h-0" />}
+      <div
+        ref={headerRef}
+        className={`bg-white border-b border-neutral-200 ${
+          sticky ? 'sticky top-[var(--rail-h,0px)] z-20' : ''
+        }`}
+      >
+        <div className={`px-5 py-4 flex ${align} justify-between gap-4`}>
+          <div className={`flex-1 min-w-0 flex ${align} gap-2`}>
+            {leadingNode && <div className="shrink-0">{leadingNode}</div>}
+            <div className="flex-1 min-w-0">
+              {breadcrumbs && <div className="mb-1">{breadcrumbs}</div>}
               <h1
                 className="text-lg font-semibold text-neutral-900"
                 style={{ fontFamily: 'var(--font-heading)' }}
               >
                 {title}
               </h1>
-              {badge && (
-                <span
-                  className={`px-2 py-0.5 rounded-md text-xs font-medium border ${badgeVariants[badge.variant || 'neutral']}`}
-                >
-                  {badge.text}
-                </span>
+              {subtitle && <p className="mt-0.5 text-sm text-neutral-600">{subtitle}</p>}
+
+              {hasRegion && (
+                <div className="disclose" data-open={regionOpen ? 'true' : 'false'}>
+                  <div>
+                    <div
+                      className={`mt-2 transition-opacity duration-(--dur-quick) ${
+                        fading ? 'opacity-0 ease-exit' : 'opacity-100 ease-entrance'
+                      }`}
+                    >
+                      {shownIdentity}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
-            {subtitle && <p className="mt-0.5 text-sm text-neutral-600">{subtitle}</p>}
           </div>
+          {(badge || actions) && (
+            <div className="shrink-0 flex items-center gap-2">
+              {badge && <Badge variant={badge.variant}>{badge.text}</Badge>}
+              {actions}
+            </div>
+          )}
         </div>
-        {actions && <div className="shrink-0">{actions}</div>}
       </div>
-    </div>
+    </>
   );
 };
 

@@ -39,8 +39,6 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
     <div className="space-y-6 animate-rise-in">
       <UserProfileCard
         user={user}
-        oktaOrigin={oktaOrigin}
-        showName={false}
         afterCard={
           <UserLifecycleActions
             user={user}
