@@ -244,7 +244,7 @@ const App: React.FC = () => {
         <div
           ref={scrollRootRef}
           data-testid="app-scroll-root"
-          className="flex flex-col h-screen overflow-y-auto pb-14 bg-canvas"
+          className="flex flex-col h-screen overflow-y-auto [overflow-anchor:none] pb-14 bg-canvas"
         >
           <ContextBar
             pageType={effective.pageType}
