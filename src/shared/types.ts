@@ -15,6 +15,12 @@ export interface OktaUser {
       name: string;
     }>;
   };
+  credentials?: {
+    provider?: {
+      type?: string;
+      name?: string;
+    };
+  };
   profile: {
     login: string;
     email: string;

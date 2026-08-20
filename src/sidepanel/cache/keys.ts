@@ -18,4 +18,12 @@ export const cacheKeys = {
   appAssignmentCounts: (appId: string): EntityKey => ['appAssignmentCounts', appId],
 
   policies: (policyType: string): EntityKey => ['policies', policyType],
+
+  userSchema: (oktaOrigin?: string | null): EntityKey => ['userSchema', oktaOrigin ?? 'unknown'],
+
+  appGroups: (appId: string): EntityKey => ['appGroups', appId],
+
+  userApps: (userId: string): EntityKey => ['userApps', userId],
+
+  userDetails: (userId: string): EntityKey => ['userDetails', userId],
 } as const;

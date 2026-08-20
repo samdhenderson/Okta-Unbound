@@ -11,13 +11,14 @@ const meta = {
     docs: {
       description: {
         component:
-          'Presentational "detected in admin" banner for the Users tab.\n\n' +
-          'Shown when the Okta admin page has a user open that differs from the one explicitly selected in the tab. Renders the detected user with a status-colored badge (success / warning / danger, omitted when no status is known). Loading is MANUAL only — the Load button — so admin navigation never hijacks the tab; all visibility/dismiss logic lives in the parent and this component only forwards Load / Dismiss intent.',
+          'Presentational "open in admin" banner for the Users tab.\n\n' +
+          'Shown when the Okta admin page has a user open that differs from the one explicitly selected in the tab. Loading is MANUAL only — the Load button — so admin navigation never hijacks the tab; all visibility/dismiss logic lives in the parent and this component only forwards Load / Dismiss intent.\n\n' +
+          'It is one row: an `Eyebrow` naming the source, then `{name} · {STATUS}`, then a single `primary` Load and an `IconButton` to dismiss. It previously offered two equal-weight buttons (a `secondary` Load beside a `ghost` Dismiss), so nothing said which one the banner was for, and it carried a hand-rolled status pill built from a nested ternary — the third element on a line trying to be one line.',
       },
     },
   },
   args: {
-    userInfo: { userId: 'u1', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
+    userInfo: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
     isLoading: false,
     onLoad: fn(),
     onDismiss: fn(),
@@ -36,17 +37,40 @@ type Story = StoryObj<typeof meta>;
 export const Active: Story = {};
 
 export const Deprovisioned: Story = {
-  args: { userInfo: { userId: 'u2', userName: 'Grace Hopper', userStatus: 'DEPROVISIONED' } },
+  args: {
+    userInfo: { userId: '00uFAKE0002', userName: 'Grace Hopper', userStatus: 'DEPROVISIONED' },
+  },
 };
 
 export const Suspended: Story = {
-  args: { userInfo: { userId: 'u3', userName: 'Alan Turing', userStatus: 'SUSPENDED' } },
+  args: { userInfo: { userId: '00uFAKE0003', userName: 'Alan Turing', userStatus: 'SUSPENDED' } },
 };
 
 export const NoStatus: Story = {
-  args: { userInfo: { userId: 'u4', userName: 'Katherine Johnson' } },
+  args: { userInfo: { userId: '00uFAKE0004', userName: 'Katherine Johnson' } },
 };
 
 export const Loading: Story = {
   args: { isLoading: true },
+};
+
+export const LongName: Story = {
+  args: {
+    userInfo: {
+      userId: '00uFAKE0005',
+      userName: 'Bartholomew Featherstonehaugh-Wintergreen',
+      userStatus: 'LOCKED_OUT',
+    },
+  },
+};
+
+export const Compact360: Story = {
+  args: {
+    userInfo: {
+      userId: '00uFAKE0005',
+      userName: 'Bartholomew Featherstonehaugh-Wintergreen',
+      userStatus: 'LOCKED_OUT',
+    },
+  },
+  parameters: { viewport: { value: 'sidepanelCompact' } },
 };

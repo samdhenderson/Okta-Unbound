@@ -1,0 +1,146 @@
+import React, { useMemo, useState } from 'react';
+import { Badge, EmptyState, Eyebrow, FilterPill, IconButton, Input, Skeleton } from '../shared';
+import Icon from '../overview/shared/Icon';
+import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
+import type { AttributeDescriptor } from './profileAttributes';
+import { buildAttributeBlocks } from './profileAttributeBlocks';
+import UserProfileAttributeList from './UserProfileAttributeList';
+import UserProfilePaneHeader, { type ProfileEditControls } from './UserProfilePaneHeader';
+import type { AttributeEditCell } from '../../hooks/useProfileEdit';
+
+export interface UserProfilePaneProps {
+  attributes: readonly AttributeDescriptor[];
+  config: ProfileDisplayConfig;
+  ruleReads: Record<string, string[]>;
+  onConfigure: () => void;
+  isLoading?: boolean;
+  edit?: ProfileEditControls;
+  cells?: Readonly<Record<string, AttributeEditCell>>;
+}
+
+function fieldCountLabel(count: number): string {
+  return count === 1 ? '1 field' : `${count} fields`;
+}
+
+const UserProfilePane: React.FC<UserProfilePaneProps> = ({
+  attributes,
+  config,
+  ruleReads,
+  onConfigure,
+  isLoading = false,
+  edit,
+  cells,
+}) => {
+  const [filter, setFilter] = useState('');
+  const [onlyRuleRead, setOnlyRuleRead] = useState(false);
+
+  const blocks = useMemo(
+    () => buildAttributeBlocks(attributes, config, ruleReads, { filter, onlyRuleRead }),
+    [attributes, config, ruleReads, filter, onlyRuleRead],
+  );
+
+  const shown = blocks.reduce((sum, block) => sum + block.attributes.length, 0);
+  const total = new Set(attributes.map((attribute) => attribute.name)).size;
+  const readCount = blocks.reduce(
+    (sum, block) =>
+      sum + block.attributes.filter((attribute) => ruleReads[attribute.name]?.length).length,
+    0,
+  );
+
+  const isFiltered = filter.trim() !== '' || onlyRuleRead;
+  const clearFilters = (): void => {
+    setFilter('');
+    setOnlyRuleRead(false);
+  };
+
+  return (
+    <div>
+      <UserProfilePaneHeader
+        shown={shown}
+        total={total}
+        ruleReadCount={readCount}
+        onConfigure={onConfigure}
+        edit={edit}
+      />
+
+      <div className="px-4 pb-3 space-y-2">
+        <Input
+          size="sm"
+          value={filter}
+          onChange={setFilter}
+          placeholder="Filter attributes…"
+          ariaLabel="Filter attributes"
+          icon={<Icon type="search" size="sm" />}
+          trailingInteractive
+          trailing={
+            filter ? (
+              <IconButton
+                label="Clear attribute filter"
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilter('')}
+              >
+                <Icon type="close" size="sm" />
+              </IconButton>
+            ) : undefined
+          }
+        />
+        <div className="flex flex-wrap gap-2">
+          <FilterPill active={!onlyRuleRead} onClick={() => setOnlyRuleRead(false)}>
+            All attributes
+          </FilterPill>
+          <FilterPill active={onlyRuleRead} onClick={() => setOnlyRuleRead(true)}>
+            Used by rules
+          </FilterPill>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="px-4 pb-4">
+          <Skeleton variant="row" size="md" count={4} label="Loading profile attributes" />
+        </div>
+      ) : blocks.length === 0 ? (
+        isFiltered ? (
+          <EmptyState
+            icon="search"
+            title="No attributes match"
+            description="Nothing in this profile matches the current filter."
+            actions={[{ label: 'Clear filter', onClick: clearFilters, variant: 'secondary' }]}
+          />
+        ) : (
+          <EmptyState
+            icon="settings"
+            title="No attributes to show"
+            description="Every attribute is hidden, or empty on this user and set not to show."
+            actions={[{ label: 'Configure display', onClick: onConfigure, variant: 'secondary' }]}
+          />
+        )
+      ) : (
+        <div>
+          {blocks.map((block) => (
+            <section
+              key={block.key}
+              aria-label={block.name}
+              className="border-t border-neutral-200 px-4 py-3 first:border-t-0"
+            >
+              <div className="flex items-baseline justify-between gap-2 mb-2">
+                <Eyebrow as="h3">{block.name}</Eyebrow>
+                <Badge variant="neutral">{fieldCountLabel(block.attributes.length)}</Badge>
+              </div>
+              <UserProfileAttributeList
+                attributes={block.attributes}
+                layout={config.layout}
+                showApiNames={config.showApiNames}
+                showRuleChips={config.showRuleChips}
+                ruleReads={ruleReads}
+                cells={cells}
+              />
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default UserProfilePane;

@@ -1,16 +1,15 @@
+import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, userEvent, within } from 'storybook/test';
 import GroupMembershipsList from './GroupMembershipsList';
-import Button from '../shared/Button';
-import { mockGroup } from '../../../test/mocks/fixtures';
-import type { GroupMembership, OktaUser } from '../../../shared/types';
+import type { GroupMembership, MembershipRule, OktaUser } from '../../../shared/types';
 
 const user: OktaUser = {
-  id: '00uFAKE1',
+  id: '00uFAKE00000000000001',
   status: 'ACTIVE',
   profile: {
-    login: 'ada@example.com',
-    email: 'ada@example.com',
+    login: 'user@example.com',
+    email: 'user@example.com',
     firstName: 'Ada',
     lastName: 'Lovelace',
     department: 'Engineering',
@@ -18,94 +17,104 @@ const user: OktaUser = {
   },
 };
 
-const directMembership: GroupMembership = {
-  group: mockGroup,
-  membershipType: 'DIRECT',
-  rules: [],
-  attribution: 'exact',
-};
+const rule = (id: string, name: string, conditionExpression: string): MembershipRule => ({
+  id,
+  name,
+  status: 'ACTIVE',
+  conditionExpression,
+});
 
-const ruleMembership: GroupMembership = {
+const ruleExact: GroupMembership = {
   group: {
-    id: 'group456',
+    id: '00gFAKE00000000000001',
     type: 'OKTA_GROUP',
-    profile: {
-      name: 'Engineering Team',
-      description: 'All engineering department employees',
-    },
+    profile: { name: 'Engineering Staff', description: 'All engineering employees' },
   },
   membershipType: 'RULE_BASED',
   attribution: 'exact',
-  rules: [
-    {
-      id: 'rule1',
-      name: 'Auto-add Engineers',
-      status: 'ACTIVE',
-      conditions: {
-        expression: {
-          value: 'String.stringContains(user.department, "Engineering")',
-          type: 'urn:okta:expression:1.0',
-        },
-      },
-    },
-  ],
+  rules: [rule('0prFAKErule00001', 'Auto-add Engineers', 'user.department == "Engineering"')],
 };
 
-const formattedRuleMembership: GroupMembership = {
+const ruleInferred: GroupMembership = {
   group: {
-    id: 'group789',
+    id: '00gFAKE00000000000002',
     type: 'OKTA_GROUP',
     profile: { name: 'Platform On-call' },
   },
   membershipType: 'RULE_BASED',
-  attribution: 'exact',
+  attribution: 'inferred',
   rules: [
-    {
-      id: 'rule2',
-      name: 'On-call rotation',
-      status: 'ACTIVE',
-      conditionExpression:
-        'user.department == "Engineering" && user.title != "Intern" && isMemberOfGroup("00gFAKE1")',
-    },
+    rule(
+      '0prFAKErule00002',
+      'On-call rotation',
+      'user.department == "Engineering" && isMemberOfGroup("00gFAKE00000000000009")',
+    ),
   ],
 };
 
-const ambiguousMembership: GroupMembership = {
+const ruleAmbiguous: GroupMembership = {
   group: {
-    id: 'group321',
+    id: '00gFAKE00000000000003',
     type: 'OKTA_GROUP',
     profile: { name: 'Security Reviewers' },
   },
   membershipType: 'RULE_BASED',
   attribution: 'ambiguous',
   rules: [
-    {
-      id: 'rule3',
-      name: 'Reviewers — by title',
-      status: 'ACTIVE',
-      conditionExpression: 'user.title == "Intern"',
-    },
-    {
-      id: 'rule4',
-      name: 'Reviewers — by group',
-      status: 'ACTIVE',
-      conditionExpression: 'isMemberOfGroup("00gFAKE1")',
-    },
+    rule('0prFAKErule00003', 'Reviewers — by title', 'user.title == "Intern"'),
+    rule('0prFAKErule00004', 'Reviewers — by group', 'isMemberOfGroup("00gFAKE00000000000009")'),
   ],
 };
 
-const unknownMembership: GroupMembership = {
-  group: {
-    id: 'group789',
-    type: 'APP_GROUP',
-    profile: {
-      name: 'Salesforce Users',
-    },
-  },
-  membershipType: 'UNKNOWN',
+const direct: GroupMembership = {
+  group: { id: '00gFAKE00000000000004', type: 'OKTA_GROUP', profile: { name: 'Ops Handbook' } },
+  membershipType: 'DIRECT',
+  attribution: 'exact',
   rules: [],
-  attribution: 'ambiguous',
 };
+
+const directDeduced: GroupMembership = {
+  group: { id: '00gFAKE00000000000005', type: 'OKTA_GROUP', profile: { name: 'Travel Policy' } },
+  membershipType: 'DIRECT',
+  attribution: 'inferred',
+  rules: [],
+};
+
+const appMastered: GroupMembership = {
+  group: { id: '00gFAKE00000000000006', type: 'APP_GROUP', profile: { name: 'Salesforce Users' } },
+  membershipType: 'RULE_BASED',
+  attribution: 'exact',
+  rules: [],
+};
+
+const unresolved: GroupMembership = {
+  group: { id: '00gFAKE00000000000007', type: 'OKTA_GROUP', profile: { name: 'Finance Readers' } },
+  membershipType: 'UNKNOWN',
+  attribution: 'ambiguous',
+  rules: [],
+};
+
+const proven: GroupMembership = {
+  group: { id: '00gFAKE00000000000008', type: 'OKTA_GROUP', profile: { name: 'VPN Access' } },
+  membershipType: 'RULE_BASED',
+  attribution: 'ambiguous',
+  rules: [
+    rule('0prFAKErule00005', 'Contractors → VPN', 'user.userType == "Contractor"'),
+    rule('0prFAKErule00006', 'Engineers → VPN', 'user.department == "Engineering"'),
+  ],
+  provenance: { source: 'okta', rules: [{ id: '0prFAKErule00006', name: 'Engineers → VPN' }] },
+};
+
+const everyVerdict = [
+  ruleExact,
+  ruleInferred,
+  ruleAmbiguous,
+  direct,
+  directDeduced,
+  appMastered,
+  unresolved,
+  proven,
+];
 
 const meta = {
   title: 'Users/GroupMembershipsList',
@@ -113,17 +122,42 @@ const meta = {
   tags: ['autodocs'],
   parameters: {
     layout: 'fullscreen',
+    a11y: { config: { rules: [{ id: 'heading-order', enabled: false }] } },
     docs: {
       description: {
         component:
-          "Card listing a user's group memberships, distinguishing direct vs rule-based membership.\n\n" +
-          "Direct/rule-based classification is heuristic — the Okta API does not expose which rule (if any) added a user. A rule-based row surfaces the matched rule name, a deep link to the Rules tab, and — when `user` is supplied — that rule's condition explained clause by clause (`ClauseChecklist`): pass, fail, or a neutral **not evaluated** for anything the client-side evaluator cannot resolve. Without a `user` the row falls back to the raw condition text.\n\n" +
-          'Renders a spinner while loading and an empty state when the user belongs to no groups; the header exposes an `actions` slot for caller-supplied controls (e.g. UsersTab\'s "Add to Group" button).',
+          'The **Groups pane** of the user-detail rung: every group the user is in, what put them ' +
+          'there, and how much that answer is worth.\n\n' +
+          'The pane follows the rung’s shared spine — summary line → filter → source pills → rows → ' +
+          'empty state. The summary names every bucket that has rows in it and omits the ones that ' +
+          'do not; dropping a category silently would be worse than showing no summary at all.\n\n' +
+          'A row says exactly two things: one **verdict badge** (`Rule`, `Rule?`, `Rule · n?`, ' +
+          '`Direct`, `Direct?`, `App`, `Unresolved` — see `membershipVerdict`) and one **source ' +
+          'line** worded by `shared/membership/sourceLine`. The raw membership enum and the second ' +
+          'group-type badge are gone: group type only matters when it explains the source, which ' +
+          'the `App` verdict already does.\n\n' +
+          'Everything else is behind the row’s disclosure, in one order: the full caveat, a card per ' +
+          'attributed rule (the rule, the profile attributes its condition **reads**, and the ' +
+          'condition explained clause by clause against the user), any apps the group also grants, ' +
+          'the **Ask Okta** proof action (ADR-0031 — one API call, and never on a collapsed row), ' +
+          'and the Okta deep link.\n\n' +
+          'Every badge here is a *deduction*: `GET /api/v1/users/{id}/groups` carries no attribution ' +
+          'embed (ADR-0020). A row carrying `provenance` is the exception — that is Okta’s own ' +
+          'answer, and it is the only way a hedged row loses its `?`.',
       },
     },
   },
+  decorators: [
+    (Story: () => React.ReactElement) => (
+      <div className="bg-canvas p-4">
+        <div className="overflow-hidden rounded-md border border-neutral-200 bg-white">
+          <Story />
+        </div>
+      </div>
+    ),
+  ],
   args: {
-    memberships: [directMembership, ruleMembership],
+    memberships: [ruleExact, direct, appMastered],
     user,
     isLoading: false,
   },
@@ -135,24 +169,26 @@ const meta = {
       description:
         'The user the memberships belong to; enables the per-clause explanation of each rule condition.',
     },
-    isLoading: { description: 'When true, shows a spinner instead of the list.' },
+    isLoading: { description: 'When true, shows row skeletons instead of the list.' },
     currentGroupId: {
-      description: 'Group id to visually highlight as the "current" group, if any.',
+      description:
+        'Group id to mark as the group being browsed elsewhere in the panel — the row is highlighted and carries an "On page" badge.',
     },
     oktaOrigin: {
       description:
-        'Okta origin used to build admin-console deep links; links are hidden when absent.',
-    },
-    actions: {
-      description: 'Caller-supplied header controls, rendered on the right of the title row.',
+        'Okta origin used to build admin-console deep links; the disclosure’s "Open in Okta" link hides when absent.',
     },
     recentlyAddedGroupId: {
       description:
         'Id of a group just successfully added this session; its row plays a one-shot `animate-affirm-flash` success flash.',
     },
+    appsByGroupId: {
+      description:
+        'Applications each group grants, keyed by group id. **Absent is not empty** — a group with no entry renders no "Also grants" line rather than claiming it grants none.',
+    },
     onProveMembershipSource: {
       description:
-        'Asks Okta which rules manage one membership (`GET /api/v1/groups/{groupId}/users/{userId}/group-rules`). Supplied, every row gains a "Prove it" action; omitted, the surface is unchanged. **One API call per row**, so it only ever runs from that click.',
+        'Asks Okta which rules manage one membership (`GET /api/v1/groups/{groupId}/users/{userId}/group-rules`). Supplied, each opened row gains an "Ask Okta" action. **One API call per row**, so it only ever runs from that click.',
     },
   },
 } satisfies Meta<typeof GroupMembershipsList>;
@@ -162,6 +198,27 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+export const AllVerdicts: Story = {
+  args: { memberships: everyVerdict },
+};
+
+export const OpenDisclosure: Story = {
+  args: {
+    memberships: [ruleExact, direct],
+    oktaOrigin: 'https://example.okta.com',
+    onProveMembershipSource: async () => ({ state: 'no-rules' }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Engineering Staff was granted' }),
+    );
+    await expect(
+      canvas.getByRole('button', { name: 'Hide how Engineering Staff was granted' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+  },
+};
+
 export const Loading: Story = {
   args: { memberships: [], isLoading: true },
 };
@@ -170,65 +227,125 @@ export const Empty: Story = {
   args: { memberships: [] },
 };
 
+export const FilteredToNothing: Story = {
+  args: { memberships: everyVerdict },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByLabelText('Filter group memberships'), 'no-such-group');
+    await expect(await canvas.findByText('No memberships match')).toBeInTheDocument();
+  },
+};
+
+export const FilteredByRuleName: Story = {
+  args: { memberships: everyVerdict },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.type(canvas.getByLabelText('Filter group memberships'), 'auto-add');
+    await expect(canvas.getByRole('heading', { name: 'Engineering Staff' })).toBeInTheDocument();
+    await expect(canvas.queryByRole('heading', { name: 'Ops Handbook' })).not.toBeInTheDocument();
+  },
+};
+
+export const FilteredToOneBucket: Story = {
+  args: { memberships: everyVerdict },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Direct' }));
+    await expect(canvas.getByRole('heading', { name: 'Ops Handbook' })).toBeInTheDocument();
+  },
+};
+
 export const CurrentGroupHighlighted: Story = {
-  args: { currentGroupId: mockGroup.id },
+  args: { memberships: everyVerdict, currentGroupId: ruleExact.group.id },
 };
 
 export const WithOktaOriginLinks: Story = {
   args: { oktaOrigin: 'https://example.okta.com' },
 };
 
-export const WithHeaderActions: Story = {
+export const WithAppGrants: Story = {
   args: {
-    actions: (
-      <Button variant="primary" size="sm" onClick={fn()}>
-        Add to Group
-      </Button>
-    ),
+    memberships: [ruleExact, direct],
+    appsByGroupId: { [ruleExact.group.id]: ['Salesforce', 'Figma'] },
   },
-};
-
-export const WithUnknownMembershipType: Story = {
-  args: { memberships: [directMembership, ruleMembership, unknownMembership] },
-};
-
-export const RuleWithMixedClauses: Story = {
-  args: { memberships: [formattedRuleMembership] },
-};
-
-export const AmbiguousAttribution: Story = {
-  args: { memberships: [ambiguousMembership] },
-};
-
-export const WithoutUser: Story = {
-  args: { memberships: [formattedRuleMembership], user: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Engineering Staff was granted' }),
+    );
+    await expect(canvas.getByText(/Salesforce, Figma/)).toBeInTheDocument();
+  },
 };
 
 export const ProvableAgainstOkta: Story = {
   args: {
-    memberships: [ambiguousMembership, directMembership],
+    memberships: [ruleAmbiguous, direct],
     onProveMembershipSource: async () => ({
       state: 'rules',
-      rules: [{ id: '0prFAKEhr', name: 'HR sync' }],
+      rules: [{ id: '0prFAKErule00003', name: 'Reviewers — by title' }],
     }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Security Reviewers was granted' }),
+    );
+    const rowElement = canvas
+      .getByRole('heading', { name: 'Security Reviewers' })
+      .closest('[data-group-id]') as HTMLElement;
+    const row = within(rowElement);
+    await userEvent.click(row.getByRole('button', { name: /Ask Okta/ }));
+    await expect(await row.findByText(/Okta confirms/)).toBeInTheDocument();
   },
 };
 
 export const ProvenManualAdd: Story = {
   args: {
-    memberships: [ambiguousMembership],
+    memberships: [ruleAmbiguous],
     onProveMembershipSource: async () => ({ state: 'no-rules' }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Security Reviewers was granted' }),
+    );
+    await userEvent.click(canvas.getByRole('button', { name: /Ask Okta/ }));
+    await expect(await canvas.findByText('Okta confirms: added directly')).toBeInTheDocument();
   },
 };
 
 export const ProofUnanswered: Story = {
   args: {
-    memberships: [ambiguousMembership],
+    memberships: [ruleAmbiguous],
     onProveMembershipSource: async () => ({ state: 'unknown' }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Security Reviewers was granted' }),
+    );
+    await userEvent.click(canvas.getByRole('button', { name: /Ask Okta/ }));
+    await expect(await canvas.findByText(/Okta did not answer/)).toBeInTheDocument();
+  },
+};
+
+export const WithoutUser: Story = {
+  args: { memberships: [ruleExact], user: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Engineering Staff was granted' }),
+    );
+    await expect(canvas.getByText('user.department == "Engineering"')).toBeInTheDocument();
   },
 };
 
 export const RecentlyAddedGroupFlash: Story = {
-  args: { recentlyAddedGroupId: ruleMembership.group.id },
+  args: { recentlyAddedGroupId: direct.group.id },
   parameters: { motion: 'on' },
+};
+
+export const Compact: Story = {
+  args: { memberships: everyVerdict, currentGroupId: ruleAmbiguous.group.id },
+  parameters: { viewport: { value: 'sidepanelCompact' } },
 };

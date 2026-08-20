@@ -7,7 +7,7 @@ export interface AppEntry {
   scope?: AppAssignmentScope;
 }
 
-export type TabKey = 'overview' | 'groups' | 'apps';
+export type TabKey = 'overview' | 'groups' | 'apps' | 'attributes';
 
 export interface DiffItem {
   id: string;

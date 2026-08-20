@@ -18,6 +18,8 @@ interface ButtonProps {
   fullWidth?: boolean;
   badge?: string;
   title?: string;
+  expanded?: boolean;
+  controls?: string;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -69,6 +71,8 @@ const Button: React.FC<ButtonProps> = ({
   fullWidth = false,
   badge,
   title,
+  expanded,
+  controls,
 }) => {
   const baseClasses = `
     inline-flex items-center justify-center gap-2
@@ -89,6 +93,8 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       className={`${baseClasses} ${className}`}
       title={title}
+      aria-expanded={expanded}
+      aria-controls={controls}
       style={{ fontFamily: 'var(--font-heading)' }}
     >
       {loading && (

@@ -89,7 +89,7 @@ const MembershipProofAction: React.FC<MembershipProofActionProps> = ({
         onClick={() => onProve(membership)}
         title="Ask Okta which rules manage this membership (one API call)"
       >
-        Prove it
+        Ask Okta
       </Button>
       {outcome?.status === 'unanswered' && (
         <span className="text-xs italic text-neutral-500">

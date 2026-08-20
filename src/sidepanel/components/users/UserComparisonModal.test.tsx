@@ -161,12 +161,14 @@ interface HarnessProps {
   contextGroups?: GroupMembership[];
   onGroupsChanged?: () => void;
   onClose?: () => void;
+  onContextUserUpdated?: (user: OktaUser) => void;
 }
 
 const Harness: React.FC<HarnessProps> = ({
   contextGroups = CONTEXT_GROUPS,
   onGroupsChanged,
   onClose,
+  onContextUserUpdated,
 }) => {
   const [isOpen, setIsOpen] = React.useState(true);
   const [bump, setBump] = React.useState(0);
@@ -186,12 +188,15 @@ const Harness: React.FC<HarnessProps> = ({
         contextGroups={contextGroups}
         targetTabId={TAB_ID}
         onGroupsChanged={() => onGroupsChanged?.()}
+        {...(onContextUserUpdated ? { onContextUserUpdated } : {})}
       />
     </div>
   );
 };
 
 const searchInput = () => screen.getByPlaceholderText('Search by email, name, or login…');
+
+const RESULTS_COUNT = /^\d+ match(es)?$/;
 
 async function selectComparedUser(user: OktaUser = comparedUser) {
   await userEvent.type(searchInput(), 'bob');
@@ -211,10 +216,11 @@ async function openComparison() {
   await waitForLoadToSettle();
 }
 
-const tab = (name: 'Overview' | 'Groups' | 'Apps') =>
-  screen.getByRole('tab', { name: new RegExp(`^${name}`) });
+type ComparisonTab = 'Overview' | 'Groups' | 'Apps' | 'Attributes';
 
-const gotoTab = async (name: 'Overview' | 'Groups' | 'Apps') => userEvent.click(tab(name));
+const tab = (name: ComparisonTab) => screen.getByRole('tab', { name: new RegExp(`^${name}`) });
+
+const gotoTab = async (name: ComparisonTab) => userEvent.click(tab(name));
 
 function showAllRows(): void {
   const all = screen.queryByRole('button', { name: /^All / });
@@ -311,7 +317,7 @@ describe('UserComparisonModal', () => {
         screen.getByRole('heading', { name: 'Compare with another user' }),
       ).toBeInTheDocument();
       expect(searchInput()).toHaveValue('');
-      expect(screen.queryByText('Search Results')).not.toBeInTheDocument();
+      expect(screen.queryByText(RESULTS_COUNT)).not.toBeInTheDocument();
       expect(screen.getByText('Start typing to search')).toBeInTheDocument();
 
       const appCallsBefore = getUserAppsCalls().length;
@@ -749,11 +755,11 @@ describe('UserComparisonModal', () => {
       expect(userSearchCalls()).toHaveLength(0);
 
       await userEvent.type(searchInput(), 'xample');
-      await screen.findByText('Search Results', {}, { timeout: 3000 });
+      await screen.findByText(RESULTS_COUNT, {}, { timeout: 3000 });
 
       const resultNames = screen.getAllByRole('heading', { level: 4 }).map((h) => h.textContent);
       expect(resultNames).toEqual(['Bob Compared']);
-      expect(screen.getByText('1 user')).toBeInTheDocument();
+      expect(screen.getByText('1 match')).toBeInTheDocument();
     });
 
     it('CHARACTERIZED: a failed search shows no error at all — the modal drops useUserSearch.error', async () => {
@@ -775,19 +781,38 @@ describe('UserComparisonModal', () => {
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(screen.queryByText('Search backend exploded')).not.toBeInTheDocument();
-      expect(screen.queryByText('Search Results')).not.toBeInTheDocument();
+      expect(screen.queryByText(RESULTS_COUNT)).not.toBeInTheDocument();
       expect(screen.queryByText('Start typing to search')).not.toBeInTheDocument();
     });
 
     it('clearing the query restores the empty prompt and drops the results', async () => {
       render(<Harness />);
       await userEvent.type(searchInput(), 'bob');
-      await screen.findByText('Search Results', {}, { timeout: 3000 });
+      await screen.findByText(RESULTS_COUNT, {}, { timeout: 3000 });
 
       await userEvent.clear(searchInput());
 
-      await waitFor(() => expect(screen.queryByText('Search Results')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByText(RESULTS_COUNT)).not.toBeInTheDocument());
       expect(screen.getByText('Start typing to search')).toBeInTheDocument();
+    });
+  });
+
+  describe('editing the context column', () => {
+    it('offers no Edit control for the context user when the host cannot publish the save', async () => {
+      render(<Harness />);
+      await openComparison();
+      await gotoTab('Attributes');
+
+      expect(screen.queryByRole('button', { name: /Edit Alice Context/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Edit Bob Compared/ })).toBeInTheDocument();
+    });
+
+    it('offers Edit for the context user once the host supplies onContextUserUpdated', async () => {
+      render(<Harness onContextUserUpdated={vi.fn()} />);
+      await openComparison();
+      await gotoTab('Attributes');
+
+      expect(screen.getByRole('button', { name: /Edit Alice Context/ })).toBeInTheDocument();
     });
   });
 
@@ -796,7 +821,8 @@ describe('UserComparisonModal', () => {
       render(<Harness />);
       await openComparison();
 
-      expect(screen.getAllByRole('tab')).toHaveLength(3);
+      expect(screen.getAllByRole('tab')).toHaveLength(4);
+      expect(tab('Attributes')).toBeInTheDocument();
       expect(tab('Overview')).toHaveAttribute('aria-selected', 'true');
       expect(tab('Groups')).toHaveAttribute('aria-selected', 'false');
 

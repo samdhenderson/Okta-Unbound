@@ -1,15 +1,19 @@
-import React, { useId, useState } from 'react';
-import { Badge, EntityLink, IconButton, Skeleton, type BadgeVariant } from '../shared';
+import React, { useMemo, useState } from 'react';
+import { EmptyState, FilterPill, IconButton, Input, Skeleton } from '../shared';
 import Icon from '../overview/shared/Icon';
-import ClauseChecklist from '../groups/detail/ClauseChecklist';
-import MembershipProofAction, { useMembershipProofs } from './GroupMembershipsListProof';
-import { membershipSourceLine, sourceLineLabel } from '../../../shared/membership/sourceLine';
+import GroupMembershipRow from './GroupMembershipRow';
+import { useMembershipProofs } from './GroupMembershipsListProof';
+import {
+  BUCKET_PILL_LABELS,
+  filterMemberships,
+  membershipSummaryLine,
+  type MembershipBucket,
+  type MembershipBucketFilter,
+} from './membershipVerdict';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
-import type { GroupMembership, MembershipRule, OktaUser } from '../../../shared/types';
-import { oktaAdminEntityUrl } from '../../../shared/utils/oktaUrl';
+import type { GroupMembership, OktaUser } from '../../../shared/types';
 
-const conditionExpressionOf = (rule: MembershipRule): string =>
-  rule.conditionExpression || rule.conditions?.expression?.value || '';
+const BUCKET_ORDER: readonly MembershipBucket[] = ['rule', 'direct', 'app', 'unresolved'];
 
 interface GroupMembershipsListProps {
   memberships: GroupMembership[];
@@ -17,102 +21,10 @@ interface GroupMembershipsListProps {
   isLoading: boolean;
   currentGroupId?: string;
   oktaOrigin?: string | null;
-  actions?: React.ReactNode;
   recentlyAddedGroupId?: string | null;
+  appsByGroupId?: Record<string, string[]>;
   onProveMembershipSource?: (groupId: string) => Promise<MemberRuleAttribution>;
 }
-
-interface RuleEvidenceProps {
-  rule: MembershipRule;
-  user?: OktaUser;
-}
-
-const RuleEvidence: React.FC<RuleEvidenceProps> = ({ rule, user }) => (
-  <div className="rounded-md border border-neutral-200 bg-white p-3">
-    <EntityLink type="rule" id={rule.id} name={rule.name} />
-    <div className="mt-2">
-      <span className="mb-1 block text-xs font-semibold text-neutral-600">Condition</span>
-      {user ? (
-        <ClauseChecklist expression={conditionExpressionOf(rule)} user={user} />
-      ) : (
-        <code className="block overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-neutral-50 p-2 font-mono text-xs text-neutral-900">
-          {conditionExpressionOf(rule) || 'No condition expression'}
-        </code>
-      )}
-    </div>
-  </div>
-);
-
-const membershipTypeVariant = (type: string): BadgeVariant => {
-  switch (type) {
-    case 'RULE_BASED':
-      return 'primary';
-    case 'DIRECT':
-      return 'success';
-    default:
-      return 'neutral';
-  }
-};
-
-const MembershipSourceRow: React.FC<{
-  membership: GroupMembership;
-  user?: OktaUser;
-}> = ({ membership, user }) => {
-  const line = membershipSourceLine(membership);
-  const label = sourceLineLabel(line);
-  const [open, setOpen] = useState(false);
-  const evidenceId = useId();
-  const rules = membership.rules;
-  const hasEvidence = rules.length > 0;
-
-  return (
-    <div className="mt-3">
-      <div className="flex items-start justify-between gap-2">
-        <span
-          className={
-            line.proven
-              ? 'min-w-0 rounded bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700'
-              : 'min-w-0 text-xs italic text-neutral-500'
-          }
-          title={`${label} — ${line.description}`}
-        >
-          <span>{line.caption}</span>
-          {line.detail && <span> {line.detail}</span>}
-        </span>
-
-        {hasEvidence && (
-          <IconButton
-            label={open ? 'Hide the condition' : 'Check the condition'}
-            variant="ghost"
-            size="sm"
-            expanded={open}
-            controls={evidenceId}
-            className="shrink-0"
-            onClick={() => setOpen((v: boolean) => !v)}
-          >
-            <Icon
-              type="chevron-right"
-              size="sm"
-              className={`transition-transform duration-(--dur-quick) ${open ? 'rotate-90' : ''}`}
-            />
-          </IconButton>
-        )}
-      </div>
-
-      {hasEvidence && (
-        <div id={evidenceId} className="disclose" data-open={open} inert={!open || undefined}>
-          <div>
-            <div className="space-y-2 pt-2">
-              {rules.map((rule) => (
-                <RuleEvidence key={rule.id} rule={rule} user={user} />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   memberships,
@@ -120,113 +32,118 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   isLoading,
   currentGroupId,
   oktaOrigin,
-  actions,
   recentlyAddedGroupId,
+  appsByGroupId,
   onProveMembershipSource,
 }) => {
+  const [query, setQuery] = useState('');
+  const [bucket, setBucket] = useState<MembershipBucketFilter>('all');
+  const [openGroupIds, setOpenGroupIds] = useState<ReadonlySet<string>>(() => new Set());
   const proofs = useMembershipProofs(onProveMembershipSource);
 
-  const highlightCurrentGroup = (groupId: string) => {
-    return currentGroupId && groupId === currentGroupId;
+  const summary = useMemo(() => membershipSummaryLine(memberships), [memberships]);
+  const visible = useMemo(
+    () => filterMemberships(memberships, query, bucket),
+    [memberships, query, bucket],
+  );
+
+  const toggleRow = (groupId: string) =>
+    setOpenGroupIds((current) => {
+      const next = new Set(current);
+      if (!next.delete(groupId)) next.add(groupId);
+      return next;
+    });
+
+  const clearFilters = () => {
+    setQuery('');
+    setBucket('all');
   };
 
+  const hasMemberships = memberships.length > 0;
+
   return (
-    <div className="rounded-md border border-neutral-200 bg-white overflow-hidden">
-      <div className="px-5 py-3 bg-neutral-50 border-b border-neutral-200 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-neutral-900">
-          Group Memberships ({memberships.length})
-        </h3>
-        {actions}
-      </div>
+    <section aria-label="Group memberships">
+      {hasMemberships && !isLoading && (
+        <div className="space-y-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+          <p className="text-xs text-neutral-600">{summary}</p>
+
+          <Input
+            size="sm"
+            type="search"
+            value={query}
+            onChange={setQuery}
+            ariaLabel="Filter group memberships"
+            placeholder="Filter groups or rules…"
+            icon={<Icon type="search" size="sm" />}
+            trailingInteractive
+            trailing={
+              query ? (
+                <IconButton
+                  label="Clear the group filter"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setQuery('')}
+                >
+                  <Icon type="close" size="sm" />
+                </IconButton>
+              ) : undefined
+            }
+          />
+
+          <div className="flex flex-wrap gap-1.5">
+            <FilterPill active={bucket === 'all'} onClick={() => setBucket('all')}>
+              All
+            </FilterPill>
+            {BUCKET_ORDER.map((value) => (
+              <FilterPill
+                key={value}
+                active={bucket === value}
+                onClick={() => setBucket(value)}
+                title={`Show only ${BUCKET_PILL_LABELS[value].toLowerCase()} memberships`}
+              >
+                {BUCKET_PILL_LABELS[value]}
+              </FilterPill>
+            ))}
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
-        <div className="p-4">
+        <div className="space-y-3 p-4">
           <Skeleton variant="row" size="lg" count={4} label="Loading group memberships..." />
         </div>
-      ) : memberships.length === 0 ? (
+      ) : !hasMemberships ? (
         <div className="flex flex-col items-center justify-center py-12">
-          <p className="text-neutral-500 text-sm">This user is not a member of any groups</p>
+          <p className="text-sm text-neutral-500">This user is not a member of any groups</p>
         </div>
+      ) : visible.length === 0 ? (
+        <EmptyState
+          icon="users"
+          title="No memberships match"
+          description="No group matches this filter, either by name or by the rule that granted it."
+          actions={[{ label: 'Clear filters', onClick: clearFilters, variant: 'secondary' }]}
+        />
       ) : (
-        <div className="p-4 space-y-3">
-          {memberships.map((membership) => (
-            <div
+        <div className="space-y-3 p-4">
+          {visible.map((membership) => (
+            <GroupMembershipRow
               key={membership.group.id}
-              className={`
-                rounded-md border p-4 transition-all duration-(--dur-instant)
-                ${
-                  highlightCurrentGroup(membership.group.id)
-                    ? 'border-primary bg-primary-light ring-1 ring-primary/20'
-                    : 'border-neutral-200 bg-white hover:border-neutral-500'
-                }
-                ${membership.group.id === recentlyAddedGroupId ? 'animate-affirm-flash' : ''}
-              `}
-            >
-              <div className="flex items-start justify-between gap-4 mb-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <h4 className="font-semibold text-neutral-900 text-sm">
-                      {membership.group.profile.name}
-                    </h4>
-                    {highlightCurrentGroup(membership.group.id) && (
-                      <span className="px-2 py-0.5 rounded-md bg-primary text-white text-xs font-bold">
-                        Current Group
-                      </span>
-                    )}
-                    {oktaOrigin && (
-                      <IconButton
-                        label="Open group in Okta admin"
-                        onClick={() => {
-                          const url = oktaAdminEntityUrl(oktaOrigin, 'group', membership.group.id);
-                          if (url) window.open(url, '_blank', 'noopener,noreferrer');
-                        }}
-                        variant="ghost"
-                        size="md"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                          />
-                        </svg>
-                      </IconButton>
-                    )}
-                  </div>
-                  {membership.group.profile.description && (
-                    <p className="text-xs text-neutral-600">
-                      {membership.group.profile.description}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2 shrink-0">
-                  <Badge variant={membershipTypeVariant(membership.membershipType)}>
-                    {membership.membershipType.replace('_', ' ')}
-                  </Badge>
-                  <Badge variant="neutral">{membership.group.type}</Badge>
-                </div>
-              </div>
-
-              <MembershipSourceRow membership={membership} user={user} />
-
-              {proofs.enabled && (
-                <MembershipProofAction
-                  membership={membership}
-                  outcome={proofs.outcomeFor(membership.group.id)}
-                  onProve={proofs.prove}
-                />
-              )}
-            </div>
+              membership={membership}
+              user={user}
+              isCurrentGroup={membership.group.id === currentGroupId}
+              expanded={openGroupIds.has(membership.group.id)}
+              onToggle={toggleRow}
+              oktaOrigin={oktaOrigin}
+              flash={membership.group.id === recentlyAddedGroupId}
+              appNames={appsByGroupId?.[membership.group.id]}
+              proofEnabled={proofs.enabled}
+              proofOutcome={proofs.outcomeFor(membership.group.id)}
+              onProve={proofs.prove}
+            />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

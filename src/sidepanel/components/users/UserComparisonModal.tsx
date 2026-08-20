@@ -13,6 +13,7 @@ interface UserComparisonModalProps {
   oktaOrigin?: string | null;
   targetTabId: number;
   onGroupsChanged: () => void;
+  onContextUserUpdated?: (user: OktaUser) => void;
 }
 
 const UserComparisonModal: React.FC<UserComparisonModalProps> = ({
@@ -23,13 +24,16 @@ const UserComparisonModal: React.FC<UserComparisonModalProps> = ({
   oktaOrigin,
   targetTabId,
   onGroupsChanged,
+  onContextUserUpdated,
 }) => {
   const comparison = useUserComparison({
     isActive: isOpen,
     contextUser,
     contextGroups,
     targetTabId,
+    oktaOrigin,
     onGroupsChanged,
+    onContextUserUpdated,
   });
 
   return (

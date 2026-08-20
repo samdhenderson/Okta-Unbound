@@ -46,6 +46,16 @@ export const oktaUserSchema = z.object({
       rules: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
     })
     .optional(),
+  credentials: z
+    .object({
+      provider: z
+        .object({
+          type: z.string().optional(),
+          name: z.string().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
   profile: oktaProfileSchema,
 });
 
@@ -103,14 +113,16 @@ export const oktaGroupListItemSchema = z
 export const oktaAppListItemSchema = z
   .object({
     id: z.string(),
-    name: z.string().optional(),
-    label: z.string().optional(),
-    status: z.string().optional(),
-    signOnMode: z.string().optional(),
-    created: z.string().nullish(),
-    lastUpdated: z.string().nullish(),
+    name: z.string().optional().catch(undefined),
+    label: z.string().optional().catch(undefined),
+    status: z.string().optional().catch(undefined),
+    signOnMode: z.string().optional().catch(undefined),
+    created: z.string().nullish().catch(undefined),
+    lastUpdated: z.string().nullish().catch(undefined),
     _links: z.unknown().optional(),
     _embedded: z.unknown().optional(),
+    features: z.array(z.string()).optional().catch(undefined),
+    orn: z.string().optional().catch(undefined),
   })
   .passthrough();
 
@@ -147,6 +159,13 @@ export const oktaAppUserSchema = z
     created: z.string().nullish(),
     lastUpdated: z.string().nullish(),
     credentials: z.object({ userName: z.string().optional() }).passthrough().optional(),
+    _links: z
+      .object({
+        group: z.object({ href: z.string().optional() }).passthrough().optional(),
+      })
+      .passthrough()
+      .optional()
+      .catch(undefined),
   })
   .passthrough();
 
@@ -162,6 +181,33 @@ export function extractAppAssignmentScope(embedded: unknown): AppAssignmentScope
 
   const { scope } = parsed.data;
   return scope === 'USER' || scope === 'GROUP' ? scope : undefined;
+}
+
+const PROFILE_SOURCE_FEATURE = 'PROFILE_MASTERING';
+
+export function isProfileSourceApp(features: readonly string[] | undefined): boolean {
+  return features !== undefined && features.includes(PROFILE_SOURCE_FEATURE);
+}
+
+const GROUP_ID_PATTERN = /^00g[A-Za-z0-9]{15,}$/;
+
+function trailingPathSegment(href: string): string | undefined {
+  const path = href.split('?')[0].split('#')[0].replace(/\/+$/, '');
+  const segment = path.split('/').pop();
+  return segment ? segment : undefined;
+}
+
+export function extractAppGrantGroupId(embedded: unknown): string | undefined {
+  if (typeof embedded !== 'object' || embedded === null) return undefined;
+
+  const parsed = oktaAppUserSchema.safeParse((embedded as Record<string, unknown>).user);
+  if (!parsed.success) return undefined;
+
+  const href = parsed.data._links?.group?.href;
+  if (typeof href !== 'string' || href.length === 0) return undefined;
+
+  const candidate = trailingPathSegment(href);
+  return candidate && GROUP_ID_PATTERN.test(candidate) ? candidate : undefined;
 }
 
 export const oktaAppGroupSchema = z
@@ -212,7 +258,11 @@ export type OktaGroupRuleResponse = z.infer<typeof oktaGroupRuleSchema>;
 export type OktaUserListItem = z.infer<typeof oktaUserListItemSchema>;
 export type OktaGroupListItem = z.infer<typeof oktaGroupListItemSchema>;
 
-export function parseOkta<T>(schema: z.ZodType<T>, data: unknown, context: string): T {
+export function parseOkta<T>(
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  data: unknown,
+  context: string,
+): T {
   const result = schema.safeParse(data);
   if (!result.success) {
     const issues = result.error.issues.map((issue) => ({
@@ -255,3 +305,77 @@ export function parseOktaList<S extends z.ZodTypeAny>(
 
   return valid;
 }
+
+export const oktaUserSchemaPropertySchema = z
+  .object({
+    title: z.string().optional(),
+    type: z.string().optional(),
+    mutability: z.string().optional(),
+    required: z.boolean().optional(),
+    enum: z.array(z.unknown()).optional(),
+    oneOf: z.array(z.unknown()).optional(),
+    master: z
+      .object({
+        type: z.string().optional(),
+        priority: z.unknown().optional(),
+      })
+      .passthrough()
+      .nullish(),
+  })
+  .passthrough();
+
+export type OktaUserSchemaProperty = z.infer<typeof oktaUserSchemaPropertySchema>;
+
+const oktaUserSchemaPropertiesSchema = z.record(z.string(), z.unknown()).transform((raw, ctx) => {
+  const properties: Record<string, OktaUserSchemaProperty> = {};
+  let dropped = 0;
+  for (const [key, value] of Object.entries(raw)) {
+    const result = oktaUserSchemaPropertySchema.safeParse(value);
+    if (result.success) {
+      properties[key] = result.data;
+    } else {
+      dropped += 1;
+    }
+  }
+  if (dropped > 0) {
+    log.warn('Dropped malformed properties from Okta user schema', {
+      context: ctx.path.join('.') || 'definitions',
+      dropped,
+      total: Object.keys(raw).length,
+    });
+  }
+  return properties;
+});
+
+const oktaUserSchemaDefinitionSchema = z
+  .object({
+    properties: oktaUserSchemaPropertiesSchema.optional(),
+  })
+  .passthrough();
+
+export const oktaUserProfileSchemaSchema = z
+  .object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    definitions: z
+      .object({
+        base: oktaUserSchemaDefinitionSchema.optional(),
+        custom: oktaUserSchemaDefinitionSchema.optional(),
+      })
+      .passthrough()
+      .optional(),
+    properties: z
+      .object({
+        profile: z
+          .object({
+            allOf: z.unknown().optional(),
+          })
+          .passthrough()
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+export type OktaUserProfileSchema = z.infer<typeof oktaUserProfileSchemaSchema>;

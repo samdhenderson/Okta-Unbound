@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOktaApi } from './useOktaApi';
 import type { OktaUser } from '../../shared/types';
-import type { AppEntry } from '../components/users/comparison/comparisonAnalytics';
+import type { UserAppAssignment } from './useOktaApi/userOperations';
 
 interface UseComparisonAppsOptions {
   targetTabId: number;
@@ -10,9 +10,10 @@ interface UseComparisonAppsOptions {
 }
 
 interface UseComparisonAppsReturn {
-  contextApps: AppEntry[];
-  comparedApps: AppEntry[];
+  contextApps: UserAppAssignment[];
+  comparedApps: UserAppAssignment[];
   isLoadingApps: boolean;
+  appsLoaded: boolean;
   appsIncomplete: boolean;
   resetApps: () => void;
 }
@@ -24,9 +25,10 @@ export function useComparisonApps({
 }: UseComparisonAppsOptions): UseComparisonAppsReturn {
   const { getUserApps } = useOktaApi({ targetTabId: targetTabId ?? null });
 
-  const [contextApps, setContextApps] = useState<AppEntry[]>([]);
-  const [comparedApps, setComparedApps] = useState<AppEntry[]>([]);
+  const [contextApps, setContextApps] = useState<UserAppAssignment[]>([]);
+  const [comparedApps, setComparedApps] = useState<UserAppAssignment[]>([]);
   const [isLoadingApps, setIsLoadingApps] = useState(false);
+  const [appsLoaded, setAppsLoaded] = useState(false);
   const [appsIncomplete, setAppsIncomplete] = useState(false);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function useComparisonApps({
         setContextApps(context.apps);
         setComparedApps(compared.apps);
         setAppsIncomplete(!context.complete || !compared.complete);
+        setAppsLoaded(true);
       })
       .finally(() => {
         if (!cancelled) setIsLoadingApps(false);
@@ -55,7 +58,8 @@ export function useComparisonApps({
     setContextApps([]);
     setComparedApps([]);
     setAppsIncomplete(false);
+    setAppsLoaded(false);
   }, []);
 
-  return { contextApps, comparedApps, isLoadingApps, appsIncomplete, resetApps };
+  return { contextApps, comparedApps, isLoadingApps, appsLoaded, appsIncomplete, resetApps };
 }

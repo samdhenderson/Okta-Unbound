@@ -101,3 +101,20 @@ export const Sizes: Story = {
   ),
   args: { variant: 'primary' },
 };
+
+export const Disclosure: Story = {
+  render: (args) => (
+    <div>
+      <Button {...args} expanded controls="button-disclosure-region" icon="minus">
+        Manage
+      </Button>
+      <div
+        id="button-disclosure-region"
+        className="mt-2 rounded-md border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-700"
+      >
+        The region this button shows and hides.
+      </div>
+    </div>
+  ),
+  args: { variant: 'ghost', size: 'sm' },
+};

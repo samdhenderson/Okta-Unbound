@@ -5,12 +5,20 @@ import type {
   UndoHistory,
   BulkRemoveUsersMetadata,
   BulkUserInfo,
+  CapturedAttribute,
+  UpdateUserProfileMetadata,
 } from './undoTypes';
 
 const log = createLogger('UndoManager');
 
 const UNDO_STORAGE_KEY = 'undoHistory';
 const MAX_UNDO_SIZE = 50;
+
+export const MAX_CAPTURED_VALUE_CHARS = 1024;
+
+export const MAX_CAPTURED_ATTRIBUTES = 25;
+
+const DESCRIPTION_NAME_LIMIT = 3;
 
 export async function getUndoHistory(): Promise<UndoHistory> {
   try {
@@ -43,6 +51,7 @@ function generateActionId(): string {
 export async function logAction(
   description: string,
   metadata: UndoActionMetadata,
+  status: UndoAction['status'] = 'completed',
 ): Promise<UndoAction> {
   const history = await getUndoHistory();
 
@@ -52,7 +61,7 @@ export async function logAction(
     timestamp: Date.now(),
     description,
     metadata,
-    status: 'completed',
+    status,
   };
 
   history.actions.unshift(action);
@@ -94,6 +103,108 @@ export async function logBulkRemoveAction(
   };
 
   return logAction(description, metadata);
+}
+
+export interface AttributeChange {
+  name: string;
+  label: string;
+  beforeDisplay: string;
+  beforeRaw: unknown;
+  afterDisplay: string;
+}
+
+export function captureAttribute(change: AttributeChange, index: number): CapturedAttribute {
+  const { name, label, afterDisplay } = change;
+
+  if (index >= MAX_CAPTURED_ATTRIBUTES) {
+    return { name, label, afterDisplay, restorable: false, omitted: 'too-many' };
+  }
+
+  if (change.beforeDisplay.length > MAX_CAPTURED_VALUE_CHARS) {
+    return { name, label, afterDisplay, restorable: false, omitted: 'too-large' };
+  }
+
+  return {
+    name,
+    label,
+    beforeDisplay: change.beforeDisplay,
+    beforeRaw: change.beforeRaw,
+    afterDisplay,
+    restorable: true,
+  };
+}
+
+export function captureAttributes(changes: AttributeChange[]): CapturedAttribute[] {
+  return changes.map((change, index) => captureAttribute(change, index));
+}
+
+function describeProfileUpdate(
+  userName: string,
+  changes: CapturedAttribute[],
+  undoOfActionId: string | undefined,
+  originalAttributeCount: number | undefined,
+): string {
+  if (undoOfActionId) {
+    const total = originalAttributeCount ?? changes.length;
+    return `Restored ${changes.length} of ${total} attribute${total !== 1 ? 's' : ''} on ${userName}`;
+  }
+
+  const names = changes.slice(0, DESCRIPTION_NAME_LIMIT).map((change) => change.name);
+  const remaining = changes.length - names.length;
+  const list = remaining > 0 ? `${names.join(', ')} and ${remaining} more` : names.join(', ');
+  return `Updated ${list} on ${userName}`;
+}
+
+export interface ProfileUpdateLogOptions {
+  undoOfActionId?: string;
+  status?: UndoAction['status'];
+  originalAttributeCount?: number;
+}
+
+export async function logProfileUpdateAction(
+  userId: string,
+  userLogin: string,
+  userName: string,
+  changes: AttributeChange[],
+  options: ProfileUpdateLogOptions = {},
+): Promise<UndoAction> {
+  const captured = captureAttributes(changes);
+
+  const metadata: UpdateUserProfileMetadata = {
+    type: 'UPDATE_USER_PROFILE',
+    userId,
+    userLogin,
+    userName,
+    changes: captured,
+    undoOfActionId: options.undoOfActionId,
+  };
+
+  const description = describeProfileUpdate(
+    userName,
+    captured,
+    options.undoOfActionId,
+    options.originalAttributeCount,
+  );
+
+  return logAction(description, metadata, options.status ?? 'completed');
+}
+
+export async function markActionUndone(
+  actionId: string,
+  undoneByActionId: string,
+): Promise<boolean> {
+  const history = await getUndoHistory();
+  const action = history.actions.find((entry) => entry.id === actionId);
+
+  if (!action) {
+    log.debug('Undone action no longer in history', { actionId, undoneByActionId });
+    return false;
+  }
+
+  action.status = 'undone';
+  action.undoneByActionId = undoneByActionId;
+  await saveUndoHistory(history);
+  return true;
 }
 
 export async function clearUndoHistory(): Promise<void> {

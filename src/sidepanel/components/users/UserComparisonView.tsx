@@ -8,6 +8,8 @@ import ComparisonHero from './comparison/ComparisonHero';
 import ComparisonTabBar from './comparison/ComparisonTabBar';
 import ComparisonOverviewTab from './comparison/ComparisonOverviewTab';
 import ComparisonDiffTab from './comparison/ComparisonDiffTab';
+import ComparisonAttributesTab from './comparison/ComparisonAttributesTab';
+import ProfileSaveModal from './ProfileSaveModal';
 import AppScopeIndicator from './comparison/AppScopeIndicator';
 import GroupSourceIndicator from './comparison/GroupSourceIndicator';
 import { groupParityRows, appParityRows } from './comparison/comparisonAnalytics';
@@ -38,6 +40,11 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
     causes,
     groupDiffCount,
     appDiffCount,
+    attributeParity,
+    attributeDiffCount,
+    attributeConfig,
+    attributeRuleReads,
+    attributeEdit,
     groupSimilarity,
     appSimilarity,
     overallSimilarity,
@@ -94,6 +101,7 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
             onChange={setActiveTab}
             groupDiff={groupDiffCount}
             appDiff={appDiffCount}
+            attributeDiff={attributeDiffCount}
           />
 
           {isLoading && (
@@ -224,6 +232,20 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
                 />
               )}
 
+              {activeTab === 'attributes' && (
+                <ComparisonAttributesTab
+                  contextName={contextName}
+                  comparedName={comparedName}
+                  rows={attributeParity.rows}
+                  hiddenRows={attributeParity.hiddenRows}
+                  hiddenDifferences={attributeParity.hiddenDifferences}
+                  config={attributeConfig}
+                  ruleReads={attributeRuleReads}
+                  contextEdit={attributeEdit?.context}
+                  comparedEdit={attributeEdit?.compared}
+                />
+              )}
+
               {activeTab === 'apps' && (
                 <ComparisonDiffTab
                   contextName={contextName}
@@ -248,6 +270,20 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
                 />
               )}
             </>
+          )}
+
+          {attributeEdit?.pendingSave && (
+            <ProfileSaveModal
+              changes={attributeEdit.pendingSave.changes}
+              userName={attributeEdit.pendingSave.userName}
+              onCancel={attributeEdit.pendingSave.cancel}
+              onConfirm={attributeEdit.pendingSave.confirm}
+              isSaving={attributeEdit.pendingSave.isSaving}
+              report={attributeEdit.pendingSave.report}
+              onAnalyze={attributeEdit.pendingSave.analyze}
+              isAnalyzing={attributeEdit.pendingSave.isAnalyzing}
+              error={attributeEdit.pendingSave.error}
+            />
           )}
         </div>
       )}

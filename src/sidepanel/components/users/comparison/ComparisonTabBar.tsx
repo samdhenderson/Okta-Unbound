@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '../../overview/shared/Icon';
+import type { IconType } from '../../overview/shared/Icon';
 import type { TabKey } from './comparisonAnalytics';
 
 interface ComparisonTabBarProps {
@@ -7,24 +8,34 @@ interface ComparisonTabBarProps {
   onChange: (t: TabKey) => void;
   groupDiff: number;
   appDiff: number;
+  attributeDiff: number;
 }
+
+type ComparisonTab = {
+  key: TabKey;
+  label: string;
+  icon: Extract<IconType, 'chart' | 'users' | 'app' | 'list'>;
+  badge?: number;
+};
 
 const ComparisonTabBar: React.FC<ComparisonTabBarProps> = ({
   activeTab,
   onChange,
   groupDiff,
   appDiff,
+  attributeDiff,
 }) => {
-  const tabs: { key: TabKey; label: string; icon: 'chart' | 'users' | 'app'; badge?: number }[] = [
+  const tabs: ComparisonTab[] = [
     { key: 'overview', label: 'Overview', icon: 'chart' },
     { key: 'groups', label: 'Groups', icon: 'users', badge: groupDiff },
     { key: 'apps', label: 'Apps', icon: 'app', badge: appDiff },
+    { key: 'attributes', label: 'Attributes', icon: 'list', badge: attributeDiff },
   ];
 
   return (
     <div
       role="tablist"
-      className="flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 p-1"
+      className="grid grid-cols-2 items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 p-1 sm:grid-cols-4"
     >
       {tabs.map((t) => {
         const active = activeTab === t.key;
@@ -34,7 +45,7 @@ const ComparisonTabBar: React.FC<ComparisonTabBarProps> = ({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(t.key)}
-            className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-(--dur-instant) ${
+            className={`relative flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all duration-(--dur-instant) ${
               active
                 ? 'bg-white text-neutral-900 shadow-sm'
                 : 'text-neutral-600 hover:text-neutral-900'

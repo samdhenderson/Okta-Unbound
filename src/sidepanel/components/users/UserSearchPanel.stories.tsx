@@ -87,13 +87,13 @@ export const WithResults: Story = {
 
 export const WithDetectedUser: Story = {
   args: {
-    detectedUser: { userId: 'u1', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
+    detectedUser: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
   },
 };
 
 export const DetectedUserLoading: Story = {
   args: {
-    detectedUser: { userId: 'u1', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
+    detectedUser: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
     isDetectedUserLoading: true,
   },
 };
@@ -108,4 +108,25 @@ export const WithError: Story = {
 
 export const UserSelected: Story = {
   args: { hasSelectedUser: true, searchResults: mockUsers.slice(10, 14) },
+};
+
+export const BannerAndResults: Story = {
+  args: {
+    searchQuery: 'ada',
+    searchResults: mockUsers.slice(10, 14),
+    detectedUser: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
+  },
+};
+
+export const Compact360: Story = {
+  args: {
+    searchQuery: 'ada',
+    searchResults: mockUsers.slice(10, 14),
+    detectedUser: {
+      userId: '00uFAKE0005',
+      userName: 'Bartholomew Featherstonehaugh-Wintergreen',
+      userStatus: 'LOCKED_OUT',
+    },
+  },
+  parameters: { viewport: { value: 'sidepanelCompact' } },
 };

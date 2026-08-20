@@ -370,4 +370,43 @@ describe('UsersTab sub-navigation', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
     expect(screen.queryByRole('heading', { name: 'Ada Lovelace' })).not.toBeInTheDocument();
   });
+
+  const adaGroupsCalls = () =>
+    schedulerEndpoints().filter((e) => /^\/api\/v1\/users\/u1\/groups/.test(e));
+
+  it('re-opens the same user from the search results without re-walking their memberships', async () => {
+    const uev = userEvent.setup();
+    await renderWithAda(uev);
+
+    expect(adaGroupsCalls()).toHaveLength(1);
+    expect(userAppsCalls()).toHaveLength(0);
+
+    await uev.click(screen.getByRole('button', { name: 'Back to search' }));
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
+
+    await uev.type(tabSearchInput(), 'ada');
+    await uev.click(await screen.findByRole('button', { name: /Ada Lovelace/ }, { timeout: 3000 }));
+    await screen.findByRole('button', { name: 'Back to search' });
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace');
+    expect(adaGroupsCalls()).toHaveLength(1);
+    expect(userAppsCalls()).toHaveLength(0);
+  });
+
+  it('pops back from a finished comparison without re-walking the anchor user', async () => {
+    const uev = userEvent.setup();
+    await renderWithAda(uev);
+    await pushCompare(uev);
+    await chooseComparedUser(uev);
+
+    const groupsBefore = adaGroupsCalls().length;
+    const appsBefore = userAppsCalls().length;
+
+    await uev.click(screen.getByRole('button', { name: 'Back to user' }));
+    await screen.findByRole('button', { name: 'Back to search' });
+    await new Promise((r) => setTimeout(r, 700));
+
+    expect(adaGroupsCalls()).toHaveLength(groupsBefore);
+    expect(userAppsCalls()).toHaveLength(appsBefore);
+  });
 });

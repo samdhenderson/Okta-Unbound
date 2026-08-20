@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupMembershipsList from './GroupMembershipsList';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
@@ -38,15 +38,57 @@ const formattedRuleMembership: GroupMembership = {
 
 const base = { memberships: [formattedRuleMembership], isLoading: false };
 
+const openRow = (groupName: string) =>
+  userEvent.click(screen.getByRole('button', { name: `Show how ${groupName} was granted` }));
+
+const rowFor = (groupId: string): HTMLElement => {
+  const row = document.querySelector<HTMLElement>(`[data-group-id="${groupId}"]`);
+  if (!row) throw new Error(`no row rendered for group ${groupId}`);
+  return row;
+};
+
 describe('GroupMembershipsList', () => {
-  it('renders the condition of a rule that only carries `conditionExpression`', () => {
+  it('renders the condition of a rule that only carries `conditionExpression`', async () => {
     render(<GroupMembershipsList {...base} user={user} />);
+    await openRow('Engineering');
 
     expect(screen.getByText('user.department == "Engineering"')).toBeInTheDocument();
     expect(screen.getByText('Pass')).toBeInTheDocument();
   });
 
-  it('explains an unevaluable condition neutrally rather than as a failure', () => {
+  it('names the profile attributes a condition reads, from the parsed condition', async () => {
+    render(<GroupMembershipsList {...base} user={user} />);
+    await openRow('Engineering');
+
+    expect(screen.getByText('Reads')).toBeInTheDocument();
+    expect(screen.getByText('department')).toBeInTheDocument();
+  });
+
+  it('reads an attribute named inside a string literal as text, not as an attribute', async () => {
+    render(
+      <GroupMembershipsList
+        {...base}
+        user={user}
+        memberships={[
+          {
+            ...formattedRuleMembership,
+            rules: [
+              {
+                ...formattedRuleMembership.rules[0],
+                conditionExpression: 'user.department == "user.title"',
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    await openRow('Engineering');
+
+    expect(screen.getByText('department')).toBeInTheDocument();
+    expect(screen.queryByText('title')).not.toBeInTheDocument();
+  });
+
+  it('explains an unevaluable condition neutrally rather than as a failure', async () => {
     render(
       <GroupMembershipsList
         {...base}
@@ -64,6 +106,7 @@ describe('GroupMembershipsList', () => {
         ]}
       />,
     );
+    await openRow('Engineering');
 
     expect(screen.getByText('Not evaluated')).toBeInTheDocument();
     expect(screen.queryByText('Fail')).not.toBeInTheDocument();
@@ -74,25 +117,25 @@ describe('GroupMembershipsList', () => {
 
     expect(screen.getByText('Added by Rule:')).toBeInTheDocument();
 
-    const toggle = screen.getByRole('button', { name: 'Check the condition' });
+    const toggle = screen.getByRole('button', { name: 'Show how Engineering was granted' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
     await userEvent.click(toggle);
 
-    expect(screen.getByRole('button', { name: 'Hide the condition' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Hide how Engineering was granted' }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('falls back to the raw condition when no user is supplied to explain it against', () => {
+  it('falls back to the raw condition when no user is supplied to explain it against', async () => {
     render(<GroupMembershipsList {...base} />);
+    await openRow('Engineering');
 
     expect(screen.getByText('user.department == "Engineering"')).toBeInTheDocument();
     expect(screen.queryByText('Pass')).not.toBeInTheDocument();
   });
 
-  it('still reads a raw Okta rule shape, which nests the expression under `conditions`', () => {
+  it('still reads a raw Okta rule shape, which nests the expression under `conditions`', async () => {
     render(
       <GroupMembershipsList
         {...base}
@@ -114,12 +157,13 @@ describe('GroupMembershipsList', () => {
         ]}
       />,
     );
+    await openRow('Engineering');
 
     expect(screen.getByText('user.title == "Intern"')).toBeInTheDocument();
     expect(screen.getByText('Pass')).toBeInTheDocument();
   });
 
-  it('explains every attributed rule, and never captions a guess as the answer', () => {
+  it('explains every attributed rule, and never captions a guess as the answer', async () => {
     render(
       <GroupMembershipsList
         {...base}
@@ -146,6 +190,7 @@ describe('GroupMembershipsList', () => {
         ]}
       />,
     );
+    await openRow('Engineering');
 
     expect(screen.getByText('Possible rule:')).toBeInTheDocument();
     expect(screen.queryByText('Added by Rule:')).not.toBeInTheDocument();
@@ -154,7 +199,7 @@ describe('GroupMembershipsList', () => {
     expect(screen.getByText('Not evaluated')).toBeInTheDocument();
   });
 
-  it('says a rule carries no condition instead of implying it matches nothing', () => {
+  it('says a rule carries no condition instead of implying it matches nothing', async () => {
     render(
       <GroupMembershipsList
         {...base}
@@ -167,9 +212,146 @@ describe('GroupMembershipsList', () => {
         ]}
       />,
     );
+    await openRow('Engineering');
 
     expect(screen.getByText(/carries no condition expression/)).toBeInTheDocument();
     expect(screen.queryByText('Fail')).not.toBeInTheDocument();
+  });
+});
+
+describe('GroupMembershipsList — the row says one thing about provenance', () => {
+  it('wears one verdict badge for the membership', () => {
+    render(<GroupMembershipsList {...base} user={user} />);
+
+    expect(within(rowFor('00gFAKE1')).getByText('Rule')).toBeInTheDocument();
+  });
+
+  it('never shows the raw membership enum or a second group-type badge', () => {
+    render(
+      <GroupMembershipsList
+        {...base}
+        user={user}
+        memberships={[
+          {
+            ...formattedRuleMembership,
+            group: { id: '00gFAKE9', type: 'APP_GROUP', profile: { name: 'Salesforce Users' } },
+            rules: [],
+          },
+        ]}
+      />,
+    );
+
+    const row = within(rowFor('00gFAKE9'));
+    expect(row.queryByText('RULE BASED')).not.toBeInTheDocument();
+    expect(row.queryByText('APP_GROUP')).not.toBeInTheDocument();
+    expect(row.getByText('App')).toBeInTheDocument();
+  });
+
+  it('marks the group being browsed elsewhere rather than repeating its name', () => {
+    render(
+      <GroupMembershipsList
+        {...base}
+        user={user}
+        currentGroupId={formattedRuleMembership.group.id}
+      />,
+    );
+
+    expect(screen.getByText('On page')).toBeInTheDocument();
+  });
+});
+
+describe('GroupMembershipsList — the pane header', () => {
+  const memberships: GroupMembership[] = [
+    formattedRuleMembership,
+    {
+      group: { id: '00gFAKE2', type: 'OKTA_GROUP', profile: { name: 'Ops Handbook' } },
+      membershipType: 'DIRECT',
+      rules: [],
+      attribution: 'exact',
+    },
+    {
+      group: { id: '00gFAKE3', type: 'APP_GROUP', profile: { name: 'Salesforce Users' } },
+      membershipType: 'RULE_BASED',
+      rules: [],
+      attribution: 'exact',
+    },
+    {
+      group: { id: '00gFAKE4', type: 'OKTA_GROUP', profile: { name: 'Finance Readers' } },
+      membershipType: 'UNKNOWN',
+      rules: [],
+      attribution: 'ambiguous',
+    },
+  ];
+
+  it('names every non-zero bucket, so no membership goes unaccounted for', () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+    expect(
+      screen.getByText('1 by rule · 1 direct · 1 app-mastered · 1 unresolved'),
+    ).toBeInTheDocument();
+  });
+
+  it('omits a bucket with no rows rather than printing a zero', () => {
+    render(<GroupMembershipsList {...base} user={user} />);
+
+    expect(screen.getByText('1 by rule')).toBeInTheDocument();
+  });
+
+  it('filters on the group name', async () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+    await userEvent.type(screen.getByLabelText('Filter group memberships'), 'ops');
+
+    expect(screen.getByRole('heading', { name: 'Ops Handbook' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Engineering' })).not.toBeInTheDocument();
+  });
+
+  it('filters on the rule that granted the membership, not just the group name', async () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+    await userEvent.type(screen.getByLabelText('Filter group memberships'), 'auto-add');
+
+    expect(screen.getByRole('heading', { name: 'Engineering' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Ops Handbook' })).not.toBeInTheDocument();
+  });
+
+  it('narrows to one source bucket when a pill is pressed', async () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Direct' }));
+
+    expect(screen.getByRole('heading', { name: 'Ops Handbook' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Engineering' })).not.toBeInTheDocument();
+  });
+
+  it('offers the way back when a filter matches nothing', async () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+    await userEvent.type(screen.getByLabelText('Filter group memberships'), 'no-such-group');
+    expect(screen.getByText('No memberships match')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    expect(screen.getByRole('heading', { name: 'Engineering' })).toBeInTheDocument();
+  });
+
+  it('says the user is in no groups at all, which is not the same as a filter matching nothing', () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={[]} />);
+
+    expect(screen.getByText('This user is not a member of any groups')).toBeInTheDocument();
+    expect(screen.queryByText('No memberships match')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Filter group memberships')).not.toBeInTheDocument();
+  });
+
+  it('keeps a row open across a filter change', async () => {
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+    await openRow('Engineering');
+    await userEvent.type(screen.getByLabelText('Filter group memberships'), 'engineering');
+
+    expect(
+      screen.getByRole('button', { name: 'Hide how Engineering was granted' }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -248,22 +430,40 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
       />,
     );
 
-  const proveIt = () => screen.getAllByRole('button', { name: /Prove it/ });
+  const askOkta = () => screen.getAllByRole('button', { name: /Ask Okta/ });
 
-  it('offers no action at all unless a resolver is supplied — it is never free', () => {
+  it('offers no action at all unless a resolver is supplied — it is never free', async () => {
     render(<GroupMembershipsList {...base} user={user} />);
+    await openRow('Engineering');
 
-    expect(screen.queryByRole('button', { name: /Prove it/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Ask Okta/ })).not.toBeInTheDocument();
+  });
+
+  it('is unreachable until the row is opened', async () => {
+    withProof(vi.fn().mockResolvedValue({ state: 'no-rules' as const }));
+
+    expect(askOkta()[0].closest('[inert]')).not.toBeNull();
+
+    await openRow('Engineering');
+
+    expect(askOkta()[0].closest('[inert]')).toBeNull();
   });
 
   it('asks about one group only when clicked, and only that group', async () => {
     const onProve = vi.fn().mockResolvedValue({ state: 'no-rules' as const });
-    withProof(onProve, [guessed, { ...guessed, group: { ...guessed.group, id: '00gFAKE2' } }]);
+    withProof(onProve, [
+      guessed,
+      {
+        ...guessed,
+        group: { ...guessed.group, id: '00gFAKE2', profile: { name: 'Ops Handbook' } },
+      },
+    ]);
 
-    expect(proveIt()).toHaveLength(2);
+    expect(askOkta()).toHaveLength(2);
     expect(onProve).not.toHaveBeenCalled();
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(within(rowFor('00gFAKE1')).getByRole('button', { name: /Ask Okta/ }));
 
     expect(onProve).toHaveBeenCalledTimes(1);
     expect(onProve).toHaveBeenCalledWith(guessed.group.id);
@@ -274,7 +474,8 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
       Promise.resolve({ state: 'rules', rules: [{ id: '0prFAKEhr', name: 'HR sync' }] }),
     );
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(askOkta()[0]);
 
     expect(await screen.findByText(/Okta confirms: added by rule: HR sync/)).toBeInTheDocument();
   });
@@ -282,7 +483,8 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
   it('states an Okta "no rule" answer as an authoritative manual add', async () => {
     withProof(() => Promise.resolve({ state: 'no-rules' }));
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(askOkta()[0]);
 
     expect(await screen.findByText('Okta confirms: added directly')).toBeInTheDocument();
   });
@@ -290,7 +492,8 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
   it('never turns "Okta said nothing" into "Okta says no rule"', async () => {
     withProof(() => Promise.resolve({ state: 'unknown' }));
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(askOkta()[0]);
 
     expect(await screen.findByText(/Okta did not answer/)).toBeInTheDocument();
     expect(screen.queryByText(/Okta confirms/)).not.toBeInTheDocument();
@@ -299,7 +502,8 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
   it('treats a failed request the same way — no answer, not an answer', async () => {
     withProof(() => Promise.reject(new Error('rate limited')));
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(askOkta()[0]);
 
     expect(await screen.findByText(/Okta did not answer/)).toBeInTheDocument();
     expect(screen.queryByText(/Okta confirms/)).not.toBeInTheDocument();
@@ -311,7 +515,8 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
       Promise.resolve({ state: 'rules', rules: [{ id: '0prFAKEhr', name: 'HR sync' }] }),
     );
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(askOkta()[0]);
     await screen.findByText(/Okta confirms/);
 
     expect(screen.getByText('user.department == "Engineering"')).toBeInTheDocument();
@@ -321,7 +526,8 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
   it('carries the full caveat about whose answer it is on hover', async () => {
     withProof(() => Promise.resolve({ state: 'no-rules' }));
 
-    await userEvent.click(proveIt()[0]);
+    await openRow('Engineering');
+    await userEvent.click(askOkta()[0]);
 
     expect(
       await screen.findByTitle(/Okta answering rather than the classifier/),

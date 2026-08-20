@@ -10,6 +10,7 @@ import type {
 
 export interface UserIdentityOptions {
   groupCount?: number;
+  appCount?: number;
 }
 
 const metric = (
@@ -29,11 +30,14 @@ export function userIdentity(
   user: OktaUser,
   options: UserIdentityOptions = {},
 ): EntityIdentityDescriptor {
-  const { groupCount } = options;
+  const { groupCount, appCount } = options;
 
   const counts: IdentityRow = [];
   if (groupCount !== undefined) {
     counts.push(metric('users', groupCount, 'group'));
+  }
+  if (appCount !== undefined) {
+    counts.push(metric('app', appCount, 'app', 'Applications assigned to this user'));
   }
   const managingRules = user.managedBy?.rules?.length ?? 0;
   if (managingRules > 0) {

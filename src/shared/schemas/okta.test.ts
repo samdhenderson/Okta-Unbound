@@ -8,6 +8,8 @@ import {
   oktaAppListItemSchema,
   oktaAppGroupSchema,
   extractAppAssignmentScope,
+  extractAppGrantGroupId,
+  isProfileSourceApp,
   oktaPolicyListItemSchema,
   oktaPolicyRuleSchema,
   parseOkta,
@@ -384,5 +386,205 @@ describe('app-assignment scope (_embedded on oktaAppListItemSchema)', () => {
       },
     });
     expect(scope).toBe('GROUP');
+  });
+});
+
+describe('isProfileSourceApp (features on oktaAppListItemSchema)', () => {
+  it('reads PROFILE_MASTERING off a real profile-source app', () => {
+    expect(
+      isProfileSourceApp(['IMPORT_PROFILE_UPDATES', 'PROFILE_MASTERING', 'IMPORT_NEW_USERS']),
+    ).toBe(true);
+  });
+
+  it('does not accept IMPORT_PROFILE_UPDATES as a synonym', () => {
+    expect(isProfileSourceApp(['IMPORT_PROFILE_UPDATES', 'IMPORT_NEW_USERS'])).toBe(false);
+  });
+
+  it.each([
+    ['no features at all', undefined],
+    ['an empty list', []],
+    ['unrelated features', ['SSO', 'GROUP_PUSH', 'PUSH_PROFILE_UPDATES']],
+  ])('returns false for %s', (_label, features) => {
+    expect(isProfileSourceApp(features as string[] | undefined)).toBe(false);
+  });
+
+  it('keeps an identity-source app whose signOnMode is null, and reads it as a source', () => {
+    const identitySource = {
+      id: '0oaFAKEsrc00000000',
+      orn: 'orn:okta:idp:00oFAKE:apps:custom_identity_source:0oaFAKEsrc00000000',
+      name: 'custom_identity_source',
+      label: 'Example Identity Source',
+      status: 'ACTIVE',
+      signOnMode: null,
+      created: '2024-05-21T15:18:07.000Z',
+      lastUpdated: '2024-06-04T12:57:34.000Z',
+      features: ['IMPORT_PROFILE_UPDATES', 'PROFILE_MASTERING', 'IMPORT_NEW_USERS'],
+      _embedded: {
+        user: { id: '00uFAKE1', scope: 'USER', status: 'ACTIVE', syncState: 'SYNCHRONIZED' },
+      },
+    };
+
+    const apps = parseOktaList(oktaAppListItemSchema, [identitySource], 'test');
+
+    expect(apps).toHaveLength(1);
+    expect(isProfileSourceApp(apps[0].features)).toBe(true);
+    expect(apps[0].signOnMode).toBeUndefined();
+    expect(apps[0].label).toBe('Example Identity Source');
+  });
+
+  it.each([
+    ['signOnMode', { signOnMode: null }],
+    ['status', { status: null }],
+    ['label', { label: null }],
+    ['name', { name: null }],
+    ['created', { created: 42 }],
+    ['lastUpdated', { lastUpdated: {} }],
+    ['label as a number', { label: 7 }],
+  ])('never drops an app row over a bad %s', (_label, override) => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const apps = parseOktaList(
+      oktaAppListItemSchema,
+      [{ id: '0oaFAKE1', label: 'One', ...override }],
+      'test',
+    );
+
+    expect(apps.map((a) => a.id)).toEqual(['0oaFAKE1']);
+  });
+
+  it('parses features off a well-formed row', () => {
+    const apps = parseOktaList(
+      oktaAppListItemSchema,
+      [
+        {
+          id: '0oaFAKE1',
+          label: 'Workday',
+          features: ['PROFILE_MASTERING'],
+          orn: 'orn:okta:idp:00oFAKE:custom_identity_source:0oaFAKE1',
+        },
+      ],
+      'test',
+    );
+
+    expect(isProfileSourceApp(apps[0].features)).toBe(true);
+    expect(apps[0].orn).toBe('orn:okta:idp:00oFAKE:custom_identity_source:0oaFAKE1');
+  });
+
+  it('never drops an app row over a malformed features or orn value', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rows = [
+      { id: '0oaFAKE1', label: 'One', features: ['PROFILE_MASTERING'] },
+      { id: '0oaFAKE2', label: 'Two', features: 'PROFILE_MASTERING' },
+      { id: '0oaFAKE3', label: 'Three', features: [7, null] },
+      { id: '0oaFAKE4', label: 'Four', features: null },
+      { id: '0oaFAKE5', label: 'Five', orn: 42 },
+    ];
+
+    const apps = parseOktaList(oktaAppListItemSchema, rows, 'test');
+
+    expect(apps.map((a) => a.id)).toEqual([
+      '0oaFAKE1',
+      '0oaFAKE2',
+      '0oaFAKE3',
+      '0oaFAKE4',
+      '0oaFAKE5',
+    ]);
+    expect(apps.slice(1).map((a) => isProfileSourceApp(a.features))).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+});
+
+describe('extractAppGrantGroupId (_embedded.user._links.group.href)', () => {
+  const embedWithHref = (href: unknown) => ({
+    user: { id: '00uFAKE0001', scope: 'GROUP', _links: { group: { href } } },
+  });
+
+  it('extracts the trailing 00g… segment of a well-formed group href', () => {
+    expect(
+      extractAppGrantGroupId(
+        embedWithHref('https://example.okta.com/api/v1/groups/00gFAKEgroup00000001'),
+      ),
+    ).toBe('00gFAKEgroup00000001');
+  });
+
+  it('accepts a relative href and ignores a trailing slash, query and fragment', () => {
+    expect(extractAppGrantGroupId(embedWithHref('/api/v1/groups/00gFAKEgroup00000001/'))).toBe(
+      '00gFAKEgroup00000001',
+    );
+    expect(
+      extractAppGrantGroupId(embedWithHref('/api/v1/groups/00gFAKEgroup00000001?expand=stats')),
+    ).toBe('00gFAKEgroup00000001');
+    expect(extractAppGrantGroupId(embedWithHref('/api/v1/groups/00gFAKEgroup00000001#x'))).toBe(
+      '00gFAKEgroup00000001',
+    );
+  });
+
+  it.each([
+    ['no _links at all', { user: { id: '00uFAKE0001', scope: 'USER' } }],
+    ['_links with no group', { user: { id: '00uFAKE0001', _links: { self: { href: '/x' } } } }],
+    ['a group link with no href', { user: { id: '00uFAKE0001', _links: { group: {} } } }],
+    ['an undefined embed', undefined],
+    ['a null embed', null],
+    ['a string embed', 'nonsense'],
+    ['an array embed', [{ user: { _links: { group: { href: '/api/v1/groups/00gFAKE1' } } } }]],
+    ['a non-object user', { user: 'nonsense' }],
+    ['a user missing its id', { _links: { group: { href: '/api/v1/groups/00gFAKE1' } } }],
+  ])('returns undefined for %s', (_label, embedded) => {
+    expect(extractAppGrantGroupId(embedded)).toBeUndefined();
+  });
+
+  it.each([
+    ['a user id', '/api/v1/users/00uFAKE00000000000001'],
+    ['a traversal path', 'https://example.okta.com/api/v1/groups/00gFAKE/../../../users/me'],
+    ['a bare traversal', '../../etc/passwd'],
+    ['a traversal ending in a slash', '/api/v1/groups/00gFAKEgroup00000001/../../'],
+    ['an empty href', ''],
+    ['only slashes', '///'],
+    ['a query string with no path segment', '?groupId=00gFAKEgroup00000001'],
+    ['a too-short group id', '/api/v1/groups/00gFAKE001'],
+    ['a group id with a path separator smuggled in', '/api/v1/groups/00gFAKEgroup00000001%2Fx'],
+    ['a non-alphanumeric group id', '/api/v1/groups/00gFAKE-group-00001'],
+  ])('rejects %s and returns undefined', (_label, href) => {
+    expect(extractAppGrantGroupId(embedWithHref(href))).toBeUndefined();
+  });
+
+  it('returns undefined when the href is not a string', () => {
+    expect(extractAppGrantGroupId(embedWithHref(42))).toBeUndefined();
+    expect(extractAppGrantGroupId(embedWithHref(null))).toBeUndefined();
+    expect(
+      extractAppGrantGroupId(embedWithHref({ toString: () => '/api/v1/groups/00gFAKE1' })),
+    ).toBeUndefined();
+  });
+
+  it('reports both scope USER and a grant group — Okta prefers USER, it does not exclude a group', () => {
+    const embedded = {
+      user: {
+        id: '00uFAKE0001',
+        scope: 'USER',
+        _links: { group: { href: '/api/v1/groups/00gFAKEgroup00000001' } },
+      },
+    };
+    expect(extractAppAssignmentScope(embedded)).toBe('USER');
+    expect(extractAppGrantGroupId(embedded)).toBe('00gFAKEgroup00000001');
+  });
+
+  it('a malformed _links costs neither the app-user row nor its scope', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const rows = [
+      { id: '00uFAKE0001', scope: 'USER', _links: 'nonsense' },
+      { id: '00uFAKE0002', scope: 'GROUP', _links: [1, 2, 3] },
+      { id: '00uFAKE0003', scope: 'GROUP', _links: { group: 'nonsense' } },
+    ];
+
+    const parsed = parseOktaList(oktaAppUserSchema, rows, 'test');
+    expect(parsed.map((r) => r.id)).toEqual(['00uFAKE0001', '00uFAKE0002', '00uFAKE0003']);
+
+    expect(extractAppAssignmentScope({ user: rows[0] })).toBe('USER');
+    expect(extractAppGrantGroupId({ user: rows[0] })).toBeUndefined();
+    vi.restoreAllMocks();
   });
 });

@@ -5,7 +5,8 @@ export type ActionType =
   | 'BULK_ADD_USERS_TO_GROUP'
   | 'ACTIVATE_RULE'
   | 'DEACTIVATE_RULE'
-  | 'CONSOLIDATE_RULE';
+  | 'CONSOLIDATE_RULE'
+  | 'UPDATE_USER_PROFILE';
 
 export interface UndoAction {
   id: string;
@@ -14,6 +15,7 @@ export interface UndoAction {
   description: string;
   metadata: UndoActionMetadata;
   status: 'completed' | 'undone' | 'failed' | 'partial';
+  undoneByActionId?: string;
 }
 
 export type UndoActionMetadata =
@@ -23,7 +25,8 @@ export type UndoActionMetadata =
   | BulkAddUsersMetadata
   | ActivateRuleMetadata
   | DeactivateRuleMetadata
-  | ConsolidateRuleMetadata;
+  | ConsolidateRuleMetadata
+  | UpdateUserProfileMetadata;
 
 export interface RemoveUserMetadata {
   type: 'REMOVE_USER_FROM_GROUP';
@@ -90,6 +93,27 @@ export interface ConsolidateRuleMetadata {
   createdRuleName: string;
   createdGroupIds: string[];
   retiredRules: RetiredRuleSnapshot[];
+}
+
+export type CaptureOmission = 'too-large' | 'too-many';
+
+export interface CapturedAttribute {
+  name: string;
+  label: string;
+  beforeDisplay?: string;
+  beforeRaw?: unknown;
+  afterDisplay: string;
+  restorable: boolean;
+  omitted?: CaptureOmission;
+}
+
+export interface UpdateUserProfileMetadata {
+  type: 'UPDATE_USER_PROFILE';
+  userId: string;
+  userLogin: string;
+  userName: string;
+  changes: CapturedAttribute[];
+  undoOfActionId?: string;
 }
 
 export interface UndoHistory {

@@ -11,6 +11,7 @@ export interface UserComparisonPanelProps {
   oktaOrigin?: string | null;
   targetTabId: number;
   onGroupsChanged: () => void;
+  onContextUserUpdated?: (user: OktaUser) => void;
 }
 
 const UserComparisonPanel: React.FC<UserComparisonPanelProps> = ({
@@ -21,6 +22,7 @@ const UserComparisonPanel: React.FC<UserComparisonPanelProps> = ({
   oktaOrigin,
   targetTabId,
   onGroupsChanged,
+  onContextUserUpdated,
 }) => {
   const comparison = useUserComparison({
     isActive,
@@ -28,7 +30,9 @@ const UserComparisonPanel: React.FC<UserComparisonPanelProps> = ({
     contextUser,
     contextGroups,
     targetTabId,
+    oktaOrigin,
     onGroupsChanged,
+    onContextUserUpdated,
   });
 
   return (

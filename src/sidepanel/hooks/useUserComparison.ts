@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useUserSearch } from './useUserSearch';
+import { useComparisonProfileEdit } from './useComparisonProfileEdit';
 import { useUserMemberships } from './useUserMemberships';
 import { useComparisonApps } from './useComparisonApps';
 import { useGroupCopy } from './useGroupCopy';
+import { useOktaApi } from './useOktaApi';
+import { useProfileDisplayConfig } from './useProfileDisplayConfig';
+import { useEntityQuery } from '../cache/useEntityQuery';
+import { cacheKeys, TTL_LONG } from '../cache/keys';
 import { userDisplayName } from '../../shared/utils/userDisplay';
 import {
   jaccard,
@@ -11,8 +16,46 @@ import {
   type TabKey,
 } from '../components/users/comparison/comparisonAnalytics';
 import { classifyAccessCauses } from '../components/users/comparison/accessCause';
+import {
+  attributeParityRows,
+  type AttributeParityResult,
+} from '../components/users/comparison/attributeParity';
+import {
+  allProfileAttributes,
+  type AttributeDescriptor,
+} from '../components/users/profileAttributes';
+import { profileMastering } from '../components/users/profileEditability';
+import { profileRuleReads } from '../components/users/profileRuleReads';
 import { loadCachedGroupNames } from './fetchGroupRulesRequest';
 import type { OktaUser, GroupMembership } from '../../shared/types';
+import type { OktaUserProfileSchema } from '../../shared/schemas/okta';
+
+const NO_ATTRIBUTE_PARITY: AttributeParityResult = Object.freeze({
+  rows: [],
+  hiddenRows: [],
+  hiddenDifferences: 0,
+  differenceCount: 0,
+});
+
+const NO_RULE_READS: Record<string, string[]> = Object.freeze({});
+
+const NO_ATTRIBUTES: readonly AttributeDescriptor[] = Object.freeze([]);
+
+function mergeRuleReads(
+  first: Record<string, string[]>,
+  second: Record<string, string[]>,
+): Record<string, string[]> {
+  const merged: Record<string, string[]> = { ...first };
+  for (const [name, ruleNames] of Object.entries(second)) {
+    const held = merged[name];
+    if (!held) {
+      merged[name] = [...ruleNames];
+      continue;
+    }
+    merged[name] = [...held, ...ruleNames.filter((ruleName) => !held.includes(ruleName))];
+  }
+  return merged;
+}
 
 export interface UseUserComparisonOptions {
   isActive: boolean;
@@ -20,7 +63,9 @@ export interface UseUserComparisonOptions {
   contextUser: OktaUser;
   contextGroups: GroupMembership[];
   targetTabId: number;
+  oktaOrigin?: string | null;
   onGroupsChanged: () => void;
+  onContextUserUpdated?: (user: OktaUser) => void;
 }
 
 export function useUserComparison({
@@ -29,7 +74,9 @@ export function useUserComparison({
   contextUser,
   contextGroups,
   targetTabId,
+  oktaOrigin,
   onGroupsChanged,
+  onContextUserUpdated,
 }: UseUserComparisonOptions) {
   const { searchQuery, setSearchQuery, searchResults, isSearching, clearSearch } = useUserSearch({
     targetTabId,
@@ -48,13 +95,12 @@ export function useUserComparison({
   const [comparedUser, setComparedUser] = useState<OktaUser | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
-  const { contextApps, comparedApps, isLoadingApps, appsIncomplete, resetApps } = useComparisonApps(
-    {
+  const { contextApps, comparedApps, isLoadingApps, appsLoaded, appsIncomplete, resetApps } =
+    useComparisonApps({
       targetTabId,
       contextUserId: contextUser.id,
       comparedUser,
-    },
-  );
+    });
 
   const onComparedGroupsChanged = useCallback(() => {
     if (comparedUser) void loadMemberships(comparedUser, { force: true });
@@ -118,6 +164,82 @@ export function useUserComparison({
     [contextApps, comparedApps],
   );
 
+  const { getUserProfileSchema } = useOktaApi({ targetTabId });
+
+  const { data: userSchema } = useEntityQuery<OktaUserProfileSchema | null>(
+    cacheKeys.userSchema(oktaOrigin),
+    getUserProfileSchema,
+    { ttl: TTL_LONG, enabled: isActive && comparedUser !== null },
+  );
+
+  const contextAttributes = useMemo(
+    () => allProfileAttributes(contextUser, userSchema),
+    [contextUser, userSchema],
+  );
+
+  const comparedAttributes = useMemo(
+    () => (comparedUser ? allProfileAttributes(comparedUser, userSchema) : NO_ATTRIBUTES),
+    [comparedUser, userSchema],
+  );
+
+  const contextMastering = useMemo(
+    () => profileMastering(appsLoaded ? contextApps : undefined, !appsIncomplete),
+    [appsLoaded, contextApps, appsIncomplete],
+  );
+
+  const comparedMastering = useMemo(
+    () => profileMastering(appsLoaded ? comparedApps : undefined, !appsIncomplete),
+    [appsLoaded, comparedApps, appsIncomplete],
+  );
+
+  const knownAttributeNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const attribute of contextAttributes) names.add(attribute.name);
+    for (const attribute of comparedAttributes) names.add(attribute.name);
+    return [...names];
+  }, [contextAttributes, comparedAttributes]);
+
+  const { config: attributeConfig } = useProfileDisplayConfig(oktaOrigin, knownAttributeNames);
+
+  const attributeParity = useMemo(
+    () =>
+      comparedUser
+        ? attributeParityRows(contextUser, comparedUser, userSchema, attributeConfig)
+        : NO_ATTRIBUTE_PARITY,
+    [contextUser, comparedUser, userSchema, attributeConfig],
+  );
+
+  const attributeRuleReads = useMemo(() => {
+    if (ruleInventory.status !== 'available') return NO_RULE_READS;
+    const contextReads = profileRuleReads(ruleInventory.rules, contextUser, contextGroups);
+    if (!comparedUser) return contextReads;
+    return mergeRuleReads(
+      contextReads,
+      profileRuleReads(ruleInventory.rules, comparedUser, comparedGroups),
+    );
+  }, [ruleInventory, contextUser, contextGroups, comparedUser, comparedGroups]);
+
+  const contextName = userDisplayName(contextUser);
+  const comparedName = comparedUser ? userDisplayName(comparedUser) : '';
+
+  const attributeEdit = useComparisonProfileEdit({
+    contextUser,
+    contextName,
+    contextAttributes,
+    contextMastering,
+    contextMemberships: contextGroups,
+    ...(onContextUserUpdated === undefined ? {} : { onContextUserUpdated }),
+    comparedUser,
+    comparedName,
+    comparedAttributes,
+    comparedMastering,
+    comparedMemberships: comparedGroups,
+    onComparedUserUpdated: setComparedUser,
+    rules: ruleInventory,
+    targetTabId,
+    enabled: isActive && comparedUser !== null,
+  });
+
   const causes = useMemo(() => {
     if (ruleInventory.status === 'unresolved') return undefined;
     return classifyAccessCauses({
@@ -153,6 +275,7 @@ export function useUserComparison({
 
   const groupDiffCount = groupBuckets.onlyCompared.length + groupBuckets.onlyContext.length;
   const appDiffCount = appBuckets.onlyCompared.length + appBuckets.onlyContext.length;
+  const attributeDiffCount = attributeParity.differenceCount;
 
   const groupSimilarity = jaccard(
     groupBuckets.shared.length,
@@ -175,9 +298,6 @@ export function useUserComparison({
   const isLoading = isLoadingGroups || isLoadingApps;
   const loadError = groupsError;
 
-  const contextName = userDisplayName(contextUser);
-  const comparedName = comparedUser ? userDisplayName(comparedUser) : '';
-
   return {
     comparedUser,
     searchQuery,
@@ -191,6 +311,11 @@ export function useUserComparison({
     causes,
     groupDiffCount,
     appDiffCount,
+    attributeParity,
+    attributeDiffCount,
+    attributeConfig,
+    attributeRuleReads,
+    attributeEdit,
     groupSimilarity,
     appSimilarity,
     overallSimilarity,

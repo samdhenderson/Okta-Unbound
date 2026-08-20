@@ -239,3 +239,109 @@ describe('getAppAssignmentCounts', () => {
     expect(await getAppAssignmentCounts('0oaFAKE1')).toBeNull();
   });
 });
+
+describe('getAppGroupAssignments', () => {
+  it('walks every page via the Link header and returns all assigned group ids', async () => {
+    const makeApiRequest = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        data: [{ id: '00gFAKEgroup00000001' }, { id: '00gFAKEgroup00000002' }],
+        headers: {
+          link: '<https://example.okta.com/api/v1/apps/0oaFAKEapp000001/groups?after=2>; rel="next"',
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: [{ id: '00gFAKEgroup00000003' }],
+        headers: {},
+      });
+    const core = makeCore({ makeApiRequest });
+    const { getAppGroupAssignments } = createAppOperations(core);
+
+    expect(await getAppGroupAssignments('0oaFAKEapp000001')).toEqual([
+      '00gFAKEgroup00000001',
+      '00gFAKEgroup00000002',
+      '00gFAKEgroup00000003',
+    ]);
+    expect(makeApiRequest.mock.calls[0][0]).toBe('/api/v1/apps/0oaFAKEapp000001/groups?limit=200');
+    expect(makeApiRequest.mock.calls[1][0]).toBe('/api/v1/apps/0oaFAKEapp000001/groups?after=2');
+    for (const call of makeApiRequest.mock.calls) {
+      expect(call[3]).toBe('low');
+    }
+  });
+
+  it('returns [] — not null — when Okta positively reports no assigned groups', async () => {
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: [], headers: {} }),
+    });
+    const { getAppGroupAssignments } = createAppOperations(core);
+
+    expect(await getAppGroupAssignments('0oaFAKEapp000001')).toEqual([]);
+  });
+
+  it('returns null (never []) when a page of the walk fails', async () => {
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({ success: false, error: 'boom' }),
+    });
+    const { getAppGroupAssignments } = createAppOperations(core);
+
+    const result = await getAppGroupAssignments('0oaFAKEapp000001');
+    expect(result).toBeNull();
+    expect(result).not.toEqual([]);
+  });
+
+  it('returns null when a later page fails after earlier pages succeeded', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValueOnce({
+          success: true,
+          data: [{ id: '00gFAKEgroup00000001' }],
+          headers: {
+            link: '<https://example.okta.com/api/v1/apps/0oaFAKEapp000001/groups?after=1>; rel="next"',
+          },
+        })
+        .mockResolvedValueOnce({ success: false, error: 'rate limited' }),
+    });
+    const { getAppGroupAssignments } = createAppOperations(core);
+
+    expect(await getAppGroupAssignments('0oaFAKEapp000001')).toBeNull();
+  });
+
+  it('returns null (never throws) when the transport rejects', async () => {
+    const core = makeCore({ makeApiRequest: vi.fn().mockRejectedValue(new Error('network')) });
+    const { getAppGroupAssignments } = createAppOperations(core);
+
+    expect(await getAppGroupAssignments('0oaFAKEapp000001')).toBeNull();
+  });
+
+  it('drops a malformed row without failing the walk', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({
+        success: true,
+        data: [{ id: '00gFAKEgroup00000001' }, { priority: 1 }, { id: '00gFAKEgroup00000002' }],
+        headers: {},
+      }),
+    });
+    const { getAppGroupAssignments } = createAppOperations(core);
+
+    expect(await getAppGroupAssignments('0oaFAKEapp000001')).toEqual([
+      '00gFAKEgroup00000001',
+      '00gFAKEgroup00000002',
+    ]);
+    vi.restoreAllMocks();
+  });
+
+  it('encodes the app id into the request path', async () => {
+    const makeApiRequest = vi.fn().mockResolvedValue({ success: true, data: [], headers: {} });
+    const { getAppGroupAssignments } = createAppOperations(makeCore({ makeApiRequest }));
+
+    await getAppGroupAssignments('0oaFAKE app/001');
+
+    expect(makeApiRequest.mock.calls[0][0]).toBe(
+      '/api/v1/apps/0oaFAKE%20app%2F001/groups?limit=200',
+    );
+  });
+});

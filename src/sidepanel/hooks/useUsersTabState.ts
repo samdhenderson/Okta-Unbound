@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type React from 'react';
 import type { GroupMembership, OktaUser, UserInfo } from '../../shared/types';
-import type { AlertMessageData } from '../components/shared/AlertMessage';
+import type { AlertAction, AlertMessageData } from '../components/shared/AlertMessage';
 import { invalidate } from '../cache/entityCache';
 import { useOktaApi } from './useOktaApi';
 import type { MemberRuleAttribution } from '../../shared/membership/memberRuleAttribution';
@@ -14,6 +14,8 @@ import { useDetectedUser } from './useDetectedUser';
 import { useUserLifecycleActions } from './useUserLifecycleActions';
 import { useAddToGroup } from './useAddToGroup';
 import { useViewStack, type ViewStack } from './useViewStack';
+import { useUserDetailPanes, type UseUserDetailPanesReturn } from './useUserDetailPanes';
+import { useUsersTabProfileEdit, type UserProfileEditing } from './useUsersTabProfileEdit';
 
 export interface UseUsersTabStateOptions {
   targetTabId?: number;
@@ -43,6 +45,7 @@ export interface UseUsersTabStateReturn {
   error: string | null;
   dismissError: () => void;
   resultMessage: AlertMessageData | null;
+  resultAction: AlertAction | null;
   dismissResultMessage: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
@@ -62,6 +65,9 @@ export interface UseUsersTabStateReturn {
   refreshSelectedUserMemberships: () => void;
   lifecycle: ReturnType<typeof useUserLifecycleActions>;
   addToGroup: ReturnType<typeof useAddToGroup>;
+  panes: UseUserDetailPanesReturn;
+  profileEdit: UserProfileEditing;
+  applySelectedUserUpdate: (user: OktaUser) => void;
   confirmAddToGroup: () => Promise<void>;
   recentlyAddedGroupId: string | null;
 }
@@ -83,6 +89,11 @@ export function useUsersTabState({
   const [selectedUser, setSelectedUser] = useState<OktaUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<AlertMessageData | null>(null);
+  const [resultAction, setResultAction] = useState<AlertAction | null>(null);
+  const publishResult = useCallback((message: AlertMessageData, action?: AlertAction) => {
+    setResultMessage(message);
+    setResultAction(action ?? null);
+  }, []);
   const [dismissedDetectedId, setDismissedDetectedId] = useState<string | null>(null);
   const [recentlyAddedGroupId, setRecentlyAddedGroupId] = useState<string | null>(null);
   const pendingAddGroupIdRef = useRef<string | null>(null);
@@ -97,7 +108,7 @@ export function useUsersTabState({
   const isDetailOpen = currentView === 'detail';
   const isCompareOpen = currentView === 'compare';
 
-  const { memberships, loadMemberships, clearMemberships } = useUserMemberships({
+  const { memberships, rules, loadMemberships, clearMemberships } = useUserMemberships({
     targetTabId,
     onError: setError,
     onLoadingChange: setIsLoadingMemberships,
@@ -217,6 +228,7 @@ export function useUsersTabState({
     clearMemberships();
     setError(null);
     setResultMessage(null);
+    setResultAction(null);
     resetNav();
   }, [setSearchQuery, setSearchResults, clearMemberships, resetNav]);
 
@@ -227,14 +239,14 @@ export function useUsersTabState({
   const lifecycle = useUserLifecycleActions({
     targetTabId,
     selectedUser,
-    onResult: setResultMessage,
+    onResult: publishResult,
     onUserStatusRefresh,
   });
 
   const addToGroup = useAddToGroup({
     targetTabId,
     selectedUser,
-    onResult: setResultMessage,
+    onResult: publishResult,
     onAdded: handleUserAddedToGroup,
     enabled: isActive,
   });
@@ -246,7 +258,10 @@ export function useUsersTabState({
   }, [selectedGroup, confirmAddToGroupInner]);
 
   const dismissError = useCallback(() => setError(null), []);
-  const dismissResultMessage = useCallback(() => setResultMessage(null), []);
+  const dismissResultMessage = useCallback(() => {
+    setResultMessage(null);
+    setResultAction(null);
+  }, []);
 
   const { getMembershipRuleProof } = useOktaApi({ targetTabId: targetTabId ?? null });
   const proveMembershipSource = useMemo(
@@ -256,6 +271,27 @@ export function useUsersTabState({
         : undefined,
     [selectedUser, targetTabId, getMembershipRuleProof],
   );
+
+  const panes = useUserDetailPanes({
+    user: selectedUser,
+    targetTabId,
+    oktaOrigin,
+    memberships,
+    rules,
+    enabled: isActive,
+  });
+
+  const profileEdit = useUsersTabProfileEdit({
+    user: selectedUser,
+    attributes: panes.attributes,
+    memberships,
+    rules,
+    mastering: panes.mastering,
+    targetTabId,
+    enabled: isActive && panes.pane === 'profile',
+    onUserUpdated: setSelectedUser,
+    onResult: publishResult,
+  });
 
   const { pop: popCompare } = nav;
   const openCompare = useCallback(() => {
@@ -272,6 +308,7 @@ export function useUsersTabState({
     error,
     dismissError,
     resultMessage,
+    resultAction,
     dismissResultMessage,
     searchQuery,
     setSearchQuery,
@@ -291,6 +328,9 @@ export function useUsersTabState({
     refreshSelectedUserMemberships,
     lifecycle,
     addToGroup,
+    panes,
+    profileEdit,
+    applySelectedUserUpdate: setSelectedUser,
     confirmAddToGroup,
     recentlyAddedGroupId,
   };

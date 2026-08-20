@@ -10,7 +10,7 @@ import { useOwedLoad } from '../../../hooks/useOwedLoad';
 import { useGroupRuleReferences } from '../../../hooks/useGroupRuleReferences';
 import { useGroupAccessGrants } from '../../../hooks/useGroupAccessGrants';
 import { useGroupMembersSection } from './useGroupMembersSection';
-import { ActionBar, Button } from '../../shared';
+import { ActionBar, type ActionDescriptor } from '../../shared';
 import type { GroupSummary } from '../../../../shared/types';
 
 interface GroupDetailViewProps {
@@ -50,20 +50,21 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
     analyzeMembers();
   });
 
+  const actions: ActionDescriptor[] = [
+    {
+      id: 'export-members',
+      label: 'Export members',
+      icon: 'download',
+      variant: 'primary',
+      onClick: () => onExportGroup?.(group.id, group.name),
+      disabled: !onExportGroup,
+      title: "Export this group's members (opens the Export tab with column picker + presets)",
+    },
+  ];
+
   return (
-    <div className="space-y-3" data-testid="group-detail-view">
-      <ActionBar ariaLabel={`Actions for ${group.name}`}>
-        <Button
-          variant="primary"
-          size="sm"
-          icon="download"
-          onClick={() => onExportGroup?.(group.id, group.name)}
-          disabled={!onExportGroup}
-          title="Export this group's members (opens the Export tab with column picker + presets)"
-        >
-          Export members
-        </Button>
-      </ActionBar>
+    <div className="space-y-6" data-testid="group-detail-view">
+      <ActionBar ariaLabel={`Actions for ${group.name}`} actions={actions} />
 
       <GroupMembershipSourceSection
         memberCount={group.memberCount}

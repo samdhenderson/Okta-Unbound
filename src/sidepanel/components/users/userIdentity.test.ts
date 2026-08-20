@@ -80,6 +80,37 @@ describe('userIdentity', () => {
     });
   });
 
+  it('omits the app count entirely while the apps request is still outstanding', () => {
+    const counts = rowsOf(makeUser(), { groupCount: 3 }).counts;
+
+    expect(counts).toEqual([expect.objectContaining({ icon: 'users' })]);
+    expect(counts).not.toContainEqual(expect.objectContaining({ icon: 'app' }));
+  });
+
+  it.each([
+    [0, '0', 'apps'],
+    [1, '1', 'app'],
+    [1284, '1,284', 'apps'],
+  ])('renders a known app count of %i as "%s %s"', (appCount, value, label) => {
+    expect(rowsOf(makeUser(), { groupCount: 3, appCount }).counts).toContainEqual(
+      expect.objectContaining({ kind: 'metric', icon: 'app', value, label }),
+    );
+  });
+
+  it('puts apps after groups on the counts row', () => {
+    expect(
+      rowsOf(makeUser(), { groupCount: 3, appCount: 7 }).counts.map((fact) =>
+        fact.kind === 'metric' ? fact.icon : fact.kind,
+      ),
+    ).toEqual(['users', 'app']);
+  });
+
+  it('reports an app count even when the group count has not landed', () => {
+    expect(rowsOf(makeUser(), { appCount: 7 }).counts).toEqual([
+      expect.objectContaining({ icon: 'app', value: '7', label: 'apps' }),
+    ]);
+  });
+
   it('reports the rules that grant this user membership, when Okta named any', () => {
     const user = makeUser({
       managedBy: { rules: [{ id: '0prA', name: 'Engineers' }] },

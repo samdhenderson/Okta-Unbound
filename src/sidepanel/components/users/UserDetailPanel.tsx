@@ -1,65 +1,155 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Tabs, type TabItem } from '../shared';
 import GroupMembershipsList from './GroupMembershipsList';
-import UserLifecycleActions from './UserLifecycleActions';
-import UserProfileCard from './UserProfileCard';
+import UserAppsList from './UserAppsList';
+import UserProfilePane from './UserProfilePane';
+import ProfileDisplayModal from './ProfileDisplayModal';
+import ProfileSaveModal from './ProfileSaveModal';
+import { userDisplayName } from '../../../shared/utils/userDisplay';
+import type { AttributeDescriptor } from './profileAttributes';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
-import type { LifecycleAction } from '../../hooks/useUserLifecycleActions';
+import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
+import type { UserAppAssignment } from '../../hooks/useOktaApi/userOperations';
+import type { AppsByGroupId } from '../../hooks/useUserApps';
+import type { UserDetailPane } from '../../hooks/useUserDetailPanes';
+import type { UserProfileEditing } from '../../hooks/useUsersTabProfileEdit';
 
 export interface UserDetailPanelProps {
   user: OktaUser;
   oktaOrigin?: string | null;
+
+  pane: UserDetailPane;
+  onPaneChange: (pane: UserDetailPane) => void;
+
   memberships: GroupMembership[];
   isLoadingMemberships: boolean;
   currentGroupId?: string;
   recentlyAddedGroupId?: string | null;
-  isLifecycleLoading: boolean;
-  pendingLifecycleAction: LifecycleAction | null;
-  onRequestLifecycleAction: (action: LifecycleAction) => void;
-  onCancelLifecycleAction: () => void;
-  onConfirmLifecycleAction: () => void;
   onProveMembershipSource?: (groupId: string) => Promise<MemberRuleAttribution>;
+
+  apps: UserAppAssignment[];
+  isLoadingApps: boolean;
+  appsComplete: boolean;
+  appsByGroupId: AppsByGroupId;
+  appCount?: number;
+
+  attributes: AttributeDescriptor[];
+  isLoadingProfile: boolean;
+  profileConfig: ProfileDisplayConfig;
+  onProfileConfigChange: (patch: Partial<ProfileDisplayConfig>) => void;
+  onProfileConfigReset: () => void;
+  ruleReads: Record<string, string[]>;
+  profileEdit?: UserProfileEditing;
 }
 
 const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   user,
   oktaOrigin,
+  pane,
+  onPaneChange,
   memberships,
   isLoadingMemberships,
   currentGroupId,
   recentlyAddedGroupId,
-  isLifecycleLoading,
-  pendingLifecycleAction,
-  onRequestLifecycleAction,
-  onCancelLifecycleAction,
-  onConfirmLifecycleAction,
   onProveMembershipSource,
+  apps,
+  isLoadingApps,
+  appsComplete,
+  appsByGroupId,
+  appCount,
+  attributes,
+  isLoadingProfile,
+  profileConfig,
+  onProfileConfigChange,
+  onProfileConfigReset,
+  ruleReads,
+  profileEdit,
 }) => {
+  const [isConfiguringProfile, setIsConfiguringProfile] = useState(false);
+
+  const tabs: TabItem[] = [
+    {
+      key: 'groups',
+      label: 'Groups',
+      count: isLoadingMemberships ? undefined : memberships.length,
+    },
+    { key: 'apps', label: 'Apps', count: appCount },
+    { key: 'profile', label: 'Profile', count: attributes.length || undefined },
+  ];
+
   return (
-    <div className="space-y-6 animate-rise-in">
-      <UserProfileCard
-        user={user}
-        afterCard={
-          <UserLifecycleActions
-            user={user}
-            isLifecycleLoading={isLifecycleLoading}
-            pendingLifecycleAction={pendingLifecycleAction}
-            onRequestAction={onRequestLifecycleAction}
-            onCancel={onCancelLifecycleAction}
-            onConfirm={onConfirmLifecycleAction}
-          />
-        }
+    <div className="animate-rise-in overflow-hidden rounded-md border border-neutral-200 bg-white">
+      <div className="px-2">
+        <Tabs
+          tabs={tabs}
+          activeKey={pane}
+          onChange={(key) => onPaneChange(key as UserDetailPane)}
+          ariaLabel="User detail sections"
+        />
+      </div>
+
+      <div
+        role="tabpanel"
+        aria-label="Groups"
+        hidden={pane !== 'groups'}
+        className={pane === 'groups' ? '' : 'hidden'}
+      >
+        <GroupMembershipsList
+          memberships={memberships}
+          user={user}
+          isLoading={isLoadingMemberships}
+          currentGroupId={currentGroupId}
+          oktaOrigin={oktaOrigin}
+          recentlyAddedGroupId={recentlyAddedGroupId}
+          appsByGroupId={appsByGroupId}
+          onProveMembershipSource={onProveMembershipSource}
+        />
+      </div>
+
+      <div
+        role="tabpanel"
+        aria-label="Apps"
+        hidden={pane !== 'apps'}
+        className={pane === 'apps' ? 'px-4 py-3' : 'hidden'}
+      >
+        <UserAppsList
+          apps={apps}
+          memberships={memberships}
+          isLoading={isLoadingApps}
+          complete={appsComplete}
+          oktaOrigin={oktaOrigin}
+        />
+      </div>
+
+      <div
+        role="tabpanel"
+        aria-label="Profile"
+        hidden={pane !== 'profile'}
+        className={pane === 'profile' ? undefined : 'hidden'}
+      >
+        <UserProfilePane
+          attributes={attributes}
+          config={profileConfig}
+          ruleReads={ruleReads}
+          isLoading={isLoadingProfile}
+          onConfigure={() => setIsConfiguringProfile(true)}
+          edit={profileEdit?.controls}
+          cells={profileEdit?.cells}
+        />
+      </div>
+
+      <ProfileDisplayModal
+        isOpen={isConfiguringProfile}
+        onClose={() => setIsConfiguringProfile(false)}
+        attributes={attributes}
+        config={profileConfig}
+        onChange={onProfileConfigChange}
+        onReset={onProfileConfigReset}
+        ruleReads={ruleReads}
       />
 
-      <GroupMembershipsList
-        memberships={memberships}
-        user={user}
-        isLoading={isLoadingMemberships}
-        currentGroupId={currentGroupId}
-        oktaOrigin={oktaOrigin}
-        recentlyAddedGroupId={recentlyAddedGroupId}
-        onProveMembershipSource={onProveMembershipSource}
-      />
+      {profileEdit && <ProfileSaveModal {...profileEdit.save} userName={userDisplayName(user)} />}
     </div>
   );
 };

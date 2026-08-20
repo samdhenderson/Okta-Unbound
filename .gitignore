@@ -67,3 +67,5 @@ storybook-static
 shots/
 
 # design-sync (claude.ai/design) — transient build + verification state
+
+#Design Sync Exports for UI changes and New Feature UI

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Button, Modal } from '../shared';
+import { Button, Eyebrow, Modal } from '../shared';
 import type { OktaUser } from '../../../shared/types';
 import type { LifecycleAction } from '../../hooks/useUserLifecycleActions';
 
-interface UserLifecycleActionsProps {
+export interface UserLifecycleActionsProps {
   user: OktaUser;
   isLifecycleLoading: boolean;
   pendingLifecycleAction: LifecycleAction | null;
@@ -11,6 +11,13 @@ interface UserLifecycleActionsProps {
   onCancel: () => void;
   onConfirm: () => void;
 }
+
+const RESET_PASSWORD_STATUSES: ReadonlySet<OktaUser['status']> = new Set([
+  'ACTIVE',
+  'RECOVERY',
+  'LOCKED_OUT',
+  'PASSWORD_EXPIRED',
+]);
 
 const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
   user,
@@ -20,55 +27,68 @@ const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
   onCancel,
   onConfirm,
 }) => {
+  const canResetPassword = RESET_PASSWORD_STATUSES.has(user.status);
+  const isSuspended = user.status === 'SUSPENDED';
+  const hasDestructive = user.status === 'ACTIVE' || isSuspended;
+
   return (
     <>
       {user.status !== 'DEPROVISIONED' ? (
-        <div className="bg-white rounded-md border border-neutral-200 px-5 py-4">
-          <h3 className="text-xs font-semibold text-neutral-600 uppercase tracking-wide mb-3">
-            Lifecycle Actions
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {user.status === 'ACTIVE' && (
-              <Button
-                variant="danger"
-                size="sm"
-                disabled={isLifecycleLoading}
-                onClick={() => onRequestAction('suspend')}
-              >
-                Suspend User
-              </Button>
-            )}
-            {user.status === 'SUSPENDED' && (
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={isLifecycleLoading}
-                onClick={() => onRequestAction('unsuspend')}
-              >
-                Unsuspend User
-              </Button>
-            )}
-            {(user.status === 'ACTIVE' ||
-              user.status === 'RECOVERY' ||
-              user.status === 'LOCKED_OUT' ||
-              user.status === 'PASSWORD_EXPIRED') && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <Eyebrow>Account state</Eyebrow>
+            <span className="text-xs text-neutral-600">Each asks to confirm</span>
+          </div>
+
+          {canResetPassword && (
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 size="sm"
+                icon="refresh"
                 disabled={isLifecycleLoading}
                 onClick={() => onRequestAction('resetPassword')}
               >
-                Reset Password
+                Reset password
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {canResetPassword && hasDestructive && <div className="h-px bg-neutral-200" />}
+
+          {hasDestructive && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs text-danger-text">
+                {isSuspended ? 'Restores sign-in immediately' : 'Blocks sign-in until reversed'}
+              </span>
+              {isSuspended ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon="refresh"
+                  disabled={isLifecycleLoading}
+                  onClick={() => onRequestAction('unsuspend')}
+                >
+                  Unsuspend user
+                </Button>
+              ) : (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon="pause"
+                  disabled={isLifecycleLoading}
+                  onClick={() => onRequestAction('suspend')}
+                >
+                  Suspend user
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       ) : (
-        <div className="px-5 py-3 bg-neutral-50 rounded-md border border-neutral-200">
-          <p className="text-xs text-neutral-500">
-            No lifecycle actions are available for deprovisioned users.
-          </p>
-        </div>
+        <p className="text-xs text-neutral-500">
+          No lifecycle actions are available for deprovisioned users.
+        </p>
       )}
 
       <Modal

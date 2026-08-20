@@ -5,7 +5,9 @@ import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import {
   oktaAppListItemSchema,
   extractAppAssignmentScope,
+  extractAppGrantGroupId,
   type OktaAppListItem,
+  isProfileSourceApp,
   type AppAssignmentScope,
 } from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
@@ -16,6 +18,8 @@ export interface UserAppAssignment {
   id: string;
   label: string;
   scope?: AppAssignmentScope;
+  grantGroupId?: string;
+  isProfileSource: boolean;
 }
 
 export interface UserAppsResult {
@@ -37,30 +41,6 @@ export function createUserOperations(coreApi: CoreApi) {
     }
   };
 
-  const getUserAppAssignments = async (userId: string): Promise<number> => {
-    try {
-      const response = await coreApi.makeApiRequest(
-        `/api/v1/apps?filter=user.id+eq+"${userId}"&limit=${OKTA_PAGE_SIZE}`,
-      );
-      if (response.success && response.data) {
-        const firstPageCount = response.data.length;
-
-        const linkHeader = response.headers?.['link'] || response.headers?.['Link'];
-        const hasMorePages = linkHeader && linkHeader.includes('rel="next"');
-
-        if (hasMorePages) {
-          return firstPageCount;
-        }
-
-        return firstPageCount;
-      }
-      return 0;
-    } catch (error) {
-      log.error(`Failed to get app assignments for user ${userId}:`, error);
-      return 0;
-    }
-  };
-
   const getUserApps = async (userId: string): Promise<UserAppsResult> => {
     const apps: UserAppAssignment[] = [];
 
@@ -76,6 +56,8 @@ export function createUserOperations(coreApi: CoreApi) {
                 id: app.id,
                 label: app.label || app.name || app.id,
                 scope: extractAppAssignmentScope(app._embedded),
+                grantGroupId: extractAppGrantGroupId(app._embedded),
+                isProfileSource: isProfileSourceApp(app.features),
               });
             }
           },
@@ -265,7 +247,6 @@ export function createUserOperations(coreApi: CoreApi) {
 
   return {
     getUserLastLogin,
-    getUserAppAssignments,
     getUserApps,
     batchGetUserDetails,
     scanGroupMfa,

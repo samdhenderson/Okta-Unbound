@@ -1,6 +1,10 @@
 import type { CoreApi } from './core';
 import { oktaAppListItemSchema, type OktaAppListItem } from '@/shared/schemas/okta';
-import { oktaAppUserSchema, oktaAppGroupSchema } from '@/shared/schemas/okta';
+import {
+  oktaAppUserSchema,
+  oktaAppGroupSchema,
+  oktaAppGroupAssignmentSchema,
+} from '@/shared/schemas/okta';
 import { parseOkta, parseOktaList } from '@/shared/schemas/okta';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import { createLogger } from '@/shared/utils/logger';
@@ -82,5 +86,28 @@ export function createAppOperations(coreApi: CoreApi) {
     }
   };
 
-  return { searchApps, getAllApps, getAppById, getAppAssignmentCounts };
+  const getAppGroupAssignments = async (appId: string): Promise<string[] | null> => {
+    try {
+      const groups = await fetchAllPages(
+        (url) => coreApi.makeApiRequest(url, 'GET', undefined, 'low'),
+        `/api/v1/apps/${encodeURIComponent(appId)}/groups?limit=${OKTA_PAGE_SIZE}`,
+        {
+          schema: oktaAppGroupAssignmentSchema,
+          context: 'GET /api/v1/apps/{id}/groups',
+        },
+      );
+      return groups.map((group) => group.id);
+    } catch {
+      log.error('getAppGroupAssignments failed', { code: 'app_group_assignments_failed', appId });
+      return null;
+    }
+  };
+
+  return {
+    searchApps,
+    getAllApps,
+    getAppById,
+    getAppAssignmentCounts,
+    getAppGroupAssignments,
+  };
 }

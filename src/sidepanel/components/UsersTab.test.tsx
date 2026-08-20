@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import { render, screen, act, fireEvent, within } from '@testing-library/react';
 import UsersTab from './UsersTab';
 
 const userContext = vi.hoisted(() => ({
@@ -140,6 +140,15 @@ async function flush() {
 
 const userSearchInput = () => screen.getByPlaceholderText('Search by email, name, or login...');
 const groupSearchInput = () => screen.getByPlaceholderText('Type to search by group name...');
+
+const DETECTED_BANNER = 'Open in admin';
+
+function membershipRow(groupName: string): HTMLElement {
+  const heading = screen.getByRole('heading', { level: 4, name: groupName });
+  const row = heading.closest('[data-group-id]');
+  expect(row).not.toBeNull();
+  return row as HTMLElement;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -294,7 +303,7 @@ describe('detected user: manual-load banner', () => {
     render(<UsersTab targetTabId={1} />);
 
     expect(userDetailCalls()).toHaveLength(0);
-    expect(screen.getByText(/Detected in admin/)).toBeInTheDocument();
+    expect(screen.getByText(DETECTED_BANNER)).toBeInTheDocument();
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Load' }));
@@ -315,7 +324,7 @@ describe('detected user: manual-load banner', () => {
     }
 
     expect(userDetailCalls()).toHaveLength(0);
-    expect(screen.getByText(/Detected in admin/)).toBeInTheDocument();
+    expect(screen.getByText(DETECTED_BANNER)).toBeInTheDocument();
   });
 
   it('surfaces an error when a manual Load fails', async () => {
@@ -342,7 +351,7 @@ describe('detected user: manual-load banner', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     });
 
-    expect(screen.queryByText(/Detected in admin/)).not.toBeInTheDocument();
+    expect(screen.queryByText(DETECTED_BANNER)).not.toBeInTheDocument();
     expect(userDetailCalls()).toHaveLength(0);
   });
 });
@@ -365,7 +374,9 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(card);
 
     expect(await screen.findByText('Salesforce')).toBeInTheDocument();
-    expect(screen.getByText('RULE BASED')).toBeInTheDocument();
+    const salesforce = membershipRow('Salesforce');
+    expect(within(salesforce).getByText('App')).toBeInTheDocument();
+    expect(within(salesforce).queryByText(/^Direct/)).not.toBeInTheDocument();
   });
 
   it('classifies a group with a matching ACTIVE rule as RULE_BASED and shows the rule', async () => {
@@ -377,7 +388,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(screen.getByText('RULE BASED')).toBeInTheDocument();
+    expect(within(membershipRow('Engineering')).getByText('Rule')).toBeInTheDocument();
     expect(screen.getAllByText(/Eng auto-assign/).length).toBeGreaterThan(0);
   });
 
@@ -390,7 +401,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(screen.getByText('DIRECT')).toBeInTheDocument();
+    expect(within(membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
     expect(screen.getByText('Added directly')).toBeInTheDocument();
   });
 
@@ -405,7 +416,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(screen.getByText('DIRECT')).toBeInTheDocument();
+    expect(within(membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
     expect(screen.queryByText('Eng auto-assign')).not.toBeInTheDocument();
   });
 
@@ -419,11 +430,10 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
     expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(screen.getByText('UNKNOWN')).toBeInTheDocument();
-    expect(screen.queryByText('DIRECT')).not.toBeInTheDocument();
-    expect(
-      screen.queryByText('This user was added directly to the group (not through a rule)'),
-    ).not.toBeInTheDocument();
+    const engineering = membershipRow('Engineering');
+    expect(within(engineering).getByText('Unresolved')).toBeInTheDocument();
+    expect(within(engineering).queryByText(/^Direct/)).not.toBeInTheDocument();
+    expect(within(engineering).queryByText(/added directly/i)).not.toBeInTheDocument();
     expect(screen.queryByText('nope')).not.toBeInTheDocument();
   });
 });
@@ -474,6 +484,7 @@ describe('lifecycle actions', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Load' }));
     });
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
+    fireEvent.click(screen.getByRole('button', { name: 'More' }));
     runtimeSendMessage.mockClear();
   }
 
@@ -485,7 +496,7 @@ describe('lifecycle actions', () => {
       data: { id: 'u1', status: 'SUSPENDED', profile: { firstName: 'Ada', lastName: 'Lovelace' } },
     }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suspend User' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend user' }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
     });
@@ -496,8 +507,8 @@ describe('lifecycle actions', () => {
     ).toBeInTheDocument();
     expect(schedulerEndpoints().filter((e) => e === '/api/v1/users/u1')).toHaveLength(1);
     expect(screen.getAllByText('SUSPENDED').length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('tab', { name: /Org/ }));
-    expect(screen.getByText('Engineering')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /^Profile/ }));
+    expect(await screen.findByText('Engineering')).toBeInTheDocument();
   });
 
   it('resetPassword skips the getUserById refresh and reloads no memberships', async () => {
@@ -505,7 +516,7 @@ describe('lifecycle actions', () => {
     await renderWithActiveUser();
     tabsSendMessage.mockClear();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset Password' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password' }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Send Reset Email' }));
     });
@@ -520,7 +531,7 @@ describe('lifecycle actions', () => {
     route(/\/lifecycle\/suspend/, () => ({ success: false, error: 'cannot suspend' }));
     await renderWithActiveUser();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Suspend User' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend user' }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Suspend' }));
     });
@@ -545,7 +556,7 @@ describe('add-to-group: 300ms group search (memoized searchGroups)', () => {
     });
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
     runtimeSendMessage.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: 'Add to Group' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add group' }));
   }
 
   it('fires exactly one /api/v1/groups search 300ms after typing and does NOT loop', async () => {

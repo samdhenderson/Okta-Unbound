@@ -10,6 +10,7 @@ import { createGroupCleanupOperations } from './useOktaApi/groupCleanup';
 import { createGroupBulkOperations } from './useOktaApi/groupBulkOps';
 import { createGroupDiscoveryOperations } from './useOktaApi/groupDiscovery';
 import { createUserOperations } from './useOktaApi/userOperations';
+import { createProfileOperations } from './useOktaApi/profileOperations';
 import { createAppOperations } from './useOktaApi/appOperations';
 import { createPolicyOperations } from './useOktaApi/policyOperations';
 import { createExportEngineOperations } from './useOktaApi/exportEngine';
@@ -108,6 +109,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
   );
   const groupDiscoveryOps = useMemo(() => createGroupDiscoveryOperations(coreApi), [coreApi]);
   const userOps = useMemo(() => createUserOperations(coreApi), [coreApi]);
+  const profileOps = useMemo(() => createProfileOperations(coreApi), [coreApi]);
   const appOps = useMemo(() => createAppOperations(coreApi), [coreApi]);
   const policyOps = useMemo(() => createPolicyOperations(coreApi), [coreApi]);
   const exportEngineOps = useMemo(() => createExportEngineOperations(coreApi), [coreApi]);
@@ -145,6 +147,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       cancelOperation,
 
       makeApiRequest: coreApi.makeApiRequest,
+      runOperation: coreApi.runOperation,
 
       getAllGroupMembers: groupMemberOps.getAllGroupMembers,
       getMembershipRuleProof: groupMemberOps.getMembershipRuleProof,
@@ -161,13 +164,15 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       getGroupById: groupDiscoveryOps.getGroupById,
 
       getUserLastLogin: userOps.getUserLastLogin,
-      getUserAppAssignments: userOps.getUserAppAssignments,
       getUserApps: userOps.getUserApps,
       batchGetUserDetails: userOps.batchGetUserDetails,
       scanGroupMfa: userOps.scanGroupMfa,
       getUserGroupMemberships: userOps.getUserGroupMemberships,
       searchUsers: userOps.searchUsers,
       getUserById: userOps.getUserById,
+      getUserProfileSchema: profileOps.getUserProfileSchema,
+      getUserRaw: profileOps.getUserRaw,
+      updateUserProfile: profileOps.updateUserProfile,
       searchApps: appOps.searchApps,
       suspendUser: userOps.suspendUser,
       unsuspendUser: userOps.unsuspendUser,
@@ -176,6 +181,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       getAllApps: appOps.getAllApps,
       getAppById: appOps.getAppById,
       getAppAssignmentCounts: appOps.getAppAssignmentCounts,
+      getAppGroupAssignments: appOps.getAppGroupAssignments,
 
       listPolicies: policyOps.listPolicies,
       getPolicyRules: policyOps.getPolicyRules,
@@ -208,6 +214,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       groupDiscoveryOps,
       groupBulkOps,
       userOps,
+      profileOps,
       appOps,
       policyOps,
       exportEngineOps,

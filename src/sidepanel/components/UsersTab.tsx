@@ -1,12 +1,14 @@
-import React, { useRef } from 'react';
-import PageHeader from './shared/PageHeader';
-import Breadcrumbs from './shared/Breadcrumbs';
+import React, { useRef, useState } from 'react';
 import AlertMessage from './shared/AlertMessage';
-import { ActionBar, Button, EntityIdentity, OpenInOktaLink } from './shared';
-import { AddToGroupModal, UserComparisonPanel, UserDetailPanel, UserSearchPanel } from './users';
-import { userIdentity } from './users/userIdentity';
+import {
+  AddToGroupModal,
+  UserActionBar,
+  UserComparisonPanel,
+  UserDetailPanel,
+  UserRungHeader,
+  UserSearchPanel,
+} from './users';
 import { useUsersTabState } from '../hooks/useUsersTabState';
-import { userDisplayName } from '../../shared/utils/userDisplay';
 
 interface UsersTabProps {
   targetTabId?: number;
@@ -38,64 +40,42 @@ const UsersTab: React.FC<UsersTabProps> = ({
     lifecycle,
     addToGroup,
     nav,
+    panes,
     isDetailOpen,
     isCompareOpen,
   } = state;
 
-  const currentEntry = nav.currentEntry;
-  const currentName =
-    currentEntry && selectedUser?.id === currentEntry.userId
-      ? userDisplayName(selectedUser)
-      : currentEntry?.userName;
-
-  const detailUser =
-    isDetailOpen && !isCompareOpen && currentEntry && selectedUser?.id === currentEntry.userId
-      ? selectedUser
-      : undefined;
-  const identity = detailUser
-    ? userIdentity(detailUser, {
-        groupCount: isLoadingMemberships ? undefined : memberships.length,
-      })
-    : undefined;
+  const [manageOpen, setManageOpen] = useState(false);
+  const [manageRung, setManageRung] = useState(isDetailOpen);
+  if (manageRung !== isDetailOpen) {
+    setManageRung(isDetailOpen);
+    setManageOpen(false);
+  }
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
-      <PageHeader
-        title={
-          isCompareOpen ? 'Compare users' : isDetailOpen ? (currentName ?? 'User') : 'User Search'
-        }
-        subtitle={
-          isCompareOpen
-            ? `${currentName} vs. another user`
-            : isDetailOpen
-              ? undefined
-              : 'Search users and analyze their group memberships'
-        }
-        onBack={nav.isRoot ? undefined : nav.pop}
-        backLabel={isCompareOpen ? 'Back to user' : 'Back to search'}
-        breadcrumbs={nav.isRoot ? undefined : <Breadcrumbs items={nav.trail} />}
-        sticky={isActive}
-        identityKey={identity?.key}
-        identity={identity ? <EntityIdentity rows={identity.rows} /> : undefined}
-        badge={
-          identity
-            ? identity.badge
-            : selectedUser
-              ? { text: `${memberships.length} Groups`, variant: 'primary' }
-              : undefined
-        }
-        actions={
-          identity?.link && (
-            <OpenInOktaLink
-              oktaOrigin={state.oktaOrigin}
-              entityType={identity.link.entityType}
-              entityId={identity.link.entityId}
-            />
-          )
-        }
+      <UserRungHeader
+        nav={nav}
+        isDetailOpen={isDetailOpen}
+        isCompareOpen={isCompareOpen}
+        selectedUser={selectedUser}
+        membershipCount={memberships.length}
+        isLoadingMemberships={isLoadingMemberships}
+        appCount={panes.appCount}
+        oktaOrigin={state.oktaOrigin}
+        isActive={isActive}
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+        {state.resultMessage && (
+          <AlertMessage
+            message={state.resultMessage}
+            onDismiss={state.dismissResultMessage}
+            {...(state.resultAction ? { action: state.resultAction } : {})}
+            className="animate-rise-in"
+          />
+        )}
+
         <div className={nav.isRoot ? 'space-y-6' : 'hidden'}>
           <UserSearchPanel
             searchQuery={state.searchQuery}
@@ -111,23 +91,13 @@ const UsersTab: React.FC<UsersTabProps> = ({
             hasSelectedUser={Boolean(selectedUser)}
             hasError={Boolean(state.error)}
             alerts={
-              <>
-                {state.error && (
-                  <AlertMessage
-                    message={{ text: state.error, type: 'danger' }}
-                    onDismiss={state.dismissError}
-                    className="animate-rise-in"
-                  />
-                )}
-
-                {state.resultMessage && (
-                  <AlertMessage
-                    message={state.resultMessage}
-                    onDismiss={state.dismissResultMessage}
-                    className="animate-rise-in"
-                  />
-                )}
-              </>
+              state.error ? (
+                <AlertMessage
+                  message={{ text: state.error, type: 'danger' }}
+                  onDismiss={state.dismissError}
+                  className="animate-rise-in"
+                />
+              ) : undefined
             }
           />
         </div>
@@ -140,41 +110,42 @@ const UsersTab: React.FC<UsersTabProps> = ({
               data-testid="user-detail-view"
               className={isDetailOpen ? 'space-y-6 focus:outline-none' : 'hidden'}
             >
-              <ActionBar ariaLabel={`Actions for ${userDisplayName(selectedUser)}`}>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon="users"
-                  onClick={state.openCompare}
-                  disabled={state.isLoadingMemberships}
-                  title="Compare group & app access with another user"
-                >
-                  Compare
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon="plus"
-                  onClick={addToGroup.openModal}
-                  disabled={state.isLoadingMemberships}
-                >
-                  Add to Group
-                </Button>
-              </ActionBar>
-
-              <UserDetailPanel
+              <UserActionBar
                 user={selectedUser}
-                oktaOrigin={state.oktaOrigin}
-                memberships={memberships}
+                onCompare={state.openCompare}
+                onAddToGroup={addToGroup.openModal}
                 isLoadingMemberships={state.isLoadingMemberships}
-                currentGroupId={currentGroupId}
-                recentlyAddedGroupId={state.recentlyAddedGroupId}
+                tierOpen={manageOpen}
+                onTierOpenChange={setManageOpen}
                 isLifecycleLoading={lifecycle.isLifecycleLoading}
                 pendingLifecycleAction={lifecycle.pendingLifecycleAction}
                 onRequestLifecycleAction={lifecycle.setPendingLifecycleAction}
                 onCancelLifecycleAction={() => lifecycle.setPendingLifecycleAction(null)}
                 onConfirmLifecycleAction={lifecycle.confirmLifecycleAction}
+              />
+
+              <UserDetailPanel
+                user={selectedUser}
+                oktaOrigin={state.oktaOrigin}
+                pane={panes.pane}
+                onPaneChange={panes.setPane}
+                memberships={memberships}
+                isLoadingMemberships={state.isLoadingMemberships}
+                currentGroupId={currentGroupId}
+                recentlyAddedGroupId={state.recentlyAddedGroupId}
                 onProveMembershipSource={state.proveMembershipSource}
+                apps={panes.apps}
+                isLoadingApps={panes.isLoadingApps}
+                appsComplete={panes.appsComplete}
+                appsByGroupId={panes.appsByGroupId}
+                appCount={panes.appCount}
+                attributes={panes.attributes}
+                isLoadingProfile={panes.isLoadingProfile}
+                profileConfig={panes.profileConfig}
+                onProfileConfigChange={panes.updateProfileConfig}
+                onProfileConfigReset={panes.resetProfileConfig}
+                ruleReads={panes.ruleReads}
+                profileEdit={state.profileEdit}
               />
             </div>
 
@@ -193,6 +164,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
                   contextGroups={memberships}
                   targetTabId={targetTabId}
                   onGroupsChanged={state.refreshSelectedUserMemberships}
+                  onContextUserUpdated={state.applySelectedUserUpdate}
                 />
               </div>
             )}

@@ -4,6 +4,7 @@ import UserComparisonView from './UserComparisonView';
 import type { UserComparisonState } from '../../hooks/useUserComparison';
 import type { AppEntry } from './comparison/comparisonAnalytics';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
+import { DEFAULT_PROFILE_DISPLAY_CONFIG } from '../../../shared/storage/profileDisplayStore';
 
 const contextUser: OktaUser = {
   id: 'ctx-1',
@@ -50,6 +51,29 @@ const DEFAULT_APPS: AppBucketFixture = {
   onlyContext: [{ id: 'a5', label: 'Context Group Granted App', scope: 'GROUP' }],
 };
 
+const idleSide = (
+  key: 'context' | 'compared',
+  userName: string,
+): UserComparisonState['attributeEdit']['context'] => ({
+  key,
+  userName,
+  cells: {},
+  isEditing: false,
+  isSaving: false,
+  hasChanges: false,
+  hasInvalid: false,
+  canEdit: false,
+  begin: vi.fn(),
+  cancel: vi.fn(),
+  requestSave: vi.fn(),
+});
+
+const NO_ATTRIBUTE_EDITING: UserComparisonState['attributeEdit'] = {
+  context: idleSide('context', 'Alice Context'),
+  compared: idleSide('compared', 'Bob Compared'),
+  pendingSave: null,
+};
+
 const comparison = (appBuckets: AppBucketFixture = DEFAULT_APPS): UserComparisonState =>
   ({
     comparedUser,
@@ -64,6 +88,11 @@ const comparison = (appBuckets: AppBucketFixture = DEFAULT_APPS): UserComparison
     causes: [],
     groupDiffCount: 0,
     appDiffCount: 4,
+    attributeParity: { rows: [], hiddenRows: [], hiddenDifferences: 0, differenceCount: 0 },
+    attributeDiffCount: 0,
+    attributeConfig: DEFAULT_PROFILE_DISPLAY_CONFIG,
+    attributeRuleReads: {},
+    attributeEdit: NO_ATTRIBUTE_EDITING,
     groupSimilarity: 0,
     appSimilarity: 20,
     overallSimilarity: 10,
