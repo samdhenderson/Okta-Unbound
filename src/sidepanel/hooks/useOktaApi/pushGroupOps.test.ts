@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createPushGroupOperations } from './pushGroupOps';
 import type { CoreApi } from './core';
 import type { GroupSummary } from '../../../shared/types';
@@ -119,5 +119,38 @@ describe('applyPushGroupMappings', () => {
 
     expect(result[0]).toBe(groups[0]);
     expect(result[0].pushMappings).toBeUndefined();
+  });
+});
+
+describe('applyPushGroupMappings app-label resolution failures', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('logs the app id when label resolution fails, keeping the existing name', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint === '/api/v1/apps/0oaFAKE1') {
+        throw new Error('429 rate limited');
+      }
+      if (endpoint.startsWith('/api/v1/apps/0oaFAKE1/groups')) {
+        return { success: true, data: [], headers: {} };
+      }
+      throw new Error(`Unrouted test endpoint: ${endpoint}`);
+    });
+    const core = makeCore({ makeApiRequest });
+    const { applyPushGroupMappings } = createPushGroupOperations(core);
+
+    const result = await applyPushGroupMappings([appGroup()]);
+
+    expect(result[0].sourceAppName).toBeUndefined();
+
+    const logged = errorSpy.mock.calls
+      .flat()
+      .map((arg) => String(arg))
+      .join(' ');
+    expect(errorSpy).toHaveBeenCalled();
+    expect(logged).toContain('[pushGroupOps]');
+    expect(logged).toContain('0oaFAKE1');
   });
 });

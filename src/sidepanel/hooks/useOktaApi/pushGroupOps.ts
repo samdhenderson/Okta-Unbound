@@ -70,8 +70,8 @@ export function createPushGroupOperations(coreApi: CoreApi) {
             const label = response.data.label || response.data.name;
             if (label) appIds.set(appId, label);
           }
-        } catch {
-          // Keep existing name on failure
+        } catch (error) {
+          log.error(`Failed to resolve app label for app ${appId}:`, error);
         }
       },
       { message: (p) => `Resolving app names (${p.completed}/${p.total})` },
