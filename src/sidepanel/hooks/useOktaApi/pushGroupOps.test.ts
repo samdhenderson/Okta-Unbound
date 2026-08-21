@@ -98,6 +98,33 @@ describe('applyPushGroupMappings', () => {
     expect(core.runOperation).not.toHaveBeenCalled();
   });
 
+  it('logs the failed app id when app-label resolution throws, keeping the existing name', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint === '/api/v1/apps/0oaFAKE1') {
+        throw new Error('Request failed');
+      }
+      if (endpoint.startsWith('/api/v1/apps/0oaFAKE1/groups')) {
+        return { success: true, data: [], headers: {} };
+      }
+      throw new Error(`Unrouted test endpoint: ${endpoint}`);
+    });
+    const core = makeCore({ makeApiRequest });
+    const { applyPushGroupMappings } = createPushGroupOperations(core);
+
+    const result = await applyPushGroupMappings([appGroup()]);
+
+    expect(result[0].sourceAppName).toBeUndefined();
+
+    const logged = consoleError.mock.calls
+      .flat()
+      .map((arg) => (typeof arg === 'string' ? arg : String(arg)))
+      .join(' ');
+    expect(logged).toContain('Failed to resolve app name for app 0oaFAKE1');
+    expect(logged).not.toContain('Pushed Group');
+    consoleError.mockRestore();
+  });
+
   it('returns groups without enrichment when the run is cancelled before any app resolves', async () => {
     const cancelledOutcome = {
       results: [],
