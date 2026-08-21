@@ -120,7 +120,12 @@ export function useUsersTabState({
   }, [clearMemberships]);
 
   const { searchQuery, setSearchQuery, searchResults, setSearchResults, isSearching } =
-    useUsersTabSearch({ targetTabId, onError: setError, onSearchStart, enabled: isActive });
+    useUsersTabSearch({
+      targetTabId,
+      onError: setError,
+      onSearchStart,
+      enabled: isActive && nav.isRoot,
+    });
 
   const detailUserIdRef = useRef<string | null>(null);
   const { push: pushView } = nav;

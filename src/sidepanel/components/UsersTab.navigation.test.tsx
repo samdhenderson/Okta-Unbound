@@ -245,6 +245,20 @@ describe('UsersTab sub-navigation', () => {
     expect(screen.getByRole('button', { name: /Compare/ }).closest('div.hidden')).toBeNull();
   });
 
+  it('does not let a debounce armed before a push fire after it and clear the user the push opened', async () => {
+    const uev = userEvent.setup();
+    await renderWithAda(uev);
+
+    await uev.type(tabSearchInput(), 'ada');
+    await pushCompare(uev);
+
+    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    expect(screen.getByTestId('user-comparison-view')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to user' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Compare users');
+  });
+
   it('moves focus into the pushed view and restores it to the Compare button on pop', async () => {
     const uev = userEvent.setup();
     await renderWithAda(uev);
@@ -355,7 +369,9 @@ describe('UsersTab sub-navigation', () => {
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Back to user' })).not.toBeInTheDocument(),
     );
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace');
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace'),
+    );
     expect(screen.getByRole('button', { name: /Compare/ }).closest('div.hidden')).toBeNull();
   });
 

@@ -143,8 +143,14 @@ const groupSearchInput = () => screen.getByPlaceholderText('Type to search by gr
 
 const DETECTED_BANNER = 'Open in admin';
 
-function membershipRow(groupName: string): HTMLElement {
-  const heading = screen.getByRole('heading', { level: 4, name: groupName });
+const MEMBERSHIP_ROW_TIMEOUT_MS = 5000;
+
+async function membershipRow(groupName: string): Promise<HTMLElement> {
+  const heading = await screen.findByRole(
+    'heading',
+    { level: 4, name: groupName },
+    { timeout: MEMBERSHIP_ROW_TIMEOUT_MS },
+  );
   const row = heading.closest('[data-group-id]');
   expect(row).not.toBeNull();
   return row as HTMLElement;
@@ -373,8 +379,7 @@ describe('membership classification (in-file heuristic)', () => {
     const card = await screen.findByText('Ada Lovelace', {}, { timeout: 2000 });
     fireEvent.click(card);
 
-    expect(await screen.findByText('Salesforce')).toBeInTheDocument();
-    const salesforce = membershipRow('Salesforce');
+    const salesforce = await membershipRow('Salesforce');
     expect(within(salesforce).getByText('App')).toBeInTheDocument();
     expect(within(salesforce).queryByText(/^Direct/)).not.toBeInTheDocument();
   });
@@ -387,8 +392,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
-    expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(within(membershipRow('Engineering')).getByText('Rule')).toBeInTheDocument();
+    expect(within(await membershipRow('Engineering')).getByText('Rule')).toBeInTheDocument();
     expect(screen.getAllByText(/Eng auto-assign/).length).toBeGreaterThan(0);
   });
 
@@ -400,8 +404,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
-    expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(within(membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
+    expect(within(await membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
     expect(screen.getByText('Added directly')).toBeInTheDocument();
   });
 
@@ -415,8 +418,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
-    expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    expect(within(membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
+    expect(within(await membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
     expect(screen.queryByText('Eng auto-assign')).not.toBeInTheDocument();
   });
 
@@ -429,8 +431,7 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
-    expect(await screen.findByText('Engineering')).toBeInTheDocument();
-    const engineering = membershipRow('Engineering');
+    const engineering = await membershipRow('Engineering');
     expect(within(engineering).getByText('Unresolved')).toBeInTheDocument();
     expect(within(engineering).queryByText(/^Direct/)).not.toBeInTheDocument();
     expect(within(engineering).queryByText(/added directly/i)).not.toBeInTheDocument();
