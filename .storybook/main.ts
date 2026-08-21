@@ -61,7 +61,11 @@ const config: StorybookConfig = {
     };
 
     viteConfig.optimizeDeps = viteConfig.optimizeDeps ?? {};
-    viteConfig.optimizeDeps.include = [...(viteConfig.optimizeDeps.include ?? []), 'zod'];
+    viteConfig.optimizeDeps.include = [
+      ...(viteConfig.optimizeDeps.include ?? []),
+      'zod',
+      'react-dom',
+    ];
     return viteConfig;
   },
 };
