@@ -1,43 +1,120 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, act, fireEvent } from '@testing-library/react';
+import type { ComponentProps, ReactElement } from 'react';
+import { render, screen, act, fireEvent, type RenderResult } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Modal, { MODAL_LAYER_ID } from './Modal';
 
-function renderModal(overrides: Partial<React.ComponentProps<typeof Modal>> = {}) {
+const shellNodes: HTMLElement[] = [];
+
+afterEach(() => {
+  shellNodes.splice(0).forEach((node) => node.remove());
+});
+
+function mountShell() {
+  const scrollRoot = document.body.appendChild(document.createElement('div'));
+  const layer = document.body.appendChild(document.createElement('div'));
+  layer.id = MODAL_LAYER_ID;
+  shellNodes.push(scrollRoot, layer);
+  return { scrollRoot, layer };
+}
+
+interface MountResult {
+  container: HTMLElement;
+  layer: HTMLElement | null;
+  rerender: RenderResult['rerender'];
+}
+
+interface RenderConfiguration {
+  name: string;
+  mount: (ui: ReactElement) => MountResult;
+  expectBranch: (dialog: HTMLElement, rendered: Omit<MountResult, 'rerender'>) => void;
+}
+
+const configurations: RenderConfiguration[] = [
+  {
+    name: 'no modal layer',
+    mount: (ui) => {
+      const { container, rerender } = render(ui);
+      return { container, rerender, layer: null };
+    },
+    expectBranch: (dialog, { container }) => {
+      expect(document.getElementById(MODAL_LAYER_ID)).toBeNull();
+      expect(container.contains(dialog)).toBe(true);
+    },
+  },
+  {
+    name: 'portalled into the modal layer',
+    mount: (ui) => {
+      const { scrollRoot, layer } = mountShell();
+      const { container, rerender } = render(ui, { container: scrollRoot });
+      return { container, rerender, layer };
+    },
+    expectBranch: (dialog, { container, layer }) => {
+      expect(layer).not.toBeNull();
+      expect(layer?.contains(dialog)).toBe(true);
+      expect(container.contains(dialog)).toBe(false);
+    },
+  },
+];
+
+function renderModal(
+  mount: RenderConfiguration['mount'],
+  overrides: Partial<ComponentProps<typeof Modal>> = {},
+) {
   const onClose = vi.fn();
-  render(
+  const rendered = mount(
     <Modal isOpen title="Compare users" onClose={onClose} {...overrides}>
       <button>Inside action</button>
     </Modal>,
   );
-  return { onClose };
+  return { onClose, ...rendered };
 }
 
-describe('Modal accessibility', () => {
+describe.each(configurations)('Modal accessibility ($name)', ({ mount, expectBranch }) => {
   it('exposes dialog semantics with an accessible name', () => {
-    renderModal();
+    const { container, layer } = renderModal(mount);
     const dialog = screen.getByRole('dialog');
+    expectBranch(dialog, { container, layer });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(dialog).toHaveAccessibleName('Compare users');
   });
 
   it('closes on Escape', async () => {
     const user = userEvent.setup();
-    const { onClose } = renderModal();
+    const { onClose, container, layer } = renderModal(mount);
+    expectBranch(screen.getByRole('dialog'), { container, layer });
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('renders nothing when closed', () => {
-    renderModal({ isOpen: false });
+    renderModal(mount, { isOpen: false });
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('moves focus into the dialog on open', () => {
-    renderModal();
+    renderModal(mount);
     const dialog = screen.getByRole('dialog');
     expect(dialog.contains(document.activeElement)).toBe(true);
     expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('traps Tab focus inside the dialog', async () => {
+    const user = userEvent.setup();
+    const { container, layer } = renderModal(mount);
+    const dialog = screen.getByRole('dialog');
+    expectBranch(dialog, { container, layer });
+
+    const close = screen.getByRole('button', { name: 'Close modal' });
+    const inside = screen.getByRole('button', { name: 'Inside action' });
+
+    inside.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(close);
+
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(inside);
+    expect(dialog.contains(document.activeElement)).toBe(true);
   });
 });
 
@@ -54,15 +131,16 @@ function Harness({ isOpen }: { isOpen: boolean }) {
 
 const rawPanel = () => document.querySelector<HTMLElement>('[role="dialog"]');
 
-describe('Modal exit transition', () => {
+describe.each(configurations)('Modal exit transition ($name)', ({ mount, expectBranch }) => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
   it('holds the panel in the DOM but out of the accessible tree while it animates out', () => {
-    const { rerender } = render(<Harness isOpen />);
+    const { rerender, container, layer } = mount(<Harness isOpen />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expectBranch(screen.getByRole('dialog'), { container, layer });
 
     rerender(<Harness isOpen={false} />);
 
@@ -75,11 +153,12 @@ describe('Modal exit transition', () => {
   });
 
   it('restores focus to the trigger as soon as isOpen flips false, before the exit resolves', () => {
-    const { rerender } = render(<Harness isOpen={false} />);
+    const { rerender, container, layer } = mount(<Harness isOpen={false} />);
     const trigger = screen.getByTestId('trigger');
     trigger.focus();
 
     rerender(<Harness isOpen />);
+    expectBranch(screen.getByRole('dialog'), { container, layer });
     expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true);
 
     rerender(<Harness isOpen={false} />);
@@ -88,7 +167,7 @@ describe('Modal exit transition', () => {
   });
 
   it('unmounts the panel on animationend', () => {
-    const { rerender } = render(<Harness isOpen />);
+    const { rerender } = mount(<Harness isOpen />);
     rerender(<Harness isOpen={false} />);
 
     const panel = rawPanel();
@@ -99,7 +178,7 @@ describe('Modal exit transition', () => {
   });
 
   it('ignores an animationend bubbling up from panel content', () => {
-    const { rerender } = render(<Harness isOpen />);
+    const { rerender } = mount(<Harness isOpen />);
     const inner = screen.getByRole('button', { name: 'Inside action' });
     rerender(<Harness isOpen={false} />);
 
@@ -110,7 +189,7 @@ describe('Modal exit transition', () => {
 
   it('unmounts the panel on the timeout fallback when no exit event arrives', () => {
     vi.useFakeTimers();
-    const { rerender } = render(<Harness isOpen />);
+    const { rerender } = mount(<Harness isOpen />);
     rerender(<Harness isOpen={false} />);
     expect(rawPanel()).not.toBeNull();
 
@@ -123,7 +202,7 @@ describe('Modal exit transition', () => {
 
   it('cancels the hold when the modal reopens mid-exit', () => {
     vi.useFakeTimers();
-    const { rerender } = render(<Harness isOpen />);
+    const { rerender } = mount(<Harness isOpen />);
     rerender(<Harness isOpen={false} />);
     rerender(<Harness isOpen />);
 
@@ -142,7 +221,7 @@ describe('Modal exit transition', () => {
       removeEventListener: vi.fn(),
     }));
 
-    const { rerender } = render(<Harness isOpen />);
+    const { rerender } = mount(<Harness isOpen />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     const timersWhileOpen = vi.getTimerCount();
 
@@ -154,20 +233,6 @@ describe('Modal exit transition', () => {
 });
 
 describe('Modal stacking', () => {
-  const shellNodes: HTMLElement[] = [];
-
-  afterEach(() => {
-    shellNodes.splice(0).forEach((node) => node.remove());
-  });
-
-  function mountShell() {
-    const scrollRoot = document.body.appendChild(document.createElement('div'));
-    const layer = document.body.appendChild(document.createElement('div'));
-    layer.id = MODAL_LAYER_ID;
-    shellNodes.push(scrollRoot, layer);
-    return { scrollRoot, layer };
-  }
-
   const shellContent = (
     <>
       <Modal isOpen title="Compare users" onClose={vi.fn()}>

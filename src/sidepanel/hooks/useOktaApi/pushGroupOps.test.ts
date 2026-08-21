@@ -125,6 +125,64 @@ describe('applyPushGroupMappings', () => {
     consoleError.mockRestore();
   });
 
+  it('logs the app id and status when app-label resolution resolves with success: false', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint === '/api/v1/apps/0oaFAKE1') {
+        return { success: false, status: 429, error: 'Rate limit exceeded for example.okta.com' };
+      }
+      if (endpoint.startsWith('/api/v1/apps/0oaFAKE1/groups')) {
+        return { success: true, data: [], headers: {} };
+      }
+      throw new Error(`Unrouted test endpoint: ${endpoint}`);
+    });
+    const core = makeCore({ makeApiRequest });
+    const { applyPushGroupMappings } = createPushGroupOperations(core);
+
+    const result = await applyPushGroupMappings([appGroup()]);
+
+    expect(result[0].sourceAppName).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      '[pushGroupOps]',
+      'App name resolution request failed',
+      {
+        code: 'resolve_app_name_request_failed',
+        appId: '0oaFAKE1',
+        status: 429,
+      },
+    );
+    const serialized = JSON.stringify(consoleError.mock.calls);
+    expect(serialized).not.toContain('Rate limit exceeded');
+    expect(serialized).not.toContain('example.okta.com');
+    consoleError.mockRestore();
+  });
+
+  it('logs the app id when a 200 carries neither label nor name', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint === '/api/v1/apps/0oaFAKE1') {
+        return { success: true, data: { id: '0oaFAKE1', status: 'ACTIVE' } };
+      }
+      if (endpoint.startsWith('/api/v1/apps/0oaFAKE1/groups')) {
+        return { success: true, data: [], headers: {} };
+      }
+      throw new Error(`Unrouted test endpoint: ${endpoint}`);
+    });
+    const core = makeCore({ makeApiRequest });
+    const { applyPushGroupMappings } = createPushGroupOperations(core);
+
+    const result = await applyPushGroupMappings([appGroup()]);
+
+    expect(result[0].sourceAppName).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      '[pushGroupOps]',
+      'App name resolution returned no label',
+      { code: 'resolve_app_name_no_label', appId: '0oaFAKE1' },
+    );
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain('ACTIVE');
+    consoleError.mockRestore();
+  });
+
   it('returns groups without enrichment when the run is cancelled before any app resolves', async () => {
     const cancelledOutcome = {
       results: [],

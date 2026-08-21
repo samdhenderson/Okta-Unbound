@@ -55,7 +55,7 @@ export function createPushGroupOperations(coreApi: CoreApi) {
 
     if (appIds.size === 0) return groups;
 
-    await coreApi.runOperation(
+    const labelOutcome = await coreApi.runOperation(
       'Resolve app names',
       Array.from(appIds.keys()),
       async (appId) => {
@@ -68,7 +68,20 @@ export function createPushGroupOperations(coreApi: CoreApi) {
           );
           if (response.success && response.data) {
             const label = response.data.label || response.data.name;
-            if (label) appIds.set(appId, label);
+            if (label) {
+              appIds.set(appId, label);
+            } else {
+              log.error('App name resolution returned no label', {
+                code: 'resolve_app_name_no_label',
+                appId,
+              });
+            }
+          } else {
+            log.error('App name resolution request failed', {
+              code: 'resolve_app_name_request_failed',
+              appId,
+              status: response.status,
+            });
           }
         } catch (error) {
           log.error(`Failed to resolve app name for app ${appId}:`, error);
@@ -76,6 +89,15 @@ export function createPushGroupOperations(coreApi: CoreApi) {
       },
       { message: (p) => `Resolving app names (${p.completed}/${p.total})` },
     );
+
+    if (labelOutcome.cancelled || labelOutcome.skipped > 0) {
+      log.warn('App name resolution did not complete', {
+        code: 'resolve_app_names_incomplete',
+        cancelled: labelOutcome.cancelled,
+        skipped: labelOutcome.skipped,
+        total: labelOutcome.total,
+      });
+    }
 
     const appEntries = Array.from(appIds.entries());
     const total = appEntries.length;
