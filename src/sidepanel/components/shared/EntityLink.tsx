@@ -1,6 +1,8 @@
 import React from 'react';
 import Icon, { type IconType } from '../overview/shared/Icon';
+import IconButton from './IconButton';
 import { useEntityNavigation, type EntityType } from '../../contexts/NavigationContext';
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 
 const typeIcon: Record<EntityType, IconType> = {
   rule: 'bolt',
@@ -23,6 +25,8 @@ export interface EntityLinkProps {
   id?: string;
   name: string;
   unlinkableReason?: string;
+  copyId?: boolean;
+  copyIdLabel?: string;
   className?: string;
   testId?: string;
 }
@@ -34,29 +38,16 @@ const EntityLink: React.FC<EntityLinkProps> = ({
   id,
   name,
   unlinkableReason,
+  copyId = false,
+  copyIdLabel,
   className = '',
   testId,
 }) => {
   const { navigateTo, canNavigateTo } = useEntityNavigation();
+  const { copied, copy } = useCopyToClipboard();
   const linkable = Boolean(id) && canNavigateTo(type);
 
-  if (!linkable) {
-    return (
-      <span
-        className={`${sharedClasses} text-neutral-700 border-b border-dotted border-neutral-400 ${className}`}
-        title={
-          unlinkableReason ??
-          `${name} — no ${typeNoun[type]} id is available for this reference, so it cannot be opened.`
-        }
-        data-testid={testId}
-      >
-        <Icon type={typeIcon[type]} size="xs" className="shrink-0 text-neutral-500" />
-        <span className="truncate">{name}</span>
-      </span>
-    );
-  }
-
-  return (
+  const chip = linkable ? (
     <button
       type="button"
       onClick={() => navigateTo({ type, id: id as string })}
@@ -78,6 +69,39 @@ const EntityLink: React.FC<EntityLinkProps> = ({
       <span className="truncate">{name}</span>
       <Icon type="chevron-right" size="xs" className="shrink-0 opacity-60" />
     </button>
+  ) : (
+    <span
+      className={`${sharedClasses} text-neutral-700 border-b border-dotted border-neutral-400 ${className}`}
+      title={
+        unlinkableReason ??
+        `${name} — no ${typeNoun[type]} id is available for this reference, so it cannot be opened.`
+      }
+      data-testid={testId}
+    >
+      <Icon type={typeIcon[type]} size="xs" className="shrink-0 text-neutral-500" />
+      <span className="truncate">{name}</span>
+    </span>
+  );
+
+  if (!copyId || !id) return chip;
+
+  return (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+      {chip}
+      <IconButton
+        label={copied ? 'Copied!' : (copyIdLabel ?? `Copy ${typeNoun[type]} id for ${name}`)}
+        onClick={() => copy(id)}
+        variant="ghost"
+        size="sm"
+        className="shrink-0"
+      >
+        <Icon
+          type={copied ? 'clipboard-check' : 'clipboard'}
+          size="sm"
+          className={copied ? 'text-success-text' : ''}
+        />
+      </IconButton>
+    </span>
   );
 };
 

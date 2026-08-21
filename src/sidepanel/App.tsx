@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy } from 'react';
 import ContextBar from './components/ContextBar';
 import PageHeader from './components/shared/PageHeader';
+import { MODAL_LAYER_ID } from './components/shared/Modal';
 import TabNavigation from './components/TabNavigation';
 import TabPanel from './components/TabPanel';
 import TabJumpPalette from './components/TabJumpPalette';
@@ -362,6 +363,8 @@ const App: React.FC = () => {
           activeTab={activeTab}
           onSelect={handleTabChange}
         />
+
+        <div id={MODAL_LAYER_ID} />
       </NavigationProvider>
     </SchedulerProvider>
   );

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import Button from './Button';
-import Modal from './Modal';
+import Modal, { MODAL_LAYER_ID } from './Modal';
 
 const meta = {
   title: 'Shared/Modal',
@@ -166,5 +166,62 @@ export const ExitInteraction: Story = {
     expect(canvas.queryByRole('dialog')).toBeNull();
 
     expect(document.activeElement).toBe(trigger);
+  },
+};
+
+const OverActivityBar: React.FC<React.ComponentProps<typeof Modal>> = (args) => {
+  const [open, setOpen] = useState(false);
+  const openOnceLayerExists = useCallback(() => setOpen(true), []);
+
+  return (
+    <div className="h-screen bg-canvas">
+      <Modal {...args} isOpen={open} onClose={() => setOpen(false)} />
+      <div
+        data-testid="activity-bar-stand-in"
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white px-5 py-2.5 text-xs text-neutral-700"
+      >
+        Idle · 0 queued — stands in for the fixed ActivityBar band
+      </div>
+      <div id={MODAL_LAYER_ID} ref={openOnceLayerExists} />
+    </div>
+  );
+};
+
+export const OverTheActivityBar: Story = {
+  args: {
+    title: 'Confirm removal',
+    children: (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {Array.from({ length: 12 }, (_, i) => (
+          <p key={i}>
+            Removing this group takes its {i + 1} members with it. Scroll to the end to confirm —
+            the footer actions must stay clickable over the activity bar.
+          </p>
+        ))}
+      </div>
+    ),
+    footer: (
+      <>
+        <Button variant="ghost">Cancel</Button>
+        <Button variant="danger">Confirm</Button>
+      </>
+    ),
+  },
+  render: (args) => <OverActivityBar {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const dialog = await canvas.findByRole('dialog');
+    const activityBar = canvas.getByTestId('activity-bar-stand-in');
+
+    await expect(
+      Boolean(
+        activityBar.compareDocumentPosition(dialog) & activityBar.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+
+    const confirm = canvas.getByRole('button', { name: 'Confirm' });
+    const box = confirm.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    await expect(confirm.contains(hit)).toBe(true);
   },
 };

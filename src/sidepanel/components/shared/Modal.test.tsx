@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Modal from './Modal';
+import Modal, { MODAL_LAYER_ID } from './Modal';
 
 function renderModal(overrides: Partial<React.ComponentProps<typeof Modal>> = {}) {
   const onClose = vi.fn();
@@ -150,5 +150,64 @@ describe('Modal exit transition', () => {
 
     expect(rawPanel()).toBeNull();
     expect(vi.getTimerCount()).toBe(timersWhileOpen);
+  });
+});
+
+describe('Modal stacking', () => {
+  const shellNodes: HTMLElement[] = [];
+
+  afterEach(() => {
+    shellNodes.splice(0).forEach((node) => node.remove());
+  });
+
+  function mountShell() {
+    const scrollRoot = document.body.appendChild(document.createElement('div'));
+    const layer = document.body.appendChild(document.createElement('div'));
+    layer.id = MODAL_LAYER_ID;
+    shellNodes.push(scrollRoot, layer);
+    return { scrollRoot, layer };
+  }
+
+  const shellContent = (
+    <>
+      <Modal isOpen title="Compare users" onClose={vi.fn()}>
+        <button>Inside action</button>
+      </Modal>
+      <div data-testid="activity-bar" />
+    </>
+  );
+
+  it('renders its overlay into the modal layer, outside the scrolling shell', () => {
+    const { scrollRoot, layer } = mountShell();
+
+    render(shellContent, { container: scrollRoot });
+
+    const dialog = screen.getByRole('dialog');
+    expect(scrollRoot.contains(dialog)).toBe(false);
+    expect(layer.contains(dialog)).toBe(true);
+  });
+
+  it('places its overlay after the activity bar in document order', () => {
+    const { scrollRoot } = mountShell();
+
+    render(shellContent, { container: scrollRoot });
+
+    const dialog = screen.getByRole('dialog');
+    const activityBar = screen.getByTestId('activity-bar');
+    expect(
+      Boolean(
+        activityBar.compareDocumentPosition(dialog) & activityBar.DOCUMENT_POSITION_FOLLOWING,
+      ),
+    ).toBe(true);
+  });
+
+  it('renders in place when no shell declares a modal layer', () => {
+    const { container } = render(
+      <Modal isOpen title="Compare users" onClose={vi.fn()}>
+        <button>Inside action</button>
+      </Modal>,
+    );
+
+    expect(container.contains(screen.getByRole('dialog'))).toBe(true);
   });
 });

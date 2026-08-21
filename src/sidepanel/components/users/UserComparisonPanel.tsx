@@ -1,7 +1,16 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import UserComparisonView from './UserComparisonView';
 import { useUserComparison } from '../../hooks/useUserComparison';
+import { useScrollPreservation } from '../../hooks/useScrollPreservation';
 import type { OktaUser, GroupMembership } from '../../../shared/types';
+
+function findScrollContainer(node: HTMLElement | null): HTMLElement | null {
+  for (let el = node?.parentElement ?? null; el; el = el.parentElement) {
+    const { overflowY } = window.getComputedStyle(el);
+    if (overflowY === 'auto' || overflowY === 'scroll') return el;
+  }
+  return null;
+}
 
 export interface UserComparisonPanelProps {
   isActive: boolean;
@@ -35,8 +44,21 @@ const UserComparisonPanel: React.FC<UserComparisonPanelProps> = ({
     onContextUserUpdated,
   });
 
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    scrollRef.current = findScrollContainer(anchorRef.current);
+  }, []);
+  useScrollPreservation(scrollRef, isActive && searchEnabled);
+
   return (
-    <UserComparisonView contextUser={contextUser} comparison={comparison} oktaOrigin={oktaOrigin} />
+    <div ref={anchorRef}>
+      <UserComparisonView
+        contextUser={contextUser}
+        comparison={comparison}
+        oktaOrigin={oktaOrigin}
+      />
+    </div>
   );
 };
 

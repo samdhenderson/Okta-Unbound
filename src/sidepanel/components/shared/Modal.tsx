@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../overview/shared/Icon';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
@@ -17,6 +18,8 @@ const sizeClasses = {
   lg: 'max-w-lg',
   xl: 'max-w-xl',
 };
+
+export const MODAL_LAYER_ID = 'okta-unbound-modal-layer';
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -115,7 +118,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
 
   if (!present) return null;
 
-  return (
+  const overlay = (
     <div
       className={`fixed inset-0 bg-black/60 backdrop-blur-[1px] flex items-center justify-center z-50 isolate ${
         closing ? 'animate-overlay-out pointer-events-none' : 'animate-overlay-in'
@@ -160,6 +163,9 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, footer,
       </div>
     </div>
   );
+
+  const layer = document.getElementById(MODAL_LAYER_ID);
+  return layer ? createPortal(overlay, layer) : overlay;
 };
 
 export default Modal;
