@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { analyzeBlastRadius, groupContextOf } from './blastRadius';
+import { analyzeBlastRadius } from './blastRadius';
+import { groupContextOf } from './groupContext';
 import type { BlastRadiusReport, RuleInventoryState } from './blastRadiusTypes';
 import { classifyAccessCauses } from '../../sidepanel/components/users/comparison/accessCause';
 import type { GroupMembership, GroupType, MembershipRule, OktaGroup, OktaUser } from '../types';
@@ -267,23 +268,23 @@ function accessCauseResolves(memberships: readonly GroupMembership[], expression
   return false;
 }
 
-describe('group-context parity with accessCause', () => {
+describe('accessCause resolves against the shared group context', () => {
   const memberships = [ENG_BY_RULE, membershipOf(FINANCE), membershipOf(SALESFORCE, { rules: [] })];
 
-  it('maps memberships to the same id/name pairs accessCause does', () => {
+  it('maps memberships to id/name pairs, in order', () => {
     expect(groupContextOf(memberships)).toEqual(
       memberships.map((m) => ({ id: m.group.id, name: m.group.profile.name })),
     );
   });
 
-  it('resolves every id and every name exactly as accessCause resolves it', () => {
+  it('resolves every id and every name the shared context carries', () => {
     for (const entry of groupContextOf(memberships)) {
       expect(accessCauseResolves(memberships, `isMemberOfGroup("${entry.id}")`)).toBe(true);
       expect(accessCauseResolves(memberships, `isMemberOfGroupName("${entry.name}")`)).toBe(true);
     }
   });
 
-  it('agrees about what is NOT in the context, or the parity would be vacuous', () => {
+  it('reports what is NOT in the context, or the probe would be vacuous', () => {
     expect(accessCauseResolves(memberships, 'isMemberOfGroup("00gFAKEabsent")')).toBe(false);
     expect(accessCauseResolves(memberships, 'isMemberOfGroupName("Not A Group")')).toBe(false);
   });

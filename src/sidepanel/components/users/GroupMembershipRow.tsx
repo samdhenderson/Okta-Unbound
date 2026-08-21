@@ -5,11 +5,13 @@ import MembershipRuleEvidence from './MembershipRuleEvidence';
 import MembershipProofAction, { type MembershipProofOutcome } from './GroupMembershipsListProof';
 import { membershipVerdict } from './membershipVerdict';
 import { membershipSourceLine } from '../../../shared/membership/sourceLine';
+import type { RuleGroupContext } from '../../../shared/ruleEvaluator';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
 
 export interface GroupMembershipRowProps {
   membership: GroupMembership;
   user?: OktaUser;
+  groupContext?: RuleGroupContext;
   isCurrentGroup: boolean;
   expanded: boolean;
   onToggle: (groupId: string) => void;
@@ -24,6 +26,7 @@ export interface GroupMembershipRowProps {
 const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
   membership,
   user,
+  groupContext,
   isCurrentGroup,
   expanded,
   onToggle,
@@ -58,7 +61,12 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
               <p className="text-xs text-pretty text-neutral-600">{line.description}</p>
 
               {rules.map((rule) => (
-                <MembershipRuleEvidence key={rule.id} rule={rule} user={user} />
+                <MembershipRuleEvidence
+                  key={rule.id}
+                  rule={rule}
+                  user={user}
+                  groupContext={groupContext}
+                />
               ))}
 
               {appNames && appNames.length > 0 && (

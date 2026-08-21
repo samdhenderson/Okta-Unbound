@@ -4,6 +4,7 @@ import {
   type RuleMatchResult,
 } from '../ruleEvaluator';
 import { explainRuleExpression, type ClauseGroupReference } from '../rules/explainExpression';
+import { groupContextOf } from './groupContext';
 import {
   membershipBucket,
   membershipVerdict,
@@ -19,13 +20,6 @@ import type {
   RuleTransition,
   WithheldReason,
 } from './blastRadiusTypes';
-
-export function groupContextOf(memberships: readonly GroupMembership[]): RuleGroupContext {
-  return memberships.map((membership) => ({
-    id: membership.group.id,
-    name: membership.group.profile.name,
-  }));
-}
 
 function conditionExpressionOf(rule: MembershipRule): string {
   return rule.conditionExpression || rule.conditions?.expression?.value || '';

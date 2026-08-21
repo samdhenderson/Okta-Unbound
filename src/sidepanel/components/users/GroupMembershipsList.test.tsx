@@ -99,7 +99,7 @@ describe('GroupMembershipsList', () => {
             rules: [
               {
                 ...formattedRuleMembership.rules[0],
-                conditionExpression: 'isMemberOfGroup("00gFAKE2")',
+                conditionExpression: 'isMemberOfGroupNameRegex("^Eng.*")',
               },
             ],
           },
@@ -183,7 +183,7 @@ describe('GroupMembershipsList', () => {
                 id: '0prFAKE2',
                 name: 'On-call rotation',
                 status: 'ACTIVE',
-                conditionExpression: 'isMemberOfGroup("00gFAKE2")',
+                conditionExpression: 'isMemberOfGroupNameRegex("^On-call.*")',
               },
             ],
           },
@@ -216,6 +216,102 @@ describe('GroupMembershipsList', () => {
 
     expect(screen.getByText(/carries no condition expression/)).toBeInTheDocument();
     expect(screen.queryByText('Fail')).not.toBeInTheDocument();
+  });
+});
+
+describe('GroupMembershipsList — isMemberOf* resolves against the loaded memberships', () => {
+  const gatedByPeerGroup: GroupMembership = {
+    ...formattedRuleMembership,
+    rules: [
+      {
+        ...formattedRuleMembership.rules[0],
+        conditionExpression: 'isMemberOfAnyGroup("00gFAKE2")',
+      },
+    ],
+  };
+
+  const peerGroup: GroupMembership = {
+    group: { id: '00gFAKE2', type: 'OKTA_GROUP', profile: { name: 'Ops Handbook' } },
+    membershipType: 'DIRECT',
+    rules: [],
+    attribution: 'exact',
+  };
+
+  const renderPane = (memberships: GroupMembership[]) =>
+    render(<GroupMembershipsList {...base} user={user} memberships={memberships} />);
+
+  it('resolves a clause about a group the user is in, instead of declining to answer', async () => {
+    renderPane([gatedByPeerGroup, peerGroup]);
+    await openRow('Engineering');
+
+    const row = within(rowFor('00gFAKE1'));
+    expect(row.getByText('Pass')).toBeInTheDocument();
+    expect(row.getByText('Rule matches this user')).toBeInTheDocument();
+    expect(row.queryByText('Cannot be determined')).not.toBeInTheDocument();
+    expect(row.queryByText('Not evaluated')).not.toBeInTheDocument();
+  });
+
+  it('reports a group the user is genuinely not in as a fail, not as unknown', async () => {
+    renderPane([
+      {
+        ...formattedRuleMembership,
+        rules: [
+          {
+            ...formattedRuleMembership.rules[0],
+            conditionExpression: 'isMemberOfAnyGroup("00gFAKEabsent")',
+          },
+        ],
+      },
+      peerGroup,
+    ]);
+    await openRow('Engineering');
+
+    const row = within(rowFor('00gFAKE1'));
+    expect(row.getByText('Fail')).toBeInTheDocument();
+    expect(row.getByText('Rule does not match')).toBeInTheDocument();
+  });
+
+  it('does not narrow the context when a filter hides the group a clause asks about', async () => {
+    renderPane([gatedByPeerGroup, peerGroup]);
+
+    await userEvent.type(screen.getByLabelText('Filter group memberships'), 'engineering');
+    expect(screen.queryByRole('heading', { name: 'Ops Handbook' })).not.toBeInTheDocument();
+
+    await openRow('Engineering');
+
+    expect(within(rowFor('00gFAKE1')).getByText('Pass')).toBeInTheDocument();
+  });
+
+  it('does not narrow the context when a bucket pill hides that group', async () => {
+    renderPane([gatedByPeerGroup, peerGroup]);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Rule' }));
+    expect(screen.queryByRole('heading', { name: 'Ops Handbook' })).not.toBeInTheDocument();
+
+    await openRow('Engineering');
+
+    expect(within(rowFor('00gFAKE1')).getByText('Pass')).toBeInTheDocument();
+  });
+
+  it('still declines a clause no group list could answer', async () => {
+    renderPane([
+      {
+        ...formattedRuleMembership,
+        rules: [
+          {
+            ...formattedRuleMembership.rules[0],
+            conditionExpression: 'isMemberOfGroupNameRegex("^Ops.*")',
+          },
+        ],
+      },
+      peerGroup,
+    ]);
+    await openRow('Engineering');
+
+    const row = within(rowFor('00gFAKE1'));
+    expect(row.getByText('Not evaluated')).toBeInTheDocument();
+    expect(row.getByText('Cannot be determined')).toBeInTheDocument();
+    expect(row.queryByText('Fail')).not.toBeInTheDocument();
   });
 });
 

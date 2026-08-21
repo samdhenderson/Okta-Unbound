@@ -11,6 +11,7 @@ import {
   type MembershipBucketFilter,
 } from './membershipVerdict';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
+import { groupContextOf } from '../../../shared/membership/groupContext';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
 
 const BUCKET_ORDER: readonly MembershipBucket[] = ['rule', 'direct', 'app', 'unresolved'];
@@ -45,6 +46,11 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   const visible = useMemo(
     () => filterMemberships(memberships, query, bucket),
     [memberships, query, bucket],
+  );
+
+  const groupContext = useMemo(
+    () => (isLoading ? undefined : groupContextOf(memberships)),
+    [isLoading, memberships],
   );
 
   const toggleRow = (groupId: string) =>
@@ -130,6 +136,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
               key={membership.group.id}
               membership={membership}
               user={user}
+              groupContext={groupContext}
               isCurrentGroup={membership.group.id === currentGroupId}
               expanded={openGroupIds.has(membership.group.id)}
               onToggle={toggleRow}

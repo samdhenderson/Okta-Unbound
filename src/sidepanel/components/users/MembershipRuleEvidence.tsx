@@ -2,7 +2,7 @@ import React from 'react';
 import type jsep from 'jsep';
 import { Badge, EntityLink, Eyebrow } from '../shared';
 import ClauseChecklist from '../groups/detail/ClauseChecklist';
-import { parseRuleExpression } from '../../../shared/ruleEvaluator';
+import { parseRuleExpression, type RuleGroupContext } from '../../../shared/ruleEvaluator';
 import type { MembershipRule, OktaUser } from '../../../shared/types';
 
 const conditionExpressionOf = (rule: MembershipRule): string =>
@@ -65,9 +65,10 @@ function conditionAttributes(expression: string): string[] {
 export interface RuleEvidenceProps {
   rule: MembershipRule;
   user?: OktaUser;
+  groupContext?: RuleGroupContext;
 }
 
-const MembershipRuleEvidence: React.FC<RuleEvidenceProps> = ({ rule, user }) => {
+const MembershipRuleEvidence: React.FC<RuleEvidenceProps> = ({ rule, user, groupContext }) => {
   const expression = conditionExpressionOf(rule);
   const attributes = conditionAttributes(expression);
 
@@ -91,7 +92,7 @@ const MembershipRuleEvidence: React.FC<RuleEvidenceProps> = ({ rule, user }) => 
       <div className="mt-2">
         <Eyebrow className="mb-1 block">Condition</Eyebrow>
         {user ? (
-          <ClauseChecklist expression={expression} user={user} />
+          <ClauseChecklist expression={expression} user={user} groupContext={groupContext} />
         ) : (
           <code className="block overflow-x-auto whitespace-pre-wrap break-words rounded-md border border-neutral-200 bg-white p-2 font-mono text-xs text-neutral-900">
             {expression || 'No condition expression'}

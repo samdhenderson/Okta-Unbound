@@ -43,6 +43,10 @@ const meta = {
     },
     user: { description: 'The user the condition is explained against.' },
     maxClauses: { description: "Cap on clause rows; defaults to the explainer's 64." },
+    groupContext: {
+      description:
+        "The user's **complete** group list, which turns `isMemberOf*` from a neutral “Not evaluated” into a real verdict. Omit it rather than passing a subset — a group missing from the list is read as a confident “they are not in it”.",
+    },
   },
   args: { expression: 'user.department == "Engineering"', user },
 } satisfies Meta<typeof ClauseChecklist>;
@@ -58,6 +62,20 @@ export const Fail: Story = {
 
 export const NotEvaluated: Story = {
   args: { expression: 'isMemberOfGroup("00gFAKE1")' },
+};
+
+export const GroupClauseResolved: Story = {
+  args: {
+    expression: 'isMemberOfAnyGroup("00gFAKE1")',
+    groupContext: [{ id: '00gFAKE1', name: 'Engineering' }],
+  },
+};
+
+export const GroupClauseResolvedToFail: Story = {
+  args: {
+    expression: 'isMemberOfAnyGroup("00gFAKE9")',
+    groupContext: [{ id: '00gFAKE1', name: 'Engineering' }],
+  },
 };
 
 export const Mixed: Story = {

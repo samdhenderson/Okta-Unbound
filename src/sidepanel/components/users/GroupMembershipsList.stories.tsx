@@ -219,6 +219,32 @@ export const OpenDisclosure: Story = {
   },
 };
 
+export const GroupClauseResolvedFromMemberships: Story = {
+  args: {
+    memberships: [
+      {
+        ...ruleExact,
+        rules: [
+          rule(
+            '0prFAKErule00007',
+            'Handbook readers → Engineering',
+            'isMemberOfAnyGroup("00gFAKE00000000000004")',
+          ),
+        ],
+      },
+      direct,
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show how Engineering Staff was granted' }),
+    );
+    await expect(canvas.getByText('Rule matches this user')).toBeInTheDocument();
+    await expect(canvas.queryByText('Cannot be determined')).not.toBeInTheDocument();
+  },
+};
+
 export const Loading: Story = {
   args: { memberships: [], isLoading: true },
 };

@@ -7,7 +7,7 @@ import {
   type ClauseStatus,
   type RuleExplanationSummary,
 } from '../../../../shared/rules/explainExpression';
-import type { RuleExprValue } from '../../../../shared/ruleEvaluator';
+import type { RuleExprValue, RuleGroupContext } from '../../../../shared/ruleEvaluator';
 import { UNEVALUABLE_REASON_TEXT } from '../../../../shared/rules/unevaluableReasonText';
 import type { OktaUser } from '../../../../shared/types';
 
@@ -15,6 +15,7 @@ interface ClauseChecklistProps {
   expression: string;
   user: OktaUser;
   maxClauses?: number;
+  groupContext?: RuleGroupContext;
 }
 
 interface ClauseRowProps {
@@ -122,10 +123,15 @@ const ChecklistSummary: React.FC<{ summary: RuleExplanationSummary }> = ({ summa
   );
 };
 
-const ClauseChecklist: React.FC<ClauseChecklistProps> = ({ expression, user, maxClauses }) => {
+const ClauseChecklist: React.FC<ClauseChecklistProps> = ({
+  expression,
+  user,
+  maxClauses,
+  groupContext,
+}) => {
   const { clauses, summary } = useMemo(
-    () => explainRuleExpression(expression, user, { maxClauses }),
-    [expression, user, maxClauses],
+    () => explainRuleExpression(expression, user, { maxClauses, groups: groupContext }),
+    [expression, user, maxClauses, groupContext],
   );
 
   if (clauses.length === 0) {

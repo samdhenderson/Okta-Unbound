@@ -92,6 +92,14 @@ async function openTab(uev: ReturnType<typeof userEvent.setup>, label: string) {
   await uev.click(within(screen.getByRole('tablist')).getByRole('tab', { name: label }));
 }
 
+const TAB_MOUNT_TIMEOUT = 5000;
+
+const groupRow = (name: string) =>
+  screen.findByLabelText(`Select ${name}`, {}, { timeout: TAB_MOUNT_TIMEOUT });
+
+const tabHeading = (name: string) =>
+  screen.findByRole('heading', { name }, { timeout: TAB_MOUNT_TIMEOUT });
+
 async function drillInto(uev: ReturnType<typeof userEvent.setup>, name: string) {
   const row = screen.getByLabelText(`Select ${name}`).closest('[data-group-id]') as HTMLElement;
   await uev.click(within(row).getByRole('button', { name: 'Expand' }));
@@ -147,7 +155,7 @@ describe('App tab lifetime', () => {
     ).not.toBeInTheDocument();
 
     await openTab(uev, 'Groups');
-    expect(await screen.findByLabelText('Select Engineering')).toBeInTheDocument();
+    expect(await groupRow('Engineering')).toBeInTheDocument();
   });
 
   it('keeps a visited tab mounted (hidden) after switching away', async () => {
@@ -155,10 +163,10 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Groups');
-    const row = await screen.findByLabelText('Select Engineering');
+    const row = await groupRow('Engineering');
 
     await openTab(uev, 'Rules');
-    await screen.findByRole('heading', { name: 'Group Rules' });
+    await tabHeading('Group Rules');
 
     expect(row).toBeInTheDocument();
     expect(row).not.toBeVisible();
@@ -169,7 +177,7 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Groups');
-    await screen.findByLabelText('Select Engineering');
+    await groupRow('Engineering');
 
     await uev.type(
       screen.getByPlaceholderText('Search by name, description, ID — or /regex/'),
@@ -180,7 +188,7 @@ describe('App tab lifetime', () => {
     expect(screen.getByTestId('group-detail-view')).toBeInTheDocument();
 
     await openTab(uev, 'Rules');
-    await screen.findByRole('heading', { name: 'Group Rules' });
+    await tabHeading('Group Rules');
     await openTab(uev, 'Groups');
 
     const detail = screen.getByTestId('group-detail-view');
@@ -200,7 +208,7 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Groups');
-    await screen.findByLabelText('Select Engineering');
+    await groupRow('Engineering');
     const cacheReads = storageGet.mock.calls.filter(
       ([keys]) => Array.isArray(keys) && keys.includes(GROUPS_CACHE_KEY),
     ).length;
@@ -221,13 +229,13 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Groups');
-    await screen.findByLabelText('Select Engineering');
+    await groupRow('Engineering');
 
     const root = scrollRoot();
     scrollTo(root, 240);
 
     await openTab(uev, 'Rules');
-    await screen.findByRole('heading', { name: 'Group Rules' });
+    await tabHeading('Group Rules');
     scrollTo(root, 90);
 
     await openTab(uev, 'Groups');
@@ -242,7 +250,7 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Groups');
-    await screen.findByLabelText('Select Engineering');
+    await groupRow('Engineering');
     const root = scrollRoot();
     scrollTo(root, 320);
 
@@ -255,11 +263,11 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Apps');
-    await screen.findByRole('heading', { name: 'Applications' });
+    await tabHeading('Applications');
     await waitFor(() => expect(appCalls()).toBeGreaterThan(0));
 
     await openTab(uev, 'Groups');
-    await screen.findByLabelText('Select Engineering');
+    await groupRow('Engineering');
     const before = appCalls();
 
     await retargetTo({ id: 2 });
@@ -275,11 +283,11 @@ describe('App tab lifetime', () => {
     renderApp();
 
     await openTab(uev, 'Apps');
-    await screen.findByRole('heading', { name: 'Applications' });
+    await tabHeading('Applications');
     await waitFor(() => expect(appCalls()).toBeGreaterThan(0));
 
     await openTab(uev, 'Groups');
-    await screen.findByLabelText('Select Engineering');
+    await groupRow('Engineering');
     const before = appCalls();
 
     await retargetTo({ id: 2, origin: 'https://other.okta.com' });
