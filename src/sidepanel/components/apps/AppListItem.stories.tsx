@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import AppListItem from './AppListItem';
 import type { AppAssignmentCounts } from '../../hooks/useOktaApi/appOperations';
 import type { OktaAppListItem } from '../../../shared/schemas/okta';
@@ -55,6 +55,19 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const Expanded: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Expand' }));
+    await waitFor(() =>
+      expect(
+        canvas.getByRole('button', { name: 'Copy application id for Salesforce' }),
+      ).toBeInTheDocument(),
+    );
+    await waitFor(() => expect(canvas.getByText('128 users')).toBeInTheDocument());
+  },
+};
 
 export const Inactive: Story = {
   args: {

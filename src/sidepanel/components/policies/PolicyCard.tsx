@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useId, useState } from 'react';
-import { IconButton, ListRow } from '../shared';
+import { CopyableId, IconButton, ListRow } from '../shared';
 import Icon from '../overview/shared/Icon';
 import PolicyRulesList from './PolicyRulesList';
 import { useEntityQuery } from '../../cache/useEntityQuery';
@@ -45,9 +45,12 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
                 Rules
               </div>
               <PolicyRulesList rules={rules} isLoading={isLoading} error={error} />
-              <div className="border-t border-neutral-200 pt-2 text-xs text-neutral-600">
-                <span className="font-semibold">Policy ID:</span>{' '}
-                <span className="font-mono text-neutral-500">{policy.id}</span>
+              <div className="flex min-w-0 items-center gap-1 border-t border-neutral-200 pt-2 text-xs text-neutral-600">
+                <span className="shrink-0 font-semibold">Policy ID:</span>
+                <CopyableId
+                  value={policy.id}
+                  label={`Copy policy id for ${policy.name || policy.id}`}
+                />
               </div>
             </div>
           </div>

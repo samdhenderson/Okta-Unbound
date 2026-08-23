@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useId, useState } from 'react';
-import { IconButton, ListRow, LoadingSpinner, OpenInOktaLink } from '../shared';
+import { CopyableId, IconButton, ListRow, LoadingSpinner, OpenInOktaLink } from '../shared';
 import Icon from '../overview/shared/Icon';
 import { useEntityQuery } from '../../cache/useEntityQuery';
 import { cacheKeys } from '../../cache/keys';
@@ -84,7 +84,11 @@ const AppListItem: React.FC<AppListItemProps> = memo(
                     <div className="text-xs font-medium text-neutral-600 mb-0.5">
                       Application ID
                     </div>
-                    <code className="text-xs font-mono text-neutral-900 break-all">{app.id}</code>
+                    <CopyableId
+                      value={app.id}
+                      label={`Copy application id for ${label}`}
+                      className="w-full"
+                    />
                   </div>
 
                   {app.signOnMode && (

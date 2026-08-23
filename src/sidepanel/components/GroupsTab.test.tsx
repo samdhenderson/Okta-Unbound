@@ -470,7 +470,7 @@ describe('loadAllGroups', () => {
     route(/^\/api\/v1\/apps\/app123$/, () => ({
       success: true,
       headers: {},
-      data: { label: 'Slack' },
+      data: { id: 'app123', label: 'Slack' },
     }));
     route(/^\/api\/v1\/apps\/app123\/groups\?limit=200$/, () => ({
       success: true,

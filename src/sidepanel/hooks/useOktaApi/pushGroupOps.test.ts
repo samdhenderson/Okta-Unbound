@@ -66,7 +66,7 @@ describe('applyPushGroupMappings', () => {
     };
     const makeApiRequest = vi.fn(async (endpoint: string) => {
       if (endpoint === '/api/v1/apps/0oaFAKE1') {
-        return { success: true, data: { label: 'Fake App' } };
+        return { success: true, data: { id: '0oaFAKE1', label: 'Fake App' } };
       }
       if (endpoint.startsWith('/api/v1/apps/0oaFAKE1/groups')) {
         return { success: true, data: [assignment], headers: {} };
@@ -181,6 +181,52 @@ describe('applyPushGroupMappings', () => {
     );
     expect(JSON.stringify(consoleError.mock.calls)).not.toContain('ACTIVE');
     consoleError.mockRestore();
+  });
+
+  it('drops a non-string label at the response boundary instead of rendering it', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint === '/api/v1/apps/0oaFAKE1') {
+        return { success: true, data: { id: '0oaFAKE1', label: 12345 } };
+      }
+      if (endpoint.startsWith('/api/v1/apps/0oaFAKE1/groups')) {
+        return { success: true, data: [], headers: {} };
+      }
+      throw new Error(`Unrouted test endpoint: ${endpoint}`);
+    });
+    const core = makeCore({ makeApiRequest });
+    const { applyPushGroupMappings } = createPushGroupOperations(core);
+
+    const result = await applyPushGroupMappings([appGroup()]);
+
+    expect(result[0].sourceAppName).toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      '[pushGroupOps]',
+      'App name resolution returned no label',
+      { code: 'resolve_app_name_no_label', appId: '0oaFAKE1' },
+    );
+    consoleError.mockRestore();
+  });
+
+  it('encodes the app id in the label-lookup path', async () => {
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint.includes('/groups')) {
+        return { success: true, data: [], headers: {} };
+      }
+      return { success: true, data: { id: '0oaFAKE 1', label: 'Fake App' } };
+    });
+    const core = makeCore({ makeApiRequest });
+    const { applyPushGroupMappings } = createPushGroupOperations(core);
+
+    const result = await applyPushGroupMappings([appGroup({ sourceAppId: '0oaFAKE 1' })]);
+
+    expect(makeApiRequest).toHaveBeenCalledWith(
+      '/api/v1/apps/0oaFAKE%201',
+      'GET',
+      undefined,
+      'low',
+    );
+    expect(result[0].sourceAppName).toBe('Fake App');
   });
 
   it('returns groups without enrichment when the run is cancelled before any app resolves', async () => {

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useId, useRef, memo } from 'react';
 import type { FormattedRule } from '../../shared/types';
 import { timeAgo } from '../../shared/ruleUtils';
-import { Button, IconButton, ListRow } from './shared';
+import { Button, CopyableId, IconButton, ListRow } from './shared';
 
 const FLASH_MS = 500;
 
@@ -233,9 +233,9 @@ const RuleCard: React.FC<RuleCardProps> = memo(
                 <span className="font-semibold">Last updated:</span>{' '}
                 <span>{timeAgo(rule.lastUpdated)}</span>
               </div>
-              <div>
-                <span className="font-semibold">Rule ID:</span>{' '}
-                <span className="font-mono text-neutral-500">{rule.id}</span>
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="shrink-0 font-semibold">Rule ID:</span>
+                <CopyableId value={rule.id} label={`Copy rule id for ${rule.name || rule.id}`} />
               </div>
             </div>
 

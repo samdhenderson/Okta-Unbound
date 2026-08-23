@@ -1,7 +1,12 @@
 import type { CoreApi } from './core';
 import type { PushGroupMapping, GroupSummary } from '../../../shared/types';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
-import { oktaAppGroupAssignmentSchema, type OktaAppGroupAssignment } from '@/shared/schemas/okta';
+import {
+  oktaAppGroupAssignmentSchema,
+  oktaAppListItemSchema,
+  parseOkta,
+  type OktaAppGroupAssignment,
+} from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('pushGroupOps');
@@ -61,13 +66,14 @@ export function createPushGroupOperations(coreApi: CoreApi) {
       async (appId) => {
         try {
           const response = await coreApi.makeApiRequest(
-            `/api/v1/apps/${appId}`,
+            `/api/v1/apps/${encodeURIComponent(appId)}`,
             'GET',
             undefined,
             'low',
           );
           if (response.success && response.data) {
-            const label = response.data.label || response.data.name;
+            const app = parseOkta(oktaAppListItemSchema, response.data, 'GET /api/v1/apps/{id}');
+            const label = app.label || app.name;
             if (label) {
               appIds.set(appId, label);
             } else {

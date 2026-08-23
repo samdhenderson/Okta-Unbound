@@ -89,6 +89,9 @@ export const Expanded: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Show rules for Any two factors' }));
     await waitFor(() => expect(canvas.getByText('Trusted device, no prompt')).toBeInTheDocument());
+    await expect(
+      canvas.getByRole('button', { name: 'Copy policy id for Any two factors' }),
+    ).toBeInTheDocument();
   },
 };
 

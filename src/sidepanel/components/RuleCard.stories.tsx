@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import type { FormattedRule } from '../../shared/types';
 import RuleCard from './RuleCard';
 
@@ -74,6 +74,14 @@ export const Default: Story = {};
 
 export const Expanded: Story = {
   args: { isHighlighted: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole('button', {
+        name: `Copy rule id for ${baseRule.name}`,
+      }),
+    ).toBeInTheDocument();
+  },
 };
 
 export const AffectsCurrentGroup: Story = {
