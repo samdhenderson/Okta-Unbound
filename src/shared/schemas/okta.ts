@@ -150,6 +150,17 @@ export const oktaAppGroupAssignmentSchema = z
 
 export type OktaAppGroupAssignment = z.infer<typeof oktaAppGroupAssignmentSchema>;
 
+export const oktaFactorSchema = z
+  .object({
+    id: z.string().optional().catch(undefined),
+    factorType: z.string().optional().catch(undefined),
+    provider: z.string().optional().catch(undefined),
+    status: z.string().optional().catch(undefined),
+  })
+  .passthrough();
+
+export type OktaFactorListItem = z.infer<typeof oktaFactorSchema>;
+
 export const oktaAppUserSchema = z
   .object({
     id: z.string(),

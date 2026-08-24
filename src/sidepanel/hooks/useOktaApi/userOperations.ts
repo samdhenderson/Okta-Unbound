@@ -9,6 +9,8 @@ import {
   type OktaAppListItem,
   isProfileSourceApp,
   type AppAssignmentScope,
+  oktaFactorSchema,
+  parseOktaList,
 } from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -126,8 +128,18 @@ export function createUserOperations(coreApi: CoreApi) {
             undefined,
             'low',
           );
-          const factors: OktaFactor[] =
-            response.success && Array.isArray(response.data) ? response.data : [];
+          const rawFactors = response.success ? response.data : [];
+          const validated = parseOktaList(
+            oktaFactorSchema,
+            rawFactors,
+            `GET /api/v1/users/${userId}/factors`,
+          );
+          const factors: OktaFactor[] = validated.map((f) => ({
+            id: f.id ?? '',
+            factorType: f.factorType ?? '',
+            provider: f.provider ?? '',
+            status: f.status ?? '',
+          }));
           resultMap.set(userId, summarizeFactors(userId, factors));
         } catch (error) {
           log.error(`Failed to fetch factors for user ${userId}:`, error);

@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useOktaApi } from '../../hooks/useOktaApi';
 import type { OperationResult } from '../../hooks/useOktaApi/types';
 import { useEntityQuery } from '../../cache/useEntityQuery';
-import { peek, setEntry, invalidate } from '../../cache/entityCache';
+import { invalidate } from '../../cache/entityCache';
 import { cacheKeys } from '../../cache/keys';
 import { useProgress } from '../../contexts/ProgressContext';
+import { useMemberMfaScan } from '../../hooks/useMemberMfaScan';
 import AlertMessage, { type AlertMessageData } from '../shared/AlertMessage';
 import { Button, Modal, Skeleton } from '../shared';
 import StatCard from './shared/StatCard';
 import MemberExplorer from './members/MemberExplorer';
-import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../shared/types';
+import type { OktaUser } from '../../../shared/types';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('GroupOverview');
@@ -51,8 +52,6 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
 }) => {
   const { updateProgress } = useProgress();
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
-  const [mfaResults, setMfaResults] = useState<Map<string, MemberMfaResult> | null>(null);
-  const [scanStatus, setScanStatus] = useState<MfaScanStatus>('idle');
 
   const [operationResult, setOperationResult] = useState<AlertMessageData | null>(null);
   const handleResult = useCallback(({ message, type }: OperationResult) => {
@@ -72,7 +71,6 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   const {
     getAllGroupMembers,
     removeDeprovisioned,
-    scanGroupMfa,
     isLoading: isApiLoading,
   } = useOktaApi({
     targetTabId,
@@ -92,16 +90,13 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   );
   const members = useMemo(() => membersData ?? [], [membersData]);
 
-  useEffect(() => {
-    const cached = peek<Map<string, MemberMfaResult>>(['mfaScan', groupId]);
-    if (cached) {
-      setMfaResults(cached);
-      setScanStatus('complete');
-    } else {
-      setMfaResults(null);
-      setScanStatus('idle');
-    }
-  }, [groupId]);
+  const {
+    mfaResults,
+    scanStatus,
+    runScan: runMfaScan,
+    requestConfirm: requestMfaConfirm,
+    cancelConfirm: cancelMfaConfirm,
+  } = useMemberMfaScan({ groupId, members, targetTabId });
 
   const statusCounts = useMemo(
     () =>
@@ -120,25 +115,9 @@ const GroupOverview: React.FC<GroupOverviewProps> = ({
   const handleRemoveDeprovisioned = async () => {
     setConfirmRemoveOpen(false);
     await removeDeprovisioned(groupId);
-    invalidate(['mfaScan', groupId]);
+    invalidate(cacheKeys.mfaScan(groupId));
     await refetchMembers();
   };
-
-  const runMfaScan = useCallback(async () => {
-    setScanStatus('scanning');
-    try {
-      const result = await scanGroupMfa(members.map((m) => m.id));
-      setMfaResults(result);
-      setScanStatus('complete');
-      setEntry(['mfaScan', groupId], result);
-    } catch (err) {
-      log.error('MFA scan failed:', err);
-      setScanStatus('error');
-    }
-  }, [groupId, members, scanGroupMfa]);
-
-  const requestMfaConfirm = useCallback(() => setScanStatus('confirming'), []);
-  const cancelMfaConfirm = useCallback(() => setScanStatus('idle'), []);
 
   if (isLoading && members.length === 0) {
     return <GroupOverviewSkeleton />;

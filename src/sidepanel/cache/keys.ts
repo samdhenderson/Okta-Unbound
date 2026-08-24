@@ -26,4 +26,6 @@ export const cacheKeys = {
   userApps: (userId: string): EntityKey => ['userApps', userId],
 
   userDetails: (userId: string): EntityKey => ['userDetails', userId],
+
+  mfaScan: (groupId: string): EntityKey => ['mfaScan', groupId],
 } as const;
