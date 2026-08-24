@@ -18,6 +18,8 @@ export interface FeedingRule {
   id: string;
   name: string;
   status: string;
+  userAttributes?: string[];
+  conditionExpression?: string;
 }
 
 export interface UseGroupSourceReturn {
@@ -61,7 +63,15 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
       getGroupRulesForGroup(nextGroup.id)
         .then((rules) => {
           if (runId !== runIdRef.current) return;
-          setFeedingRules(rules.map((r) => ({ id: r.id, name: r.name, status: r.status })));
+          setFeedingRules(
+            rules.map((r) => ({
+              id: r.id,
+              name: r.name,
+              status: r.status,
+              userAttributes: r.userAttributes,
+              conditionExpression: r.conditionExpression,
+            })),
+          );
           setRulesStatus('done');
         })
         .catch((err) => {

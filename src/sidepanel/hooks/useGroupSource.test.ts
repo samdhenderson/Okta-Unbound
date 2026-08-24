@@ -81,7 +81,13 @@ describe('useGroupSource.open — stale-run guard on the rules load', () => {
 
     await waitFor(() => expect(result.current.rulesStatus).toBe('done'));
     expect(result.current.feedingRules).toEqual([
-      { id: ruleA.id, name: ruleA.name, status: 'ACTIVE' },
+      {
+        id: ruleA.id,
+        name: ruleA.name,
+        status: 'ACTIVE',
+        userAttributes: ruleA.userAttributes,
+        conditionExpression: ruleA.conditionExpression,
+      },
     ]);
     expect(result.current.error).toBeNull();
   });
@@ -116,7 +122,13 @@ describe('useGroupSource.open — stale-run guard on the rules load', () => {
     });
     await waitFor(() => expect(result.current.rulesStatus).toBe('done'));
     expect(result.current.feedingRules).toEqual([
-      { id: ruleB.id, name: ruleB.name, status: 'ACTIVE' },
+      {
+        id: ruleB.id,
+        name: ruleB.name,
+        status: 'ACTIVE',
+        userAttributes: ruleB.userAttributes,
+        conditionExpression: ruleB.conditionExpression,
+      },
     ]);
   });
 
