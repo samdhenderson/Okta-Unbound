@@ -92,8 +92,11 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
     >
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h4 className="truncate text-sm font-semibold text-neutral-900">{groupName}</h4>
+            <Badge variant={verdict.variant} title={verdict.title} className="shrink-0">
+              {verdict.label}
+            </Badge>
             {isCurrentGroup && (
               <Badge variant="primary" className="shrink-0">
                 On page
@@ -106,10 +109,6 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
             {line.detail && <span> {line.detail}</span>}
           </p>
         </div>
-
-        <Badge variant={verdict.variant} title={verdict.title} className="shrink-0">
-          {verdict.label}
-        </Badge>
 
         <IconButton
           label={`${expanded ? 'Hide' : 'Show'} how ${groupName} was granted`}

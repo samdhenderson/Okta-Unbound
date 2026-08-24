@@ -137,6 +137,13 @@ describe('filtering and search', () => {
     expect(screen.getByRole('button', { name: /All 3/ })).toBeInTheDocument();
   });
 
+  it('leads with All, then Differences, then Shared — widest selection first', () => {
+    render(<ComparisonDiffTab {...baseProps} rows={rows} />);
+
+    const pills = screen.getAllByRole('button', { name: /^(All|Differences|Shared) \d+$/ });
+    expect(pills.map((pill) => pill.textContent)).toEqual(['All 3', 'Differences 1', 'Shared 2']);
+  });
+
   it('shows the shared rows on demand', async () => {
     render(<ComparisonDiffTab {...baseProps} rows={rows} />);
 

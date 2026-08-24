@@ -82,14 +82,14 @@ const ComparisonAttributesToolbar: React.FC<ComparisonAttributesToolbarProps> = 
 }) => (
   <div className="flex flex-col gap-2">
     <div className="flex flex-wrap items-center gap-1.5">
+      <FilterPill active={filter === 'all'} onClick={() => onFilterChange('all')}>
+        All {totalCount}
+      </FilterPill>
       <FilterPill active={filter === 'differences'} onClick={() => onFilterChange('differences')}>
         Differences {differenceCount}
       </FilterPill>
       <FilterPill active={filter === 'shared'} onClick={() => onFilterChange('shared')}>
         Shared {sharedCount}
-      </FilterPill>
-      <FilterPill active={filter === 'all'} onClick={() => onFilterChange('all')}>
-        All {totalCount}
       </FilterPill>
     </div>
 

@@ -47,14 +47,14 @@ const ComparisonDiffTab: React.FC<ComparisonDiffTabProps> = ({
   return (
     <div className="flex min-h-[calc(100vh-22rem)] flex-1 flex-col gap-2">
       <div className="flex flex-wrap items-center gap-1.5">
+        <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
+          All {rows.length}
+        </FilterPill>
         <FilterPill active={filter === 'differences'} onClick={() => setFilter('differences')}>
           Differences {differenceCount}
         </FilterPill>
         <FilterPill active={filter === 'shared'} onClick={() => setFilter('shared')}>
           Shared {sharedCount}
-        </FilterPill>
-        <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
-          All {rows.length}
         </FilterPill>
       </div>
 

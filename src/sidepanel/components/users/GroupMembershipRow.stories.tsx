@@ -80,6 +80,15 @@ const unresolved: GroupMembership = {
   rules: [],
 };
 
+const longName: GroupMembership = {
+  ...ruleAmbiguous,
+  group: {
+    id: '00gFAKE00000000000008',
+    type: 'OKTA_GROUP',
+    profile: { name: 'EMEA Engineering — Platform Infrastructure On-Call Escalation' },
+  },
+};
+
 const proven: GroupMembership = {
   ...ruleAmbiguous,
   provenance: {
@@ -284,4 +293,15 @@ export const OpeningTheDisclosure: Story = {
 export const Compact: Story = {
   args: { membership: ruleAmbiguous, isCurrentGroup: true },
   parameters: { viewport: { value: 'sidepanelCompact' } },
+};
+
+export const LongGroupName: Story = {
+  args: { membership: longName, isCurrentGroup: true },
+  parameters: { viewport: { value: 'sidepanelCompact' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(longName.group.profile.name)).toBeInTheDocument();
+    await expect(canvas.getByText('Rule · 2?')).toBeInTheDocument();
+    await expect(canvas.getByText('On page')).toBeInTheDocument();
+  },
 };
