@@ -1,7 +1,15 @@
 import type { IconType } from './components/overview/shared/Icon';
 
 export type TabType =
-  'overview' | 'rules' | 'users' | 'groups' | 'apps' | 'policies' | 'export' | 'history';
+  | 'overview'
+  | 'rules'
+  | 'users'
+  | 'groups'
+  | 'apps'
+  | 'policies'
+  | 'export'
+  | 'explorer'
+  | 'history';
 
 export interface TabDef {
   id: TabType;
@@ -17,6 +25,7 @@ export const TAB_DEFS: ReadonlyArray<TabDef> = [
   { id: 'rules', label: 'Rules', icon: 'bolt' },
   { id: 'policies', label: 'Policies', icon: 'shield' },
   { id: 'export', label: 'Export', icon: 'download' },
+  { id: 'explorer', label: 'Explorer', icon: 'terminal' },
   { id: 'history', label: 'History', icon: 'clipboard' },
 ];
 

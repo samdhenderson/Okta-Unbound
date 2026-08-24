@@ -50,8 +50,9 @@ describe('TabJumpPalette', () => {
       await userEvent.type(field(), 'OR');
 
       expect(row('Export')).toBeInTheDocument();
+      expect(row('Explorer')).toBeInTheDocument();
       expect(row('History')).toBeInTheDocument();
-      expect(rows()).toHaveLength(2);
+      expect(rows()).toHaveLength(3);
       expect(screen.queryByRole('button', { name: /^Overview/ })).toBeNull();
     });
 
@@ -198,7 +199,7 @@ describe('TabJumpPalette', () => {
     it('announces the number of matching sections', async () => {
       renderPalette();
 
-      expect(screen.getByRole('status')).toHaveTextContent('8 sections available');
+      expect(screen.getByRole('status')).toHaveTextContent('9 sections available');
 
       await userEvent.type(field(), 'export');
 

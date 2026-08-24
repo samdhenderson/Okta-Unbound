@@ -17,6 +17,7 @@ const GroupsTab = lazy(() => import('./components/GroupsTab'));
 const AppsTab = lazy(() => import('./components/AppsTab'));
 const AuthPoliciesTab = lazy(() => import('./components/AuthPoliciesTab'));
 const ExportTab = lazy(() => import('./components/export').then((m) => ({ default: m.ExportTab })));
+const ApiExplorerTab = lazy(() => import('./components/ApiExplorerTab'));
 const AuditLogViewer = lazy(() => import('./components/AuditLogViewer'));
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
@@ -340,6 +341,12 @@ const App: React.FC = () => {
               oktaOrigin={tabContext.oktaOrigin ?? undefined}
               exportRequest={exportRequest}
               onExportRequestConsumed={() => setExportRequest(null)}
+            />
+          ))}
+          {renderTabPanel('explorer', () => (
+            <ApiExplorerTab
+              targetTabId={tabContext.targetTabId ?? null}
+              oktaOrigin={tabContext.oktaOrigin ?? undefined}
             />
           ))}
           {renderTabPanel('history', (isActive) => (
