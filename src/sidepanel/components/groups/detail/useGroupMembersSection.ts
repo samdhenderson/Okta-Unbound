@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { GroupSummary, OktaUser } from '../../../../shared/types';
 import { useOktaApi } from '../../../hooks/useOktaApi';
-import { useDebouncedUserSearch } from '../../../hooks/useDebouncedUserSearch';
+import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
 import { peek, setEntry } from '../../../cache/entityCache';
 import { cacheKeys } from '../../../cache/keys';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
@@ -38,7 +38,7 @@ export function useGroupMembersSection(
   onRosterChanged?: (members: OktaUser[]) => void,
 ): UseGroupMembersSectionReturn {
   const api = useOktaApi({ targetTabId });
-  const { addUserToGroup, removeUserFromGroup } = api;
+  const { removeUserFromGroup } = api;
 
   const [cacheTick, setCacheTick] = useState(0);
 
@@ -97,55 +97,45 @@ export function useGroupMembersSection(
       });
   }, [removeTarget, members, removeUserFromGroup, group.id, group.name, writeBack]);
 
-  const [addStatus, setAddStatus] = useState<MemberWriteStatus>('idle');
   const [addError, setAddError] = useState<string | null>(null);
-  const [addSearchError, setAddSearchError] = useState<string | null>(null);
+
+  const handleMemberAdded = useCallback(
+    (user: OktaUser) => {
+      if (!members) return;
+      writeBack([...members, user]);
+    },
+    [members, writeBack],
+  );
+
+  const handleAddResult = useCallback((result: { text: string; type: 'danger' }) => {
+    setAddError(result.text);
+  }, []);
 
   const {
-    searchQuery: addQuery,
-    setSearchQuery: setAddQuery,
-    searchResults,
-    setSearchResults,
-    isSearching: isSearchingToAdd,
-  } = useDebouncedUserSearch({
-    targetTabId: targetTabId ?? undefined,
-    onError: setAddSearchError,
-    debounceMs: 400,
-    minQueryLength: 2,
-    log,
+    addQuery,
+    setAddQuery,
+    addResults,
+    isSearchingToAdd,
+    addSearchError,
+    isAddingMember,
+    addMemberDirect,
+  } = useAddGroupMember({
+    targetTabId,
+    group,
+    members,
+    onResult: handleAddResult,
+    onAdded: handleMemberAdded,
   });
 
-  const memberIds = useMemo(() => new Set((members ?? []).map((m) => m.id)), [members]);
-  const addResults = useMemo(
-    () => searchResults.filter((u) => !memberIds.has(u.id)),
-    [searchResults, memberIds],
-  );
+  const addStatus: MemberWriteStatus = isAddingMember ? 'loading' : addError ? 'error' : 'idle';
 
   const selectToAdd = useCallback(
     (user: OktaUser) => {
       if (!members) return;
-      setAddStatus('loading');
       setAddError(null);
-
-      addUserToGroup(group.id, group.name, user)
-        .then((result) => {
-          if (!result.success) {
-            setAddStatus('error');
-            setAddError(result.error || 'Failed to add member.');
-            return;
-          }
-          writeBack([...members, user]);
-          setAddQuery('');
-          setSearchResults([]);
-          setAddStatus('idle');
-        })
-        .catch((err: unknown) => {
-          log.error('Failed to add member:', err);
-          setAddStatus('error');
-          setAddError(err instanceof Error ? err.message : 'Failed to add member.');
-        });
+      void addMemberDirect(user);
     },
-    [members, addUserToGroup, group.id, group.name, writeBack, setAddQuery, setSearchResults],
+    [members, addMemberDirect],
   );
 
   return {
