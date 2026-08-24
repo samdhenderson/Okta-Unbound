@@ -7,6 +7,8 @@ import { createLogger } from '../shared/utils/logger';
 import { isOktaUrl } from '../shared/utils/oktaUrl';
 import { createThrottledRelay } from './throttledRelay';
 import { reinjectContentScripts } from './reinjectContentScripts';
+import { syncSnapshot } from './snapshotBridge';
+import { startSnapshotScheduler } from './snapshotScheduler';
 
 const log = createLogger('Background');
 
@@ -68,6 +70,16 @@ function isValidScheduleRequest(request: {
   return true;
 }
 
+function isValidSyncSnapshotRequest(request: {
+  origin?: unknown;
+  tabId?: unknown;
+  force?: unknown;
+}): boolean {
+  if (typeof request.origin !== 'string' || !isOktaUrl(request.origin)) return false;
+  if (request.force !== undefined && typeof request.force !== 'boolean') return false;
+  return typeof request.tabId === 'number' && Number.isInteger(request.tabId);
+}
+
 function rejectIfFromTab(
   sender: chrome.runtime.MessageSender,
   action: string,
@@ -120,6 +132,42 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             success: false,
             error: error.message || 'Request failed',
           });
+        });
+
+      return true; // Keep message channel open for async response
+
+    case 'syncSnapshot':
+      if (rejectIfFromTab(sender, 'syncSnapshot', sendResponse)) {
+        return true;
+      }
+
+      if (!isValidSyncSnapshotRequest(request)) {
+        sendResponse({ success: false, error: 'Invalid syncSnapshot message' });
+        return true;
+      }
+
+      syncSnapshot(
+        globalScheduler,
+        request.origin,
+        request.tabId,
+        Date.now(),
+        request.force === true,
+      )
+        .then((outcomes) => {
+          const failed = outcomes.find((outcome) => !outcome.complete);
+          sendResponse({
+            success: !failed,
+            error: failed?.error,
+            outcomes: outcomes.map((outcome) => ({
+              collection: outcome.collection,
+              mode: outcome.mode,
+              complete: outcome.complete,
+              written: outcome.written,
+            })),
+          });
+        })
+        .catch((error) => {
+          sendResponse({ success: false, error: error?.message || 'Snapshot sync failed' });
         });
 
       return true; // Keep message channel open for async response
@@ -331,3 +379,5 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 setupAuditRetentionAlarm();
 setupTabStateCleanupAlarm();
+
+startSnapshotScheduler(globalScheduler);

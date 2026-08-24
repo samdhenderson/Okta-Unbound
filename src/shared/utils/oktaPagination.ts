@@ -30,26 +30,29 @@ export function nextPageUrl(
   return next;
 }
 
-function rawQueryParam(url: string, name: string): string | null {
+function rawQueryParamAll(url: string, name: string): string[] {
   const queryStart = url.indexOf('?');
-  if (queryStart === -1) return null;
+  if (queryStart === -1) return [];
 
+  const values: string[] = [];
   for (const pair of url.slice(queryStart + 1).split('&')) {
     if (!pair) continue;
     const eq = pair.indexOf('=');
     const key = eq === -1 ? pair : pair.slice(0, eq);
-    if (key === name) return eq === -1 ? '' : pair.slice(eq + 1);
+    if (key === name) values.push(eq === -1 ? '' : pair.slice(eq + 1));
   }
-  return null;
+  return values;
 }
 
 function preserveQueryParams(nextUrl: string, firstUrl: string, names: string[]): string {
   let result = nextUrl;
   for (const name of names) {
-    if (rawQueryParam(result, name) !== null) continue;
-    const value = rawQueryParam(firstUrl, name);
-    if (value === null) continue;
-    result += `${result.includes('?') ? '&' : '?'}${name}=${value}`;
+    const present = rawQueryParamAll(result, name);
+    for (const value of rawQueryParamAll(firstUrl, name)) {
+      if (present.includes(value)) continue;
+      result += `${result.includes('?') ? '&' : '?'}${name}=${value}`;
+      present.push(value);
+    }
   }
   return result;
 }
@@ -66,6 +69,8 @@ export interface FetchAllPagesOptions<T> {
   onBeforePage?: (pageNumber: number) => void;
   schema?: z.ZodType<T, z.ZodTypeDef, unknown>;
   preserveParams?: string[];
+  onCursor?: (nextUrl: string | null, pageNumber: number) => void;
+  paramSource?: string;
   maxPages?: number;
   context?: string;
   errorMessage?: string;
@@ -76,7 +81,9 @@ export async function fetchAllPages<T = unknown>(
   firstUrl: string,
   options: FetchAllPagesOptions<T> = {},
 ): Promise<T[]> {
-  const { onPage, onBeforePage, schema, maxPages, errorMessage, preserveParams } = options;
+  const { onPage, onBeforePage, onCursor, schema, maxPages, errorMessage, preserveParams } =
+    options;
+  const paramSource = options.paramSource ?? firstUrl;
   const context = options.context ?? firstUrl.split('?')[0];
   const all: T[] = [];
   let url: string | null = firstUrl;
@@ -98,14 +105,18 @@ export async function fetchAllPages<T = unknown>(
     all.push(...items);
     onPage?.(items, all.length);
 
-    if (maxPages !== undefined && pageCount >= maxPages) break;
+    if (maxPages !== undefined && pageCount >= maxPages) {
+      onCursor?.(null, pageCount);
+      break;
+    }
 
     const rawNext = nextPageUrl(url, response.headers?.link, rawPageSize);
     const next =
       rawNext !== null && preserveParams?.length
-        ? preserveQueryParams(rawNext, firstUrl, preserveParams)
+        ? preserveQueryParams(rawNext, paramSource, preserveParams)
         : rawNext;
     url = next === url ? null : next;
+    onCursor?.(url, pageCount);
   }
 
   return all;

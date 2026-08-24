@@ -11,6 +11,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
 import GroupsTab from './GroupsTab';
 import { ProgressProvider } from '../contexts/ProgressContext';
+import { syncSnapshot } from '../../background/snapshotBridge';
 
 const render = (ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, {
@@ -73,21 +74,65 @@ vi.mock('../../shared/undoManager', () => ({
   logBulkAddAction: vi.fn(),
 }));
 
+const { fakeDB, idbTables } = vi.hoisted(() => {
+  const idbTables = new Map<string, Map<string, any>>();
+  const keyOf = (key: unknown) => (Array.isArray(key) ? key.join('::') : String(key));
+  const table = (name: string) => {
+    if (!idbTables.has(name)) idbTables.set(name, new Map());
+    return idbTables.get(name)!;
+  };
+  const pk = (name: string, value: any) =>
+    name === 'syncMeta' ? [value.origin, value.collection] : [value.origin, value.id];
+
+  const fakeDB = {
+    get: async (name: string, key: unknown) => table(name).get(keyOf(key)),
+    put: async (name: string, value: any) => {
+      table(name).set(keyOf(pk(name, value)), value);
+    },
+    delete: async (name: string, key: unknown) => {
+      table(name).delete(keyOf(key));
+    },
+    getAllFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => v.origin === origin),
+    getAllKeysFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => v.origin === origin).map((v) => pk(name, v)),
+    transaction: (name: string) => ({
+      store: {
+        put: async (value: any) => {
+          table(name).set(keyOf(pk(name, value)), value);
+        },
+        delete: async (key: unknown) => {
+          table(name).delete(keyOf(key));
+        },
+      },
+      done: Promise.resolve(),
+    }),
+  };
+  return { fakeDB, idbTables };
+});
+
+vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));
+
 const runtimeSendMessage = vi.fn();
 const tabsSendMessage = vi.fn();
 const storageGet = vi.fn();
 const storageSet = vi.fn();
+const tabsGet = vi.fn();
 
-const GROUPS_CACHE_KEY = 'okta_unbound_groups_cache';
-const CACHE_DURATION = 24 * 60 * 60 * 1000;
+const ORIGIN = 'https://x.okta.com';
+
+const runtimeListeners = new Set<(msg: any) => void>();
 
 globalThis.chrome = {
   runtime: {
     sendMessage: runtimeSendMessage,
     getURL: (p: string) => p,
-    onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
+    onMessage: {
+      addListener: (fn: any) => runtimeListeners.add(fn),
+      removeListener: (fn: any) => runtimeListeners.delete(fn),
+    },
   },
-  tabs: { sendMessage: tabsSendMessage },
+  tabs: { sendMessage: tabsSendMessage, get: tabsGet },
   storage: { local: { get: storageGet, set: storageSet, remove: vi.fn() } },
 } as any;
 
@@ -107,6 +152,15 @@ function searchCalls() {
 }
 function routeSearch(respond: (msg: any) => any) {
   route(SEARCH_RE, respond);
+}
+
+function routeSiblingCollections(rules: any[] = [], apps: any[] = []) {
+  route(/^\/api\/v1\/groups\/rules\?limit=200$/, () => ({
+    success: true,
+    headers: {},
+    data: rules,
+  }));
+  route(/^\/api\/v1\/apps\?limit=200$/, () => ({ success: true, headers: {}, data: apps }));
 }
 
 function rawGroup(over: Record<string, any> = {}) {
@@ -146,15 +200,98 @@ function user(id: string, over: Record<string, any> = {}) {
   };
 }
 
-function seedCache(groups: Record<string, any>[], ageMs = 0) {
-  storageGet.mockImplementation((_keys: string[], cb: (r: any) => void) =>
-    cb({ [GROUPS_CACHE_KEY]: JSON.stringify({ groups, timestamp: Date.now() - ageMs }) }),
+function summaryToRaw(summary: Record<string, any>): Record<string, any> {
+  const raw: Record<string, any> = {
+    id: summary.id,
+    type: summary.type ?? 'OKTA_GROUP',
+    profile: { name: summary.name, description: summary.description ?? null },
+    lastUpdated: summary.lastUpdated,
+    created: summary.created,
+    _embedded: { stats: { usersCount: summary.memberCount ?? 0 } },
+  };
+  if (summary.sourceAppId) {
+    raw.source = { id: summary.sourceAppId, name: summary.sourceAppName };
+  }
+  return raw;
+}
+
+function seedSnapshot(
+  collection: string,
+  rows: Record<string, any>[],
+  origin = ORIGIN,
+  complete = true,
+) {
+  const table = new Map<string, any>();
+  for (const entity of rows) {
+    table.set(`${origin}::${entity.id}`, { origin, id: entity.id, entity, syncedAt: 1 });
+  }
+  idbTables.set(collection, table);
+  idbTables.set(
+    'syncMeta',
+    new Map([
+      [
+        `${origin}::${collection}`,
+        {
+          origin,
+          collection,
+          complete,
+          lastFullWalkAt: complete ? 1 : null,
+          lastDeltaAt: null,
+          watermark: null,
+          itemCount: rows.length,
+          cursor: null,
+          walkStartedAt: null,
+          deltaSupported: null,
+        },
+      ],
+    ]),
   );
 }
 
-function renderCached(groups: Record<string, any>[], props: Record<string, any> = {}) {
-  seedCache(groups);
-  return render(<GroupsTab targetTabId={1} {...props} />);
+async function renderCached(groups: Record<string, any>[], props: Record<string, any> = {}) {
+  seedSnapshot('groups', groups.map(summaryToRaw));
+  seedPushEnrichment(groups);
+  const result = render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} {...props} />);
+  await act(async () => {});
+  return result;
+}
+
+function seedPushEnrichment(groups: Record<string, any>[]) {
+  const assignments = new Map<string, any>();
+  const apps = new Map<string, any>();
+
+  const rememberApp = (appId: string, appName?: string) => {
+    if (!appId || !appName) return;
+    apps.set(`${ORIGIN}::${appId}`, {
+      origin: ORIGIN,
+      id: appId,
+      entity: { id: appId, label: appName, features: ['GROUP_PUSH'] },
+      syncedAt: 1,
+    });
+  };
+
+  for (const group of groups) {
+    rememberApp(group.sourceAppId, group.sourceAppName);
+    for (const mapping of group.pushMappings ?? []) {
+      const appId = mapping.appId ?? 'appFixture';
+      const id = `${appId}::${group.id}`;
+      assignments.set(`${ORIGIN}::${id}`, {
+        origin: ORIGIN,
+        id,
+        entity: {
+          id: group.id,
+          priority: mapping.priority,
+          profile: { name: mapping.targetGroupName ?? group.name },
+          _links: { group: { href: `${ORIGIN}/api/v1/groups/${group.id}` } },
+        },
+        syncedAt: 1,
+      });
+      rememberApp(appId, mapping.appName);
+    }
+  }
+
+  if (assignments.size > 0) idbTables.set('appGroups', assignments);
+  if (apps.size > 0) idbTables.set('apps', apps);
 }
 
 function renderedGroupNames() {
@@ -203,12 +340,41 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+const fakeScheduler = {
+  scheduleRequest: async (endpoint: string) => {
+    walkCalls.push(endpoint);
+    for (const [pattern, respond] of routes) {
+      if (pattern.test(endpoint)) return respond({ endpoint });
+    }
+    return { success: false, error: `unrouted endpoint: ${endpoint}` };
+  },
+} as any;
+
+let walkCalls: string[] = [];
+
 beforeEach(() => {
   vi.clearAllMocks();
   routes = [];
+  walkCalls = [];
   captured.props = {};
+  idbTables.clear();
+  runtimeListeners.clear();
   storageGet.mockImplementation((_keys: string[], cb: (r: any) => void) => cb({}));
+  tabsGet.mockImplementation(async (id: number) => ({ id, url: `${ORIGIN}/admin/groups` }));
   runtimeSendMessage.mockImplementation(async (msg: any) => {
+    if (msg?.action === 'snapshotUpdated') {
+      for (const listener of runtimeListeners) listener(msg);
+      return undefined;
+    }
+    if (msg?.action === 'syncSnapshot') {
+      try {
+        const outcomes = await syncSnapshot(fakeScheduler, msg.origin, msg.tabId);
+        const failed = outcomes.find((o) => !o.complete);
+        return { success: !failed, error: failed?.error, outcomes };
+      } catch (error: any) {
+        return { success: false, error: error?.message };
+      }
+    }
     for (const [pattern, respond] of routes) {
       if (pattern.test(msg.endpoint)) return respond(msg);
     }
@@ -453,7 +619,8 @@ describe('live search: error paths', () => {
 describe('loadAllGroups', () => {
   it('maps, enriches with push mappings, caches, and flips to cached mode', async () => {
     const uev = userEvent.setup();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections([], [{ id: 'app123', label: 'Slack', features: ['GROUP_PUSH'] }]);
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: {},
       data: [
@@ -466,11 +633,6 @@ describe('loadAllGroups', () => {
           _embedded: { stats: { usersCount: 3 } },
         }),
       ],
-    }));
-    route(/^\/api\/v1\/apps\/app123$/, () => ({
-      success: true,
-      headers: {},
-      data: { id: 'app123', label: 'Slack' },
     }));
     route(/^\/api\/v1\/apps\/app123\/groups\?limit=200$/, () => ({
       success: true,
@@ -485,7 +647,7 @@ describe('loadAllGroups', () => {
       ],
     }));
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
 
     await waitFor(() => expect(renderedGroupNames()).toEqual(['Engineering', 'Slack Users']));
@@ -501,17 +663,19 @@ describe('loadAllGroups', () => {
 
     expect(screen.getByText('Slack')).toBeInTheDocument();
 
-    expect(storageSet).toHaveBeenCalledTimes(1);
-    const written = JSON.parse(storageSet.mock.calls[0][0][GROUPS_CACHE_KEY]);
-    expect(written.groups[0].lastUpdated).toBe('2024-01-01T00:00:00.000Z');
-    expect(written.groups[0].created).toBe('2020-01-01T00:00:00.000Z');
-    expect(typeof written.timestamp).toBe('number');
-    expect(written.groups[0].memberCount).toBe(10);
+    const storedGroups = idbTables.get('groups')!;
+    expect(storedGroups.size).toBe(2);
+    const g1 = storedGroups.get(`${ORIGIN}::g1`).entity;
+    expect(g1.lastUpdated).toBe('2024-01-01T00:00:00.000Z');
+    expect(g1.created).toBe('2020-01-01T00:00:00.000Z');
+    expect(g1._embedded.stats.usersCount).toBe(10);
+    expect(idbTables.get('syncMeta')!.get(`${ORIGIN}::groups`).complete).toBe(true);
   });
 
   it('reads sourceAppId from group.source in preference to the _links.apps href', async () => {
     const uev = userEvent.setup();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: {},
       data: [
@@ -524,58 +688,60 @@ describe('loadAllGroups', () => {
         }),
       ],
     }));
-    route(/^\/api\/v1\/apps\/fromSource$/, () => ({ success: true, headers: {}, data: {} }));
     route(/^\/api\/v1\/apps\/fromSource\/groups\?limit=200$/, () => ({
       success: true,
       headers: {},
       data: [],
     }));
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
     await waitFor(() => expect(renderedGroupNames()).toEqual(['Slack Users']));
 
-    const endpoints = schedulerCalls().map((m) => m.endpoint);
-    expect(endpoints).toContain('/api/v1/apps/fromSource');
-    expect(endpoints).not.toContain('/api/v1/apps/fromLinks');
+    expect(walkCalls).toContain('/api/v1/apps/fromSource/groups?limit=200');
+    expect(walkCalls.some((e) => e.includes('fromLinks'))).toBe(false);
+    expect(walkCalls).not.toContain('/api/v1/apps/fromSource');
     expect(screen.getByText('Slack Prod')).toBeInTheDocument();
   });
 
-  it('pages via the link header and discards partial pages when a later page fails', async () => {
+  it('keeps the pages it got when a later page fails, and captions the list as partial', async () => {
     const uev = userEvent.setup();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: { link: '<https://x.okta.com/api/v1/groups?after=g1&limit=200>; rel="next"' },
       data: [rawGroup({ id: 'g1', profile: { name: 'Page One' } })],
     }));
     route(/after=g1/, () => ({ success: false, error: 'page two exploded' }));
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
 
-    await waitFor(() => expect(screen.getByText('page two exploded')).toBeInTheDocument());
-    expect(renderedGroupNames()).toEqual([]);
-    expect(storageSet).not.toHaveBeenCalled();
+    await waitFor(() => expect(renderedGroupNames()).toEqual(['Page One']));
+    expect(idbTables.get('syncMeta')!.get(`${ORIGIN}::groups`).complete).toBe(false);
+    expect(screen.getByText(/did not finish/)).toBeInTheDocument();
   });
 
   it('on getAllGroups failure: banners the message, stops loading, writes no cache', async () => {
     const uev = userEvent.setup();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: false,
       error: 'Failed to fetch groups',
     }));
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
 
     await waitFor(() => expect(screen.getByText('Failed to fetch groups')).toBeInTheDocument());
-    expect(storageSet).not.toHaveBeenCalled();
+    expect(idbTables.get('groups')?.size ?? 0).toBe(0);
     expect(screen.getByRole('button', { name: 'Load All Groups' })).toBeEnabled();
   });
 
-  it('on applyPushGroupMappings failure: no banner, groups still render, cache still written', async () => {
+  it('on a failed push-mapping walk: no banner, groups still render, snapshot still written', async () => {
     const uev = userEvent.setup();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: {},
       data: [
@@ -587,22 +753,18 @@ describe('loadAllGroups', () => {
         }),
       ],
     }));
-    route(/^\/api\/v1\/apps\/app123$/, () => {
+    route(/^\/api\/v1\/apps\/app123\/groups\?limit=200$/, () => {
       throw new Error('push mapping exploded');
     });
-    route(/^\/api\/v1\/apps\/app123\/groups\?limit=200$/, () => ({
-      success: true,
-      headers: {},
-      data: [],
-    }));
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
 
     await waitFor(() => expect(renderedGroupNames()).toEqual(['Slack Users']));
     expect(screen.queryByText('push mapping exploded')).not.toBeInTheDocument();
     expect(screen.getAllByText('APP')).toHaveLength(1);
-    expect(storageSet).toHaveBeenCalledTimes(1);
+    expect(idbTables.get('groups')!.size).toBe(1);
+    expect(idbTables.get('syncMeta')!.get(`${ORIGIN}::appGroups`).complete).toBe(false);
   });
 
   it('clears live search state when a load succeeds', async () => {
@@ -611,13 +773,14 @@ describe('loadAllGroups', () => {
       success: true,
       data: [rawGroup({ id: 'gLive', profile: { name: 'Live Result' } })],
     }));
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: {},
       data: [rawGroup({ id: 'g1', profile: { name: 'Engineering' } })],
     }));
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     typeInto(liveInput(), 'live');
     await advance(300);
     expect(renderedGroupNames()).toEqual(['Live Result']);
@@ -634,17 +797,17 @@ describe('loadAllGroups', () => {
   });
 });
 
-describe('mount cache rehydrate', () => {
-  it('a fresh entry rehydrates groups and flips to cached mode', () => {
-    renderCached([cachedGroup({ id: 'g1', name: 'Engineering' })]);
+describe('mount snapshot rehydrate', () => {
+  it('a seeded snapshot rehydrates groups and flips to cached mode', async () => {
+    await renderCached([cachedGroup({ id: 'g1', name: 'Engineering' })]);
 
     expect(renderedGroupNames()).toEqual(['Engineering']);
     expect(screen.getByText('1 Cached')).toBeInTheDocument();
   });
 
-  it('revives lastUpdated/created into real Dates', async () => {
+  it('maps lastUpdated/created into real Dates', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'Older', lastUpdated: '2021-01-01T00:00:00.000Z' }),
       cachedGroup({ id: 'b', name: 'Newer', lastUpdated: '2024-01-01T00:00:00.000Z' }),
     ]);
@@ -655,57 +818,11 @@ describe('mount cache rehydrate', () => {
     expect(renderedGroupNames()).toEqual(['Newer', 'Older']);
   });
 
-  it('an expired entry (age >= 24h) is ignored and the mode stays live', () => {
-    seedCache([cachedGroup({ name: 'Engineering' })], CACHE_DURATION + 1000);
-    render(<GroupsTab targetTabId={1} />);
-
-    expect(renderedGroupNames()).toEqual([]);
-    expect(screen.getByText('Live')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search groups by name...')).toBeInTheDocument();
-    expect(storageSet).not.toHaveBeenCalled();
-  });
-
-  it('malformed cache JSON does not throw and leaves the mode live', () => {
-    storageGet.mockImplementation((_k: string[], cb: (r: any) => void) =>
-      cb({ [GROUPS_CACHE_KEY]: '{not json' }),
-    );
-    expect(() => render(<GroupsTab targetTabId={1} />)).not.toThrow();
-
+  it('an empty snapshot leaves the mode live', async () => {
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
+    await act(async () => {});
     expect(screen.getByText('Live')).toBeInTheDocument();
     expect(renderedGroupNames()).toEqual([]);
-  });
-
-  it('an absent cache entry leaves the mode live', () => {
-    render(<GroupsTab targetTabId={1} />);
-    expect(screen.getByText('Live')).toBeInTheDocument();
-  });
-
-  it('a late storage callback overwrites freshly loaded groups (stale wins)', async () => {
-    const uev = userEvent.setup();
-    let storageCb: ((r: any) => void) | null = null;
-    storageGet.mockImplementation((_k: string[], cb?: (r: any) => void) => {
-      if (typeof cb === 'function') storageCb = cb;
-    });
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
-      success: true,
-      headers: {},
-      data: [rawGroup({ id: 'fresh', profile: { name: 'FRESH' } })],
-    }));
-
-    render(<GroupsTab targetTabId={1} />);
-    await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
-    await waitFor(() => expect(renderedGroupNames()).toEqual(['FRESH']));
-
-    act(() => {
-      storageCb!({
-        [GROUPS_CACHE_KEY]: JSON.stringify({
-          groups: [cachedGroup({ id: 'stale', name: 'STALE' })],
-          timestamp: Date.now(),
-        }),
-      });
-    });
-
-    expect(renderedGroupNames()).toEqual(['STALE']);
   });
 });
 
@@ -726,7 +843,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('text search matches name, description, or id (case-insensitively)', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'idmatch', name: 'Alpha', description: 'nope' }),
       cachedGroup({ id: 'b', name: 'ZebraTeam', description: 'nope' }),
       cachedGroup({ id: 'c', name: 'Gamma', description: 'A ZEBRA lives here' }),
@@ -743,7 +860,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('type filter narrows to the chosen group type', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'OktaOne', type: 'OKTA_GROUP' }),
       cachedGroup({ id: 'b', name: 'AppOne', type: 'APP_GROUP' }),
       cachedGroup({ id: 'c', name: 'BuiltOne', type: 'BUILT_IN' }),
@@ -768,7 +885,7 @@ describe('filter pipeline (cached mode)', () => {
     ['1K+', ['Size1000']],
   ])('size bucket %s selects exactly the right members at its boundaries', async (label, want) => {
     const uev = userEvent.setup();
-    renderCached(sizeFixtures);
+    await renderCached(sizeFixtures);
     await openFilters(uev);
 
     await uev.click(section('Group Size').getByRole('button', { name: label }));
@@ -777,7 +894,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('push status filter splits pushed from not-pushed', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({
         id: 'a',
         name: 'Pushed',
@@ -797,7 +914,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('push target app filter is a multi-select OR across apps', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({
         id: 'a',
         name: 'SlackOnly',
@@ -825,7 +942,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('composes multiple axes conjunctively', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'Match', type: 'APP_GROUP', memberCount: 0 }),
       cachedGroup({ id: 'b', name: 'WrongType', type: 'OKTA_GROUP', memberCount: 0 }),
       cachedGroup({ id: 'c', name: 'WrongSize', type: 'APP_GROUP', memberCount: 10 }),
@@ -839,7 +956,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('the Filters badge counts the 3 scalar filters plus one for any push-app selection', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({
         id: 'a',
         name: 'A',
@@ -868,7 +985,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('a text query alone does not raise the Filters badge, but Clear all still wipes it', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha', type: 'APP_GROUP' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha', type: 'APP_GROUP' })]);
     const input = screen.getByPlaceholderText('Search by name, description, ID — or /regex/');
 
     await uev.type(input, 'alph');
@@ -884,7 +1001,7 @@ describe('filter pipeline (cached mode)', () => {
 
   it('an individual filter chip removes only its own axis', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'AppEmpty', type: 'APP_GROUP', memberCount: 0 }),
       cachedGroup({ id: 'b', name: 'AppBig', type: 'APP_GROUP', memberCount: 10 }),
     ]);
@@ -929,14 +1046,14 @@ describe('sorting (cached mode)', () => {
   const sortBtn = (name: string) =>
     section('Sort by').getByRole('button', { name: new RegExp(`^${name}`) });
 
-  it('defaults to name ascending', () => {
-    renderCached(fixtures);
+  it('defaults to name ascending', async () => {
+    await renderCached(fixtures);
     expect(renderedGroupNames()).toEqual(['Alpha', 'Beta', 'Gamma']);
   });
 
   it('re-clicking the active field flips the direction', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await open(uev);
 
     await uev.click(sortBtn('Name'));
@@ -948,7 +1065,7 @@ describe('sorting (cached mode)', () => {
 
   it('switching to a numeric field defaults to descending; Name defaults to ascending', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await open(uev);
 
     await uev.click(sortBtn('Size'));
@@ -962,7 +1079,7 @@ describe('sorting (cached mode)', () => {
 
   it('sorts null lastUpdated last in both directions', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await open(uev);
 
     await uev.click(sortBtn('Last Updated'));
@@ -1010,7 +1127,7 @@ describe('selection', () => {
 
   it('survives filtering: the bar counts selected-vs-filtered and hidden picks stay selected', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
 
     for (const name of ['AppOne', 'OktaOne', 'OktaTwo']) {
       await uev.click(screen.getByRole('checkbox', { name: `Select ${name}` }));
@@ -1035,7 +1152,8 @@ describe('selection', () => {
 
   it('survives a reload of the group list', async () => {
     const uev = userEvent.setup();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: {},
       data: [
@@ -1043,7 +1161,7 @@ describe('selection', () => {
         rawGroup({ id: 'b', profile: { name: 'OktaOne' } }),
       ],
     }));
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'AppOne' }),
       cachedGroup({ id: 'b', name: 'OktaOne' }),
     ]);
@@ -1053,14 +1171,16 @@ describe('selection', () => {
 
     await uev.click(screen.getByRole('button', { name: /Refresh/ }));
 
-    await waitFor(() => expect(storageSet).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(idbTables.get('syncMeta')!.get(`${ORIGIN}::groups`).lastFullWalkAt).toBeGreaterThan(1),
+    );
     expect(screen.getByText('1 Selected')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Select AppOne' })).toBeChecked();
   });
 
   it('Select All selects only the filtered groups; Deselect All clears everything', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await uev.click(screen.getByRole('button', { name: /^Filters/ }));
     await uev.click(section('Group Type').getByRole('button', { name: 'Okta' }));
 
@@ -1077,7 +1197,7 @@ describe('selection', () => {
 
   it('loading a collection replaces the selection wholesale', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await uev.click(screen.getByRole('checkbox', { name: 'Select AppOne' }));
     await uev.click(screen.getByRole('button', { name: /Collections/ }));
 
@@ -1090,7 +1210,7 @@ describe('selection', () => {
 
   it('shows Compare only for 2-5 selections and Bulk Actions only above 0', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     const compare = () => screen.queryByRole('button', { name: /^Compare/ });
 
     expect(compare()).not.toBeInTheDocument();
@@ -1134,7 +1254,7 @@ describe('Export List CSV', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-07-14T12:00:00.000Z'));
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({
         id: 'a',
         name: 'Say "hi"',
@@ -1169,7 +1289,7 @@ describe('Export List CSV', () => {
 
   it('exports the filtered subset, not the whole cache, and disables at zero rows', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'AppOne', type: 'APP_GROUP' }),
       cachedGroup({ id: 'b', name: 'OktaOne', type: 'OKTA_GROUP' }),
     ]);
@@ -1186,20 +1306,27 @@ describe('Export List CSV', () => {
 });
 
 describe('prop brokering', () => {
-  it('keeps both modals mounted with isOpen=false on first render', () => {
-    renderCached([cachedGroup()]);
+  it('keeps both modals mounted with isOpen=false on first render', async () => {
+    await renderCached([cachedGroup()]);
     expect(screen.getByTestId('export-modal')).toHaveAttribute('data-open', 'false');
     expect(screen.getByTestId('comparison-modal')).toHaveAttribute('data-open', 'false');
   });
 
   it('keeps onFetchMembers and onToggleSelect Object.is-stable across re-renders', async () => {
     const uev = userEvent.setup();
-    seedCache([cachedGroup({ id: 'a', name: 'Alpha' })]);
-    const { rerender } = render(<GroupsTab targetTabId={1} />);
+    const { rerender } = await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     const fetchMembers = captured.props.GroupExportModal.onFetchMembers;
 
     for (let i = 0; i < 3; i++) {
-      rerender(<GroupsTab targetTabId={1} oktaOrigin={`https://a${i}.okta.com`} />);
+      rerender(
+        <GroupsTab
+          targetTabId={1}
+          oktaOrigin={ORIGIN}
+          onNavigateToRule={() => {
+            void i;
+          }}
+        />,
+      );
     }
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
 
@@ -1208,7 +1335,7 @@ describe('prop brokering', () => {
 
   it('keeps onRemoveUserFromGroups Object.is-stable across re-renders', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     await uev.click(screen.getByRole('button', { name: /Cross-Search/ }));
     const remove = captured.props.CrossGroupSearch.onRemoveUserFromGroups;
 
@@ -1243,7 +1370,7 @@ describe('prop brokering', () => {
 
   it('freezes the export modal group list at click time', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({ id: 'a', name: 'Alpha' }),
       cachedGroup({ id: 'b', name: 'Beta' }),
       cachedGroup({ id: 'c', name: 'Gamma' }),
@@ -1265,7 +1392,10 @@ describe('prop brokering', () => {
 
   it('feeds the comparison modal the LIVE selection (unlike export)', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' }), cachedGroup({ id: 'b', name: 'Beta' })]);
+    await renderCached([
+      cachedGroup({ id: 'a', name: 'Alpha' }),
+      cachedGroup({ id: 'b', name: 'Beta' }),
+    ]);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('checkbox', { name: 'Select Beta' }));
     await uev.click(screen.getByRole('button', { name: /^Compare/ }));
@@ -1285,7 +1415,7 @@ describe('groupMembersCache', () => {
       headers: {},
       data: [user('u1')],
     }));
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     const crossSearch = () => screen.getByRole('button', { name: /Cross-Search/ }).textContent;
 
     expect(crossSearch()).toBe('Cross-Search');
@@ -1304,7 +1434,10 @@ describe('groupMembersCache', () => {
       memberFetches++;
       return { success: true, headers: {}, data: [user('u1'), user('u2')] };
     });
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' }), cachedGroup({ id: 'b', name: 'Beta' })]);
+    await renderCached([
+      cachedGroup({ id: 'a', name: 'Alpha' }),
+      cachedGroup({ id: 'b', name: 'Beta' }),
+    ]);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('checkbox', { name: 'Select Beta' }));
 
@@ -1330,7 +1463,7 @@ describe('groupMembersCache', () => {
 
   it('passes the raw (uncloned) cache Map to both the comparison modal and cross-search', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     await uev.click(screen.getByRole('button', { name: /Cross-Search/ }));
 
     expect(
@@ -1343,7 +1476,10 @@ describe('groupMembersCache', () => {
 
   it('builds groupNames from every cached group, not just the selected ones', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' }), cachedGroup({ id: 'b', name: 'Beta' })]);
+    await renderCached([
+      cachedGroup({ id: 'a', name: 'Alpha' }),
+      cachedGroup({ id: 'b', name: 'Beta' }),
+    ]);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('button', { name: /Cross-Search/ }));
 
@@ -1357,7 +1493,7 @@ describe('groupMembersCache', () => {
 describe('handleRemoveUserFromGroups', () => {
   async function openCrossSearch() {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     await uev.click(screen.getByRole('button', { name: /Cross-Search/ }));
     return captured.props.CrossGroupSearch.onRemoveUserFromGroups;
   }
@@ -1415,7 +1551,7 @@ describe('inline panels', () => {
 
   it('are mutually exclusive and toggle off on a second click', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
 
     await uev.click(screen.getByRole('button', { name: /Cross-Search/ }));
     expect(screen.getByTestId('cross-group-search')).toBeInTheDocument();
@@ -1430,7 +1566,7 @@ describe('inline panels', () => {
 
   it('closes via the child onClose callback', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await uev.click(screen.getByRole('button', { name: /Cross-Search/ }));
 
     act(() => captured.props.CrossGroupSearch.onClose());
@@ -1440,7 +1576,7 @@ describe('inline panels', () => {
 
   it('drops the bulk panel the moment the selection empties', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('button', { name: 'Bulk Actions' }));
     expect(screen.getByTestId('bulk-panel')).toBeInTheDocument();
@@ -1452,7 +1588,7 @@ describe('inline panels', () => {
 
   it('lets the bulk panel trigger the export modal', async () => {
     const uev = userEvent.setup();
-    renderCached(fixtures);
+    await renderCached(fixtures);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('button', { name: 'Bulk Actions' }));
 
@@ -1500,7 +1636,7 @@ describe('empty states', () => {
 
   it('cached with groups but none matching: Clear Filters appears only when a scalar filter is set', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha', type: 'OKTA_GROUP' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha', type: 'OKTA_GROUP' })]);
 
     await uev.type(
       screen.getByPlaceholderText('Search by name, description, ID — or /regex/'),
@@ -1517,8 +1653,8 @@ describe('empty states', () => {
     expect(renderedGroupNames()).toEqual(['Alpha']);
   });
 
-  it('cached with an empty cache: renders no empty state', () => {
-    renderCached([]);
+  it('cached with an empty cache: renders no empty state', async () => {
+    await renderCached([]);
     expect(screen.queryByText(/No groups/)).not.toBeInTheDocument();
   });
 });
@@ -1526,7 +1662,7 @@ describe('empty states', () => {
 describe('page header', () => {
   it('prefers the selection badge over the cached-count badge', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
+    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     expect(screen.getByText('1 Cached')).toBeInTheDocument();
 
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
@@ -1548,9 +1684,10 @@ describe('page header', () => {
   it('disables Load All Groups while loading, and shows the list spinner', async () => {
     const uev = userEvent.setup();
     const pending = deferred<any>();
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => pending.promise);
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => pending.promise);
 
-    render(<GroupsTab targetTabId={1} />);
+    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
 
     expect(screen.getByRole('button', { name: 'Load All Groups' })).toBeDisabled();
@@ -1568,7 +1705,7 @@ describe('page header', () => {
 
 describe('deep-link from the Rules tab', () => {
   it('highlights and auto-expands the navigated group row', async () => {
-    renderCached(
+    await renderCached(
       [cachedGroup({ id: 'g1', name: 'Engineering' }), cachedGroup({ id: 'g2', name: 'Sales' })],
       { selectedGroupId: 'g1', onGroupSelected: () => {} },
     );
@@ -1578,7 +1715,8 @@ describe('deep-link from the Rules tab', () => {
   });
 
   it('loads the group list on demand when the target is not cached, then highlights it', async () => {
-    route(/^\/api\/v1\/groups\?limit=200&expand=stats$/, () => ({
+    routeSiblingCollections();
+    route(/^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/, () => ({
       success: true,
       headers: {},
       data: [
@@ -1587,13 +1725,18 @@ describe('deep-link from the Rules tab', () => {
       ],
     }));
 
-    render(<GroupsTab targetTabId={1} selectedGroupId="g1" onGroupSelected={() => {}} />);
+    render(
+      <GroupsTab
+        targetTabId={1}
+        oktaOrigin={ORIGIN}
+        selectedGroupId="g1"
+        onGroupSelected={() => {}}
+      />,
+    );
 
     await waitFor(() => expect(renderedGroupNames()).toContain('Engineering'));
     expect(
-      schedulerCalls().filter((m) =>
-        /^\/api\/v1\/groups\?limit=200&expand=stats$/.test(m.endpoint),
-      ),
+      walkCalls.filter((e) => /^\/api\/v1\/groups\?limit=200&expand=stats&expand=app$/.test(e)),
     ).toHaveLength(1);
     await waitFor(() => expect(screen.getByText('Group ID')).toBeInTheDocument());
     expect(screen.getAllByText('Group ID')).toHaveLength(1);

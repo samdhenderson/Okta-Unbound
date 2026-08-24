@@ -77,10 +77,12 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
 
   const liveSearch = useGroupLiveSearch({ targetTabId, searchMode, setError, enabled: isActive });
   const loader = useGroupsLoader({
-    api,
+    targetTabId,
+    oktaOrigin,
     setError,
     setSearchMode,
     onLoaded: liveSearch.resetLiveSearch,
+    enabled: isActive,
   });
   const filters = useGroupFilters({
     groups: loader.groups,
@@ -227,14 +229,19 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
           ) : searchMode === 'live' ? (
             <Button
               variant="primary"
-              onClick={loadAllGroups}
+              onClick={() => void loadAllGroups()}
               disabled={loading || !targetTabId}
               loading={loading}
             >
               Load All Groups
             </Button>
           ) : (
-            <Button variant="secondary" icon="refresh" onClick={loadAllGroups} loading={loading}>
+            <Button
+              variant="secondary"
+              icon="refresh"
+              onClick={() => void loadAllGroups(true)}
+              loading={loading}
+            >
               Refresh
             </Button>
           )
@@ -350,6 +357,15 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
                 onDismiss={() => setError(null)}
               />
             )}
+
+            {!loader.complete && groups.length > 0 && !loading && (
+              <AlertMessage
+                message={{
+                  text: `Showing ${groups.length} groups — the last load did not finish, so this is part of the org, not all of it. Refresh to complete it.`,
+                  type: 'warning',
+                }}
+              />
+            )}
           </div>
 
           <GroupsListPanel
@@ -363,7 +379,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             selectedGroupIds={selectedGroupIds}
             onToggleSelect={selection.toggleSelect}
             oktaOrigin={oktaOrigin}
-            onLoadAllGroups={loadAllGroups}
+            onLoadAllGroups={() => void loadAllGroups()}
             onClearFilters={filters.clearFilters}
             onOpenDetail={handleOpenDetail}
             onAnalyzeSource={handleAnalyzeSource}

@@ -24,6 +24,7 @@ interface UseRulesDataOptions {
   targetTabId?: number;
   onError: (message: string) => void;
   currentGroupId?: string;
+  oktaOrigin?: string | null;
 }
 
 interface UseRulesDataReturn {
@@ -40,6 +41,7 @@ export function useRulesData({
   targetTabId,
   onError,
   currentGroupId,
+  oktaOrigin,
 }: UseRulesDataOptions): UseRulesDataReturn {
   const [rules, setRules] = useState<FormattedRule[]>([]);
   const [stats, setStats] = useState<RuleStats>(EMPTY_STATS);
@@ -116,7 +118,9 @@ export function useRulesData({
           }
         }
 
-        const response = await fetchGroupRulesRequest(makeApiRequest, currentGroupId);
+        const response = await fetchGroupRulesRequest(makeApiRequest, currentGroupId, {
+          origin: oktaOrigin,
+        });
 
         log.debug('Received response:', { success: response.success });
 
@@ -162,6 +166,7 @@ export function useRulesData({
       targetTabId,
       onError,
       currentGroupId,
+      oktaOrigin,
       makeApiRequest,
       startProgress,
       updateProgress,

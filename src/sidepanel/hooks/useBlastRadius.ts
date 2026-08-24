@@ -30,6 +30,7 @@ export interface UseBlastRadiusOptions {
   user: OktaUser | null;
   memberships: readonly GroupMembership[];
   rules: RuleInventoryState;
+  oktaOrigin?: string | null;
 }
 
 export interface UseBlastRadiusReturn {
@@ -43,11 +44,15 @@ export function useBlastRadius({
   user,
   memberships,
   rules,
+  oktaOrigin,
 }: UseBlastRadiusOptions): UseBlastRadiusReturn {
   const [state, setState] = useState<ReportState>(IDLE);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  const groupNamesRef = useRef<ReadonlyMap<string, string> | null>(null);
+  const groupNamesRef = useRef<{
+    origin: string | null | undefined;
+    names: ReadonlyMap<string, string>;
+  } | null>(null);
   const mountedRef = useRef(true);
   const runIdRef = useRef(0);
 
@@ -79,10 +84,11 @@ export function useBlastRadius({
       setIsAnalyzing(true);
 
       void (async () => {
-        let groupNames = groupNamesRef.current;
+        const memo = groupNamesRef.current;
+        let groupNames = memo && memo.origin === oktaOrigin ? memo.names : undefined;
         if (!groupNames) {
-          groupNames = await loadCachedGroupNames();
-          groupNamesRef.current = groupNames;
+          groupNames = await loadCachedGroupNames(oktaOrigin);
+          groupNamesRef.current = { origin: oktaOrigin, names: groupNames };
         }
         if (!mountedRef.current || runIdRef.current !== runId) return;
 
@@ -92,7 +98,7 @@ export function useBlastRadius({
         log.debug('Analyzed', next.status, next.counts);
       })();
     },
-    [user, memberships, rules, reset],
+    [user, memberships, rules, oktaOrigin, reset],
   );
 
   return { report, analyze, reset, isAnalyzing };

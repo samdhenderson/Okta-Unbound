@@ -77,9 +77,20 @@ function respondToTabAction(message?: { action?: string }): unknown {
   }
 }
 
+let syncSnapshotResponder: () => Promise<unknown> = async () => ({ success: true });
+
+export function setSyncSnapshotResponder(responder: () => Promise<unknown>): void {
+  syncSnapshotResponder = responder;
+}
+
+export function resetSyncSnapshotResponder(): void {
+  syncSnapshotResponder = async () => ({ success: true });
+}
+
 const chromeFake = {
   runtime: {
-    sendMessage: (_message?: any) => Promise.resolve({ ok: true }),
+    sendMessage: (message?: any) =>
+      message?.action === 'syncSnapshot' ? syncSnapshotResponder() : Promise.resolve({ ok: true }),
     onMessage: listenerSlot,
     getURL: (path: string) => `chrome-extension://storybook-mock/${path}`,
     lastError: undefined as unknown,

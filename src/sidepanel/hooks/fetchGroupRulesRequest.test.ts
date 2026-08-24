@@ -1,11 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
-import { GROUPS_CACHE_KEY } from '../components/groups/groupsCache';
+import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import type { RequestResult } from '../../shared/scheduler/types';
 
+vi.mock('../../shared/snapshot/orgSnapshotStore', () => ({
+  orgSnapshotStore: { getCollection: vi.fn(async () => []) },
+}));
+
+const ORIGIN = 'https://x.okta.com';
+
 function stubGroupsCache(groups: Array<{ id: string; name: string }>) {
-  const payload = JSON.stringify({ groups, timestamp: Date.now() });
-  vi.mocked(chrome.storage.local.get).mockResolvedValue({ [GROUPS_CACHE_KEY]: payload } as never);
+  vi.mocked(orgSnapshotStore.getCollection).mockResolvedValue(
+    groups.map((g) => ({ id: g.id, type: 'OKTA_GROUP', profile: { name: g.name } })),
+  );
 }
 
 const ok = (data: unknown, headers?: Record<string, string>): RequestResult => ({
@@ -38,17 +45,17 @@ function router(handlers: Array<[RegExp, () => RequestResult]>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(chrome.storage.local.get).mockResolvedValue({} as never);
+  vi.mocked(orgSnapshotStore.getCollection).mockResolvedValue([]);
 });
 
 describe('fetchGroupRulesRequest', () => {
-  it('labels rules with group names from the Groups cache, plus stats and conflicts', async () => {
+  it('labels rules with group names from the snapshot, plus stats and conflicts', async () => {
     stubGroupsCache([{ id: 'gX', name: 'Group X' }]);
     const ruleA = rawRule({ id: 'rA', name: 'A' });
     const ruleB = rawRule({ id: 'rB', name: 'B' }); // same group + attribute → conflict
     const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([ruleA, ruleB])]]);
 
-    const result = await fetchGroupRulesRequest(makeApiRequest, 'gX');
+    const result = await fetchGroupRulesRequest(makeApiRequest, 'gX', { origin: ORIGIN });
 
     expect(result.success).toBe(true);
     expect(result.stats).toEqual({ total: 2, active: 2, inactive: 0, conflicts: 1 });
@@ -59,16 +66,30 @@ describe('fetchGroupRulesRequest', () => {
     expect(makeApiRequest.mock.calls.filter((c) => c[0] === '/api/v1/groups/gX')).toHaveLength(0);
   });
 
-  it('falls back to the group id when the group is absent from the cache', async () => {
+  it('reads the connected org, and reads nothing at all without one', async () => {
+    stubGroupsCache([{ id: 'gX', name: 'Group X' }]);
     const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([rawRule()])]]);
 
+    await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
+    expect(orgSnapshotStore.getCollection).toHaveBeenCalledWith('groups', ORIGIN);
+
+    vi.mocked(orgSnapshotStore.getCollection).mockClear();
     const result = await fetchGroupRulesRequest(makeApiRequest);
+
+    expect(orgSnapshotStore.getCollection).not.toHaveBeenCalled();
+    expect(result.rules?.[0].groupNames).toEqual(['gX']);
+  });
+
+  it('falls back to the group id when the group is absent from the snapshot', async () => {
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([rawRule()])]]);
+
+    const result = await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
 
     expect(result.rules?.[0].groupNames).toEqual(['gX']);
     expect(makeApiRequest.mock.calls.filter((c) => c[0] === '/api/v1/groups/gX')).toHaveLength(0);
   });
 
-  it('does not read the Groups cache when resolveGroupNames is false', async () => {
+  it('does not read the snapshot when resolveGroupNames is false', async () => {
     const ruleA = rawRule({
       id: 'rA',
       actions: { assignUserToGroups: { groupIds: ['00gAAAAAAAAAAAAAAAAA'] } },
@@ -82,6 +103,7 @@ describe('fetchGroupRulesRequest', () => {
 
     const result = await fetchGroupRulesRequest(makeApiRequest, undefined, {
       resolveGroupNames: false,
+      origin: ORIGIN,
     });
 
     expect(result.success).toBe(true);
@@ -89,7 +111,7 @@ describe('fetchGroupRulesRequest', () => {
       /^\/api\/v1\/groups\/00g/.test(c[0] as string),
     );
     expect(groupGets).toHaveLength(0);
-    expect(chrome.storage.local.get).not.toHaveBeenCalled();
+    expect(orgSnapshotStore.getCollection).not.toHaveBeenCalled();
     expect(result.rules?.[0].groupNames).toEqual(['00gAAAAAAAAAAAAAAAAA']);
   });
 

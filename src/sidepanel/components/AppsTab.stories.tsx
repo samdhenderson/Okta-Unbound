@@ -1,8 +1,32 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import AppsTab from './AppsTab';
 import { useOktaApi, makeUseOktaApiValue } from '../../../.storybook/mocks/useOktaApi.mock';
+import {
+  setSyncSnapshotResponder,
+  resetSyncSnapshotResponder,
+} from '../../../.storybook/mocks/chrome';
+import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
+
+const ORIGIN = 'https://example.okta.com';
+
+async function seedInventory(apps: OktaAppListItem[]): Promise<void> {
+  await orgSnapshotStore.clearOrigin(ORIGIN);
+  if (apps.length > 0) {
+    await orgSnapshotStore.upsertMany(
+      'apps',
+      ORIGIN,
+      apps.map((entity) => ({ id: entity.id, entity })),
+      Date.now(),
+    );
+  }
+  await orgSnapshotStore.patchMeta('apps', ORIGIN, {
+    complete: true,
+    lastFullWalkAt: Date.now(),
+    itemCount: apps.length,
+  });
+}
 
 const sampleApps = [
   {
@@ -49,9 +73,10 @@ const meta = {
       description: {
         component:
           "Applications tab shell: browse, search, filter, and sort the org's application inventory.\n\n" +
-          'Read-only by construction — the tab reaches only for `getAllApps` and (lazily, per ' +
-          'expanded row) `getAppAssignmentCounts`. A failed inventory load surfaces as a ' +
-          'dismissible `danger` banner rather than an empty list presented as complete.\n\n' +
+          'Read-only by construction — the inventory comes from the background-owned org snapshot ' +
+          '(ADR-0040), and the tab reaches for the API only (lazily, per expanded row) via ' +
+          '`getAppAssignmentCounts`. A failed load surfaces as a dismissible `danger` banner ' +
+          'rather than an empty list presented as complete.\n\n' +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
           '[Storage & cache](?path=/docs/internals-storage-cache--docs), ' +
           '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
@@ -71,48 +96,43 @@ const meta = {
     targetTabId: 1,
     oktaOrigin: 'https://example.okta.com',
   },
-  beforeEach: () => {
+  beforeEach: async () => {
+    resetSyncSnapshotResponder();
     useOktaApi.mockReturnValue(
       makeUseOktaApiValue({
-        getAllApps: fn(async () => sampleApps),
         getAppAssignmentCounts: fn(async () => ({ users: 128, groups: 4 })),
       }),
     );
+    await seedInventory(sampleApps);
   },
 } satisfies Meta<typeof AppsTab>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(await within(canvasElement).findByText('Salesforce')).toBeInTheDocument();
+  },
+};
 
 export const Loading: Story = {
-  beforeEach: () => {
-    useOktaApi.mockReturnValue(
-      makeUseOktaApiValue({
-        getAllApps: fn(() => new Promise<OktaAppListItem[]>(() => {})),
-      }),
-    );
+  beforeEach: async () => {
+    await seedInventory([]);
+    setSyncSnapshotResponder(() => new Promise<unknown>(() => {}));
   },
 };
 
 export const Empty: Story = {
-  beforeEach: () => {
-    useOktaApi.mockReturnValue(
-      makeUseOktaApiValue({ getAllApps: fn(async () => [] as OktaAppListItem[]) }),
-    );
+  beforeEach: async () => {
+    await seedInventory([]);
   },
 };
 
 export const ErrorState: Story = {
-  beforeEach: () => {
-    useOktaApi.mockReturnValue(
-      makeUseOktaApiValue({
-        getAllApps: fn(async () => {
-          throw new Error('Failed to fetch apps');
-        }),
-      }),
-    );
+  beforeEach: async () => {
+    await seedInventory([]);
+    setSyncSnapshotResponder(async () => ({ success: false, error: 'Failed to fetch apps' }));
   },
 };
 
@@ -121,21 +141,16 @@ export const Disconnected: Story = {
 };
 
 export const LargeInventory: Story = {
-  beforeEach: () => {
-    useOktaApi.mockReturnValue(
-      makeUseOktaApiValue({
-        getAllApps: fn(
-          async () =>
-            Array.from({ length: 60 }, (_, i) => ({
-              id: `0oaFAKE${String(i).padStart(4, '0')}`,
-              name: `sample_app_${i}`,
-              label: `Sample App ${i + 1}`,
-              status: i % 4 === 0 ? 'INACTIVE' : 'ACTIVE',
-              signOnMode: i % 3 === 0 ? 'BOOKMARK' : 'SAML_2_0',
-              created: '2026-02-01T09:00:00.000Z',
-            })) as OktaAppListItem[],
-        ),
-      }),
+  beforeEach: async () => {
+    await seedInventory(
+      Array.from({ length: 60 }, (_, i) => ({
+        id: `0oaFAKE${String(i).padStart(4, '0')}`,
+        name: `sample_app_${i}`,
+        label: `Sample App ${i + 1}`,
+        status: i % 4 === 0 ? 'INACTIVE' : 'ACTIVE',
+        signOnMode: i % 3 === 0 ? 'BOOKMARK' : 'SAML_2_0',
+        created: '2026-02-01T09:00:00.000Z',
+      })) as OktaAppListItem[],
     );
   },
 };

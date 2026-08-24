@@ -13,6 +13,15 @@ export function isOktaUrl(url: string | null | undefined): boolean {
   return OKTA_DOMAINS.some((domain) => hostname === domain || hostname.endsWith(`.${domain}`));
 }
 
+export function oktaOriginOf(url: string | null | undefined): string | null {
+  if (!isOktaUrl(url)) return null;
+  try {
+    return new URL(url as string).origin;
+  } catch {
+    return null;
+  }
+}
+
 export type OktaAdminEntityType = 'group' | 'user' | 'app';
 
 export function oktaAdminEntityUrl(

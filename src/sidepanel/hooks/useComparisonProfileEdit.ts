@@ -59,6 +59,7 @@ export interface UseComparisonProfileEditOptions {
   readonly comparedMemberships: readonly GroupMembership[];
   readonly onComparedUserUpdated: (user: OktaUser) => void;
   readonly rules: RuleInventoryState;
+  readonly oktaOrigin?: string | null;
   readonly targetTabId: number | undefined;
   readonly enabled: boolean;
 }
@@ -78,6 +79,7 @@ interface SideOptions {
   readonly memberships: readonly GroupMembership[];
   readonly onUserUpdated?: (user: OktaUser) => void;
   readonly rules: RuleInventoryState;
+  readonly oktaOrigin?: string | null;
   readonly targetTabId: number | undefined;
   readonly enabled: boolean;
 }
@@ -98,6 +100,7 @@ function useComparisonEditSide({
   memberships,
   onUserUpdated,
   rules,
+  oktaOrigin,
   targetTabId,
   enabled,
 }: SideOptions): SideResult {
@@ -114,7 +117,7 @@ function useComparisonEditSide({
     enabled: enabled && canPublish,
   });
 
-  const blast = useBlastRadius({ user, memberships, rules });
+  const blast = useBlastRadius({ user, memberships, rules, oktaOrigin });
 
   const { draftPatch, requestSave, dismissSave, confirmSave, begin, cancel } = edit;
   const { analyze, reset: resetBlast } = blast;
@@ -257,6 +260,7 @@ export function useComparisonProfileEdit({
   comparedMemberships,
   onComparedUserUpdated,
   rules,
+  oktaOrigin,
   targetTabId,
   enabled,
 }: UseComparisonProfileEditOptions): UseComparisonProfileEditReturn {
@@ -269,6 +273,7 @@ export function useComparisonProfileEdit({
     memberships: contextMemberships,
     ...(onContextUserUpdated === undefined ? {} : { onUserUpdated: onContextUserUpdated }),
     rules,
+    oktaOrigin,
     targetTabId,
     enabled,
   });
@@ -282,6 +287,7 @@ export function useComparisonProfileEdit({
     memberships: comparedMemberships,
     onUserUpdated: onComparedUserUpdated,
     rules,
+    oktaOrigin,
     targetTabId,
     enabled,
   });

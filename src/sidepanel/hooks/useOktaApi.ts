@@ -14,7 +14,6 @@ import { createProfileOperations } from './useOktaApi/profileOperations';
 import { createAppOperations } from './useOktaApi/appOperations';
 import { createPolicyOperations } from './useOktaApi/policyOperations';
 import { createExportEngineOperations } from './useOktaApi/exportEngine';
-import { createPushGroupOperations } from './useOktaApi/pushGroupOps';
 import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
 import { createRuleImpactOperations } from './useOktaApi/ruleImpact';
 import { createRuleWriteOperations } from './useOktaApi/ruleWrites';
@@ -113,7 +112,6 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
   const appOps = useMemo(() => createAppOperations(coreApi), [coreApi]);
   const policyOps = useMemo(() => createPolicyOperations(coreApi), [coreApi]);
   const exportEngineOps = useMemo(() => createExportEngineOperations(coreApi), [coreApi]);
-  const pushGroupOps = useMemo(() => createPushGroupOperations(coreApi), [coreApi]);
   const groupAnalysisOps = useMemo(
     () => createGroupAnalysisOperations(groupMemberOps.getAllGroupMembers),
     [groupMemberOps],
@@ -178,7 +176,6 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       unsuspendUser: userOps.unsuspendUser,
       resetPassword: userOps.resetPassword,
 
-      getAllApps: appOps.getAllApps,
       getAppById: appOps.getAppById,
       getAppAssignmentCounts: appOps.getAppAssignmentCounts,
       getAppGroupAssignments: appOps.getAppGroupAssignments,
@@ -190,9 +187,6 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       fetchExportRows: exportEngineOps.fetchAllRows,
       countExportRows: exportEngineOps.countRows,
       runExport: exportEngineOps.runExport,
-
-      getAppPushGroupMappings: pushGroupOps.getAppPushGroupMappings,
-      applyPushGroupMappings: pushGroupOps.applyPushGroupMappings,
 
       compareGroups: groupAnalysisOps.compareGroups,
       searchUserAcrossGroups: groupAnalysisOps.searchUserAcrossGroups,
@@ -218,7 +212,6 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
       appOps,
       policyOps,
       exportEngineOps,
-      pushGroupOps,
       groupAnalysisOps,
       ruleImpactOps,
       ruleWriteOps,

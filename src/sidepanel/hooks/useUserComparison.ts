@@ -236,6 +236,7 @@ export function useUserComparison({
     comparedMemberships: comparedGroups,
     onComparedUserUpdated: setComparedUser,
     rules: ruleInventory,
+    oktaOrigin,
     targetTabId,
     enabled: isActive && comparedUser !== null,
   });
@@ -257,13 +258,13 @@ export function useUserComparison({
   useEffect(() => {
     if (!isActive) return;
     let cancelled = false;
-    void loadCachedGroupNames().then((names) => {
+    void loadCachedGroupNames(oktaOrigin).then((names) => {
       if (!cancelled) setCachedGroupNames(names);
     });
     return () => {
       cancelled = true;
     };
-  }, [isActive]);
+  }, [isActive, oktaOrigin]);
 
   const resolveGroupName = useMemo(() => {
     const byId = new Map(cachedGroupNames);

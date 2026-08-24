@@ -1,85 +1,140 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { useOktaApi } from './useOktaApi';
-import type { GroupSummary } from '../../shared/types';
-import { createLogger } from '../../shared/utils/logger';
+import type { GroupSummary, OktaGroupRule, PushGroupMapping } from '../../shared/types';
+import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
 import { annotateGroupsWithRuleCounts } from '../../shared/rules/groupRuleIndex';
-import { toGroupSummary } from '../components/groups/groupSummary';
-import {
-  GROUPS_CACHE_KEY,
-  parseGroupsCache,
-  serializeGroupsCache,
-} from '../components/groups/groupsCache';
-
-const log = createLogger('useGroupsLoader');
-
-type OktaApi = ReturnType<typeof useOktaApi>;
+import { toGroupSummary, type RawOktaGroup } from '../components/groups/groupSummary';
+import { useOrgSnapshot } from '../cache/useOrgSnapshot';
+import { splitShardedId } from '../../shared/snapshot/types';
+import type { OktaAppGroupAssignment, OktaAppListItem } from '../../shared/schemas/okta';
 
 interface UseGroupsLoaderOptions {
-  api: OktaApi;
+  targetTabId: number | null;
+  oktaOrigin?: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   setSearchMode: Dispatch<SetStateAction<'live' | 'cached'>>;
   onLoaded: () => void;
+  enabled?: boolean;
+}
+
+export interface UseGroupsLoaderResult {
+  groups: GroupSummary[];
+  loading: boolean;
+  complete: boolean;
+  lastFullWalkAt: number | null;
+  loadAllGroups: (force?: boolean) => Promise<void>;
 }
 
 export function useGroupsLoader({
-  api,
+  targetTabId,
+  oktaOrigin,
   setError,
   setSearchMode,
   onLoaded,
-}: UseGroupsLoaderOptions) {
-  const [groups, setGroups] = useState<GroupSummary[]>([]);
-  const [loading, setLoading] = useState(false);
+  enabled = true,
+}: UseGroupsLoaderOptions): UseGroupsLoaderResult {
+  const groupSnapshot = useOrgSnapshot<RawOktaGroup>('groups', oktaOrigin, targetTabId, {
+    enabled,
+  });
+  const ruleSnapshot = useOrgSnapshot<OktaGroupRule>('rules', oktaOrigin, targetTabId, {
+    enabled,
+  });
+  const appSnapshot = useOrgSnapshot<OktaAppListItem>('apps', oktaOrigin, targetTabId, {
+    enabled,
+  });
+  const appGroupSnapshot = useOrgSnapshot<OktaAppGroupAssignment>(
+    'appGroups',
+    oktaOrigin,
+    targetTabId,
+    { enabled },
+  );
 
-  useEffect(() => {
-    chrome.storage.local.get([GROUPS_CACHE_KEY], (result) => {
-      if (result[GROUPS_CACHE_KEY]) {
-        try {
-          const parsedGroups = parseGroupsCache(result[GROUPS_CACHE_KEY] as string, Date.now());
-          if (parsedGroups) {
-            setGroups(parsedGroups);
-            setSearchMode('cached');
-          }
-        } catch (err) {
-          log.error('Failed to parse groups cache:', err);
-        }
+  const { rows: rawGroups } = groupSnapshot;
+  const { rows: rawRules } = ruleSnapshot;
+  const { rows: rawApps } = appSnapshot;
+  const { records: assignmentRecords } = appGroupSnapshot;
+
+  const appNames = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const app of rawApps) {
+      const label = app.label || app.name;
+      if (app.id && label) byId.set(app.id, label);
+    }
+    return byId;
+  }, [rawApps]);
+
+  const mappingsByGroup = useMemo(() => {
+    const byGroup = new Map<string, PushGroupMapping[]>();
+    for (const record of assignmentRecords) {
+      const key = splitShardedId(record.id);
+      if (!key) continue;
+      const appId = key.shardKey;
+      const assignment = record.entity;
+      const linked = assignment._links?.group?.href?.split('/').pop();
+      const groupId = linked || key.entityId;
+      if (!groupId) continue;
+
+      const mappings = byGroup.get(groupId) ?? [];
+      mappings.push({
+        mappingId: assignment.id || `${appId}_${groupId}`,
+        sourceUserGroupId: groupId,
+        targetGroupName: assignment.profile?.name || assignment.profile?.groupName || '',
+        priority: assignment.priority,
+        appId,
+        appName: appNames.get(appId),
+      });
+      byGroup.set(groupId, mappings);
+    }
+    return byGroup;
+  }, [appNames, assignmentRecords]);
+
+  const groups = useMemo(() => {
+    let summaries = rawGroups.map(toGroupSummary);
+    if (rawRules.length > 0) {
+      const conflicts = detectConflicts(rawRules);
+      const rules = rawRules.map((rule) => formatRuleForDisplay(rule, undefined, conflicts));
+      summaries = annotateGroupsWithRuleCounts(summaries, rules);
+    }
+    if (mappingsByGroup.size === 0 && appNames.size === 0) return summaries;
+
+    return summaries.map((group) => {
+      const mappings = mappingsByGroup.get(group.id);
+      const updates: Partial<GroupSummary> = {};
+      if (mappings && mappings.length > 0) updates.pushMappings = mappings;
+      if (!group.sourceAppName && group.sourceAppId) {
+        const appName = appNames.get(group.sourceAppId);
+        if (appName && appName !== group.sourceAppId) updates.sourceAppName = appName;
       }
+      return Object.keys(updates).length > 0 ? { ...group, ...updates } : group;
     });
-  }, [setSearchMode]);
+  }, [appNames, mappingsByGroup, rawGroups, rawRules]);
 
-  const loadAllGroups = async () => {
-    setLoading(true);
-    setError(null);
+  const { sync: syncGroups } = groupSnapshot;
 
-    try {
-      const allGroups = await api.getAllGroups(() => {});
-
-      let groupSummaries: GroupSummary[] = allGroups.map(toGroupSummary);
-
-      const rules = await api.ensureGroupRulesLoaded();
-      if (rules) {
-        groupSummaries = annotateGroupsWithRuleCounts(groupSummaries, rules);
+  const loadAllGroups = useCallback(
+    async (force: boolean = false) => {
+      setError(null);
+      const failure = await syncGroups(force);
+      if (failure) {
+        setError(failure);
+        return;
       }
-
-      try {
-        groupSummaries = await api.applyPushGroupMappings(groupSummaries);
-      } catch (err) {
-        log.warn('Failed to load push group mappings:', err);
-      }
-
-      setGroups(groupSummaries);
       setSearchMode('cached');
       onLoaded();
+    },
+    [onLoaded, setError, setSearchMode, syncGroups],
+  );
 
-      chrome.storage.local.set({
-        [GROUPS_CACHE_KEY]: serializeGroupsCache(groupSummaries, Date.now()),
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load groups');
-    } finally {
-      setLoading(false);
-    }
+  const hasRows = rawGroups.length > 0;
+  useEffect(() => {
+    if (hasRows) setSearchMode('cached');
+  }, [hasRows, setSearchMode]);
+
+  return {
+    groups,
+    loading: groupSnapshot.isSyncing || groupSnapshot.isReading,
+    complete: groupSnapshot.complete,
+    lastFullWalkAt: groupSnapshot.lastFullWalkAt,
+    loadAllGroups,
   };
-
-  return { groups, loading, loadAllGroups };
 }

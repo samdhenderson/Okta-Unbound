@@ -86,7 +86,6 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     unsuspendUser: asyncFn(),
     resetPassword: asyncFn(),
 
-    getAllApps: asyncFn([]),
     getAppById: asyncFn(null),
     getAppAssignmentCounts: asyncFn(null),
 
@@ -99,9 +98,6 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     fetchExportRows: asyncFn({ rows: [], fetched: 0, dropped: 0, capped: false }),
     countExportRows: asyncFn({ count: 0, hasMore: false }),
     runExport: asyncFn(),
-
-    getAppPushGroupMappings: asyncFn([]),
-    applyPushGroupMappings: asyncFn(),
 
     compareGroups: asyncFn(null),
     searchUserAcrossGroups: asyncFn([]),

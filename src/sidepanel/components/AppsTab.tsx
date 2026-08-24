@@ -36,7 +36,6 @@ const AppsTab: React.FC<AppsTabProps> = ({ targetTabId, oktaOrigin, isActive = t
   }, []);
 
   const { apps, isLoading, loadApps } = useAppsData({
-    api,
     onError: handleError,
     targetTabId,
     oktaOrigin,

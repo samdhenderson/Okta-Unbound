@@ -2,7 +2,8 @@ import type { OktaGroupRule, FormattedRule, RuleConflict, RuleStats } from '../.
 import type { CoreApi } from './useOktaApi/core';
 import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
 import { nextPageUrl } from './useOktaApi/utilities';
-import { GROUPS_CACHE_KEY, parseGroupsCache } from '../components/groups/groupsCache';
+import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
+import type { RawOktaGroup } from '../components/groups/groupSummary';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('fetchGroupRulesRequest');
@@ -27,18 +28,15 @@ function groupIdsReferencedBy(rule: OktaGroupRule): string[] {
   return [...ids, ...inExpression];
 }
 
-export async function loadCachedGroupNames(): Promise<Map<string, string>> {
+export async function loadCachedGroupNames(
+  origin: string | null | undefined,
+): Promise<Map<string, string>> {
   const nameById = new Map<string, string>();
-  try {
-    const stored = await chrome.storage.local.get(GROUPS_CACHE_KEY);
-    const raw = stored?.[GROUPS_CACHE_KEY];
-    if (typeof raw !== 'string') return nameById;
-    const groups = parseGroupsCache(raw, Date.now());
-    groups?.forEach((group) => {
-      if (group.id && group.name) nameById.set(group.id, group.name);
-    });
-  } catch (err) {
-    log.warn('Failed to read cached group names', err);
+  if (!origin) return nameById;
+  const groups = await orgSnapshotStore.getCollection<RawOktaGroup>('groups', origin);
+  for (const group of groups) {
+    const name = group.profile?.name;
+    if (group.id && name) nameById.set(group.id, name);
   }
   return nameById;
 }
@@ -46,9 +44,9 @@ export async function loadCachedGroupNames(): Promise<Map<string, string>> {
 export async function fetchGroupRulesRequest(
   makeApiRequest: MakeApiRequest,
   currentGroupId?: string,
-  options: { resolveGroupNames?: boolean } = {},
+  options: { resolveGroupNames?: boolean; origin?: string | null } = {},
 ): Promise<FetchGroupRulesResult> {
-  const { resolveGroupNames = true } = options;
+  const { resolveGroupNames = true, origin } = options;
   try {
     let rules: OktaGroupRule[] = [];
     let nextUrl: string | null = '/api/v1/groups/rules?limit=200';
@@ -66,7 +64,7 @@ export async function fetchGroupRulesRequest(
     log.debug('Fetched rules (total across all pages)', { count: rules.length });
 
     const groupNameMap = resolveGroupNames
-      ? await loadCachedGroupNames()
+      ? await loadCachedGroupNames(origin)
       : new Map<string, string>();
 
     const conflicts = detectConflicts(rules);

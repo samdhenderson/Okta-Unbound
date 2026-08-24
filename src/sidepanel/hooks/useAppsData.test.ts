@@ -2,6 +2,32 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
 
+const { fakeDB, idbTables } = vi.hoisted(() => {
+  const idbTables = new Map<string, Map<string, unknown>>();
+  const keyOf = (key: unknown) => (Array.isArray(key) ? key.join('::') : String(key));
+  const table = (name: string) => {
+    if (!idbTables.has(name)) idbTables.set(name, new Map());
+    return idbTables.get(name) as Map<string, unknown>;
+  };
+  const fakeDB = {
+    get: async (name: string, key: unknown) => table(name).get(keyOf(key)),
+    put: async () => {},
+    delete: async () => {},
+    getAllFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => (v as { origin: string }).origin === origin),
+    getAllKeysFromIndex: async () => [],
+    transaction: () => ({
+      store: { put: async () => {}, delete: async () => {} },
+      done: Promise.resolve(),
+    }),
+  };
+  return { fakeDB, idbTables };
+});
+
+vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));
+
+import { useAppsData } from './useAppsData';
+
 const appsA: OktaAppListItem[] = [
   { id: '0oaFAKE000000000001', label: 'Payroll', status: 'ACTIVE', signOnMode: 'SAML_2_0' },
 ];
@@ -9,157 +35,150 @@ const appsB: OktaAppListItem[] = [
   { id: '0oaFAKE000000000002', label: 'Helpdesk', status: 'ACTIVE', signOnMode: 'SAML_2_0' },
 ];
 
-const getAllApps = vi.fn(async () => [] as OktaAppListItem[]);
-const api = { getAllApps } as unknown as Parameters<typeof useAppsData>[0]['api'];
-
-import { useAppsData } from './useAppsData';
-import { resetEntityCache } from '../cache/entityCache';
+const ORIGIN = 'https://example.okta.com';
+const OTHER_ORIGIN = 'https://other.okta.com';
+const WALKED_AT = 1_800_000_000_000;
 
 const onError = vi.fn();
-const ORIGIN = 'https://example.okta.com';
+const sendMessage = vi.fn();
+
+globalThis.chrome = {
+  runtime: {
+    sendMessage,
+    onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
+  },
+} as unknown as typeof chrome;
+
+function seedApps(apps: OktaAppListItem[], origin = ORIGIN) {
+  const table = (idbTables.get('apps') ?? new Map()) as Map<string, unknown>;
+  for (const entity of apps) {
+    table.set(`${origin}::${entity.id}`, { origin, id: entity.id, entity, syncedAt: WALKED_AT });
+  }
+  idbTables.set('apps', table);
+  const meta = (idbTables.get('syncMeta') ?? new Map()) as Map<string, unknown>;
+  meta.set(`${origin}::apps`, {
+    origin,
+    collection: 'apps',
+    complete: true,
+    lastFullWalkAt: WALKED_AT,
+    lastDeltaAt: null,
+    watermark: null,
+    itemCount: apps.length,
+    cursor: null,
+    walkStartedAt: null,
+    deltaSupported: null,
+  });
+  idbTables.set('syncMeta', meta);
+}
+
+function syncCalls() {
+  return sendMessage.mock.calls
+    .map((call) => call[0])
+    .filter((msg) => msg?.action === 'syncSnapshot');
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
-  resetEntityCache();
-  getAllApps.mockResolvedValue(appsA);
+  idbTables.clear();
+  sendMessage.mockImplementation(async (msg: { action?: string; origin?: string }) => {
+    if (msg?.action !== 'syncSnapshot') return undefined;
+    seedApps(appsA, msg.origin);
+    return { success: true };
+  });
 });
 
 const renderIdle = (over: Partial<Parameters<typeof useAppsData>[0]> = {}) =>
   renderHook(() =>
-    useAppsData({
-      api,
-      onError,
-      targetTabId: 1,
-      oktaOrigin: ORIGIN,
-      enabled: false,
-      ...over,
-    }),
+    useAppsData({ onError, targetTabId: 1, oktaOrigin: ORIGIN, enabled: false, ...over }),
   );
 
 describe('useAppsData', () => {
-  it('loads the inventory and records the fetch time', async () => {
-    const { result } = renderIdle();
+  it('loads the inventory and reports the walk that produced it', async () => {
+    const { result } = renderIdle({ enabled: true });
 
-    expect(result.current.apps).toEqual([]);
-    expect(result.current.lastFetchTime).toBeNull();
-
-    await act(async () => {
-      await result.current.loadApps();
-    });
-
-    expect(getAllApps).toHaveBeenCalledTimes(1);
-    expect(result.current.apps).toEqual(appsA);
-    expect(result.current.lastFetchTime).not.toBeNull();
+    await waitFor(() => expect(result.current.apps).toEqual(appsA));
+    expect(syncCalls()).toHaveLength(1);
+    expect(result.current.lastFetchTime).toBe(new Date(WALKED_AT).toISOString());
+    expect(result.current.complete).toBe(true);
     expect(result.current.isLoading).toBe(false);
     expect(onError).toHaveBeenCalledWith('');
   });
 
-  it('serves a second load from the entity cache without refetching', async () => {
+  it('paints a seeded org without asking the background for anything', async () => {
+    seedApps(appsA);
+
     const { result } = renderIdle();
 
-    await act(async () => {
-      await result.current.loadApps();
-    });
-    await act(async () => {
-      await result.current.loadApps();
-    });
-
-    expect(getAllApps).toHaveBeenCalledTimes(1);
-    expect(result.current.apps).toEqual(appsA);
-    expect(result.current.lastFetchTime).not.toBeNull();
+    await waitFor(() => expect(result.current.apps).toEqual(appsA));
+    expect(syncCalls()).toHaveLength(0);
+    expect(result.current.lastFetchTime).toBe(new Date(WALKED_AT).toISOString());
   });
 
-  it('bypasses the cache when forced', async () => {
-    const { result } = renderIdle();
+  it('forces a full walk when refreshed', async () => {
+    const { result } = renderIdle({ enabled: true });
+    await waitFor(() => expect(result.current.apps).toEqual(appsA));
 
-    await act(async () => {
-      await result.current.loadApps();
-    });
     await act(async () => {
       await result.current.loadApps(true);
     });
 
-    expect(getAllApps).toHaveBeenCalledTimes(2);
+    expect(syncCalls().map((msg) => msg.force)).toEqual([false, true]);
   });
 
-  it('seeds a fresh consumer from the cache without fetching', async () => {
-    const first = renderIdle();
-    await act(async () => {
-      await first.result.current.loadApps();
-    });
+  it('keeps each org in its own rows, and blanks the previous one immediately', async () => {
+    seedApps(appsA, ORIGIN);
+    seedApps(appsB, OTHER_ORIGIN);
 
-    const second = renderIdle();
-    expect(second.result.current.apps).toEqual(appsA);
-    expect(getAllApps).toHaveBeenCalledTimes(1);
-  });
-
-  it('carries the fetch time back when returning to an already-cached org', async () => {
     const { result, rerender } = renderHook(
       ({ origin }: { origin: string }) =>
-        useAppsData({ api, onError, targetTabId: 1, oktaOrigin: origin, enabled: false }),
+        useAppsData({ onError, targetTabId: 1, oktaOrigin: origin, enabled: false }),
       { initialProps: { origin: ORIGIN } },
     );
+    await waitFor(() => expect(result.current.apps).toEqual(appsA));
 
-    await act(async () => {
-      await result.current.loadApps();
-    });
-    const firstFetch = result.current.lastFetchTime;
-    expect(firstFetch).not.toBeNull();
-
-    rerender({ origin: 'https://other.okta.com' });
+    rerender({ origin: OTHER_ORIGIN });
     expect(result.current.apps).toEqual([]);
-    expect(result.current.lastFetchTime).toBeNull();
+    await waitFor(() => expect(result.current.apps).toEqual(appsB));
+  });
+
+  it('carries the fetch time back when returning to an org already on disk', async () => {
+    seedApps(appsA, ORIGIN);
+
+    const { result, rerender } = renderHook(
+      ({ origin }: { origin: string }) =>
+        useAppsData({ onError, targetTabId: 1, oktaOrigin: origin, enabled: false }),
+      { initialProps: { origin: ORIGIN } },
+    );
+    await waitFor(() => expect(result.current.lastFetchTime).not.toBeNull());
+    const firstFetch = result.current.lastFetchTime;
+
+    rerender({ origin: OTHER_ORIGIN });
+    await waitFor(() => expect(result.current.lastFetchTime).toBeNull());
+    expect(result.current.apps).toEqual([]);
 
     rerender({ origin: ORIGIN });
-    expect(result.current.apps).toEqual(appsA);
+    await waitFor(() => expect(result.current.apps).toEqual(appsA));
     expect(result.current.lastFetchTime).toBe(firstFetch);
-    expect(getAllApps).toHaveBeenCalledTimes(1);
+    expect(syncCalls()).toHaveLength(0);
   });
 
-  it('keeps each org in its own cache entry', async () => {
-    const { result, rerender } = renderHook(
-      ({ origin }: { origin: string }) =>
-        useAppsData({ api, onError, targetTabId: 1, oktaOrigin: origin, enabled: false }),
-      { initialProps: { origin: ORIGIN } },
-    );
-
-    await act(async () => {
-      await result.current.loadApps();
-    });
-    expect(result.current.apps).toEqual(appsA);
-
-    getAllApps.mockResolvedValue(appsB);
-    rerender({ origin: 'https://other.okta.com' });
-    expect(result.current.apps).toEqual([]);
-
-    await act(async () => {
-      await result.current.loadApps();
-    });
-    expect(getAllApps).toHaveBeenCalledTimes(2);
-    expect(result.current.apps).toEqual(appsB);
-  });
-
-  it('reports a missing Okta tab instead of fetching', async () => {
+  it('reports a missing Okta tab instead of syncing', async () => {
     const { result } = renderIdle({ targetTabId: null });
 
     await act(async () => {
       await result.current.loadApps();
     });
 
-    expect(getAllApps).not.toHaveBeenCalled();
+    expect(syncCalls()).toHaveLength(0);
     expect(onError).toHaveBeenCalledWith('No Okta tab connected');
     expect(result.current.apps).toEqual([]);
   });
 
   it('surfaces a fatal inventory read through onError', async () => {
-    getAllApps.mockRejectedValue(new Error('scheduler unavailable'));
-    const { result } = renderIdle();
+    sendMessage.mockResolvedValue({ success: false, error: 'scheduler unavailable' });
+    const { result } = renderIdle({ enabled: true });
 
-    await act(async () => {
-      await result.current.loadApps();
-    });
-
-    expect(onError).toHaveBeenCalledWith('scheduler unavailable');
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('scheduler unavailable'));
     expect(result.current.apps).toEqual([]);
     expect(result.current.isLoading).toBe(false);
   });
@@ -167,28 +186,28 @@ describe('useAppsData', () => {
   it('defers the auto-load while the tab is hidden and pays it on the next show', async () => {
     const { rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) =>
-        useAppsData({ api, onError, targetTabId: 1, oktaOrigin: ORIGIN, enabled }),
+        useAppsData({ onError, targetTabId: 1, oktaOrigin: ORIGIN, enabled }),
       { initialProps: { enabled: false } },
     );
 
-    expect(getAllApps).not.toHaveBeenCalled();
+    expect(syncCalls()).toHaveLength(0);
 
     rerender({ enabled: true });
-    await waitFor(() => expect(getAllApps).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(syncCalls()).toHaveLength(1));
   });
 
   it('re-arms the auto-load when the org changes under a stable tab id', async () => {
     const { rerender } = renderHook(
       ({ origin }: { origin: string }) =>
-        useAppsData({ api, onError, targetTabId: 1, oktaOrigin: origin, enabled: true }),
+        useAppsData({ onError, targetTabId: 1, oktaOrigin: origin, enabled: true }),
       { initialProps: { origin: ORIGIN } },
     );
 
-    await waitFor(() => expect(getAllApps).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(syncCalls()).toHaveLength(1));
 
-    getAllApps.mockResolvedValue(appsB);
-    rerender({ origin: 'https://other.okta.com' });
+    rerender({ origin: OTHER_ORIGIN });
 
-    await waitFor(() => expect(getAllApps).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(syncCalls()).toHaveLength(2));
+    expect(syncCalls().map((msg) => msg.origin)).toEqual([ORIGIN, OTHER_ORIGIN]);
   });
 });

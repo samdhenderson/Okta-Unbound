@@ -4,11 +4,53 @@ import userEvent from '@testing-library/user-event';
 import App from './App';
 import { ProgressProvider } from './contexts/ProgressContext';
 
-const GROUPS_CACHE_KEY = 'okta_unbound_groups_cache';
+const ORIGIN = 'https://example.okta.com';
+
+const { fakeDB, idbTables, collectionReads } = vi.hoisted(() => {
+  const idbTables = new Map<string, Map<string, any>>();
+  const collectionReads: string[] = [];
+  const keyOf = (key: unknown) => (Array.isArray(key) ? key.join('::') : String(key));
+  const table = (name: string) => {
+    if (!idbTables.has(name)) idbTables.set(name, new Map());
+    return idbTables.get(name)!;
+  };
+  const pk = (name: string, value: any) =>
+    name === 'syncMeta' ? [value.origin, value.collection] : [value.origin, value.id];
+  const fakeDB = {
+    get: async (name: string, key: unknown) => table(name).get(keyOf(key)),
+    put: async (name: string, value: any) => {
+      table(name).set(keyOf(pk(name, value)), value);
+    },
+    delete: async (name: string, key: unknown) => {
+      table(name).delete(keyOf(key));
+    },
+    getAllFromIndex: async (name: string, _i: string, origin: string) => {
+      collectionReads.push(name);
+      return [...table(name).values()].filter((v) => v.origin === origin);
+    },
+    getAllKeysFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => v.origin === origin).map((v) => pk(name, v)),
+    transaction: (name: string) => ({
+      store: {
+        put: async (value: any) => {
+          table(name).set(keyOf(pk(name, value)), value);
+        },
+        delete: async (key: unknown) => {
+          table(name).delete(keyOf(key));
+        },
+      },
+      done: Promise.resolve(),
+    }),
+  };
+  return { fakeDB, idbTables, collectionReads };
+});
+
+vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));
+
 const OKTA_TAB = {
   id: 1,
   active: true,
-  url: 'https://example.okta.com/admin/groups',
+  url: `${ORIGIN}/admin/groups`,
   windowId: 1,
 };
 
@@ -33,20 +75,46 @@ function cachedGroup(over: Record<string, unknown> = {}) {
   };
 }
 
-function seedGroupsCache(groups: Record<string, unknown>[]) {
-  const payload = {
-    [GROUPS_CACHE_KEY]: JSON.stringify({ groups, timestamp: Date.now() }),
-  };
-  storageGet.mockImplementation((keys: unknown, cb?: (r: unknown) => void) => {
-    const wantsGroups = Array.isArray(keys) && keys.includes(GROUPS_CACHE_KEY);
-    const result = wantsGroups ? payload : {};
-    if (typeof cb === 'function') return cb(result);
-    return Promise.resolve(result);
-  });
+function seedGroupsCache(groups: Record<string, any>[]) {
+  const table = new Map<string, unknown>();
+  for (const summary of groups) {
+    const entity = {
+      id: summary.id,
+      type: summary.type ?? 'OKTA_GROUP',
+      profile: { name: summary.name, description: summary.description ?? null },
+      lastUpdated: summary.lastUpdated,
+      created: summary.created,
+      _embedded: { stats: { usersCount: summary.memberCount ?? 0 } },
+    };
+    table.set(`${ORIGIN}::${entity.id}`, { origin: ORIGIN, id: entity.id, entity, syncedAt: 1 });
+  }
+  idbTables.set('groups', table);
+  idbTables.set(
+    'syncMeta',
+    new Map([
+      [
+        `${ORIGIN}::groups`,
+        {
+          origin: ORIGIN,
+          collection: 'groups',
+          complete: true,
+          lastFullWalkAt: 1,
+          lastDeltaAt: null,
+          watermark: null,
+          itemCount: groups.length,
+          cursor: null,
+          walkStartedAt: null,
+          deltaSupported: null,
+        },
+      ],
+    ]),
+  );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  idbTables.clear();
+  collectionReads.length = 0;
 
   globalThis.chrome = {
     runtime: {
@@ -74,7 +142,7 @@ beforeEach(() => {
   seedGroupsCache([cachedGroup()]);
 
   tabsSendMessage.mockImplementation(async (_tabId: number, msg: { action: string }) => {
-    if (msg.action === 'getOktaOrigin') return { success: true, data: 'https://example.okta.com' };
+    if (msg.action === 'getOktaOrigin') return { success: true, data: ORIGIN };
     return { success: false };
   });
 
@@ -119,8 +187,12 @@ function scrollTo(node: HTMLElement, top: number) {
   node.dispatchEvent(new Event('scroll'));
 }
 
-const appCalls = () =>
-  runtimeSendMessage.mock.calls.filter(([m]) => String(m?.endpoint ?? '').includes('/apps')).length;
+const syncMessages = () =>
+  runtimeSendMessage.mock.calls
+    .map(([m]) => m)
+    .filter((m) => m?.action === 'syncSnapshot') as Array<{ origin?: string }>;
+
+const appCalls = () => syncMessages().length;
 
 async function retargetTo({ id, origin }: { id: number; origin?: string }) {
   const probesBefore = tabsSendMessage.mock.calls.length;
@@ -209,19 +281,13 @@ describe('App tab lifetime', () => {
 
     await openTab(uev, 'Groups');
     await groupRow('Engineering');
-    const cacheReads = storageGet.mock.calls.filter(
-      ([keys]) => Array.isArray(keys) && keys.includes(GROUPS_CACHE_KEY),
-    ).length;
+    const cacheReads = collectionReads.filter((name) => name === 'groups').length;
     expect(cacheReads).toBe(1);
 
     await openTab(uev, 'Apps');
     await openTab(uev, 'Groups');
 
-    expect(
-      storageGet.mock.calls.filter(
-        ([keys]) => Array.isArray(keys) && keys.includes(GROUPS_CACHE_KEY),
-      ),
-    ).toHaveLength(cacheReads);
+    expect(collectionReads.filter((name) => name === 'groups')).toHaveLength(cacheReads);
   });
 
   it("restores each tab's own scroll offset on return, not the offset it was left at", async () => {
@@ -274,8 +340,8 @@ describe('App tab lifetime', () => {
     expect(appCalls()).toBe(before);
 
     await openTab(uev, 'Apps');
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    expect(appCalls()).toBe(before);
+    await waitFor(() => expect(appCalls()).toBe(before + 1));
+    expect(syncMessages().at(-1)?.origin).toBe(ORIGIN);
   });
 
   it('re-fetches the inventory when the connected tab moves to a different org', async () => {
@@ -296,5 +362,6 @@ describe('App tab lifetime', () => {
 
     await openTab(uev, 'Apps');
     await waitFor(() => expect(appCalls()).toBe(before + 1));
+    expect(syncMessages().at(-1)?.origin).toBe('https://other.okta.com');
   });
 });

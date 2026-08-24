@@ -86,6 +86,7 @@ beforeEach(async () => {
     action: { onClicked: { addListener: vi.fn() } },
     contextMenus: { create: vi.fn(), onClicked: { addListener: vi.fn() } },
     alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
+    tabs: { onUpdated: { addListener: vi.fn() }, query: vi.fn(async () => []) },
     storage: { sync: { set: vi.fn() } },
     notifications: { create: vi.fn() },
     sidePanel: { open: vi.fn() },

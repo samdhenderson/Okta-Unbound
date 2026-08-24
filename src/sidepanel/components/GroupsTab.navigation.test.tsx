@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render as rtlRender, screen, waitFor, within } from '@testing-library/react';
+import { render as rtlRender, screen, act, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
 import GroupsTab from './GroupsTab';
@@ -12,11 +12,49 @@ const render = (ui: ReactElement) =>
     ),
   });
 
+const { fakeDB, idbTables } = vi.hoisted(() => {
+  const idbTables = new Map<string, Map<string, any>>();
+  const keyOf = (key: unknown) => (Array.isArray(key) ? key.join('::') : String(key));
+  const table = (name: string) => {
+    if (!idbTables.has(name)) idbTables.set(name, new Map());
+    return idbTables.get(name)!;
+  };
+  const pk = (name: string, value: any) =>
+    name === 'syncMeta' ? [value.origin, value.collection] : [value.origin, value.id];
+  const fakeDB = {
+    get: async (name: string, key: unknown) => table(name).get(keyOf(key)),
+    put: async (name: string, value: any) => {
+      table(name).set(keyOf(pk(name, value)), value);
+    },
+    delete: async (name: string, key: unknown) => {
+      table(name).delete(keyOf(key));
+    },
+    getAllFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => v.origin === origin),
+    getAllKeysFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => v.origin === origin).map((v) => pk(name, v)),
+    transaction: (name: string) => ({
+      store: {
+        put: async (value: any) => {
+          table(name).set(keyOf(pk(name, value)), value);
+        },
+        delete: async (key: unknown) => {
+          table(name).delete(keyOf(key));
+        },
+      },
+      done: Promise.resolve(),
+    }),
+  };
+  return { fakeDB, idbTables };
+});
+
+vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));
+
 const runtimeSendMessage = vi.fn();
 const storageGet = vi.fn();
 const storageSet = vi.fn();
 
-const GROUPS_CACHE_KEY = 'okta_unbound_groups_cache';
+const ORIGIN = 'https://x.okta.com';
 
 globalThis.chrome = {
   runtime: {
@@ -24,7 +62,7 @@ globalThis.chrome = {
     getURL: (p: string) => p,
     onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
   },
-  tabs: { sendMessage: vi.fn() },
+  tabs: { sendMessage: vi.fn(), get: vi.fn() },
   storage: { local: { get: storageGet, set: storageSet, remove: vi.fn() } },
 } as any;
 
@@ -44,23 +82,85 @@ function cachedGroup(over: Record<string, any> = {}) {
   };
 }
 
-function seedCache(groups: Record<string, any>[]) {
-  const payload = { [GROUPS_CACHE_KEY]: JSON.stringify({ groups, timestamp: Date.now() }) };
-  storageGet.mockImplementation((keys: any, cb?: (r: any) => void) => {
-    const wantsGroups = Array.isArray(keys) ? keys.includes(GROUPS_CACHE_KEY) : false;
-    const result = wantsGroups ? payload : {};
-    if (typeof cb === 'function') return cb(result);
-    return Promise.resolve(result);
-  });
+function summaryToRaw(summary: Record<string, any>): Record<string, any> {
+  return {
+    id: summary.id,
+    type: summary.type ?? 'OKTA_GROUP',
+    profile: { name: summary.name, description: summary.description ?? null },
+    lastUpdated: summary.lastUpdated,
+    created: summary.created,
+    _embedded: { stats: { usersCount: summary.memberCount ?? 0 } },
+  };
 }
 
-function renderCached(groups: Record<string, any>[], props: Record<string, any> = {}) {
+function seedCache(groups: Record<string, any>[]) {
+  const table = new Map<string, any>();
+  for (const entity of groups.map(summaryToRaw)) {
+    table.set(`${ORIGIN}::${entity.id}`, { origin: ORIGIN, id: entity.id, entity, syncedAt: 1 });
+  }
+  idbTables.set('groups', table);
+  idbTables.set(
+    'syncMeta',
+    new Map([
+      [
+        `${ORIGIN}::groups`,
+        {
+          origin: ORIGIN,
+          collection: 'groups',
+          complete: true,
+          lastFullWalkAt: 1,
+          lastDeltaAt: null,
+          watermark: null,
+          itemCount: groups.length,
+          cursor: null,
+          walkStartedAt: null,
+          deltaSupported: null,
+        },
+      ],
+    ]),
+  );
+
+  const assignments = new Map<string, any>();
+  const apps = new Map<string, any>();
+  for (const group of groups) {
+    for (const mapping of group.pushMappings ?? []) {
+      const appId = mapping.appId ?? 'appFixture';
+      if (mapping.appName) {
+        apps.set(`${ORIGIN}::${appId}`, {
+          origin: ORIGIN,
+          id: appId,
+          entity: { id: appId, label: mapping.appName, features: ['GROUP_PUSH'] },
+          syncedAt: 1,
+        });
+      }
+      const id = `${appId}::${group.id}`;
+      assignments.set(`${ORIGIN}::${id}`, {
+        origin: ORIGIN,
+        id,
+        entity: {
+          id: group.id,
+          priority: mapping.priority,
+          profile: { name: mapping.targetGroupName ?? group.name },
+          _links: { group: { href: `${ORIGIN}/api/v1/groups/${group.id}` } },
+        },
+        syncedAt: 1,
+      });
+    }
+  }
+  if (assignments.size > 0) idbTables.set('appGroups', assignments);
+  if (apps.size > 0) idbTables.set('apps', apps);
+}
+
+async function renderCached(groups: Record<string, any>[], props: Record<string, any> = {}) {
   seedCache(groups);
-  return render(<GroupsTab targetTabId={1} {...props} />);
+  const result = render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} {...props} />);
+  await act(async () => {});
+  return result;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  idbTables.clear();
   storageGet.mockImplementation((_keys: any, cb?: (r: any) => void) =>
     typeof cb === 'function' ? cb({}) : Promise.resolve({}),
   );
@@ -86,7 +186,7 @@ async function drillInto(uev: ReturnType<typeof userEvent.setup>, name: string) 
 describe('GroupsTab sub-navigation', () => {
   it('pushes a detail view and swaps the single header in place', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup()]);
+    await renderCached([cachedGroup()]);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Groups');
 
@@ -99,7 +199,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('renders a breadcrumb trail back to the list', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup()]);
+    await renderCached([cachedGroup()]);
     await drillInto(uev, 'Engineering');
 
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
@@ -112,7 +212,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('hides the list without unmounting it, so its state survives', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup()]);
+    await renderCached([cachedGroup()]);
 
     await uev.click(screen.getByLabelText('Select Engineering'));
     await drillInto(uev, 'Engineering');
@@ -130,7 +230,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('keeps the filter query and its result set across a push/pop round trip', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup(), cachedGroup({ id: 'g2', name: 'Design' })]);
+    await renderCached([cachedGroup(), cachedGroup({ id: 'g2', name: 'Design' })]);
 
     const search = screen.getByPlaceholderText('Search by name, description, ID — or /regex/');
     await uev.type(search, 'Engin');
@@ -147,7 +247,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('moves focus into the pushed view and restores it to the row that opened it', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup()]);
+    await renderCached([cachedGroup()]);
 
     const trigger = await drillInto(uev, 'Engineering');
 
@@ -160,7 +260,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('restores the list scroll offset that display:none destroyed', async () => {
     const uev = userEvent.setup();
-    const { container } = renderCached([cachedGroup()]);
+    const { container } = await renderCached([cachedGroup()]);
 
     const scrollBox = container.querySelector('.scrollable-list') as HTMLElement;
     Object.defineProperty(scrollBox, 'scrollTop', { value: 0, writable: true });
@@ -177,12 +277,22 @@ describe('GroupsTab sub-navigation', () => {
     const uev = userEvent.setup();
     seedCache([cachedGroup()]);
     const onGroupSelected = vi.fn();
-    const { rerender } = render(<GroupsTab targetTabId={1} onGroupSelected={onGroupSelected} />);
+    const { rerender } = render(
+      <GroupsTab targetTabId={1} oktaOrigin={ORIGIN} onGroupSelected={onGroupSelected} />,
+    );
+    await act(async () => {});
 
     await drillInto(uev, 'Engineering');
     expect(screen.getByTestId('group-detail-view')).toBeInTheDocument();
 
-    rerender(<GroupsTab targetTabId={1} selectedGroupId="g1" onGroupSelected={onGroupSelected} />);
+    rerender(
+      <GroupsTab
+        targetTabId={1}
+        oktaOrigin={ORIGIN}
+        selectedGroupId="g1"
+        onGroupSelected={onGroupSelected}
+      />,
+    );
 
     expect(screen.queryByTestId('group-detail-view')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Select Engineering').closest('div.hidden')).toBeNull();
@@ -190,7 +300,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('shows the group id, dates and push state in the detail view', async () => {
     const uev = userEvent.setup();
-    renderCached([
+    await renderCached([
       cachedGroup({
         pushMappings: [
           {
@@ -211,7 +321,12 @@ describe('GroupsTab sub-navigation', () => {
 
     expect(detail.getByText('g1')).toBeInTheDocument();
     expect(detail.getByRole('button', { name: 'Copy ID' })).toBeInTheDocument();
-    expect(detail.getByText('Slack')).toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId('group-detail-view')).getByText('Slack'),
+      ).toBeInTheDocument(),
+    );
     expect(detail.getByText('Target group: Engineering (Slack)')).toBeInTheDocument();
     expect(detail.getByText('Priority 2')).toBeInTheDocument();
     expect(detail.queryByText('ACTIVE')).not.toBeInTheDocument();
@@ -219,7 +334,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it("runs the analysis straight away when the push came from a row's analyze action", async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup()]);
+    await renderCached([cachedGroup()]);
 
     const row = screen
       .getByLabelText('Select Engineering')
@@ -235,7 +350,7 @@ describe('GroupsTab sub-navigation', () => {
 
   it('does not analyze on a plain drill-in', async () => {
     const uev = userEvent.setup();
-    renderCached([cachedGroup()]);
+    await renderCached([cachedGroup()]);
 
     await drillInto(uev, 'Engineering');
 

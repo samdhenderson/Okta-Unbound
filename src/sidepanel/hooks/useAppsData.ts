@@ -1,26 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getOrFetch, peek, peekFetchedAt, type EntityKey } from '../cache/entityCache';
-import { cacheKeys } from '../cache/keys';
+import { useCallback } from 'react';
 import { useOwedLoad } from './useOwedLoad';
+import { useOrgSnapshot } from '../cache/useOrgSnapshot';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
 import { createLogger } from '../../shared/utils/logger';
-import type { useOktaApi } from './useOktaApi';
 
 const log = createLogger('useAppsData');
 
-type OktaApi = ReturnType<typeof useOktaApi>;
-
-export function appsCacheKey(oktaOrigin?: string | null): EntityKey {
-  return cacheKeys.apps(oktaOrigin);
-}
-
-function isoFetchedAt(key: EntityKey): string | null {
-  const at = peekFetchedAt(key);
-  return at === null ? null : new Date(at).toISOString();
-}
-
 export interface UseAppsDataOptions {
-  api: Pick<OktaApi, 'getAllApps'>;
   onError: (message: string) => void;
   targetTabId: number | null;
   oktaOrigin?: string | null;
@@ -31,26 +17,18 @@ export interface UseAppsDataReturn {
   apps: OktaAppListItem[];
   isLoading: boolean;
   lastFetchTime: string | null;
+  complete: boolean;
   loadApps: (force?: boolean) => Promise<void>;
 }
 
 export function useAppsData({
-  api,
   onError,
   targetTabId,
   oktaOrigin,
   enabled = true,
 }: UseAppsDataOptions): UseAppsDataReturn {
-  const cacheKey = useMemo(() => appsCacheKey(oktaOrigin), [oktaOrigin]);
-
-  const [apps, setApps] = useState<OktaAppListItem[]>(
-    () => peek<OktaAppListItem[]>(cacheKey) ?? [],
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastFetchTime, setLastFetchTime] = useState<string | null>(() => isoFetchedAt(cacheKey));
-
-  const getAllAppsRef = useRef(api.getAllApps);
-  getAllAppsRef.current = api.getAllApps;
+  const snapshot = useOrgSnapshot<OktaAppListItem>('apps', oktaOrigin, targetTabId, { enabled });
+  const { rows: apps, sync, isSyncing, isReading, complete, lastFullWalkAt } = snapshot;
 
   const loadApps = useCallback(
     async (force: boolean = false) => {
@@ -58,36 +36,15 @@ export function useAppsData({
         onError('No Okta tab connected');
         return;
       }
-
-      setIsLoading(true);
       onError('');
-
-      try {
-        const loaded = await getOrFetch<OktaAppListItem[]>(
-          cacheKey,
-          () => getAllAppsRef.current(),
-          { force },
-        );
-        setApps(loaded);
-        setLastFetchTime(isoFetchedAt(cacheKey));
-        log.debug('Loaded applications', { count: loaded.length });
-      } catch (err) {
-        onError(err instanceof Error ? err.message : 'Failed to load applications');
+      const failure = await sync(force);
+      if (failure) {
+        onError(failure);
         log.error('Failed to load applications', { code: 'load_apps_failed' });
-      } finally {
-        setIsLoading(false);
       }
     },
-    [onError, targetTabId, cacheKey],
+    [onError, sync, targetTabId],
   );
-
-  const seededFor = useRef(cacheKey);
-  useEffect(() => {
-    if (seededFor.current === cacheKey) return;
-    seededFor.current = cacheKey;
-    setApps(peek<OktaAppListItem[]>(cacheKey) ?? []);
-    setLastFetchTime(isoFetchedAt(cacheKey));
-  }, [cacheKey]);
 
   useOwedLoad(
     targetTabId == null ? null : `${targetTabId}\u0000${oktaOrigin ?? ''}`,
@@ -97,5 +54,11 @@ export function useAppsData({
     },
   );
 
-  return { apps, isLoading, lastFetchTime, loadApps };
+  return {
+    apps,
+    isLoading: isSyncing || isReading,
+    lastFetchTime: lastFullWalkAt === null ? null : new Date(lastFullWalkAt).toISOString(),
+    complete,
+    loadApps,
+  };
 }

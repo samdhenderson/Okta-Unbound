@@ -63,6 +63,7 @@ export interface UseUsersTabProfileEditOptions {
   attributes: readonly AttributeDescriptor[];
   memberships: GroupMembership[];
   rules: RuleInventoryState;
+  oktaOrigin?: string | null;
   mastering?: ProfileMastering;
   targetTabId: number | undefined;
   enabled: boolean;
@@ -80,9 +81,10 @@ export function useUsersTabProfileEdit({
   enabled,
   onUserUpdated,
   onResult,
+  oktaOrigin,
 }: UseUsersTabProfileEditOptions): UserProfileEditing {
   const edit = useProfileEdit({ user, attributes, targetTabId, onUserUpdated, enabled, mastering });
-  const blast = useBlastRadius({ user, memberships, rules });
+  const blast = useBlastRadius({ user, memberships, rules, oktaOrigin });
   const { undo } = useUndoAction({ targetTabId });
   const { getUserRaw } = useOktaApi({ targetTabId: targetTabId ?? null });
 

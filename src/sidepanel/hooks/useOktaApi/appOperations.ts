@@ -42,17 +42,6 @@ export function createAppOperations(coreApi: CoreApi) {
     }
   };
 
-  const getAllApps = async (): Promise<OktaAppListItem[]> =>
-    fetchAllPages<OktaAppListItem>(
-      (url) => coreApi.makeApiRequest(url),
-      `/api/v1/apps?limit=${OKTA_PAGE_SIZE}`,
-      {
-        schema: oktaAppListItemSchema,
-        context: 'GET /api/v1/apps',
-        errorMessage: 'Failed to fetch apps',
-      },
-    );
-
   const getAppById = async (appId: string): Promise<OktaAppListItem | null> => {
     try {
       const response = await coreApi.makeApiRequest(`/api/v1/apps/${encodeURIComponent(appId)}`);
@@ -105,7 +94,6 @@ export function createAppOperations(coreApi: CoreApi) {
 
   return {
     searchApps,
-    getAllApps,
     getAppById,
     getAppAssignmentCounts,
     getAppGroupAssignments,
