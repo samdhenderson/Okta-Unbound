@@ -157,7 +157,11 @@ const renderApp = () =>
   );
 
 async function openTab(uev: ReturnType<typeof userEvent.setup>, label: string) {
-  await uev.click(within(screen.getByRole('tablist')).getByRole('tab', { name: label }));
+  await uev.click(
+    within(screen.getByRole('tablist', { name: 'Main sections' })).getByRole('tab', {
+      name: label,
+    }),
+  );
 }
 
 const TAB_MOUNT_TIMEOUT = 5000;
@@ -265,6 +269,11 @@ describe('App tab lifetime', () => {
 
     const detail = screen.getByTestId('group-detail-view');
     expect(detail).toBeVisible();
+    await uev.click(
+      within(detail).getByRole('tab', {
+        name: 'Health',
+      }),
+    );
     expect(within(detail).getByText('g1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to groups' })).toBeVisible();
 

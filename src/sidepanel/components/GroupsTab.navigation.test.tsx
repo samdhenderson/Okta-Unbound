@@ -318,9 +318,13 @@ describe('GroupsTab sub-navigation', () => {
     await drillInto(uev, 'Engineering');
 
     const detail = within(screen.getByTestId('group-detail-view'));
+    const tablist = within(detail.getByRole('tablist', { name: 'Group detail sections' }));
 
+    await uev.click(tablist.getByRole('tab', { name: 'Health' }));
     expect(detail.getByText('g1')).toBeInTheDocument();
     expect(detail.getByRole('button', { name: 'Copy ID' })).toBeInTheDocument();
+
+    await uev.click(tablist.getByRole('tab', { name: 'Access' }));
 
     await waitFor(() =>
       expect(
@@ -355,6 +359,13 @@ describe('GroupsTab sub-navigation', () => {
     await drillInto(uev, 'Engineering');
 
     const detail = within(screen.getByTestId('group-detail-view'));
+
+    await uev.click(
+      within(detail.getByRole('tablist', { name: 'Group detail sections' })).getByRole('tab', {
+        name: 'Members',
+      }),
+    );
+
     expect(detail.getByRole('button', { name: 'Analyze' })).toBeInTheDocument();
   });
 });

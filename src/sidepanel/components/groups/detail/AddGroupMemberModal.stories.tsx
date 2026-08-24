@@ -51,6 +51,7 @@ const meta = {
     isAddingMember: false,
     onClose: fn(),
     onConfirm: fn(),
+    addMemberError: null,
   },
   argTypes: {
     isOpen: { description: 'Whether the modal is open.' },
@@ -80,6 +81,9 @@ const meta = {
     },
     onClose: { description: 'Close the modal (Cancel, Escape, overlay click, or header close).' },
     onConfirm: { description: 'Confirm the add of the selected user.' },
+    addMemberError: {
+      description: 'Error from a failed add attempt (the mutation, not the search).',
+    },
   },
 } satisfies Meta<typeof AddGroupMemberModal>;
 
@@ -119,5 +123,12 @@ export const SearchError: Story = {
   args: {
     addQuery: 'ada',
     addSearchError: 'Failed to search users. Please try again.',
+  },
+};
+
+export const AddError: Story = {
+  args: {
+    selectedUser: users[0],
+    addMemberError: 'Failed to add member.',
   },
 };

@@ -17,6 +17,7 @@ interface AddGroupMemberModalProps {
   isAddingMember: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  addMemberError?: string | null;
 }
 
 const AddGroupMemberModal: React.FC<AddGroupMemberModalProps> = ({
@@ -33,6 +34,7 @@ const AddGroupMemberModal: React.FC<AddGroupMemberModalProps> = ({
   isAddingMember,
   onClose,
   onConfirm,
+  addMemberError,
 }) => {
   const showDropdown = addResults.length > 0 && !selectedUser;
 
@@ -105,6 +107,8 @@ const AddGroupMemberModal: React.FC<AddGroupMemberModalProps> = ({
             </Button>
           </div>
         )}
+
+        {addMemberError && <AlertMessage message={{ text: addMemberError, type: 'danger' }} />}
       </div>
     </Modal>
   );

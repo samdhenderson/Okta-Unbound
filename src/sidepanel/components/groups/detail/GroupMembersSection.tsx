@@ -9,7 +9,6 @@ import {
   LoadingSpinner,
   Modal,
   ScrollableList,
-  SearchDropdown,
 } from '../../shared';
 import Icon from '../../overview/shared/Icon';
 import type { GroupSummary, OktaUser } from '../../../../shared/types';
@@ -40,15 +39,6 @@ export interface GroupMembersSectionProps {
   onConfirmRemove: () => void;
   removeStatus: MemberWriteStatus;
   removeError: string | null;
-
-  addQuery: string;
-  onAddQueryChange: (query: string) => void;
-  addResults: OktaUser[];
-  isSearchingToAdd: boolean;
-  addSearchError: string | null;
-  onSelectToAdd: (user: OktaUser) => void;
-  addStatus: MemberWriteStatus;
-  addError: string | null;
 }
 
 const MemberListRow: React.FC<{
@@ -92,14 +82,6 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
   onConfirmRemove,
   removeStatus,
   removeError,
-  addQuery,
-  onAddQueryChange,
-  addResults,
-  isSearchingToAdd,
-  addSearchError,
-  onSelectToAdd,
-  addStatus,
-  addError,
 }) => {
   const hasMembers = memberCount > 0;
   const readOnlyReason = READ_ONLY_REASON[groupType];
@@ -144,33 +126,6 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
         />
       ) : (
         <div className="space-y-3">
-          {!readOnly && (
-            <SearchDropdown
-              label="Add a member"
-              placeholder="Search by email, name, or login..."
-              query={addQuery}
-              onQueryChange={onAddQueryChange}
-              isSearching={isSearchingToAdd}
-              results={addResults}
-              showDropdown={addResults.length > 0}
-              onSelect={onSelectToAdd}
-              disabled={addStatus === 'loading'}
-              hint={addSearchError ?? undefined}
-              renderResult={(user) => (
-                <div>
-                  <div className="text-sm font-medium text-neutral-900">
-                    {userDisplayName(user)}
-                  </div>
-                  <div className="text-xs text-neutral-500">{user.profile.email}</div>
-                </div>
-              )}
-            />
-          )}
-
-          {addError && (
-            <AlertMessage message={{ text: addError, type: 'danger' }} className="mt-1" />
-          )}
-
           {visibleMembers.length === 0 ? (
             <EmptyState
               icon="users"

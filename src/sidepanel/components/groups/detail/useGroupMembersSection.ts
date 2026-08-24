@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { GroupSummary, OktaUser } from '../../../../shared/types';
 import { useOktaApi } from '../../../hooks/useOktaApi';
-import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
 import { peek, setEntry } from '../../../cache/entityCache';
 import { cacheKeys } from '../../../cache/keys';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
@@ -21,14 +20,7 @@ export interface UseGroupMembersSectionReturn {
   removeStatus: MemberWriteStatus;
   removeError: string | null;
 
-  addQuery: string;
-  setAddQuery: (query: string) => void;
-  addResults: OktaUser[];
-  isSearchingToAdd: boolean;
-  addSearchError: string | null;
-  selectToAdd: (user: OktaUser) => void;
-  addStatus: MemberWriteStatus;
-  addError: string | null;
+  onMemberAdded: (user: OktaUser) => void;
 }
 
 export function useGroupMembersSection(
@@ -97,45 +89,12 @@ export function useGroupMembersSection(
       });
   }, [removeTarget, members, removeUserFromGroup, group.id, group.name, writeBack]);
 
-  const [addError, setAddError] = useState<string | null>(null);
-
-  const handleMemberAdded = useCallback(
+  const onMemberAdded = useCallback(
     (user: OktaUser) => {
       if (!members) return;
       writeBack([...members, user]);
     },
     [members, writeBack],
-  );
-
-  const handleAddResult = useCallback((result: { text: string; type: 'danger' }) => {
-    setAddError(result.text);
-  }, []);
-
-  const {
-    addQuery,
-    setAddQuery,
-    addResults,
-    isSearchingToAdd,
-    addSearchError,
-    isAddingMember,
-    addMemberDirect,
-  } = useAddGroupMember({
-    targetTabId,
-    group,
-    members,
-    onResult: handleAddResult,
-    onAdded: handleMemberAdded,
-  });
-
-  const addStatus: MemberWriteStatus = isAddingMember ? 'loading' : addError ? 'error' : 'idle';
-
-  const selectToAdd = useCallback(
-    (user: OktaUser) => {
-      if (!members) return;
-      setAddError(null);
-      void addMemberDirect(user);
-    },
-    [members, addMemberDirect],
   );
 
   return {
@@ -146,13 +105,6 @@ export function useGroupMembersSection(
     confirmRemove,
     removeStatus,
     removeError,
-    addQuery,
-    setAddQuery,
-    addResults,
-    isSearchingToAdd,
-    addSearchError,
-    selectToAdd,
-    addStatus,
-    addError,
+    onMemberAdded,
   };
 }
