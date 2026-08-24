@@ -16,9 +16,12 @@ import { useGroupAccessGrants } from '../../../hooks/useGroupAccessGrants';
 import { useMemberMfaScan } from '../../../hooks/useMemberMfaScan';
 import { useGroupMembersSection } from './useGroupMembersSection';
 import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
+import { OKTA_PAGE_SIZE } from '../../../../shared/utils/oktaPagination';
 import type { GroupSummary } from '../../../../shared/types';
 
 type GroupDetailTab = 'overview' | 'members' | 'access' | 'rules' | 'health';
+
+const AUTO_LOAD_MEMBER_CAP = OKTA_PAGE_SIZE * 5;
 
 const GROUP_DETAIL_TABS: TabItem[] = [
   { key: 'overview', label: 'Overview' },
@@ -87,7 +90,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   });
 
   const openedGroupId = source.group?.id;
-  useOwedLoad(group.id, autoAnalyze && openedGroupId === group.id, () => {
+  const withinAutoLoadBudget = group.memberCount <= AUTO_LOAD_MEMBER_CAP;
+  useOwedLoad(group.id, (autoAnalyze || withinAutoLoadBudget) && openedGroupId === group.id, () => {
     analyzeMembers();
   });
 

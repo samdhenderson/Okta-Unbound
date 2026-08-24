@@ -266,8 +266,16 @@ describe('GroupDetailView', () => {
     expect(screen.getByRole('tab', { name: 'Members' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('never auto-analyzes when autoAnalyze is unset (a plain drill-in), and lands on Overview', () => {
-    const group = makeGroup();
+  it('auto-analyzes a plain drill-in (autoAnalyze unset) when the group is within the auto-load budget, and still lands on Overview', () => {
+    const group = makeGroup(); // memberCount: 10 — well under AUTO_LOAD_MEMBER_CAP
+    groupSource.group = { id: group.id };
+    render(<GroupDetailView group={group} targetTabId={1} />);
+    expect(groupSource.analyzeMembers).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('never auto-analyzes a plain drill-in on a group over the auto-load budget, and lands on Overview', () => {
+    const group = makeGroup({ memberCount: 5000 });
     groupSource.group = { id: group.id };
     render(<GroupDetailView group={group} targetTabId={1} />);
     expect(groupSource.analyzeMembers).not.toHaveBeenCalled();

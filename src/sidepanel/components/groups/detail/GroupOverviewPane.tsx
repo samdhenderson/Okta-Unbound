@@ -59,7 +59,7 @@ const MembershipSourceTile: React.FC<{
   memberStatus: SourceStatus;
   onClick: () => void;
 }> = ({ breakdown, memberStatus, onClick }) => {
-  if (memberStatus !== 'done' || !breakdown || breakdown.total === 0) {
+  if (memberStatus === 'idle') {
     return (
       <VerdictTile
         label="Where membership comes from"
@@ -70,6 +70,7 @@ const MembershipSourceTile: React.FC<{
       />
     );
   }
+  if (memberStatus !== 'done' || !breakdown || breakdown.total === 0) return null;
 
   const ruleCount = breakdown.byRule.length;
   const pct = Math.round((breakdown.ruleBased / breakdown.total) * 100);

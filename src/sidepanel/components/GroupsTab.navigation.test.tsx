@@ -352,9 +352,29 @@ describe('GroupsTab sub-navigation', () => {
     expect(detail.getByText('No members to attribute.')).toBeInTheDocument();
   });
 
-  it('does not analyze on a plain drill-in', async () => {
+  it('auto-analyzes a plain drill-in when the group is within the auto-load budget', async () => {
     const uev = userEvent.setup();
     await renderCached([cachedGroup()]);
+
+    await drillInto(uev, 'Engineering');
+
+    const detail = within(screen.getByTestId('group-detail-view'));
+
+    await uev.click(
+      within(detail.getByRole('tablist', { name: 'Group detail sections' })).getByRole('tab', {
+        name: 'Members',
+      }),
+    );
+
+    await waitFor(() =>
+      expect(detail.queryByRole('button', { name: 'Analyze' })).not.toBeInTheDocument(),
+    );
+    expect(detail.getByText('No members to attribute.')).toBeInTheDocument();
+  });
+
+  it('does not analyze on a plain drill-in when the group is over the auto-load budget', async () => {
+    const uev = userEvent.setup();
+    await renderCached([cachedGroup({ memberCount: 5000 })]);
 
     await drillInto(uev, 'Engineering');
 
