@@ -12,33 +12,33 @@ export type MembershipProofOutcome =
   | { status: 'unanswered' };
 
 export interface MembershipProofs {
-  outcomeFor: (groupId: string) => MembershipProofOutcome | undefined;
-  prove: (membership: GroupMembership) => void;
+  outcomeFor: (rowKey: string) => MembershipProofOutcome | undefined;
+  prove: (membership: GroupMembership, rowKey?: string) => void;
   enabled: boolean;
 }
 
 export function useMembershipProofs(
-  onProve?: (groupId: string) => Promise<MemberRuleAttribution>,
+  onProve?: (membership: GroupMembership, rowKey: string) => Promise<MemberRuleAttribution>,
 ): MembershipProofs {
   const [outcomes, setOutcomes] = useState<Record<string, MembershipProofOutcome>>({});
 
   const prove = useCallback(
-    (membership: GroupMembership) => {
+    (membership: GroupMembership, key?: string) => {
       if (!onProve) return;
-      const groupId = membership.group.id;
+      const rowKey = key ?? membership.group.id;
 
       setOutcomes((current) => {
-        if (current[groupId]?.status === 'pending') return current;
-        return { ...current, [groupId]: { status: 'pending' } };
+        if (current[rowKey]?.status === 'pending') return current;
+        return { ...current, [rowKey]: { status: 'pending' } };
       });
 
-      void onProve(groupId)
+      void onProve(membership, rowKey)
         .catch((): MemberRuleAttribution => ({ state: 'unknown' }))
         .then((answer) => {
           const proven = withMembershipProvenance(membership, answer);
           setOutcomes((current) => ({
             ...current,
-            [groupId]: proven.provenance
+            [rowKey]: proven.provenance
               ? { status: 'proven', membership: proven }
               : { status: 'unanswered' },
           }));
@@ -47,7 +47,7 @@ export function useMembershipProofs(
     [onProve],
   );
 
-  const outcomeFor = useCallback((groupId: string) => outcomes[groupId], [outcomes]);
+  const outcomeFor = useCallback((rowKey: string) => outcomes[rowKey], [outcomes]);
 
   return { outcomeFor, prove, enabled: Boolean(onProve) };
 }

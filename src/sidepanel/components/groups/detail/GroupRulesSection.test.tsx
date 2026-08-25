@@ -2,18 +2,43 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupRulesSection from './GroupRulesSection';
+import type { FormattedRule } from '../../../../shared/types';
 
 const ASSIGNS = 'Assigns members into this group';
 const REFERENCES = 'References this group in a condition';
 
+const rule = (
+  over: Partial<FormattedRule> & Pick<FormattedRule, 'id' | 'name'>,
+): FormattedRule => ({
+  status: 'ACTIVE',
+  condition: 'department == "Engineering"',
+  conditionExpression: 'user.department == "Engineering"',
+  groupIds: ['00gFAKE1'],
+  userAttributes: ['department'],
+  created: '2024-01-01T00:00:00.000Z',
+  lastUpdated: '2025-01-01T00:00:00.000Z',
+  ...over,
+});
+
 const base = {
-  assigningRules: [{ id: 'r1', name: 'All Engineers', status: 'ACTIVE' }],
+  assigningRules: [rule({ id: 'r1', name: 'All Engineers' })],
   assigningStatus: 'done' as const,
   assigningError: null,
-  referencingRules: [{ id: 'r2', name: 'Contractors gate', status: 'INACTIVE' }],
+  referencingRules: [rule({ id: 'r2', name: 'Contractors gate', status: 'INACTIVE' })],
   referencingStatus: 'done' as const,
   referencingError: null,
 };
+
+function expandRule(scope: ReturnType<typeof within>, name: string) {
+  return userEvent.click(scope.getByRole('button', { name: `Expand ${name}` }));
+}
+
+function disclosureFor(toggle: HTMLElement): HTMLElement {
+  const id = toggle.getAttribute('aria-controls');
+  const panel = id ? document.getElementById(id) : null;
+  if (!panel) throw new Error('the disclosure toggle names no panel');
+  return panel;
+}
 
 function listUnder(heading: string) {
   const block = screen.getByText(new RegExp(`^${heading}`)).parentElement as HTMLElement;
@@ -35,10 +60,7 @@ describe('GroupRulesSection', () => {
     render(
       <GroupRulesSection
         {...base}
-        assigningRules={[
-          { id: 'r1', name: 'A', status: 'ACTIVE' },
-          { id: 'r3', name: 'B', status: 'ACTIVE' },
-        ]}
+        assigningRules={[rule({ id: 'r1', name: 'A' }), rule({ id: 'r3', name: 'B' })]}
       />,
     );
 
@@ -78,20 +100,50 @@ describe('GroupRulesSection', () => {
     expect(screen.getByText('All Engineers')).toBeInTheDocument();
   });
 
-  it('deep-links a rule by name when a navigation handler is supplied', async () => {
+  it('deep-links a rule from inside its expanded card', async () => {
     const onNavigateToRule = vi.fn();
     render(<GroupRulesSection {...base} onNavigateToRule={onNavigateToRule} />);
 
-    await userEvent.click(
-      screen.getByRole('button', { name: 'Open rule Contractors gate in the Rules tab' }),
-    );
+    await expandRule(listUnder(REFERENCES), 'Contractors gate');
+    const jump = await screen.findByTitle('Open rule Contractors gate in the Rules tab');
+    await userEvent.click(jump);
     expect(onNavigateToRule).toHaveBeenCalledWith('r2');
   });
 
-  it('renders inert rows when no navigation handler is supplied', () => {
+  it('offers no jump control when no navigation handler is supplied', () => {
     render(<GroupRulesSection {...base} />);
-    expect(screen.queryByRole('button', { name: /Open rule/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Open in Rules tab')).not.toBeInTheDocument();
     expect(screen.getByText('All Engineers')).toBeInTheDocument();
+  });
+
+  it('shows the rule itself, not just a link to it', async () => {
+    render(<GroupRulesSection {...base} />);
+
+    const toggle = listUnder(ASSIGNS).getByRole('button', { name: 'Expand All Engineers' });
+    const disclosure = disclosureFor(toggle);
+    expect(disclosure).toHaveAttribute('data-open', 'false');
+
+    await userEvent.click(toggle);
+
+    expect(disclosure).toHaveAttribute('data-open', 'true');
+    expect(within(disclosure).getByText('user.department == "Engineering"')).toBeInTheDocument();
+  });
+
+  it('renders no write verb it cannot perform', async () => {
+    render(<GroupRulesSection {...base} />);
+
+    await expandRule(listUnder(ASSIGNS), 'All Engineers');
+    expect(screen.queryByRole('button', { name: /Deactivate Rule/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Activate Rule/ })).not.toBeInTheDocument();
+  });
+
+  it('offers the Okta deep link only when an org origin is known', async () => {
+    const { rerender } = render(<GroupRulesSection {...base} />);
+    await expandRule(listUnder(ASSIGNS), 'All Engineers');
+    expect(screen.queryByRole('link', { name: /View in Okta/ })).not.toBeInTheDocument();
+
+    rerender(<GroupRulesSection {...base} oktaOrigin="https://example.okta.com" />);
+    expect(screen.getAllByRole('link', { name: /View in Okta/ }).length).toBeGreaterThan(0);
   });
 
   it("shows each rule's Okta status verbatim", () => {

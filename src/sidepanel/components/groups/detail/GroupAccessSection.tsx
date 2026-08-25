@@ -1,14 +1,10 @@
-import React from 'react';
-import {
-  AlertMessage,
-  Badge,
-  DetailSection,
-  EmptyState,
-  EntityLink,
-  LoadingSpinner,
-} from '../../shared';
+import React, { useCallback, useMemo, useState } from 'react';
+import { AlertMessage, Badge, DetailSection, EmptyState, LoadingSpinner } from '../../shared';
+import GroupAppRow from './GroupAppRow';
+import { toGroupAppRows } from '../groupAppSource';
 import type { AppGrant, RoleGrant, RolesReadStatus } from '../../../hooks/useGroupAccessGrants';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
+import type { PushGroupMapping } from '../../../../shared/types';
 
 interface GroupAccessSectionProps {
   apps: AppGrant[];
@@ -16,14 +12,12 @@ interface GroupAccessSectionProps {
   appsError: string | null;
   roles: RoleGrant[];
   rolesStatus: RolesReadStatus;
+  pushMappings?: PushGroupMapping[];
+  oktaOrigin?: string | null;
 }
 
 const ROLE_SCOPE_CAVEAT =
   "Okta's group-roles listing reports the role type but not which apps or groups it applies to, so this is not the full grant.";
-
-const AppChip: React.FC<{ app: AppGrant }> = ({ app }) => (
-  <EntityLink type="app" id={app.id} name={app.label} />
-);
 
 const RoleRow: React.FC<{ role: RoleGrant }> = ({ role }) => (
   <li className="flex items-center justify-between gap-2">
@@ -40,7 +34,20 @@ const GroupAccessSection: React.FC<GroupAccessSectionProps> = ({
   appsError,
   roles,
   rolesStatus,
+  pushMappings,
+  oktaOrigin,
 }) => {
+  const rows = useMemo(() => toGroupAppRows(apps, pushMappings), [apps, pushMappings]);
+
+  const [openAppIds, setOpenAppIds] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleRow = useCallback((appId: string) => {
+    setOpenAppIds((previous) => {
+      const next = new Set(previous);
+      if (!next.delete(appId)) next.add(appId);
+      return next;
+    });
+  }, []);
+
   const loading = appsStatus === 'loading' || rolesStatus === 'loading';
   const confirmedNoRoles = rolesStatus === 'available' && roles.length === 0;
   const genuinelyEmpty = !loading && appsStatus === 'done' && apps.length === 0 && confirmedNoRoles;
@@ -68,14 +75,18 @@ const GroupAccessSection: React.FC<GroupAccessSectionProps> = ({
             <h3 className="text-xs font-medium text-neutral-600">
               Assigned apps{apps.length > 0 && ` (${apps.length})`}
             </h3>
-            {apps.length === 0 ? (
+            {rows.length === 0 ? (
               <p className="mt-1.5 text-sm text-neutral-500">Not assigned to any app.</p>
             ) : (
-              <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                {apps.map((app) => (
-                  <li key={app.id}>
-                    <AppChip app={app} />
-                  </li>
+              <ul className="mt-1.5 space-y-1.5">
+                {rows.map((row) => (
+                  <GroupAppRow
+                    key={row.id}
+                    row={row}
+                    expanded={openAppIds.has(row.id)}
+                    onToggle={toggleRow}
+                    oktaOrigin={oktaOrigin}
+                  />
                 ))}
               </ul>
             )}

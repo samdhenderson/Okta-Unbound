@@ -1,20 +1,9 @@
 import React from 'react';
 import { AlertMessage, DetailSection, LoadingSpinner } from '../../shared';
-import RuleLinkRow from './RuleLinkRow';
+import RuleCard from '../../RuleCard';
 import type { FeedingRule, SourceStatus } from '../../../hooks/useGroupSource';
 import type { ReferencingRule } from '../../../hooks/useGroupRuleReferences';
-
-const RuleStatusPill: React.FC<{ status: string }> = ({ status }) => (
-  <span
-    className={`px-2 py-0.5 rounded-md text-xs font-medium border ${
-      status === 'ACTIVE'
-        ? 'bg-success-light text-success-text border-success-light'
-        : 'bg-neutral-50 text-neutral-600 border-neutral-200'
-    }`}
-  >
-    {status}
-  </span>
-);
+import type { FormattedRule } from '../../../../shared/types';
 
 const RuleRelationList: React.FC<{
   heading: string;
@@ -22,9 +11,10 @@ const RuleRelationList: React.FC<{
   status: SourceStatus;
   error: string | null;
   emptyMessage: string;
-  rules: Array<{ id: string; name: string; status: string; detail?: string }>;
+  rules: FormattedRule[];
+  oktaOrigin?: string | null;
   onNavigateToRule?: (ruleId: string) => void;
-}> = ({ heading, hint, status, error, emptyMessage, rules, onNavigateToRule }) => (
+}> = ({ heading, hint, status, error, emptyMessage, rules, oktaOrigin, onNavigateToRule }) => (
   <div>
     <h3 className="text-xs font-medium text-neutral-600">
       {heading}
@@ -39,18 +29,16 @@ const RuleRelationList: React.FC<{
       ) : rules.length === 0 ? (
         <p className="text-sm text-neutral-500">{emptyMessage}</p>
       ) : (
-        <ul className="space-y-1.5">
+        <div className="space-y-2">
           {rules.map((rule) => (
-            <li key={rule.id}>
-              <RuleLinkRow
-                name={rule.name}
-                detail={rule.detail}
-                trailing={<RuleStatusPill status={rule.status} />}
-                onSelect={onNavigateToRule ? () => onNavigateToRule(rule.id) : undefined}
-              />
-            </li>
+            <RuleCard
+              key={rule.id}
+              rule={rule}
+              oktaOrigin={oktaOrigin}
+              onOpenInRulesTab={onNavigateToRule}
+            />
           ))}
-        </ul>
+        </div>
       )}
     </div>
   </div>
@@ -64,6 +52,7 @@ interface GroupRulesSectionProps {
   referencingStatus: SourceStatus;
   referencingError: string | null;
   onNavigateToRule?: (ruleId: string) => void;
+  oktaOrigin?: string | null;
 }
 
 const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
@@ -74,6 +63,7 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
   referencingStatus,
   referencingError,
   onNavigateToRule,
+  oktaOrigin,
 }) => (
   <DetailSection title="Rules">
     <div className="space-y-4">
@@ -84,6 +74,7 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
         error={assigningError}
         emptyMessage="No rule assigns users to this group. Members are added manually or by app push."
         rules={assigningRules}
+        oktaOrigin={oktaOrigin}
         onNavigateToRule={onNavigateToRule}
       />
 
@@ -93,12 +84,8 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
         status={referencingStatus}
         error={referencingError}
         emptyMessage="No rule condition references this group by id."
-        rules={referencingRules.map((rule) => ({
-          id: rule.id,
-          name: rule.name,
-          status: rule.status,
-          detail: rule.conditionExpression,
-        }))}
+        rules={referencingRules}
+        oktaOrigin={oktaOrigin}
         onNavigateToRule={onNavigateToRule}
       />
     </div>

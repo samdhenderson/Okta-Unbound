@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupMembersSection from './GroupMembersSection';
 import type { OktaUser } from '../../../../shared/types';
+import type { MemberSourceBreakdown } from '../../../../shared/membership/groupSource';
+import { buildMemberSourceIndex } from '../../../../shared/membership/memberSourceIndex';
 
 const makeUser = (id: string, firstName: string, lastName: string): OktaUser => ({
   id,
@@ -20,6 +22,18 @@ const members: OktaUser[] = [
   makeUser('00uFAKE2', 'Grace', 'Hopper'),
 ];
 
+const identity = { id: '00gFAKE1', name: 'Engineering', type: 'OKTA_GROUP' as const };
+
+const breakdown: MemberSourceBreakdown = {
+  total: 4,
+  direct: 1,
+  ruleBased: 3,
+  unattributed: 0,
+  byRule: [{ ruleId: 'r1', ruleName: 'All Engineers', count: 3 }],
+};
+
+const sourceIndex = buildMemberSourceIndex(identity, members, []);
+
 const base = {
   groupType: 'OKTA_GROUP' as const,
   memberCount: 2,
@@ -27,6 +41,13 @@ const base = {
   status: 'idle' as const,
   error: null,
   onAnalyze: () => {},
+  breakdown: null,
+  memberSourceIndex: null,
+  mfaResults: null,
+  scanStatus: 'idle' as const,
+  onRunScan: () => {},
+  onRequestConfirm: () => {},
+  onCancelConfirm: () => {},
   removeTarget: null as OktaUser | null,
   onRequestRemove: () => {},
   onCancelRemove: () => {},
@@ -34,6 +55,20 @@ const base = {
   removeStatus: 'idle' as const,
   removeError: null,
 };
+
+beforeAll(() => {
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    },
+  );
+});
 
 describe('GroupMembersSection', () => {
   it('gates behind a load prompt before the analysis has run, not an empty list', () => {
@@ -208,10 +243,112 @@ describe('GroupMembersSection', () => {
     });
   });
 
-  it('truncates very large rosters and points at Export members for the full list', () => {
+  it('does not cap a large roster — every member stays reachable', () => {
     const many = Array.from({ length: 205 }, (_, i) => makeUser(`00uFAKE${i}`, 'User', `${i}`));
     render(<GroupMembersSection {...base} status="done" members={many} memberCount={205} />);
 
-    expect(screen.getByText(/Showing the first 200 of 205 members/)).toBeInTheDocument();
+    expect(screen.queryByText(/Showing the first 200/)).not.toBeInTheDocument();
+    expect(screen.getByText(/of 205$/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Load more/ })).toBeInTheDocument();
+  });
+});
+
+describe('membership source, folded into the roster', () => {
+  it('disables the gate when no Okta tab is connected', () => {
+    render(<GroupMembersSection {...base} canAnalyze={false} />);
+    expect(screen.getByRole('button', { name: 'Load members' })).toBeDisabled();
+  });
+
+  it('states the one read covers both listing and classifying', () => {
+    render(<GroupMembersSection {...base} />);
+    expect(screen.getByText(/classifies each against the rules/)).toBeInTheDocument();
+    expect(screen.getByText(/one read for both/)).toBeInTheDocument();
+  });
+
+  it('renders the source split as readable text with its share, not just a bar', () => {
+    render(
+      <GroupMembersSection
+        {...base}
+        status="done"
+        members={members}
+        breakdown={breakdown}
+        memberSourceIndex={sourceIndex}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Rule-managed 3 \(75%\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Manual 1 \(25%\)/ })).toBeInTheDocument();
+  });
+
+  it('offers no source strip before the analysis has classified anyone', () => {
+    render(<GroupMembersSection {...base} status="done" members={members} />);
+
+    expect(screen.queryByRole('button', { name: /Manual/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Rule-managed/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Attributed to')).not.toBeInTheDocument();
+  });
+
+  it('explains the indeterminate slice as unevaluated, not as a failed match', () => {
+    render(
+      <GroupMembersSection
+        {...base}
+        status="done"
+        members={members}
+        breakdown={{ ...breakdown, unattributed: 1, total: 5 }}
+        memberSourceIndex={sourceIndex}
+      />,
+    );
+
+    expect(
+      screen.getByText(/limit of the client-side evaluator, not a failed match/),
+    ).toBeInTheDocument();
+  });
+
+  it('omits the indeterminate explanation when every member was classified', () => {
+    render(
+      <GroupMembersSection
+        {...base}
+        status="done"
+        members={members}
+        breakdown={breakdown}
+        memberSourceIndex={sourceIndex}
+      />,
+    );
+
+    expect(screen.queryByText(/limit of the client-side evaluator/)).not.toBeInTheDocument();
+  });
+
+  it('lists each rule contribution and deep-links it', async () => {
+    const onNavigateToRule = vi.fn();
+    render(
+      <GroupMembersSection
+        {...base}
+        status="done"
+        members={members}
+        breakdown={breakdown}
+        memberSourceIndex={sourceIndex}
+        onNavigateToRule={onNavigateToRule}
+      />,
+    );
+
+    expect(screen.getByText('3 members')).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Open rule All Engineers in the Rules tab' }),
+    );
+    expect(onNavigateToRule).toHaveBeenCalledWith('r1');
+  });
+
+  it('says so when no member could be attributed to a rule', () => {
+    render(
+      <GroupMembersSection
+        {...base}
+        status="done"
+        members={members}
+        breakdown={{ total: 4, direct: 4, ruleBased: 0, unattributed: 0, byRule: [] }}
+        memberSourceIndex={sourceIndex}
+      />,
+    );
+
+    expect(screen.getByText('No member was attributed to a specific rule.')).toBeInTheDocument();
   });
 });

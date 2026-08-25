@@ -26,7 +26,7 @@ vi.mock('../../contexts/ProgressContext', () => ({
   useProgress: () => progress,
 }));
 
-vi.mock('./members/MemberExplorer', () => ({
+vi.mock('../members/MemberExplorer', () => ({
   default: () => <div data-testid="member-explorer" />,
 }));
 

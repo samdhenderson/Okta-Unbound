@@ -4,15 +4,11 @@ import { useOktaApi } from './useOktaApi';
 import { extractReferencedGroupIds } from '../../shared/rules/groupRuleIndex';
 import { createLogger } from '../../shared/utils/logger';
 import type { SourceStatus } from './useGroupSource';
+import type { FormattedRule } from '../../shared/types';
 
 const log = createLogger('useGroupRuleReferences');
 
-export interface ReferencingRule {
-  id: string;
-  name: string;
-  status: string;
-  conditionExpression?: string;
-}
+export type ReferencingRule = FormattedRule;
 
 export interface UseGroupRuleReferencesReturn {
   rules: ReferencingRule[];
@@ -54,14 +50,9 @@ export function useGroupRuleReferences(
           return;
         }
         setRules(
-          all
-            .filter((rule) => extractReferencedGroupIds(rule.conditionExpression).includes(groupId))
-            .map((rule) => ({
-              id: rule.id,
-              name: rule.name,
-              status: rule.status,
-              conditionExpression: rule.conditionExpression,
-            })),
+          all.filter((rule) =>
+            extractReferencedGroupIds(rule.conditionExpression).includes(groupId),
+          ),
         );
         setStatus('done');
       })

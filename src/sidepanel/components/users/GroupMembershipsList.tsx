@@ -40,7 +40,14 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   const [query, setQuery] = useState('');
   const [bucket, setBucket] = useState<MembershipBucketFilter>('all');
   const [openGroupIds, setOpenGroupIds] = useState<ReadonlySet<string>>(() => new Set());
-  const proofs = useMembershipProofs(onProveMembershipSource);
+  const resolveProof = useMemo(
+    () =>
+      onProveMembershipSource
+        ? (membership: GroupMembership) => onProveMembershipSource(membership.group.id)
+        : undefined,
+    [onProveMembershipSource],
+  );
+  const proofs = useMembershipProofs(resolveProof);
 
   const summary = useMemo(() => membershipSummaryLine(memberships), [memberships]);
   const visible = useMemo(

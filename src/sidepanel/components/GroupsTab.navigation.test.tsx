@@ -320,7 +320,7 @@ describe('GroupsTab sub-navigation', () => {
     const detail = within(screen.getByTestId('group-detail-view'));
     const tablist = within(detail.getByRole('tablist', { name: 'Group detail sections' }));
 
-    await uev.click(tablist.getByRole('tab', { name: 'Health' }));
+    await uev.click(tablist.getByRole('tab', { name: 'Insights' }));
     expect(detail.getByText('g1')).toBeInTheDocument();
     expect(detail.getByRole('button', { name: 'Copy ID' })).toBeInTheDocument();
 
@@ -347,9 +347,9 @@ describe('GroupsTab sub-navigation', () => {
 
     const detail = within(screen.getByTestId('group-detail-view'));
     await waitFor(() =>
-      expect(detail.queryByRole('button', { name: 'Analyze' })).not.toBeInTheDocument(),
+      expect(detail.queryByRole('button', { name: 'Load members' })).not.toBeInTheDocument(),
     );
-    expect(detail.getByText('No members to attribute.')).toBeInTheDocument();
+    expect(detail.getByText("This group's roster is empty.")).toBeInTheDocument();
   });
 
   it('auto-analyzes a plain drill-in when the group is within the auto-load budget', async () => {
@@ -367,9 +367,9 @@ describe('GroupsTab sub-navigation', () => {
     );
 
     await waitFor(() =>
-      expect(detail.queryByRole('button', { name: 'Analyze' })).not.toBeInTheDocument(),
+      expect(detail.queryByRole('button', { name: 'Load members' })).not.toBeInTheDocument(),
     );
-    expect(detail.getByText('No members to attribute.')).toBeInTheDocument();
+    expect(detail.getByText("This group's roster is empty.")).toBeInTheDocument();
   });
 
   it('does not analyze on a plain drill-in when the group is over the auto-load budget', async () => {
@@ -386,6 +386,6 @@ describe('GroupsTab sub-navigation', () => {
       }),
     );
 
-    expect(detail.getByRole('button', { name: 'Analyze' })).toBeInTheDocument();
+    expect(detail.getByRole('button', { name: 'Load members' })).toBeInTheDocument();
   });
 });

@@ -7,6 +7,12 @@ import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('useMemberMfaScan');
 
+export const MFA_AUTO_THRESHOLD = 500;
+
+export function mfaScanNeedsConfirm(memberCount: number): boolean {
+  return memberCount > MFA_AUTO_THRESHOLD;
+}
+
 export interface UseMemberMfaScanOptions {
   groupId: string;
   members: OktaUser[];

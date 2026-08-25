@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useId, useRef, memo } from 'react';
 import type { FormattedRule } from '../../shared/types';
 import { timeAgo } from '../../shared/ruleUtils';
-import { Button, CopyableId, IconButton, ListRow } from './shared';
+import { Badge, Button, CopyableId, IconButton, ListRow } from './shared';
 
 const FLASH_MS = 500;
 
@@ -11,6 +11,7 @@ interface RuleCardProps {
   onDeactivate?: (ruleId: string) => void;
   onPreviewImpact?: (rule: FormattedRule) => void;
   onAddTargetGroup?: (rule: FormattedRule) => void;
+  onOpenInRulesTab?: (ruleId: string) => void;
   oktaOrigin?: string | null;
   isHighlighted?: boolean;
 }
@@ -69,6 +70,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
     onDeactivate,
     onPreviewImpact,
     onAddTargetGroup,
+    onOpenInRulesTab,
     oktaOrigin,
     isHighlighted = false,
   }) => {
@@ -118,6 +120,10 @@ const RuleCard: React.FC<RuleCardProps> = memo(
     const handleAddTargetGroup = useCallback(() => {
       onAddTargetGroup?.(rule);
     }, [onAddTargetGroup, rule]);
+
+    const handleOpenInRulesTab = useCallback(() => {
+      onOpenInRulesTab?.(rule.id);
+    }, [onOpenInRulesTab, rule.id]);
 
     const hasConflicts = rule.conflicts && rule.conflicts.length > 0;
 
@@ -240,15 +246,17 @@ const RuleCard: React.FC<RuleCardProps> = memo(
             </div>
 
             <div className="flex flex-wrap gap-2 pt-2">
-              {rule.status === 'ACTIVE' ? (
-                <Button variant="secondary" size="sm" onClick={handleDeactivate}>
-                  Deactivate Rule
-                </Button>
-              ) : (
-                <Button variant="primary" size="sm" onClick={handleActivate}>
-                  Activate Rule
-                </Button>
-              )}
+              {rule.status === 'ACTIVE'
+                ? onDeactivate && (
+                    <Button variant="secondary" size="sm" onClick={handleDeactivate}>
+                      Deactivate Rule
+                    </Button>
+                  )
+                : onActivate && (
+                    <Button variant="primary" size="sm" onClick={handleActivate}>
+                      Activate Rule
+                    </Button>
+                  )}
               {onPreviewImpact && rule.groupIds.length > 0 && (
                 <Button variant="secondary" size="sm" icon="users" onClick={handlePreviewImpact}>
                   Preview Impact
@@ -257,6 +265,16 @@ const RuleCard: React.FC<RuleCardProps> = memo(
               {onAddTargetGroup && (
                 <Button variant="secondary" size="sm" icon="plus" onClick={handleAddTargetGroup}>
                   Add Target Group
+                </Button>
+              )}
+              {onOpenInRulesTab && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleOpenInRulesTab}
+                  title={`Open rule ${rule.name} in the Rules tab`}
+                >
+                  Open in Rules tab
                 </Button>
               )}
               {oktaOrigin && (
@@ -300,31 +318,28 @@ const RuleCard: React.FC<RuleCardProps> = memo(
         onHeaderClick={toggleExpanded}
       >
         <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div
-            className={`
-            mt-1 w-2.5 h-2.5 rounded-full shrink-0
-            ${rule.status === 'ACTIVE' ? 'bg-success ring-4 ring-success/20' : 'bg-neutral-400 ring-4 ring-neutral-400/20'}
-          `}
-          />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <h3 className="font-semibold text-neutral-900 text-sm">{rule.name}</h3>
+              <Badge variant={rule.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                {rule.status}
+              </Badge>
               {rule.affectsCurrentGroup && (
-                <span className="px-2 py-0.5 rounded-md bg-primary text-white text-xs font-medium">
+                <Badge variant="primary" solid>
                   Current Group
-                </span>
+                </Badge>
               )}
               {hasConflicts && (
-                <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning-text text-xs font-medium border border-warning-light">
+                <Badge variant="warning">
                   {rule.conflicts!.length} Conflict{rule.conflicts!.length > 1 ? 's' : ''}
-                </span>
+                </Badge>
               )}
             </div>
             <p className="text-sm text-neutral-600 truncate">{rule.condition}</p>
           </div>
         </div>
         <IconButton
-          label={isExpanded ? 'Collapse' : 'Expand'}
+          label={`${isExpanded ? 'Collapse' : 'Expand'} ${rule.name}`}
           variant="ghost"
           size="md"
           expanded={isExpanded}

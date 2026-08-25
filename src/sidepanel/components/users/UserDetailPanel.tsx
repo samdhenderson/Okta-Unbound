@@ -79,64 +79,64 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   ];
 
   return (
-    <div className="animate-rise-in overflow-hidden rounded-md border border-neutral-200 bg-white">
-      <div className="px-2">
-        <Tabs
-          tabs={tabs}
-          activeKey={pane}
-          onChange={(key) => onPaneChange(key as UserDetailPane)}
-          ariaLabel="User detail sections"
-        />
-      </div>
+    <div className="animate-rise-in">
+      <Tabs
+        tabs={tabs}
+        activeKey={pane}
+        onChange={(key) => onPaneChange(key as UserDetailPane)}
+        ariaLabel="User detail sections"
+      />
 
-      <div
-        role="tabpanel"
-        aria-label="Groups"
-        hidden={pane !== 'groups'}
-        className={pane === 'groups' ? '' : 'hidden'}
-      >
-        <GroupMembershipsList
-          memberships={memberships}
-          user={user}
-          isLoading={isLoadingMemberships}
-          currentGroupId={currentGroupId}
-          oktaOrigin={oktaOrigin}
-          recentlyAddedGroupId={recentlyAddedGroupId}
-          appsByGroupId={appsByGroupId}
-          onProveMembershipSource={onProveMembershipSource}
-        />
-      </div>
+      <div className="mt-6 overflow-hidden rounded-md border border-neutral-200 bg-white">
+        <div
+          role="tabpanel"
+          aria-label="Groups"
+          hidden={pane !== 'groups'}
+          className={pane === 'groups' ? '' : 'hidden'}
+        >
+          <GroupMembershipsList
+            memberships={memberships}
+            user={user}
+            isLoading={isLoadingMemberships}
+            currentGroupId={currentGroupId}
+            oktaOrigin={oktaOrigin}
+            recentlyAddedGroupId={recentlyAddedGroupId}
+            appsByGroupId={appsByGroupId}
+            onProveMembershipSource={onProveMembershipSource}
+          />
+        </div>
 
-      <div
-        role="tabpanel"
-        aria-label="Apps"
-        hidden={pane !== 'apps'}
-        className={pane === 'apps' ? 'px-4 py-3' : 'hidden'}
-      >
-        <UserAppsList
-          apps={apps}
-          memberships={memberships}
-          isLoading={isLoadingApps}
-          complete={appsComplete}
-          oktaOrigin={oktaOrigin}
-        />
-      </div>
+        <div
+          role="tabpanel"
+          aria-label="Apps"
+          hidden={pane !== 'apps'}
+          className={pane === 'apps' ? 'px-4 py-3' : 'hidden'}
+        >
+          <UserAppsList
+            apps={apps}
+            memberships={memberships}
+            isLoading={isLoadingApps}
+            complete={appsComplete}
+            oktaOrigin={oktaOrigin}
+          />
+        </div>
 
-      <div
-        role="tabpanel"
-        aria-label="Profile"
-        hidden={pane !== 'profile'}
-        className={pane === 'profile' ? undefined : 'hidden'}
-      >
-        <UserProfilePane
-          attributes={attributes}
-          config={profileConfig}
-          ruleReads={ruleReads}
-          isLoading={isLoadingProfile}
-          onConfigure={() => setIsConfiguringProfile(true)}
-          edit={profileEdit?.controls}
-          cells={profileEdit?.cells}
-        />
+        <div
+          role="tabpanel"
+          aria-label="Profile"
+          hidden={pane !== 'profile'}
+          className={pane === 'profile' ? undefined : 'hidden'}
+        >
+          <UserProfilePane
+            attributes={attributes}
+            config={profileConfig}
+            ruleReads={ruleReads}
+            isLoading={isLoadingProfile}
+            onConfigure={() => setIsConfiguringProfile(true)}
+            edit={profileEdit?.controls}
+            cells={profileEdit?.cells}
+          />
+        </div>
       </div>
 
       <ProfileDisplayModal

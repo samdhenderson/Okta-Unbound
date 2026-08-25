@@ -1,10 +1,9 @@
 import React, { useMemo } from 'react';
 import { AlertMessage, Button, Modal } from '../../shared';
-import MfaScanButton from '../../overview/members/MfaScanButton';
-import { computeMfaBreakdown } from '../../overview/members/memberAnalytics';
+import MfaScanButton from '../../members/MfaScanButton';
+import { computeMfaBreakdown } from '../../members/memberAnalytics';
+import { mfaScanNeedsConfirm } from '../../../hooks/useMemberMfaScan';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../../shared/types';
-
-export const MFA_AUTO_THRESHOLD = 500;
 
 export interface GroupMfaCoverageSectionProps {
   members: OktaUser[];
@@ -24,7 +23,7 @@ const GroupMfaCoverageSection: React.FC<GroupMfaCoverageSectionProps> = ({
   onCancelConfirm,
 }) => {
   const handleScanClick = (): void => {
-    if (members.length > MFA_AUTO_THRESHOLD) onRequestConfirm();
+    if (mfaScanNeedsConfirm(members.length)) onRequestConfirm();
     else onRunScan();
   };
 

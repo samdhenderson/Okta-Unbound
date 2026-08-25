@@ -11,11 +11,11 @@ const meta = {
     docs: {
       description: {
         component:
-          "⌘K jump-to palette for the side panel's eight top-level sections.\n\n" +
+          "⌘K jump-to palette for the side panel's nine top-level sections.\n\n" +
           'The primary nav is an icon rail, so inactive tabs are icon-only — compact, but it asks the user to aim at a small target. This palette is the keyboard route to the same destinations: it costs no horizontal space and no clicks. Filtering is a case-insensitive substring match on the section label; the section you are already on is marked `aria-current="page"` and labelled **Current**; choosing a result calls the same `onTabChange` the rail calls and then closes.\n\n' +
           'Scope is deliberately navigation destinations only — searching groups, users or rules from here is a later feature, and the result list is shaped as a generic `{ id, label, icon }` row so that lands as extra sections rather than a rewrite.\n\n' +
           '**Keyboard model — roving focus, not a combobox.** The shared `Input` does not spread arbitrary props, and bending a shared primitive with `role`/`aria-expanded`/`aria-controls`/`aria-activedescendant` for one consumer is the wrong trade. So: Down leaves the field for the first result, Up/Down move within the list (Up off the top returns to the field), Enter or Space activates, Escape closes. Exactly one row is in the tab order at a time.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs) — the ⌘K listener itself lives in `useCommandPalette`, called once by `App`, because every tab stays mounted (ADR-0018) and a `window` listener inside a tab would be registered eight times over.',
+          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs) — the ⌘K listener itself lives in `useCommandPalette`, called once by `App`, because every tab stays mounted (ADR-0018) and a `window` listener inside a tab would be registered once per tab.',
       },
     },
   },
@@ -59,7 +59,12 @@ export const Filtered: Story = {
     const canvas = within(canvasElement);
     const field = await canvas.findByRole('searchbox', { name: 'Search sections' });
     await userEvent.type(field, 'or');
-    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('2 sections'));
+
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('3 sections'));
+    await expect(canvas.getByRole('button', { name: /Export/ })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /Explorer/ })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /History/ })).toBeVisible();
+    await expect(canvas.queryByRole('button', { name: /Groups/ })).not.toBeInTheDocument();
   },
 };
 

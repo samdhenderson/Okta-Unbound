@@ -1,21 +1,21 @@
-import React from 'react';
-import {
-  AlertMessage,
-  Button,
-  DetailSection,
-  EmptyState,
-  IconButton,
-  ListRow,
-  Modal,
-  Skeleton,
-} from '../../shared';
-import Icon from '../../overview/shared/Icon';
-import type { GroupSummary, OktaUser } from '../../../../shared/types';
+import React, { useMemo } from 'react';
+import { AlertMessage, Button, DetailSection, EmptyState, Modal, Skeleton } from '../../shared';
+import MemberExplorer, { type MemberSourceContext } from '../../members/MemberExplorer';
+import MemberSourceNotes from './MemberSourceNotes';
+import { toMemberSourceSegments } from '../memberSourceBuckets';
+import type {
+  GroupMembership,
+  GroupSummary,
+  MemberMfaResult,
+  MfaScanStatus,
+  OktaUser,
+} from '../../../../shared/types';
+import type { MemberSourceBreakdown } from '../../../../shared/membership/groupSource';
+import type { MemberSourceIndex } from '../../../../shared/membership/memberSourceIndex';
+import type { MemberRuleAttribution } from '../../../../shared/membership/memberRuleAttribution';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
 import type { MemberWriteStatus } from './useGroupMembersSection';
 import { userDisplayName } from '../../../../shared/utils/userDisplay';
-
-const DISPLAY_CAP = 200;
 
 const READ_ONLY_REASON: Partial<Record<GroupSummary['type'], string>> = {
   APP_GROUP:
@@ -31,6 +31,18 @@ export interface GroupMembersSectionProps {
   error: string | null;
   onAnalyze: () => void;
   canAnalyze?: boolean;
+  oktaOrigin?: string | null;
+
+  breakdown: MemberSourceBreakdown | null;
+  memberSourceIndex: MemberSourceIndex | null;
+  onNavigateToRule?: (ruleId: string) => void;
+  onProveMemberSource?: (userId: string) => Promise<MemberRuleAttribution>;
+
+  mfaResults: Map<string, MemberMfaResult> | null;
+  scanStatus: MfaScanStatus;
+  onRunScan: () => void;
+  onRequestConfirm: () => void;
+  onCancelConfirm: () => void;
 
   removeTarget: OktaUser | null;
   onRequestRemove: (user: OktaUser) => void;
@@ -40,33 +52,6 @@ export interface GroupMembersSectionProps {
   removeError: string | null;
 }
 
-const MemberListRow: React.FC<{
-  user: OktaUser;
-  readOnly: boolean;
-  onRequestRemove: (user: OktaUser) => void;
-}> = ({ user, readOnly, onRequestRemove }) => (
-  <ListRow as="li" density="compact">
-    <div className="flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <div className="truncate text-sm font-semibold text-neutral-900">
-          {userDisplayName(user)}
-        </div>
-        <div className="truncate text-xs text-neutral-600">{user.profile.email}</div>
-      </div>
-      {!readOnly && (
-        <IconButton
-          label={`Remove ${userDisplayName(user)} from this group`}
-          variant="danger"
-          size="sm"
-          onClick={() => onRequestRemove(user)}
-        >
-          <Icon type="trash" size="sm" />
-        </IconButton>
-      )}
-    </div>
-  </ListRow>
-);
-
 const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
   groupType,
   memberCount,
@@ -75,6 +60,16 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
   error,
   onAnalyze,
   canAnalyze = true,
+  oktaOrigin,
+  breakdown,
+  memberSourceIndex,
+  onNavigateToRule,
+  onProveMemberSource,
+  mfaResults,
+  scanStatus,
+  onRunScan,
+  onRequestConfirm,
+  onCancelConfirm,
   removeTarget,
   onRequestRemove,
   onCancelRemove,
@@ -84,14 +79,22 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
 }) => {
   const hasMembers = memberCount > 0;
   const readOnlyReason = READ_ONLY_REASON[groupType];
-  const readOnly = readOnlyReason !== undefined;
-  const visibleMembers = members ? members.slice(0, DISPLAY_CAP) : [];
-  const truncated = (members?.length ?? 0) > DISPLAY_CAP;
+
+  const memberSource = useMemo<MemberSourceContext | undefined>(() => {
+    if (!breakdown || !memberSourceIndex) return undefined;
+    return { index: memberSourceIndex, segments: toMemberSourceSegments(breakdown) };
+  }, [breakdown, memberSourceIndex]);
+
+  const proveMemberSource = useMemo(
+    () =>
+      onProveMemberSource
+        ? (_membership: GroupMembership, userId: string) => onProveMemberSource(userId)
+        : undefined,
+    [onProveMemberSource],
+  );
 
   return (
     <DetailSection
-      title="Members"
-      description="The group's roster, read from the same analysis above."
       actions={
         status === 'idle' && hasMembers ? (
           <Button
@@ -113,8 +116,8 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
       ) : status === 'idle' ? (
         <p className="text-sm text-neutral-500">
           Not loaded yet. Reads all {memberCount.toLocaleString()} member
-          {memberCount === 1 ? '' : 's'} once — the same read the analysis above uses, so loading
-          here costs nothing extra once that analysis has already run.
+          {memberCount === 1 ? '' : 's'} once, then classifies each against the rules that assign
+          into this group — one read for both.
         </p>
       ) : status === 'loading' ? (
         <Skeleton variant="row" size="md" count={4} label="Loading members…" />
@@ -123,35 +126,26 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
           message={{ text: error || 'Failed to load members.', type: 'danger' }}
           action={{ label: 'Retry', onClick: onAnalyze }}
         />
+      ) : !members || members.length === 0 ? (
+        <EmptyState icon="users" title="No members" description="This group's roster is empty." />
       ) : (
-        <div className="space-y-3">
-          {visibleMembers.length === 0 ? (
-            <EmptyState
-              icon="users"
-              title="No members"
-              description="This group's roster is empty."
-            />
-          ) : (
-            <>
-              <ul className="space-y-1.5">
-                {visibleMembers.map((user) => (
-                  <MemberListRow
-                    key={user.id}
-                    user={user}
-                    readOnly={readOnly}
-                    onRequestRemove={onRequestRemove}
-                  />
-                ))}
-              </ul>
-              {truncated && (
-                <p className="text-xs text-neutral-500">
-                  Showing the first {DISPLAY_CAP} of {members?.length.toLocaleString()} members. Use
-                  Export members above for the full list.
-                </p>
-              )}
-            </>
-          )}
-        </div>
+        <MemberExplorer
+          members={members}
+          oktaOrigin={oktaOrigin}
+          mfaResults={mfaResults}
+          scanStatus={scanStatus}
+          onRunScan={onRunScan}
+          onRequestConfirm={onRequestConfirm}
+          onCancelConfirm={onCancelConfirm}
+          memberSource={memberSource}
+          sourceDetail={
+            breakdown ? (
+              <MemberSourceNotes breakdown={breakdown} onNavigateToRule={onNavigateToRule} />
+            ) : undefined
+          }
+          onProveMemberSource={proveMemberSource}
+          onRemoveMember={readOnlyReason ? undefined : onRequestRemove}
+        />
       )}
 
       <Modal

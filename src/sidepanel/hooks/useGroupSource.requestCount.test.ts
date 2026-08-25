@@ -235,6 +235,7 @@ describe('useGroupSource.resummarize', () => {
     });
     await waitFor(() => expect(result.current.memberStatus).toBe('done'));
     expect(result.current.breakdown?.total).toBe(3);
+    expect(result.current.memberSourceIndex?.byUserId.size).toBe(3);
 
     const before = scheduledEndpoints().length;
 
@@ -243,6 +244,7 @@ describe('useGroupSource.resummarize', () => {
     });
 
     expect(result.current.breakdown?.total).toBe(2);
+    expect(result.current.memberSourceIndex?.byUserId.size).toBe(2);
     expect(scheduledEndpoints()).toHaveLength(before);
   });
 

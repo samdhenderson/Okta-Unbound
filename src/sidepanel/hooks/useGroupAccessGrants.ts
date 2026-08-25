@@ -12,6 +12,9 @@ const log = createLogger('useGroupAccessGrants');
 export interface AppGrant {
   id: string;
   label: string;
+  status?: string;
+  signOnMode?: string;
+  lastUpdated?: Date;
 }
 
 export interface RoleGrant {
@@ -37,8 +40,22 @@ export interface UseGroupAccessGrantsReturn {
   rolesStatus: RolesReadStatus;
 }
 
-function toAppGrant(app: { id: string; label?: string; name?: string }): AppGrant {
-  return { id: app.id, label: app.label ?? app.name ?? app.id };
+function toAppGrant(app: {
+  id: string;
+  label?: string;
+  name?: string;
+  status?: string;
+  signOnMode?: string;
+  lastUpdated?: string | null;
+}): AppGrant {
+  const lastUpdated = app.lastUpdated ? new Date(app.lastUpdated) : undefined;
+  return {
+    id: app.id,
+    label: app.label ?? app.name ?? app.id,
+    status: app.status,
+    signOnMode: app.signOnMode,
+    lastUpdated: lastUpdated && !Number.isNaN(lastUpdated.getTime()) ? lastUpdated : undefined,
+  };
 }
 
 function toRoleGrant(role: { id: string; label?: string; type?: string }): RoleGrant {

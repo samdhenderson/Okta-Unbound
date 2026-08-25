@@ -1,10 +1,29 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect } from 'storybook/test';
 import GroupAccessSection from './GroupAccessSection';
 import type { AppGrant, RoleGrant } from '../../../hooks/useGroupAccessGrants';
+import type { PushGroupMapping } from '../../../../shared/types';
 
 const apps: AppGrant[] = [
-  { id: '0oaFAKEAPP1', label: 'Salesforce' },
-  { id: '0oaFAKEAPP2', label: 'Slack' },
+  {
+    id: '0oaFAKEAPP1',
+    label: 'Salesforce',
+    status: 'ACTIVE',
+    signOnMode: 'SAML_2_0',
+    lastUpdated: new Date('2025-11-14T09:30:00Z'),
+  },
+  { id: '0oaFAKEAPP2', label: 'Slack', status: 'INACTIVE', signOnMode: 'BOOKMARK' },
+];
+
+const pushMappings: PushGroupMapping[] = [
+  {
+    mappingId: '0pgFAKE1',
+    sourceUserGroupId: '00gFAKEgroup00001',
+    appId: '0oaFAKEAPP1',
+    appName: 'Salesforce',
+    targetGroupName: 'eng-team',
+    priority: 2,
+  },
 ];
 
 const roles: RoleGrant[] = [
@@ -30,12 +49,24 @@ const meta = {
           'alert. That is deliberately distinct from a *confirmed* empty roles list ' +
           '(`rolesStatus: \'available\'`, `roles: []`), which renders as an explicit "No admin role granted." — ' +
           'see `RolesUnavailable` vs `Empty` below.\n\n' +
+          'Each app is a `GroupAppRow` — a disclosure carrying its status, sign-on mode, id and ' +
+          'Okta link — not the `EntityLink` chip this list used to be. It costs no extra ' +
+          'request: the app-assignment walk already returned those fields.\n\n' +
+          'Push mappings are joined on as an **annotation**. `GroupPushSection` stays and stays ' +
+          'authoritative: a group is pushed to an app from that app’s Push Groups tab, which does ' +
+          'not require the group to be assigned to it, so a mapping can exist with no row here to ' +
+          'hang it on.\n\n' +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
       },
     },
   },
   argTypes: {
     apps: { description: 'Apps this group is assigned to.' },
+    pushMappings: {
+      description:
+        'Joined onto the app rows. `undefined` means the enrichment never ran — no row says ' +
+        'anything about push; `[]` is the loaded fact that this group is pushed nowhere.',
+    },
     appsStatus: { description: "Status of the app-assignment read ('loading'/'done'/'error')." },
     appsError: { description: 'Error message when the app-assignment read failed.' },
     roles: { description: 'Admin roles granted to every member of this group.' },
@@ -79,4 +110,18 @@ export const AppsAndRoles: Story = {
 
 export const RolesUnavailable: Story = {
   args: { appsStatus: 'done', apps, rolesStatus: 'unavailable', roles: [] },
+};
+
+export const WithPushMappings: Story = {
+  args: { appsStatus: 'done', apps, rolesStatus: 'available', roles, pushMappings },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Pushed')).toBeVisible();
+  },
+};
+
+export const PushNeverLoaded: Story = {
+  args: { appsStatus: 'done', apps, rolesStatus: 'available', roles, pushMappings: undefined },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByText('Pushed')).toBeNull();
+  },
 };

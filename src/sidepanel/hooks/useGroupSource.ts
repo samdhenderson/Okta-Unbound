@@ -5,22 +5,21 @@ import {
   summarizeMemberSources,
   type MemberSourceBreakdown,
 } from '../../shared/membership/groupSource';
+import {
+  buildMemberSourceIndex,
+  type MemberSourceIndex,
+} from '../../shared/membership/memberSourceIndex';
 import { writeMemberSource } from '../cache/memberSourceCache';
 import { getOrFetch } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
 import { createLogger } from '../../shared/utils/logger';
+import type { FormattedRule } from '../../shared/types';
 
 const log = createLogger('useGroupSource');
 
 export type SourceStatus = 'idle' | 'loading' | 'done' | 'error';
 
-export interface FeedingRule {
-  id: string;
-  name: string;
-  status: string;
-  userAttributes?: string[];
-  conditionExpression?: string;
-}
+export type FeedingRule = FormattedRule;
 
 export interface UseGroupSourceReturn {
   group: GroupSummary | null;
@@ -28,6 +27,7 @@ export interface UseGroupSourceReturn {
   rulesStatus: SourceStatus;
   breakdown: MemberSourceBreakdown | null;
   memberStatus: SourceStatus;
+  memberSourceIndex: MemberSourceIndex | null;
   error: string | null;
   open: (group: GroupSummary) => void;
   analyzeMembers: () => void;
@@ -43,6 +43,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
   const [feedingRules, setFeedingRules] = useState<FeedingRule[]>([]);
   const [rulesStatus, setRulesStatus] = useState<SourceStatus>('idle');
   const [breakdown, setBreakdown] = useState<MemberSourceBreakdown | null>(null);
+  const [memberSourceIndex, setMemberSourceIndex] = useState<MemberSourceIndex | null>(null);
   const [memberStatus, setMemberStatus] = useState<SourceStatus>('idle');
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +57,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
       setGroup(nextGroup);
       setFeedingRules([]);
       setBreakdown(null);
+      setMemberSourceIndex(null);
       setMemberStatus('idle');
       setError(null);
       setRulesStatus('loading');
@@ -63,15 +65,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
       getGroupRulesForGroup(nextGroup.id)
         .then((rules) => {
           if (runId !== runIdRef.current) return;
-          setFeedingRules(
-            rules.map((r) => ({
-              id: r.id,
-              name: r.name,
-              status: r.status,
-              userAttributes: r.userAttributes,
-              conditionExpression: r.conditionExpression,
-            })),
-          );
+          setFeedingRules(rules);
           setRulesStatus('done');
         })
         .catch((err) => {
@@ -103,6 +97,13 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
           rules,
         );
         setBreakdown(summary);
+        setMemberSourceIndex(
+          buildMemberSourceIndex(
+            { id: group.id, name: group.name, type: group.type },
+            members,
+            rules,
+          ),
+        );
         writeMemberSource(group.id, summary);
         setMemberStatus('done');
       })
@@ -124,6 +125,13 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
         rules,
       );
       setBreakdown(summary);
+      setMemberSourceIndex(
+        buildMemberSourceIndex(
+          { id: group.id, name: group.name, type: group.type },
+          members,
+          rules,
+        ),
+      );
       writeMemberSource(group.id, summary);
     },
     [group],
@@ -133,6 +141,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     runIdRef.current++;
     setGroup(null);
     setFeedingRules([]);
+    setMemberSourceIndex(null);
     setRulesStatus('idle');
     setBreakdown(null);
     setMemberStatus('idle');
@@ -146,6 +155,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     rulesStatus,
     breakdown,
     memberStatus,
+    memberSourceIndex,
     error,
     open,
     analyzeMembers,

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import type { OktaUser, MemberMfaResult } from '../../shared/types';
-import { useMemberMfaScan } from './useMemberMfaScan';
+import { MFA_AUTO_THRESHOLD, mfaScanNeedsConfirm, useMemberMfaScan } from './useMemberMfaScan';
 import { resetEntityCache, peek, setEntry } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
 
@@ -28,6 +28,15 @@ const makeResult = (userId: string, enrolled: boolean): MemberMfaResult => ({
 beforeEach(() => {
   vi.clearAllMocks();
   resetEntityCache();
+});
+
+describe('mfaScanNeedsConfirm', () => {
+  it('is false at and below the threshold, true above it', () => {
+    expect(mfaScanNeedsConfirm(0)).toBe(false);
+    expect(mfaScanNeedsConfirm(MFA_AUTO_THRESHOLD - 1)).toBe(false);
+    expect(mfaScanNeedsConfirm(MFA_AUTO_THRESHOLD)).toBe(false);
+    expect(mfaScanNeedsConfirm(MFA_AUTO_THRESHOLD + 1)).toBe(true);
+  });
 });
 
 describe('useMemberMfaScan', () => {

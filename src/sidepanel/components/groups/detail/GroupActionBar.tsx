@@ -7,6 +7,7 @@ export interface GroupActionBarProps {
   targetTabId: number | null;
   onExportGroup?: (groupId: string, groupName: string) => void;
   onAddMember: () => void;
+  onCompare: () => void;
   sticky?: boolean;
 }
 
@@ -15,6 +16,7 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
   targetTabId,
   onExportGroup,
   onAddMember,
+  onCompare,
   sticky = true,
 }) => {
   const actions: ActionDescriptor[] = [
@@ -39,6 +41,15 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
       onClick: onAddMember,
       disabled: targetTabId === null,
       title: 'Add a member to this group',
+    },
+    {
+      id: 'compare',
+      label: 'Compare',
+      icon: 'users',
+      priority: 'flex',
+      onClick: onCompare,
+      disabled: targetTabId === null,
+      title: 'Compare this group\u2019s membership with another group',
     },
   ];
 

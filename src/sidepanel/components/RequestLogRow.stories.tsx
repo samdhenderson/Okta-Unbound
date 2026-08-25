@@ -125,8 +125,11 @@ export const ExpandedBatch: Story = {
   args: { entry: batch, isExpanded: true },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/api\/v1\/groups\?limit=200/)).toBeVisible();
-    await expect(canvas.getByText(/stats/)).toBeVisible();
+    await expect(canvas.getByText('/api/v1/groups?limit=200')).toBeVisible();
+    await expect(
+      canvas.getByText('/api/v1/groups?limit=200&after=00gFAKE0000000000042'),
+    ).toBeVisible();
+    await expect(canvas.getByText('/api/v1/groups/00gFAKE0000000000001/stats')).toBeVisible();
   },
 };
 

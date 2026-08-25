@@ -271,7 +271,7 @@ describe('App tab lifetime', () => {
     expect(detail).toBeVisible();
     await uev.click(
       within(detail).getByRole('tab', {
-        name: 'Health',
+        name: 'Insights',
       }),
     );
     expect(within(detail).getByText('g1')).toBeInTheDocument();
