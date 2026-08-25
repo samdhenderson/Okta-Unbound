@@ -1,4 +1,5 @@
 import { createLogger } from '../utils/logger';
+import { flushAllPending, recordRequest } from '../requestLog';
 import { OperationCancelledError } from './cancellation';
 import { RateLimitDetector } from './rateLimitDetector';
 import type {
@@ -74,6 +75,7 @@ export class ApiScheduler {
     body: unknown,
     tabId: number,
     priority: RequestPriority = 'normal',
+    reason?: string,
   ): Promise<RequestResult> {
     const dedupKey = this.getGetDedupKey(method, endpoint, tabId);
 
@@ -97,6 +99,7 @@ export class ApiScheduler {
         priority,
         tabId,
         timestamp: Date.now(),
+        reason,
         resolve: (result: RequestResult) => resolve(result),
         reject,
         retryCount: 0,
@@ -241,6 +244,7 @@ export class ApiScheduler {
     } else {
       this.updateStatus('idle');
       this.stopProcessing();
+      void flushAllPending();
     }
   }
 
@@ -272,6 +276,7 @@ export class ApiScheduler {
       this.metrics.successfulRequests++;
       this.activeRequests.delete(request.id);
       request.resolve(result);
+      this.recordSettledRequest(request, true);
 
       log.debug('Request completed:', {
         id: request.id,
@@ -292,11 +297,23 @@ export class ApiScheduler {
         this.lastError = error instanceof Error ? error.message : 'Unknown error';
         this.activeRequests.delete(request.id);
         request.reject(error instanceof Error ? error : new Error('Request failed'));
+        this.recordSettledRequest(request, false);
       }
     } finally {
       this.notifyStateChange();
       this.processQueue();
     }
+  }
+
+  private recordSettledRequest(request: QueuedRequest, success: boolean): void {
+    recordRequest({
+      reason: request.reason,
+      method: request.method,
+      endpoint: request.endpoint,
+      timestamp: request.timestamp,
+      durationMs: Date.now() - request.timestamp,
+      success,
+    });
   }
 
   private async makeApiCall(request: QueuedRequest): Promise<RequestResult> {

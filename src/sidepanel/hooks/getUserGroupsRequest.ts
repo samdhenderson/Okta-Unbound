@@ -31,7 +31,7 @@ export async function getUserGroupsRequest(
     let nextUrl: string | null = `/api/v1/users/${userId}/groups?limit=200`;
 
     while (nextUrl) {
-      const response = await makeApiRequest(nextUrl);
+      const response = await makeApiRequest(nextUrl, { reason: "Load user's groups" });
 
       if (!response.success) {
         return response;

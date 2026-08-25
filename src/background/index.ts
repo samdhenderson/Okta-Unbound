@@ -44,12 +44,14 @@ globalScheduler.onStateChange((state: SchedulerState) => {
 
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 const ALLOWED_PRIORITIES = new Set(['interactive', 'high', 'normal', 'low']);
+const MAX_REASON_LENGTH = 80;
 
 function isValidScheduleRequest(request: {
   endpoint?: unknown;
   tabId?: unknown;
   method?: unknown;
   priority?: unknown;
+  reason?: unknown;
 }): boolean {
   if (
     typeof request.endpoint !== 'string' ||
@@ -65,6 +67,12 @@ function isValidScheduleRequest(request: {
     return false;
   }
   if (request.priority !== undefined && !ALLOWED_PRIORITIES.has(String(request.priority))) {
+    return false;
+  }
+  if (
+    request.reason !== undefined &&
+    (typeof request.reason !== 'string' || request.reason.length > MAX_REASON_LENGTH)
+  ) {
     return false;
   }
   return true;
@@ -123,6 +131,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           request.body,
           request.tabId,
           request.priority || 'normal',
+          request.reason,
         )
         .then((result) => {
           sendResponse(result);

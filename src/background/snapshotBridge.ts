@@ -32,9 +32,9 @@ function broadcast(message: SnapshotUpdatedMessage): void {
 }
 
 export function createSchedulerPageRequest(scheduler: ApiScheduler, tabId: number): PageRequest {
-  return async (url) => {
+  return async (url, reason) => {
     try {
-      const result = await scheduler.scheduleRequest(url, 'GET', undefined, tabId, 'low');
+      const result = await scheduler.scheduleRequest(url, 'GET', undefined, tabId, 'low', reason);
       return {
         success: result.success,
         data: result.data,

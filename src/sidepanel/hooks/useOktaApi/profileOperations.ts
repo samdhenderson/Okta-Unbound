@@ -33,7 +33,9 @@ export function assertNoExcludedKeys(patch: Record<string, unknown>): void {
 export function createProfileOperations(coreApi: CoreApi) {
   const getUserProfileSchema = async (): Promise<OktaUserProfileSchema | null> => {
     try {
-      const response = await coreApi.makeApiRequest('/api/v1/meta/schemas/user/default');
+      const response = await coreApi.makeApiRequest('/api/v1/meta/schemas/user/default', {
+        reason: 'Fetch user profile schema',
+      });
       if (!response.success || !response.data) {
         log.error('Failed to fetch user profile schema', { success: response.success });
         return null;
@@ -59,7 +61,9 @@ export function createProfileOperations(coreApi: CoreApi) {
 
   const getUserRaw = async (userId: string): Promise<OktaUser | null> => {
     try {
-      const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`);
+      const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`, {
+        reason: 'Fetch user profile for editing',
+      });
       if (!response.success || !response.data) {
         log.error('Failed to fetch user', { userId, success: response.success });
         return null;
@@ -95,8 +99,10 @@ export function createProfileOperations(coreApi: CoreApi) {
     assertNoExcludedKeys(patch);
 
     try {
-      const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`, 'POST', {
-        profile: patch,
+      const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`, {
+        method: 'POST',
+        body: { profile: patch },
+        reason: 'Update user profile attributes',
       });
 
       if (!response.success) {

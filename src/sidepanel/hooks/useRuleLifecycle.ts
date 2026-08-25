@@ -62,7 +62,9 @@ export function useRuleLifecycle({
         log.debug(`${cfg.gerund} rule:`, ruleId);
 
         try {
-          const userResponse = await makeApiRequest('/api/v1/users/me');
+          const userResponse = await makeApiRequest('/api/v1/users/me', {
+            reason: 'Resolve current admin for rule lifecycle audit attribution',
+          });
           if (userResponse.success && userResponse.data) {
             currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
           }

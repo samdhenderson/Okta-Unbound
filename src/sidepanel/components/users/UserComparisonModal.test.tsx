@@ -447,6 +447,7 @@ describe('UserComparisonModal', () => {
         body: undefined,
         tabId: TAB_ID,
         priority: 'normal',
+        reason: 'Add user to group',
       });
 
       expect(bucketTitleOf('Compared Only Group 1')).toBe('Shared');
@@ -478,6 +479,7 @@ describe('UserComparisonModal', () => {
           body: undefined,
           tabId: TAB_ID,
           priority: 'normal',
+          reason: 'Add user to group',
         }),
       );
 

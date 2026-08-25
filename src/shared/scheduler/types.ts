@@ -9,6 +9,7 @@ export interface QueuedRequest {
   priority: RequestPriority;
   tabId: number;
   timestamp: number;
+  reason?: string;
   resolve: (response: RequestResult) => void;
   reject: (error: Error) => void;
   retryCount: number;

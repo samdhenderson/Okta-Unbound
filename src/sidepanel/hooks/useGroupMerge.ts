@@ -100,7 +100,9 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
 
     let currentUserEmail = 'unknown@unknown.com';
     try {
-      const userResponse = await makeApiRequest('/api/v1/users/me');
+      const userResponse = await makeApiRequest('/api/v1/users/me', {
+        reason: 'Resolve current admin for merge audit attribution',
+      });
       if (userResponse.success && userResponse.data) {
         currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
       }
@@ -113,10 +115,10 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     try {
       const copiedUsers: OktaUser[] = [];
       for (const user of plan.toCopy) {
-        const result = await makeApiRequest(
-          `/api/v1/groups/${plan.survivor.id}/users/${user.id}`,
-          'PUT',
-        );
+        const result = await makeApiRequest(`/api/v1/groups/${plan.survivor.id}/users/${user.id}`, {
+          method: 'PUT',
+          reason: 'Merge groups: copy member into survivor',
+        });
         if (result.success) {
           res.copied++;
           copiedUsers.push(user);

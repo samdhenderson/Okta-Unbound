@@ -67,7 +67,9 @@ export function useDetectedUser({
       onResetSearch(); // Clear search results + query when loading a specific user.
 
       try {
-        const userResponse = await makeApiRequest(`/api/v1/users/${userId}`);
+        const userResponse = await makeApiRequest(`/api/v1/users/${userId}`, {
+          reason: 'Detect current Okta user',
+        });
 
         if (!userResponse.success) {
           throw new Error(userResponse.error || 'Failed to fetch user details');

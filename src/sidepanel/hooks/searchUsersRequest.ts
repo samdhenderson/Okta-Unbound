@@ -22,23 +22,21 @@ export async function searchUsersRequest(
     let users: OktaUser[] = [];
 
     const qParam = encodeURIComponent(trimmedQuery);
-    let response = await makeApiRequest(
-      `/api/v1/users?q=${qParam}&limit=20`,
-      'GET',
-      undefined,
-      'interactive',
-    );
+    let response = await makeApiRequest(`/api/v1/users?q=${qParam}&limit=20`, {
+      method: 'GET',
+      priority: 'interactive',
+      reason: 'Search users',
+    });
 
     if (response.success && response.data && response.data.length > 0) {
       users = response.data;
     } else {
       const searchParam = encodeURIComponent(trimmedQuery);
-      response = await makeApiRequest(
-        `/api/v1/users?search=${searchParam}&limit=20`,
-        'GET',
-        undefined,
-        'interactive',
-      );
+      response = await makeApiRequest(`/api/v1/users?search=${searchParam}&limit=20`, {
+        method: 'GET',
+        priority: 'interactive',
+        reason: 'Search users',
+      });
       if (response.success && response.data) {
         users = response.data;
       }
@@ -47,9 +45,11 @@ export async function searchUsersRequest(
     if (users.length === 0 && trimmedQuery.includes('@')) {
       response = await makeApiRequest(
         `/api/v1/users?filter=profile.email eq "${trimmedQuery}"&limit=20`,
-        'GET',
-        undefined,
-        'interactive',
+        {
+          method: 'GET',
+          priority: 'interactive',
+          reason: 'Search users',
+        },
       );
       if (response.success && response.data) {
         users = response.data;

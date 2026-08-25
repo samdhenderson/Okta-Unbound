@@ -113,20 +113,16 @@ describe('fetchAllRows pagination', () => {
     expect(result.dropped).toBe(0);
     expect(result.capped).toBe(false);
     expect(makeApiRequest).toHaveBeenCalledTimes(2);
-    expect(makeApiRequest).toHaveBeenNthCalledWith(
-      1,
-      '/api/v1/users?limit=200',
-      'GET',
-      undefined,
-      'low',
-    );
-    expect(makeApiRequest).toHaveBeenNthCalledWith(
-      2,
-      '/api/v1/users?after=cursor2',
-      'GET',
-      undefined,
-      'low',
-    );
+    expect(makeApiRequest).toHaveBeenNthCalledWith(1, '/api/v1/users?limit=200', {
+      method: 'GET',
+      priority: 'low',
+      reason: 'Export: My Users',
+    });
+    expect(makeApiRequest).toHaveBeenNthCalledWith(2, '/api/v1/users?after=cursor2', {
+      method: 'GET',
+      priority: 'low',
+      reason: 'Export: My Users',
+    });
   });
 
   it('drops malformed rows and counts them without failing the page', async () => {

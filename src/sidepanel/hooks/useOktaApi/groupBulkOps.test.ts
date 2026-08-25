@@ -317,8 +317,8 @@ describe('executeBulkOperation export_all', () => {
 describe('executeBulkOperation remove_user', () => {
   it('issues a DELETE for the configured user and marks success', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockImplementation((_path: string, method?: string) => {
-        if (method === 'DELETE') return Promise.resolve({ success: true });
+      makeApiRequest: vi.fn().mockImplementation((_path: string, options?: { method?: string }) => {
+        if (options?.method === 'DELETE') return Promise.resolve({ success: true });
         return Promise.resolve({ success: true, data: { profile: { name: 'Group' } } });
       }),
     });
@@ -330,16 +330,17 @@ describe('executeBulkOperation remove_user', () => {
 
     expect(results[0].status).toBe('success');
     expect(results[0].itemsProcessed).toBe(1);
-    expect(core.makeApiRequest).toHaveBeenCalledWith(
-      '/api/v1/groups/00gFAKE1/users/00uFAKEU',
-      'DELETE',
-    );
+    expect(core.makeApiRequest).toHaveBeenCalledWith('/api/v1/groups/00gFAKE1/users/00uFAKEU', {
+      method: 'DELETE',
+      reason: 'Bulk remove user from group',
+    });
   });
 
   it('marks failed and records the error when the DELETE fails', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockImplementation((_path: string, method?: string) => {
-        if (method === 'DELETE') return Promise.resolve({ success: false, error: 'not allowed' });
+      makeApiRequest: vi.fn().mockImplementation((_path: string, options?: { method?: string }) => {
+        if (options?.method === 'DELETE')
+          return Promise.resolve({ success: false, error: 'not allowed' });
         return Promise.resolve({ success: true, data: { profile: { name: 'Group' } } });
       }),
     });
@@ -356,8 +357,8 @@ describe('executeBulkOperation remove_user', () => {
 
   it('falls back to "Unknown error" when the failed DELETE omits an error', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockImplementation((_path: string, method?: string) => {
-        if (method === 'DELETE') return Promise.resolve({ success: false });
+      makeApiRequest: vi.fn().mockImplementation((_path: string, options?: { method?: string }) => {
+        if (options?.method === 'DELETE') return Promise.resolve({ success: false });
         return Promise.resolve({ success: true, data: { profile: { name: 'Group' } } });
       }),
     });
@@ -378,7 +379,9 @@ describe('executeBulkOperation remove_user', () => {
 
     expect(results[0].status).toBe('success');
     expect(results[0].itemsProcessed).toBe(0);
-    const methods = (core.makeApiRequest as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[1]);
+    const methods = (core.makeApiRequest as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => (c[1] as { method?: string } | undefined)?.method,
+    );
     expect(methods).not.toContain('DELETE');
   });
 });

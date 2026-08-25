@@ -26,6 +26,13 @@ export interface ProgressBridge {
   complete: () => void;
 }
 
+export interface MakeApiRequestOptions {
+  method?: string;
+  body?: unknown;
+  priority?: RequestPriority;
+  reason: string;
+}
+
 export interface RunOperationOptions<T> {
   concurrency?: number;
   stopOnError?: (error: unknown, item: T, index: number) => boolean;
@@ -35,12 +42,7 @@ export interface RunOperationOptions<T> {
 export interface CoreApi {
   targetTabId: number | null;
   sendMessage: <T = unknown>(message: MessageRequest) => Promise<MessageResponse<T>>;
-  makeApiRequest: (
-    endpoint: string,
-    method?: string,
-    body?: unknown,
-    priority?: RequestPriority,
-  ) => Promise<RequestResult>;
+  makeApiRequest: (endpoint: string, options: MakeApiRequestOptions) => Promise<RequestResult>;
   getCurrentUser: () => Promise<{ email: string; id: string }>;
   checkCancelled: () => void;
   resetCancellation: () => void;
@@ -74,10 +76,10 @@ export function createCoreApi(
 
   const makeApiRequest = async (
     endpoint: string,
-    method: string = 'GET',
-    body?: unknown,
-    priority: RequestPriority = 'normal',
+    options: MakeApiRequestOptions,
   ): Promise<RequestResult> => {
+    const { method = 'GET', body, priority = 'normal', reason } = options;
+
     if (!targetTabId) {
       throw new Error('No target tab ID - not connected to Okta page');
     }
@@ -101,6 +103,7 @@ export function createCoreApi(
           body,
           tabId: targetTabId,
           priority,
+          reason,
         });
         break;
       } catch (error) {
@@ -132,7 +135,9 @@ export function createCoreApi(
     }
 
     try {
-      const response = await makeApiRequest('/api/v1/users/me');
+      const response = await makeApiRequest('/api/v1/users/me', {
+        reason: 'Resolve current admin identity',
+      });
       if (response.success && response.data) {
         const identity = {
           email: response.data.profile?.email || 'unknown@unknown.com',

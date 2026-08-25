@@ -8,6 +8,7 @@ import type {
   UndoActionMetadata,
   UndoHistory,
 } from '../../shared/undoTypes';
+import type { RequestLogEntry, RequestLogHistory } from '../../shared/requestLogTypes';
 
 const recently = Date.now() - 5 * 60 * 1000;
 
@@ -89,15 +90,40 @@ const mixedHistory: UndoAction[] = [
   ruleChange,
 ];
 
-const seedHistory = (actions: UndoAction[]) => async () => {
-  const previous = chrome.storage.local.get;
-  const history: UndoHistory = { actions, maxSize: 50 };
-  chrome.storage.local.get = (() =>
-    Promise.resolve({ undoHistory: history })) as typeof chrome.storage.local.get;
-  return () => {
-    chrome.storage.local.get = previous;
+const seedAll =
+  (actions: UndoAction[], requestEntries: RequestLogEntry[] = []) =>
+  async () => {
+    const previous = chrome.storage.local.get;
+    const undoHistory: UndoHistory = { actions, maxSize: 50 };
+    const apiRequestLog: RequestLogHistory = { entries: requestEntries, maxSize: 50 };
+    chrome.storage.local.get = ((keys: string[]) => {
+      const result: Record<string, unknown> = {};
+      if (keys.includes('undoHistory')) result.undoHistory = undoHistory;
+      if (keys.includes('apiRequestLog')) result.apiRequestLog = apiRequestLog;
+      return Promise.resolve(result);
+    }) as typeof chrome.storage.local.get;
+    return () => {
+      chrome.storage.local.get = previous;
+    };
   };
-};
+
+const seedHistory = (actions: UndoAction[]) => seedAll(actions, []);
+
+const requestBatch = (
+  id: string,
+  reason: string,
+  requestCount: number,
+  endpoint: string,
+): RequestLogEntry => ({
+  id,
+  timestamp: recently,
+  reason,
+  requestCount,
+  endpoints: [{ method: 'GET', endpoint }],
+  endpointsTruncated: false,
+  durationMs: 800,
+  outcome: 'all',
+});
 
 const meta = {
   title: 'Sidepanel/AuditLogViewer',
@@ -144,6 +170,31 @@ export const Populated: Story = {
     await expect(canvas.getAllByRole('button', { name: 'Undo' })).toHaveLength(1);
     await expect(canvas.getByText('Undone')).toBeVisible();
     await expect(canvas.getByText('Outcome unknown')).toBeVisible();
+  },
+};
+
+export const VerboseModeOff: Story = {
+  beforeEach: seedAll(
+    [profileUpdate],
+    [requestBatch('req_log_1', 'Populate Groups page', 42, '/api/v1/groups?limit=200')],
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByText('1 action logged')).toBeVisible();
+    await expect(canvas.queryByText(/Populate Groups page/)).toBeNull();
+  },
+};
+
+export const VerboseModeOn: Story = {
+  beforeEach: seedAll(
+    [profileUpdate],
+    [requestBatch('req_log_1', 'Populate Groups page', 42, '/api/v1/groups?limit=200')],
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('checkbox', { name: /Verbose/ }));
+    await expect(await canvas.findByText('1 action, 1 request batch logged')).toBeVisible();
+    await expect(canvas.getByText('42 requests — Populate Groups page')).toBeVisible();
   },
 };
 
