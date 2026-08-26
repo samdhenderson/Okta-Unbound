@@ -18,7 +18,7 @@ const api = {
   deleteGroupRule: vi.fn(),
   activateGroupRule: vi.fn(),
   deactivateGroupRule: vi.fn(),
-  makeApiRequest: vi.fn(),
+  getCurrentUser: vi.fn(),
 };
 
 vi.mock('./useOktaApi', () => ({
@@ -69,9 +69,10 @@ beforeEach(() => {
   api.activateGroupRule.mockResolvedValue({ success: true });
   api.deactivateGroupRule.mockResolvedValue({ success: true });
   api.deleteGroupRule.mockResolvedValue({ success: true });
-  api.makeApiRequest.mockResolvedValue({
-    success: true,
-    data: { id: '00uFAKEADMIN', profile: { email: 'admin@example.com' } },
+  api.getCurrentUser.mockResolvedValue({
+    kind: 'resolved',
+    email: 'admin@example.com',
+    id: '00uFAKEADMIN',
   });
   mockedAuditStore.logOperation.mockResolvedValue(undefined);
 });
@@ -83,15 +84,18 @@ describe('useRuleConsolidation audit attribution', () => {
     expect(mockedAuditStore.logOperation).toHaveBeenCalledTimes(1);
     const entry = mockedAuditStore.logOperation.mock.calls[0][0];
     expect(entry.performedBy).toBe('admin@example.com');
-    expect(entry.performedBy).not.toBe('unknown@unknown.com');
+    expect(entry.actorResolution).toBe('resolved');
+    expect(api.getCurrentUser).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to the placeholder only when the current-user lookup fails', async () => {
-    api.makeApiRequest.mockRejectedValue(new Error('me failed'));
+  it('records no actor, and still consolidates, when the lookup comes back unavailable', async () => {
+    api.getCurrentUser.mockResolvedValue({ kind: 'unavailable', reason: 'threw' });
 
-    await runMerge();
+    const result = await runMerge();
 
     const entry = mockedAuditStore.logOperation.mock.calls[0][0];
-    expect(entry.performedBy).toBe('unknown@unknown.com');
+    expect(entry.performedBy).toBeNull();
+    expect(entry.actorResolution).toBe('unavailable');
+    expect(result.current.phase).toBe('done');
   });
 });

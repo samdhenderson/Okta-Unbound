@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import type { CoreApi } from '@/sidepanel/hooks/useOktaApi/core';
 
-export const FAKE_ADMIN = { email: 'admin@example.com', id: 'admin' } as const;
+export const FAKE_ADMIN = { kind: 'resolved', email: 'admin@example.com', id: 'admin' } as const;
 
 export type FakeCoreOverrides = Partial<Omit<CoreApi, 'runOperation'>> & {
   runOperation?: unknown;

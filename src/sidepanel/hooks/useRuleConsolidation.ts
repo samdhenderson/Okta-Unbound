@@ -72,7 +72,7 @@ export function useRuleConsolidation({
     deleteGroupRule,
     activateGroupRule,
     deactivateGroupRule,
-    makeApiRequest,
+    getCurrentUser,
   } = api;
 
   const [phase, setPhase] = useState<ConsolidationPhase>('idle');
@@ -166,17 +166,7 @@ export function useRuleConsolidation({
     setError(null);
     const startTime = Date.now();
 
-    let currentUserEmail = 'unknown@unknown.com';
-    try {
-      const userResponse = await makeApiRequest('/api/v1/users/me', {
-        reason: 'Resolve current admin for consolidation audit attribution',
-      });
-      if (userResponse.success && userResponse.data) {
-        currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
-      }
-    } catch (err) {
-      log.error('Failed to get current user:', err);
-    }
+    const actor = await getCurrentUser();
 
     try {
       const addGroupIds =
@@ -241,7 +231,8 @@ export function useRuleConsolidation({
         action: 'activate_rule',
         groupId: preview.resultingGroupIds[0] || 'multiple',
         groupName: created.rule.name,
-        performedBy: currentUserEmail,
+        performedBy: actor.kind === 'resolved' ? actor.email : null,
+        actorResolution: actor.kind === 'resolved' ? 'resolved' : 'unavailable',
         affectedUsers: [],
         result: retireFailed === 0 ? 'success' : 'partial',
         details: {
@@ -276,7 +267,7 @@ export function useRuleConsolidation({
     deactivateGroupRule,
     deleteGroupRule,
     getRawGroupRule,
-    makeApiRequest,
+    getCurrentUser,
     onError,
     reload,
   ]);

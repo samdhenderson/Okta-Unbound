@@ -1,5 +1,6 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { createLogger } from '../utils/logger';
+import { escapeCSV } from '../utils/csvUtils';
 import type { AuditLogEntry, AuditFilters, AuditStats, AuditSettings } from '../types';
 
 const log = createLogger('AuditStore');
@@ -21,6 +22,8 @@ interface AuditDB extends DBSchema {
     value: AuditSettings;
   };
 }
+
+export const ACTOR_UNAVAILABLE_LABEL = '(actor unavailable)';
 
 const DB_NAME = 'okta-unbound-audit';
 const DB_VERSION = 1;
@@ -143,16 +146,18 @@ class AuditStore {
         return [
           timestamp,
           entry.action,
-          `"${entry.groupName}"`,
-          entry.performedBy,
+          entry.groupName,
+          entry.performedBy ?? ACTOR_UNAVAILABLE_LABEL,
           entry.result,
           entry.affectedUsers.length,
           entry.details.usersSucceeded,
           entry.details.usersFailed,
           entry.details.durationMs,
           entry.details.apiRequestCount,
-          `"${errors}"`,
-        ].join(',');
+          errors,
+        ]
+          .map((cell) => escapeCSV(cell))
+          .join(',');
       });
 
       const csvContent = header + rows.join('\n');

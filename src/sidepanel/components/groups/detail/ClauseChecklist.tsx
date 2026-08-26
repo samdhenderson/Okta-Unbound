@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import Icon, { type IconType } from '../../overview/shared/Icon';
 import { AlertMessage } from '../../shared';
+import RuleExpressionText, { type GroupNameResolver } from './RuleExpressionText';
 import {
   explainRuleExpression,
   type ClauseExplanation,
@@ -20,6 +21,7 @@ interface ClauseChecklistProps {
 
 interface ClauseRowProps {
   clause: ClauseExplanation;
+  resolveGroupName?: GroupNameResolver;
 }
 
 interface StatusPresentation {
@@ -75,15 +77,17 @@ const ResolvedValue: React.FC<{ value: RuleExprValue | undefined }> = ({ value }
   </p>
 );
 
-const ClauseRow: React.FC<ClauseRowProps> = ({ clause }) => {
+const ClauseRow: React.FC<ClauseRowProps> = ({ clause, resolveGroupName }) => {
   const presentation = statusPresentation[clause.status];
 
   return (
     <li className="rounded-md border border-neutral-200 bg-white p-3">
       <div className="flex items-start justify-between gap-3">
-        <code className="min-w-0 flex-1 font-mono text-xs break-words whitespace-pre-wrap text-neutral-900">
-          {clause.expressionText}
-        </code>
+        <RuleExpressionText
+          text={clause.expressionText}
+          resolveGroupName={resolveGroupName}
+          className="min-w-0 flex-1 font-mono text-xs break-words whitespace-pre-wrap text-neutral-900"
+        />
         <span
           className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${presentation.chipClass}`}
         >
@@ -134,6 +138,12 @@ const ClauseChecklist: React.FC<ClauseChecklistProps> = ({
     [expression, user, maxClauses, groupContext],
   );
 
+  const resolveGroupName = useMemo<GroupNameResolver | undefined>(() => {
+    if (!groupContext || groupContext.length === 0) return undefined;
+    const namesById = new Map(groupContext.map((entry) => [entry.id, entry.name]));
+    return (groupId) => namesById.get(groupId);
+  }, [groupContext]);
+
   if (clauses.length === 0) {
     const reasonCode =
       summary.result.outcome === 'unevaluable' ? summary.result.reasonCode : undefined;
@@ -167,7 +177,11 @@ const ClauseChecklist: React.FC<ClauseChecklistProps> = ({
 
       <ul className="space-y-2">
         {clauses.map((clause, index) => (
-          <ClauseRow key={`${index}-${clause.expressionText}`} clause={clause} />
+          <ClauseRow
+            key={`${index}-${clause.expressionText}`}
+            clause={clause}
+            resolveGroupName={resolveGroupName}
+          />
         ))}
       </ul>
     </div>

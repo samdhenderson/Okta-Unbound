@@ -2,7 +2,15 @@ import type { MessageRequest, MessageResponse, OperationCallbacks } from './type
 import type { RequestResult, RequestPriority } from '@/shared/scheduler/types';
 import { runBatch, type BatchProgress, type BatchOutcome } from '@/shared/scheduler/runBatch';
 import { createLogger } from '@/shared/utils/logger';
-import { getCachedCurrentUser, cacheCurrentUser } from './currentUserCache';
+import { z } from 'zod';
+import {
+  getCachedCurrentUser,
+  cacheCurrentUser,
+  type Actor,
+  type ResolvedActor,
+} from './currentUserCache';
+
+export type { Actor } from './currentUserCache';
 
 const log = createLogger('useOktaApi');
 
@@ -10,6 +18,13 @@ const TRANSIENT_PORT_ERROR_PATTERNS = [
   'message port closed before a response',
   'receiving end does not exist',
 ];
+
+const currentUserSchema = z
+  .object({
+    id: z.string().optional(),
+    profile: z.object({ email: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
 
 const TRANSIENT_PORT_MAX_RETRIES = 2;
 
@@ -43,7 +58,7 @@ export interface CoreApi {
   targetTabId: number | null;
   sendMessage: <T = unknown>(message: MessageRequest) => Promise<MessageResponse<T>>;
   makeApiRequest: (endpoint: string, options: MakeApiRequestOptions) => Promise<RequestResult>;
-  getCurrentUser: () => Promise<{ email: string; id: string }>;
+  getCurrentUser: () => Promise<Actor>;
   checkCancelled: () => void;
   resetCancellation: () => void;
   runOperation: <T, R>(
@@ -128,7 +143,7 @@ export function createCoreApi(
     return response;
   };
 
-  const getCurrentUser = async (): Promise<{ email: string; id: string }> => {
+  const getCurrentUser = async (): Promise<Actor> => {
     if (targetTabId !== null) {
       const cached = getCachedCurrentUser(targetTabId);
       if (cached) return cached;
@@ -138,20 +153,22 @@ export function createCoreApi(
       const response = await makeApiRequest('/api/v1/users/me', {
         reason: 'Resolve current admin identity',
       });
-      if (response.success && response.data) {
-        const identity = {
-          email: response.data.profile?.email || 'unknown@unknown.com',
-          id: response.data.id || 'unknown',
-        };
-        if (targetTabId !== null) {
-          cacheCurrentUser(targetTabId, identity);
-        }
-        return identity;
+      if (!response.success || !response.data) {
+        return { kind: 'unavailable', reason: 'failed' };
       }
-      return { email: 'unknown@unknown.com', id: 'unknown' };
+      const parsed = currentUserSchema.safeParse(response.data);
+      const email = parsed.success ? parsed.data.profile?.email : undefined;
+      if (!parsed.success || !email) {
+        return { kind: 'unavailable', reason: 'no-email' };
+      }
+      const actor: ResolvedActor = { kind: 'resolved', email, id: parsed.data.id ?? '' };
+      if (targetTabId !== null) {
+        cacheCurrentUser(targetTabId, actor);
+      }
+      return actor;
     } catch (error) {
       log.error('Failed to get current user', error);
-      return { email: 'unknown@unknown.com', id: 'unknown' };
+      return { kind: 'unavailable', reason: 'threw' };
     }
   };
 

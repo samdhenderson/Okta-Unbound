@@ -42,7 +42,13 @@ function toBulkUserInfo(u: OktaUser) {
 
 export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
   const api = useOktaApi({ targetTabId: targetTabId ?? null });
-  const { getAllGroupMembers, getGroupRulesForGroup, makeApiRequest, removeUserFromGroup } = api;
+  const {
+    getAllGroupMembers,
+    getGroupRulesForGroup,
+    getCurrentUser,
+    makeApiRequest,
+    removeUserFromGroup,
+  } = api;
   const { startProgress, updateProgress, completeProgress } = useProgress();
 
   const [phase, setPhase] = useState<MergePhase>('idle');
@@ -98,17 +104,7 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     let done = 0;
     const res: MergeResults = { copied: 0, copyFailed: 0, removed: 0, removeFailed: 0 };
 
-    let currentUserEmail = 'unknown@unknown.com';
-    try {
-      const userResponse = await makeApiRequest('/api/v1/users/me', {
-        reason: 'Resolve current admin for merge audit attribution',
-      });
-      if (userResponse.success && userResponse.data) {
-        currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
-      }
-    } catch (err) {
-      log.error('Failed to get current user:', err);
-    }
+    const actor = await getCurrentUser();
 
     startProgress('Merging groups', `Copying members into ${plan.survivor.name}…`, total, false);
 
@@ -172,7 +168,9 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
       }
 
       const auditBase = {
-        performedBy: currentUserEmail,
+        performedBy: actor.kind === 'resolved' ? actor.email : null,
+        actorResolution:
+          actor.kind === 'resolved' ? ('resolved' as const) : ('unavailable' as const),
         affectedUsers: [] as string[],
       };
       const addEntry: AuditLogEntry = {
@@ -218,7 +216,15 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     } finally {
       completeProgress();
     }
-  }, [plan, makeApiRequest, removeUserFromGroup, startProgress, updateProgress, completeProgress]);
+  }, [
+    plan,
+    getCurrentUser,
+    makeApiRequest,
+    removeUserFromGroup,
+    startProgress,
+    updateProgress,
+    completeProgress,
+  ]);
 
   const reset = useCallback(() => {
     setPhase('idle');

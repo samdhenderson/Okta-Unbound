@@ -146,6 +146,7 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
 
       makeApiRequest: coreApi.makeApiRequest,
       runOperation: coreApi.runOperation,
+      getCurrentUser: coreApi.getCurrentUser,
 
       getAllGroupMembers: groupMemberOps.getAllGroupMembers,
       getMembershipRuleProof: groupMemberOps.getMembershipRuleProof,

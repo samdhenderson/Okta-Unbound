@@ -260,13 +260,16 @@ export type ResultType = 'info' | 'success' | 'warning' | 'error';
 
 export type { UndoAction, UndoActionMetadata, UndoHistory } from './undoTypes';
 
+export type ActorResolution = 'resolved' | 'unavailable';
+
 export interface AuditLogEntry {
   id: string;
   timestamp: Date;
   action: 'remove_users' | 'add_users' | 'export' | 'activate_rule' | 'deactivate_rule';
   groupId: string;
   groupName: string;
-  performedBy: string;
+  performedBy: string | null;
+  actorResolution: ActorResolution;
   affectedUsers: string[];
   result: 'success' | 'partial' | 'failed';
   details: {

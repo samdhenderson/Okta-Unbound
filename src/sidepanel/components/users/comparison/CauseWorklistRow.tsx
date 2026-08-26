@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../../shared';
 import ClauseGroupList from './ClauseGroupList';
+import RuleExpressionText, { type GroupNameResolver } from '../../groups/detail/RuleExpressionText';
 import type { AccessCause, UndeterminedReason } from './accessCause';
 import type {
   ClauseExplanation,
@@ -86,7 +87,7 @@ const CauseWorklistRow: React.FC<CauseWorklistRowProps> = ({
       renderGroupAction={renderGroupAction}
     />
 
-    <FailingClauses clauses={cause.failingClauses} />
+    <FailingClauses clauses={cause.failingClauses} resolveGroupName={resolveGroupName} />
 
     {onViewClauses && (
       <Button
@@ -106,7 +107,18 @@ const CauseWorklistRow: React.FC<CauseWorklistRowProps> = ({
 const formatResolvedValue = (value: RuleExprValue): string =>
   typeof value === 'string' ? JSON.stringify(value) : String(value);
 
-const FailingClauses: React.FC<{ clauses: readonly ClauseExplanation[] }> = ({ clauses }) => {
+const clauseGroupNames =
+  (clause: ClauseExplanation, resolveGroupName?: GroupNameResolver): GroupNameResolver =>
+  (groupId) =>
+    resolveGroupName?.(groupId) ??
+    clause.groupReferences?.find(
+      (reference) => reference.match === 'id' && reference.value === groupId,
+    )?.matchedGroupName;
+
+const FailingClauses: React.FC<{
+  clauses: readonly ClauseExplanation[];
+  resolveGroupName?: GroupNameResolver;
+}> = ({ clauses, resolveGroupName }) => {
   if (clauses.length === 0) return null;
   const hidden = clauses.length - CLAUSE_PREVIEW_LIMIT;
 
@@ -121,9 +133,11 @@ const FailingClauses: React.FC<{ clauses: readonly ClauseExplanation[] }> = ({ c
             key={`${index}-${clause.expressionText}`}
             className="rounded-md bg-neutral-50 px-2 py-1"
           >
-            <code className="block font-mono text-xs break-words whitespace-pre-wrap text-neutral-900">
-              {clause.expressionText}
-            </code>
+            <RuleExpressionText
+              text={clause.expressionText}
+              resolveGroupName={clauseGroupNames(clause, resolveGroupName)}
+              className="block font-mono text-xs break-words whitespace-pre-wrap text-neutral-900"
+            />
             {clause.groupReferences === undefined && (
               <span className="mt-0.5 block text-xs text-neutral-600">
                 Resolved value:{' '}

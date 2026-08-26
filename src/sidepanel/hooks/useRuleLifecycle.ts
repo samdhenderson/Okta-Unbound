@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { FormattedRule, AuditLogEntry } from '../../shared/types';
+import type { Actor } from './useOktaApi/core';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
 import { createLogger } from '../../shared/utils/logger';
@@ -46,7 +47,7 @@ export function useRuleLifecycle({
   reload,
   onError,
 }: UseRuleLifecycleOptions): UseRuleLifecycleReturn {
-  const { makeApiRequest, activateGroupRule, deactivateGroupRule } = useOktaApi({
+  const { getCurrentUser, activateGroupRule, deactivateGroupRule } = useOktaApi({
     targetTabId: targetTabId ?? null,
   });
 
@@ -56,21 +57,12 @@ export function useRuleLifecycle({
 
       const cfg = LIFECYCLE[kind];
       const startTime = Date.now();
-      let currentUserEmail = 'unknown@unknown.com';
+      let actor: Actor | null = null;
 
       try {
         log.debug(`${cfg.gerund} rule:`, ruleId);
 
-        try {
-          const userResponse = await makeApiRequest('/api/v1/users/me', {
-            reason: 'Resolve current admin for rule lifecycle audit attribution',
-          });
-          if (userResponse.success && userResponse.data) {
-            currentUserEmail = userResponse.data.profile?.email || 'unknown@unknown.com';
-          }
-        } catch (err) {
-          log.error('Failed to get current user:', err);
-        }
+        actor = await getCurrentUser();
 
         const rule = rules.find((r) => r.id === ruleId);
         const ruleName = rule?.name || 'Unknown Rule';
@@ -94,7 +86,8 @@ export function useRuleLifecycle({
             action: cfg.auditAction,
             groupId: groupIds[0] || 'multiple',
             groupName: groupNames.length > 0 ? groupNames.join(', ') : ruleName,
-            performedBy: currentUserEmail,
+            performedBy: actor?.kind === 'resolved' ? actor.email : null,
+            actorResolution: actor?.kind === 'resolved' ? 'resolved' : 'unavailable',
             affectedUsers: [],
             result: 'success',
             details: {
@@ -118,7 +111,8 @@ export function useRuleLifecycle({
             action: cfg.auditAction,
             groupId: groupIds[0] || 'multiple',
             groupName: groupNames.length > 0 ? groupNames.join(', ') : ruleName,
-            performedBy: currentUserEmail,
+            performedBy: actor?.kind === 'resolved' ? actor.email : null,
+            actorResolution: actor?.kind === 'resolved' ? 'resolved' : 'unavailable',
             affectedUsers: [],
             result: 'failed',
             details: {
@@ -147,7 +141,8 @@ export function useRuleLifecycle({
           action: cfg.auditAction,
           groupId: groupIds[0] || 'unknown',
           groupName: groupNames.length > 0 ? groupNames.join(', ') : 'Unknown',
-          performedBy: currentUserEmail,
+          performedBy: actor?.kind === 'resolved' ? actor.email : null,
+          actorResolution: actor?.kind === 'resolved' ? 'resolved' : 'unavailable',
           affectedUsers: [],
           result: 'failed',
           details: {
@@ -163,7 +158,7 @@ export function useRuleLifecycle({
         });
       }
     },
-    [targetTabId, rules, reload, onError, makeApiRequest, activateGroupRule, deactivateGroupRule],
+    [targetTabId, rules, reload, onError, getCurrentUser, activateGroupRule, deactivateGroupRule],
   );
 
   const activateRule = useCallback(

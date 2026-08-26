@@ -23,6 +23,7 @@ vi.mock('../contexts/ProgressContext', () => ({
 const api = {
   getAllGroupMembers: vi.fn(),
   getGroupRulesForGroup: vi.fn(),
+  getCurrentUser: vi.fn(),
   makeApiRequest: vi.fn(),
   removeUserFromGroup: vi.fn(),
 };
@@ -62,11 +63,12 @@ beforeEach(() => {
   api.getAllGroupMembers.mockImplementation(async (id: string) => (id === 's1' ? [user1] : []));
   api.getGroupRulesForGroup.mockResolvedValue([]);
   api.removeUserFromGroup.mockResolvedValue({ success: true });
-  api.makeApiRequest.mockImplementation(async (path: string) =>
-    path === '/api/v1/users/me'
-      ? { success: true, data: { id: '00uFAKEADMIN', profile: { email: 'admin@example.com' } } }
-      : { success: true },
-  );
+  api.getCurrentUser.mockResolvedValue({
+    kind: 'resolved',
+    email: 'admin@example.com',
+    id: '00uFAKEADMIN',
+  });
+  api.makeApiRequest.mockResolvedValue({ success: true });
   mockedAuditStore.logOperation.mockResolvedValue(undefined);
 });
 
@@ -77,20 +79,24 @@ describe('useGroupMerge audit attribution', () => {
     expect(mockedAuditStore.logOperation).toHaveBeenCalledTimes(2);
     for (const [entry] of mockedAuditStore.logOperation.mock.calls) {
       expect(entry.performedBy).toBe('admin@example.com');
-      expect(entry.performedBy).not.toBe('unknown@unknown.com');
+      expect(entry.actorResolution).toBe('resolved');
+    }
+    expect(api.getCurrentUser).toHaveBeenCalledTimes(1);
+    for (const [path] of api.makeApiRequest.mock.calls) {
+      expect(path).not.toBe('/api/v1/users/me');
     }
   });
 
-  it('falls back to the placeholder only when the current-user lookup fails', async () => {
-    api.makeApiRequest.mockImplementation(async (path: string) => {
-      if (path === '/api/v1/users/me') throw new Error('me failed');
-      return { success: true };
-    });
+  it('records no actor on either entry, and still merges, when the lookup comes back unavailable', async () => {
+    api.getCurrentUser.mockResolvedValue({ kind: 'unavailable', reason: 'threw' });
 
-    await runMerge();
+    const result = await runMerge();
 
+    expect(mockedAuditStore.logOperation).toHaveBeenCalledTimes(2);
     for (const [entry] of mockedAuditStore.logOperation.mock.calls) {
-      expect(entry.performedBy).toBe('unknown@unknown.com');
+      expect(entry.performedBy).toBeNull();
+      expect(entry.actorResolution).toBe('unavailable');
     }
+    expect(result.current.phase).toBe('done');
   });
 });

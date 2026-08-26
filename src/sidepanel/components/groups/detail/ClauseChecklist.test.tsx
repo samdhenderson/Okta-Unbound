@@ -72,9 +72,35 @@ describe('ClauseChecklist', () => {
       />,
     );
 
-    expect(within(rowFor('isMemberOfAnyGroup("00gFAKE1")')).getByText('Pass')).toBeInTheDocument();
+    expect(within(rowFor('Engineering')).getByText('Pass')).toBeInTheDocument();
     expect(screen.getByText('Rule matches this user')).toBeInTheDocument();
     expect(screen.queryByText(/needs group context/)).not.toBeInTheDocument();
+  });
+
+  it('names a group id inside the clause text when the group context names it', () => {
+    render(
+      <ClauseChecklist
+        expression='isMemberOfAnyGroup("00gFAKE1")'
+        user={user}
+        groupContext={[{ id: '00gFAKE1', name: 'Engineering' }]}
+      />,
+    );
+
+    expect(screen.getByText('Engineering')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Copy group id 00gFAKE1' })).toBeInTheDocument();
+  });
+
+  it('leaves a group id the context does not name as raw text', () => {
+    render(
+      <ClauseChecklist
+        expression='isMemberOfAnyGroup("00gFAKE9")'
+        user={user}
+        groupContext={[{ id: '00gFAKE1', name: 'Engineering' }]}
+      />,
+    );
+
+    expect(screen.getByText('isMemberOfAnyGroup("00gFAKE9")')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Copy group id/ })).not.toBeInTheDocument();
   });
 
   it('fails an isMemberOf* clause naming a group the supplied list does not hold', () => {

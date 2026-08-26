@@ -128,14 +128,15 @@ async function logExportAudit(
   startTime: number,
 ): Promise<void> {
   try {
-    const currentUser = await coreApi.getCurrentUser();
+    const actor = await coreApi.getCurrentUser();
     const entry: AuditLogEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date(),
       action: 'export',
       groupId: descriptor.id,
       groupName: descriptor.displayName,
-      performedBy: currentUser.email,
+      performedBy: actor.kind === 'resolved' ? actor.email : null,
+      actorResolution: actor.kind === 'resolved' ? 'resolved' : 'unavailable',
       affectedUsers: [],
       result: 'success',
       details: {

@@ -35,6 +35,7 @@ describe('AuditStore', () => {
         groupId: 'test-group',
         groupName: 'Test Group',
         performedBy: 'admin@example.com',
+        actorResolution: 'resolved',
         affectedUsers: ['user1', 'user2'],
         result: 'success',
         details: {
@@ -61,6 +62,7 @@ describe('AuditStore', () => {
         groupId: 'test-group',
         groupName: 'Test Group',
         performedBy: 'admin@example.com',
+        actorResolution: 'resolved',
         affectedUsers: [],
         result: 'success',
         details: {
@@ -87,6 +89,7 @@ describe('AuditStore', () => {
           groupId: 'group1',
           groupName: 'Group 1',
           performedBy: 'admin@example.com',
+          actorResolution: 'resolved',
           affectedUsers: ['user1'],
           result: 'success',
           details: {
@@ -103,6 +106,7 @@ describe('AuditStore', () => {
           groupId: 'group1',
           groupName: 'Group 1',
           performedBy: 'admin@example.com',
+          actorResolution: 'resolved',
           affectedUsers: [],
           result: 'success',
           details: {
@@ -132,6 +136,7 @@ describe('AuditStore', () => {
           groupId: 'group1',
           groupName: 'Group 1',
           performedBy: 'admin@example.com',
+          actorResolution: 'resolved',
           affectedUsers: [],
           result: 'success',
           details: {
@@ -161,6 +166,7 @@ describe('AuditStore', () => {
           groupId: 'group1',
           groupName: 'Group 1',
           performedBy: 'admin@example.com',
+          actorResolution: 'resolved',
           affectedUsers: [],
           result: 'success' as const,
           details: {
@@ -193,6 +199,7 @@ describe('AuditStore', () => {
           groupId: 'group1',
           groupName: 'Group 1',
           performedBy: 'admin@example.com',
+          actorResolution: 'resolved',
           affectedUsers: ['user1', 'user2'],
           result: 'success',
           details: {
@@ -209,6 +216,7 @@ describe('AuditStore', () => {
           groupId: 'group1',
           groupName: 'Group 1',
           performedBy: 'admin@example.com',
+          actorResolution: 'resolved',
           affectedUsers: [],
           result: 'failed',
           details: {
@@ -275,6 +283,7 @@ describe('AuditStore', () => {
       groupId: 'group1',
       groupName: 'Group 1',
       performedBy: 'admin@example.com',
+      actorResolution: 'resolved',
       affectedUsers: [],
       result: 'success',
       details: { usersSucceeded: 1, usersFailed: 0, apiRequestCount: 1, durationMs: 500 },
@@ -368,6 +377,74 @@ describe('AuditStore', () => {
     });
   });
 
+  describe('exportAuditLog CSV', () => {
+    const fakeIDBKeyRange = {
+      bound: vi.fn((lower: Date, upper: Date) => ({ kind: 'bound', lower, upper })),
+      lowerBound: vi.fn((lower: Date) => ({ kind: 'lowerBound', lower })),
+      upperBound: vi.fn((upper: Date, open?: boolean) => ({ kind: 'upperBound', upper, open })),
+    };
+
+    const exportEntry = (overrides: Partial<AuditLogEntry> = {}): AuditLogEntry => ({
+      id: 'csv-1',
+      timestamp: new Date('2025-01-15T00:00:00.000Z'),
+      action: 'export',
+      groupId: '00gFAKE1',
+      groupName: 'Sales "VIP", EMEA',
+      performedBy: '=1+1',
+      actorResolution: 'resolved',
+      affectedUsers: [],
+      result: 'success',
+      details: { usersSucceeded: 0, usersFailed: 0, apiRequestCount: 1, durationMs: 10 },
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      vi.stubGlobal('IDBKeyRange', fakeIDBKeyRange);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    function readBlob(blob: Blob): Promise<string> {
+      return new Promise((resolve, reject) => {
+        const reader = new globalThis.FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(blob);
+      });
+    }
+
+    async function exportRow(entries: AuditLogEntry[]): Promise<string> {
+      mockDB.getAllFromIndex.mockResolvedValueOnce(entries);
+      const blob = await auditStore.exportAuditLog(
+        new Date('2025-01-01T00:00:00.000Z'),
+        new Date('2025-02-01T00:00:00.000Z'),
+      );
+      return (await readBlob(blob)).split('\n')[1];
+    }
+
+    it('escapes every cell: quotes are doubled and a formula-triggering actor is neutralized', async () => {
+      const row = await exportRow([exportEntry()]);
+
+      expect(row).toContain('"Sales ""VIP"", EMEA"');
+      expect(row).toContain(",'=1+1,");
+      expect(row).not.toContain(',=1+1,');
+    });
+
+    it('renders an unresolved actor as an explicit label, not a blank or invented cell', async () => {
+      const row = await exportRow([
+        exportEntry({
+          groupName: 'Plain Group',
+          performedBy: null,
+          actorResolution: 'unavailable',
+        }),
+      ]);
+
+      expect(row.split(',')[3]).toBe('(actor unavailable)');
+    });
+  });
+
   describe('settings cache', () => {
     it('logOperation skips the per-write settings read once updateSettings primed the cache', async () => {
       mockDB.put.mockResolvedValueOnce(undefined);
@@ -382,6 +459,7 @@ describe('AuditStore', () => {
         groupId: 'test-group',
         groupName: 'Test Group',
         performedBy: 'admin@example.com',
+        actorResolution: 'resolved',
         affectedUsers: ['user1'],
         result: 'success',
         details: { usersSucceeded: 1, usersFailed: 0, apiRequestCount: 1, durationMs: 100 },
@@ -403,6 +481,7 @@ describe('AuditStore', () => {
         groupId: 'test-group',
         groupName: 'Test Group',
         performedBy: 'admin@example.com',
+        actorResolution: 'resolved',
         affectedUsers: [],
         result: 'success',
         details: { usersSucceeded: 0, usersFailed: 0, apiRequestCount: 0, durationMs: 100 },
