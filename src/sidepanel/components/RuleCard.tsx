@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useId, useRef, memo } from 'react';
 import type { FormattedRule } from '../../shared/types';
 import { timeAgo } from '../../shared/ruleUtils';
-import { Badge, Button, CopyableId, IconButton, ListRow } from './shared';
+import { Badge, Button, CopyableId, EntityLink, IconButton, ListRow } from './shared';
+import Icon from './overview/shared/Icon';
 
 const FLASH_MS = 500;
 
@@ -15,6 +16,19 @@ interface RuleCardProps {
   oktaOrigin?: string | null;
   isHighlighted?: boolean;
 }
+
+const UnnamedGroupChip: React.FC<{
+  groupId: string;
+}> = ({ groupId }) => (
+  <span
+    className="inline-flex max-w-full items-center gap-1 rounded-md border border-dashed border-neutral-300 px-2 py-0.5 text-xs"
+    title="This rule assigns to this group id. No name for it was loaded into this view."
+  >
+    <Icon type="users" size="xs" className="shrink-0 text-neutral-500" />
+    <span className="shrink-0 italic text-neutral-600">Group name not loaded</span>
+    <CopyableId value={groupId} label={`Copy group id ${groupId}`} />
+  </span>
+);
 
 const renderConditionWithGroupBadges = (
   expression: string,
@@ -39,15 +53,15 @@ const renderConditionWithGroupBadges = (
 
     if (groupName && groupName !== groupId) {
       parts.push(
-        <React.Fragment key={`${groupId}-${match.index}`}>
-          <span className="font-mono text-xs text-neutral-600">{groupId}</span>
-          <span
-            className="ml-2 px-2 py-0.5 rounded-md bg-primary-light text-primary-text text-xs font-medium border border-primary-highlight"
-            title={`Group: ${groupName}`}
-          >
-            {groupName}
-          </span>
-        </React.Fragment>,
+        <EntityLink
+          key={`${groupId}-${match.index}`}
+          type="group"
+          id={groupId}
+          name={groupName}
+          copyId
+          copyIdLabel={`Copy group id ${groupId}`}
+          className="align-middle"
+        />,
       );
     } else {
       parts.push(groupId);
@@ -176,24 +190,19 @@ const RuleCard: React.FC<RuleCardProps> = memo(
                 <div className="flex flex-wrap gap-2">
                   {rule.groupIds.map((groupId, index) => {
                     const groupName = rule.groupNames?.[index];
-                    const isNameDifferent = groupName && groupName !== groupId;
+                    const resolvedName = groupName !== groupId ? groupName : undefined;
 
-                    return (
-                      <span
+                    return resolvedName ? (
+                      <EntityLink
                         key={groupId}
-                        className="px-2.5 py-1 rounded-md bg-success-light text-success-text text-sm font-medium border border-success-light"
-                      >
-                        {isNameDifferent ? (
-                          <>
-                            <span className="font-semibold">{groupName}</span>
-                            <span className="ml-1.5 text-xs font-mono opacity-75">
-                              ({groupId.substring(0, 8)}...)
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-mono">{groupId}</span>
-                        )}
-                      </span>
+                        type="group"
+                        id={groupId}
+                        name={resolvedName}
+                        copyId
+                        copyIdLabel={`Copy group id ${groupId}`}
+                      />
+                    ) : (
+                      <UnnamedGroupChip key={groupId} groupId={groupId} />
                     );
                   })}
                 </div>

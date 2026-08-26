@@ -36,6 +36,7 @@ export interface OperationCallbacks {
 
 export interface UseOktaApiOptions {
   targetTabId: number | null;
+  oktaOrigin?: string | null;
   onResult?: (result: OperationResult) => void;
   onProgress?: (current: number, total: number, message: string, apiCalls?: number) => void;
 }

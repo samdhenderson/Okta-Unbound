@@ -281,6 +281,10 @@ export interface AuditLogEntry {
   };
 }
 
+export interface PersistedAuditLogEntry extends Omit<AuditLogEntry, 'actorResolution'> {
+  actorResolution?: ActorResolution;
+}
+
 export interface AuditFilters {
   groupId?: string;
   action?: AuditLogEntry['action'];

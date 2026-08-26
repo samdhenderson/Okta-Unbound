@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { auditStore } from './auditStore';
-import type { AuditLogEntry, AuditSettings } from '../types';
+import type {
+  ActorResolution,
+  AuditLogEntry,
+  AuditSettings,
+  PersistedAuditLogEntry,
+} from '../types';
 
 const mockDB: any = {
   add: vi.fn(),
@@ -377,6 +382,40 @@ describe('AuditStore', () => {
     });
   });
 
+  describe('rows persisted before actorResolution existed', () => {
+    /**
+     * Compile-time assertion helper: accepts only a value that is definitely an
+     * {@link ActorResolution}. Paired with `@ts-expect-error` below to pin that
+     * a row out of `getHistory` is *not* one.
+     */
+    const requireResolution = (_value: ActorResolution): void => {};
+
+    const legacyRow = (): PersistedAuditLogEntry => ({
+      id: 'legacy-1',
+      timestamp: new Date('2024-11-02T00:00:00.000Z'),
+      action: 'remove_users',
+      groupId: '00gFAKE1',
+      groupName: 'Legacy Group',
+      performedBy: 'admin@example.com',
+      affectedUsers: ['00uFAKE1'],
+      result: 'success',
+      details: { usersSucceeded: 1, usersFailed: 0, apiRequestCount: 1, durationMs: 500 },
+    });
+
+    it('getHistory returns the row untouched and does not promise the field', async () => {
+      mockDB.getAll.mockResolvedValueOnce([legacyRow()]);
+
+      const [row] = await auditStore.getHistory();
+
+      expect('actorResolution' in row).toBe(false);
+      expect(row.actorResolution).toBeUndefined();
+      expect(row.performedBy).toBe('admin@example.com');
+
+      // @ts-expect-error `PersistedAuditLogEntry.actorResolution` is optional, so
+      requireResolution(row.actorResolution);
+    });
+  });
+
   describe('exportAuditLog CSV', () => {
     const fakeIDBKeyRange = {
       bound: vi.fn((lower: Date, upper: Date) => ({ kind: 'bound', lower, upper })),
@@ -415,7 +454,7 @@ describe('AuditStore', () => {
       });
     }
 
-    async function exportRow(entries: AuditLogEntry[]): Promise<string> {
+    async function exportRow(entries: PersistedAuditLogEntry[]): Promise<string> {
       mockDB.getAllFromIndex.mockResolvedValueOnce(entries);
       const blob = await auditStore.exportAuditLog(
         new Date('2025-01-01T00:00:00.000Z'),
@@ -442,6 +481,24 @@ describe('AuditStore', () => {
       ]);
 
       expect(row.split(',')[3]).toBe('(actor unavailable)');
+    });
+
+    it('exports a pre-D-013a row with its stored actor, not the unavailable label', async () => {
+      const legacy: PersistedAuditLogEntry = {
+        id: 'legacy-csv',
+        timestamp: new Date('2025-01-15T00:00:00.000Z'),
+        action: 'export',
+        groupId: '00gFAKE1',
+        groupName: 'Plain Group',
+        performedBy: 'admin@example.com',
+        affectedUsers: [],
+        result: 'success',
+        details: { usersSucceeded: 0, usersFailed: 0, apiRequestCount: 1, durationMs: 10 },
+      };
+
+      const row = await exportRow([legacy]);
+
+      expect(row.split(',')[3]).toBe('admin@example.com');
     });
   });
 

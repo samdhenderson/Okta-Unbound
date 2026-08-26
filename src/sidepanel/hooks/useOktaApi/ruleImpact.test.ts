@@ -1,4 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { fakeDB, idbTables } = vi.hoisted(() => {
+  const idbTables = new Map<string, Map<string, unknown>>();
+  const keyOf = (key: unknown) => (Array.isArray(key) ? key.join('::') : String(key));
+  const table = (name: string) => {
+    if (!idbTables.has(name)) idbTables.set(name, new Map());
+    return idbTables.get(name) as Map<string, unknown>;
+  };
+  const fakeDB = {
+    get: async (name: string, key: unknown) => table(name).get(keyOf(key)),
+    put: async () => {},
+    delete: async () => {},
+    getAllFromIndex: async (name: string, _i: string, origin: string) =>
+      [...table(name).values()].filter((v) => (v as { origin: string }).origin === origin),
+    getAllKeysFromIndex: async () => [],
+    transaction: () => ({
+      store: { put: async () => {}, delete: async () => {} },
+      done: Promise.resolve(),
+    }),
+  };
+  return { fakeDB, idbTables };
+});
+
+vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));
+
 import { createRuleImpactOperations } from './ruleImpact';
 import type { CoreApi } from './core';
 import type { OktaGroupRule, OktaUser } from '../../../shared/types';
@@ -22,6 +47,7 @@ const member: OktaUser = {
 beforeEach(() => {
   vi.mocked(chrome.storage.local.get).mockReset();
   vi.mocked(chrome.storage.local.remove).mockReset();
+  idbTables.clear();
 });
 
 describe('captureRuleImpact boundary validation', () => {
@@ -67,6 +93,8 @@ describe('captureRuleImpact boundary validation', () => {
   });
 });
 
+const ORIGIN = 'https://example.okta.com';
+const WALKED_AT = 1_800_000_000_000;
 const RULES_CACHE_KEY = 'global_rules_cache';
 
 const cachedRawRule: OktaGroupRule = {
@@ -93,6 +121,14 @@ function seedRulesCache(rawRules: OktaGroupRule[], ageMs = 0) {
   vi.mocked(chrome.storage.local.remove).mockResolvedValue(undefined as never);
 }
 
+function seedSnapshotRules(rules: OktaGroupRule[], origin = ORIGIN) {
+  const table = (idbTables.get('rules') ?? new Map()) as Map<string, unknown>;
+  for (const entity of rules) {
+    table.set(`${origin}::${entity.id}`, { origin, id: entity.id, entity, syncedAt: WALKED_AT });
+  }
+  idbTables.set('rules', table);
+}
+
 function routeMetaOnly() {
   return vi.fn(async (endpoint: string) => {
     if (endpoint === '/api/v1/groups/00gFAKE1') {
@@ -105,7 +141,7 @@ function routeMetaOnly() {
   });
 }
 
-describe('fetchRawRules RulesCache consultation', () => {
+describe('fetchRawRules snapshot consultation', () => {
   const analyzedInput = {
     id: '0prFAKE1',
     name: 'Rule One',
@@ -113,12 +149,12 @@ describe('fetchRawRules RulesCache consultation', () => {
     groupNames: ['Target Group'],
   };
 
-  it('serves raw rules from a fresh cache entry with no rules pagination', async () => {
-    seedRulesCache([cachedRawRule]);
+  it('serves raw rules from the org snapshot with no rules pagination', async () => {
+    seedSnapshotRules([cachedRawRule]);
     const makeApiRequest = routeMetaOnly();
     const core = makeCore({ makeApiRequest });
     const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
-    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, ORIGIN);
 
     const summary = await captureRuleImpact(analyzedInput);
 
@@ -129,8 +165,8 @@ describe('fetchRawRules RulesCache consultation', () => {
     expect(summary.totalLosing).toBe(1);
   });
 
-  it('still paginates when the cache entry is expired', async () => {
-    seedRulesCache([cachedRawRule], 10 * 60 * 1000); // older than the 5-min TTL
+  it('ignores a RulesCache entry now that the snapshot is the source of rules', async () => {
+    seedRulesCache([cachedRawRule]);
     const makeApiRequest = vi.fn(async (endpoint: string) => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [cachedRawRule], headers: {} };
@@ -142,7 +178,54 @@ describe('fetchRawRules RulesCache consultation', () => {
     });
     const core = makeCore({ makeApiRequest });
     const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
-    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, ORIGIN);
+
+    await captureRuleImpact(analyzedInput);
+
+    const rulesListings = makeApiRequest.mock.calls.filter((c) =>
+      String(c[0]).startsWith('/api/v1/groups/rules'),
+    );
+    expect(rulesListings).toHaveLength(1);
+  });
+
+  it('still paginates when no origin has resolved yet', async () => {
+    seedSnapshotRules([cachedRawRule]);
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint.startsWith('/api/v1/groups/rules')) {
+        return { success: true, data: [cachedRawRule], headers: {} };
+      }
+      return {
+        success: true,
+        data: { id: '00gFAKE1', profile: { name: 'Target Group' }, type: 'OKTA_GROUP' },
+      };
+    });
+    const core = makeCore({ makeApiRequest });
+    const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, null);
+
+    const summary = await captureRuleImpact(analyzedInput);
+
+    const rulesListings = makeApiRequest.mock.calls.filter((c) =>
+      String(c[0]).startsWith('/api/v1/groups/rules'),
+    );
+    expect(rulesListings).toHaveLength(1);
+    expect(summary.totalLosing).toBe(1);
+  });
+
+  it('reads only the connected org, paginating when the snapshot holds another org', async () => {
+    seedSnapshotRules([cachedRawRule], 'https://other.okta.com');
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint.startsWith('/api/v1/groups/rules')) {
+        return { success: true, data: [cachedRawRule], headers: {} };
+      }
+      return {
+        success: true,
+        data: { id: '00gFAKE1', profile: { name: 'Target Group' }, type: 'OKTA_GROUP' },
+      };
+    });
+    const core = makeCore({ makeApiRequest });
+    const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, ORIGIN);
 
     await captureRuleImpact(analyzedInput);
 
@@ -153,7 +236,7 @@ describe('fetchRawRules RulesCache consultation', () => {
   });
 
   it('raises OperationCancelledError when the target-group load is cancelled', async () => {
-    seedRulesCache([cachedRawRule]); // rules come from cache; no rules fetch
+    seedSnapshotRules([cachedRawRule]); // rules come from the snapshot; no rules fetch
     const cancelledOutcome = {
       results: [],
       total: 1,
@@ -167,13 +250,12 @@ describe('fetchRawRules RulesCache consultation', () => {
       .fn()
       .mockResolvedValue(cancelledOutcome) as unknown as CoreApi['runOperation'];
     const core = makeCore({ makeApiRequest: routeMetaOnly(), runOperation });
-    const { captureRuleImpact } = createRuleImpactOperations(core, vi.fn());
+    const { captureRuleImpact } = createRuleImpactOperations(core, vi.fn(), ORIGIN);
 
     await expect(captureRuleImpact(analyzedInput)).rejects.toBeInstanceOf(OperationCancelledError);
   });
 
-  it('still paginates on a missing entry or a legacy entry without raw rules', async () => {
-    seedRulesCache([]);
+  it('still paginates on a cold snapshot', async () => {
     const makeApiRequest = vi.fn(async (endpoint: string) => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [cachedRawRule], headers: {} };
@@ -185,7 +267,7 @@ describe('fetchRawRules RulesCache consultation', () => {
     });
     const core = makeCore({ makeApiRequest });
     const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
-    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, ORIGIN);
 
     await captureRuleImpact(analyzedInput);
 

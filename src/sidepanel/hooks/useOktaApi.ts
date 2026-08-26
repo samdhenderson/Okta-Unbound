@@ -18,7 +18,7 @@ import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
 import { createRuleImpactOperations } from './useOktaApi/ruleImpact';
 import { createRuleWriteOperations } from './useOktaApi/ruleWrites';
 
-export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOptions) {
+export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: UseOktaApiOptions) {
   const [isLoading, setIsLoading] = useState(false);
 
   const progressCtx = useProgressOptional();
@@ -117,8 +117,8 @@ export function useOktaApi({ targetTabId, onResult, onProgress }: UseOktaApiOpti
     [groupMemberOps],
   );
   const ruleImpactOps = useMemo(
-    () => createRuleImpactOperations(coreApi, groupMemberOps.getAllGroupMembers),
-    [coreApi, groupMemberOps],
+    () => createRuleImpactOperations(coreApi, groupMemberOps.getAllGroupMembers, oktaOrigin),
+    [coreApi, groupMemberOps, oktaOrigin],
   );
   const ruleWriteOps = useMemo(() => createRuleWriteOperations(coreApi), [coreApi]);
 

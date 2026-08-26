@@ -70,7 +70,11 @@ const RulesTab: React.FC<RulesTabProps> = ({
     if (type === 'error') setError(message || null);
   }, []);
 
-  const api = useOktaApi({ targetTabId: targetTabId ?? null, onResult: handleResult });
+  const api = useOktaApi({
+    targetTabId: targetTabId ?? null,
+    oktaOrigin,
+    onResult: handleResult,
+  });
   const impact = useRuleImpact(api.captureRuleImpact);
   const data = useRulesData({ targetTabId, onError: handleError, currentGroupId, oktaOrigin });
   const { rules, stats, loadRules } = data;

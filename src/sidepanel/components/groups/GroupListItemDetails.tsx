@@ -1,5 +1,6 @@
 import React from 'react';
-import { CopyButton } from '../shared';
+import { CopyableId, CopyButton, EntityLink } from '../shared';
+import Icon from '../overview/shared/Icon';
 import MemberSourceMeter from './detail/MemberSourceMeter';
 import type { GroupSummary } from '../../../shared/types';
 import type { MemberSourceBreakdown } from '../../../shared/membership/groupSource';
@@ -9,6 +10,19 @@ interface GroupListItemDetailsProps {
   group: GroupSummary;
   breakdown: MemberSourceBreakdown | null;
 }
+
+const UnnamedPushApp: React.FC<{
+  appId: string;
+}> = ({ appId }) => (
+  <span
+    className="inline-flex max-w-full items-center gap-1 text-xs"
+    title="Okta returned no name for this application, so only its id is known here."
+  >
+    <Icon type="app" size="xs" className="shrink-0 text-neutral-500" />
+    <span className="shrink-0 italic text-neutral-600">App name not loaded</span>
+    <CopyableId value={appId} label={`Copy application id ${appId}`} />
+  </span>
+);
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
@@ -60,9 +74,17 @@ const GroupListItemDetails: React.FC<GroupListItemDetailsProps> = ({ group, brea
               className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1.5"
             >
               <div className="min-w-0">
-                <div className="truncate text-xs font-medium text-neutral-900">
-                  {mapping.appName || mapping.appId}
-                </div>
+                {mapping.appName ? (
+                  <EntityLink
+                    type="app"
+                    id={mapping.appId}
+                    name={mapping.appName}
+                    copyId
+                    copyIdLabel={`Copy application id ${mapping.appId}`}
+                  />
+                ) : (
+                  <UnnamedPushApp appId={mapping.appId} />
+                )}
                 {mapping.targetGroupName && (
                   <div className="truncate text-xs text-neutral-600">
                     Target group: {mapping.targetGroupName}

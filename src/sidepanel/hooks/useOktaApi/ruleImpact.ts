@@ -1,6 +1,6 @@
 import type { CoreApi } from './core';
 import type { OktaUser, OktaGroupRule, GroupType } from '../../../shared/types';
-import { RulesCache } from '../../../shared/rulesCache';
+import { orgSnapshotStore } from '../../../shared/snapshot/orgSnapshotStore';
 import { OperationCancelledError } from '../../../shared/scheduler/cancellation';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import { oktaGroupRuleSchema, type OktaGroupRuleResponse } from '@/shared/schemas/okta';
@@ -35,12 +35,18 @@ export interface RuleImpactOperations {
 export function createRuleImpactOperations(
   coreApi: CoreApi,
   getAllGroupMembers: (groupId: string) => Promise<OktaUser[]>,
+  oktaOrigin?: string | null,
 ): RuleImpactOperations {
   const fetchRawRules = async (): Promise<OktaGroupRule[]> => {
-    const cached = await RulesCache.get();
-    if (cached && cached.rawRules.length > 0) {
-      log.debug('Serving raw rules from RulesCache', { count: cached.rawRules.length });
-      return cached.rawRules;
+    if (oktaOrigin) {
+      const stored = await orgSnapshotStore.getCollection<OktaGroupRuleResponse>(
+        'rules',
+        oktaOrigin,
+      );
+      if (stored.length > 0) {
+        log.debug('Serving raw rules from the org snapshot', { count: stored.length });
+        return stored as unknown as OktaGroupRule[];
+      }
     }
 
     const rules = await fetchAllPages<OktaGroupRuleResponse>(

@@ -1,14 +1,20 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { createLogger } from '../utils/logger';
 import { escapeCSV } from '../utils/csvUtils';
-import type { AuditLogEntry, AuditFilters, AuditStats, AuditSettings } from '../types';
+import type {
+  AuditLogEntry,
+  PersistedAuditLogEntry,
+  AuditFilters,
+  AuditStats,
+  AuditSettings,
+} from '../types';
 
 const log = createLogger('AuditStore');
 
 interface AuditDB extends DBSchema {
   operations: {
     key: string;
-    value: AuditLogEntry;
+    value: PersistedAuditLogEntry;
     indexes: {
       timestamp: Date;
       groupId: string;
@@ -86,10 +92,10 @@ class AuditStore {
     }
   }
 
-  async getHistory(filters: AuditFilters = {}, limit?: number): Promise<AuditLogEntry[]> {
+  async getHistory(filters: AuditFilters = {}, limit?: number): Promise<PersistedAuditLogEntry[]> {
     try {
       const db = await this.getDB();
-      let results: AuditLogEntry[] = [];
+      let results: PersistedAuditLogEntry[] = [];
 
       if (filters.groupId) {
         results = await db.getAllFromIndex(STORE_NAME, 'groupId', filters.groupId);
