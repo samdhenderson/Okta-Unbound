@@ -26,6 +26,7 @@ export default defineConfig({
         '**/*.config.*',
         '**/*.stories.{ts,tsx}',
         '**/mockData',
+        'src/sidepanel/demo/**',
         'dist/',
         '.github/',
         'docs/',
