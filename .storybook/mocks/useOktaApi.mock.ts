@@ -51,6 +51,10 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     cancelOperation: fn(),
 
     makeApiRequest: makeApiRequestFn(),
+    runOperation: fn(async (_name?: unknown, body?: unknown) =>
+      typeof body === 'function' ? (body as () => unknown)() : undefined,
+    ),
+    getCurrentUser: asyncFn(null),
 
     getAllGroupMembers: asyncFn([]),
     removeUserFromGroup: asyncFn(),
@@ -72,6 +76,7 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     executeBulkOperation: asyncFn(),
     searchGroups: asyncFn([]),
     getGroupById: asyncFn(null),
+    getMembershipRuleProof: asyncFn(null),
 
     getUserLastLogin: asyncFn(null),
     getUserAppAssignments: asyncFn([]),
@@ -85,9 +90,13 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     suspendUser: asyncFn(),
     unsuspendUser: asyncFn(),
     resetPassword: asyncFn(),
+    getUserProfileSchema: asyncFn(null),
+    getUserRaw: asyncFn(null),
+    updateUserProfile: asyncFn({ outcome: 'saved' }),
 
     getAppById: asyncFn(null),
     getAppAssignmentCounts: asyncFn(null),
+    getAppGroupAssignments: asyncFn([]),
 
     listPolicies: asyncFn([]),
     getPolicyRules: asyncFn([]),

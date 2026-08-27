@@ -160,6 +160,59 @@ export const StickyInAScroller: Story = {
   ),
 };
 
+export const DockedInsideAnAnimatedRung: Story = {
+  parameters: { motion: 'on' },
+  args: {
+    sticky: true,
+    actions: [
+      {
+        id: 'export-members',
+        label: 'Export members',
+        icon: 'download',
+        variant: 'primary',
+        onClick: fn(),
+      },
+      { id: 'add-member', label: 'Add', icon: 'plus', onClick: fn() },
+      { id: 'compare', label: 'Compare', icon: 'users', onClick: fn() },
+    ],
+  },
+  render: (args) => (
+    <div
+      data-header-scope
+      className="h-96 w-[360px] overflow-y-auto [overflow-anchor:none] bg-canvas"
+    >
+      <PageHeader
+        sticky
+        title="Engineering - All"
+        badge={{ text: 'Okta Group', variant: 'primary' }}
+        identityKey="00gFAKE1a2b3c4d5e6"
+        identity={
+          <EntityIdentity
+            rows={[
+              [{ kind: 'id', value: '00gFAKE1a2b3c4d5e6', copyLabel: 'Copy group id' }],
+              [{ kind: 'metric', icon: 'users', value: '128', label: 'members' }],
+            ]}
+          />
+        }
+      />
+      <div className="animate-push-in">
+        <div className="space-y-6 px-6 py-6">
+          <ActionBar {...args} />
+          {['Membership source', 'Rules', 'Grants access to', 'App push', 'Metadata'].map(
+            (title) => (
+              <DetailSection key={title} title={title}>
+                <p className="text-sm text-neutral-600">
+                  Body content, tall enough that the strip above has something to hold against.
+                </p>
+              </DetailSection>
+            ),
+          )}
+        </div>
+      </div>
+    </div>
+  ),
+};
+
 export const WithExpansion: Story = {
   parameters: { motion: 'on' },
   args: {
