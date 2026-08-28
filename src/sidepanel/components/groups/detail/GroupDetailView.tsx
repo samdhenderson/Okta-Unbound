@@ -19,6 +19,7 @@ import { useGroupComparison } from '../../../hooks/useGroupComparison';
 import { useMemberMfaScan } from '../../../hooks/useMemberMfaScan';
 import { useGroupMembersSection } from './useGroupMembersSection';
 import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
+import { useWorkingSetEntry } from '../../../hooks/useWorkingSetEntry';
 import { OKTA_PAGE_SIZE } from '../../../../shared/utils/oktaPagination';
 import type { GroupSummary } from '../../../../shared/types';
 
@@ -54,6 +55,15 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   onExportGroup,
 }) => {
   const [activeTab, setActiveTab] = useState<GroupDetailTab>(autoAnalyze ? 'members' : 'overview');
+
+  useWorkingSetEntry({
+    origin: oktaOrigin,
+    kind: 'group',
+    id: group.id,
+    name: group.name,
+    pane: GROUP_DETAIL_TABS.find((tab) => tab.key === activeTab)?.label,
+    enabled: isActive,
+  });
 
   const source = useGroupSource(targetTabId ?? undefined);
   const references = useGroupRuleReferences(group.id, targetTabId ?? undefined, isActive);

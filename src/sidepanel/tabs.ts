@@ -1,15 +1,7 @@
-import type { IconType } from './components/overview/shared/Icon';
+import type { IconType } from './components/shared/Icon';
 
 export type TabType =
-  | 'overview'
-  | 'rules'
-  | 'users'
-  | 'groups'
-  | 'apps'
-  | 'policies'
-  | 'export'
-  | 'explorer'
-  | 'history';
+  'home' | 'rules' | 'users' | 'groups' | 'apps' | 'policies' | 'export' | 'explorer' | 'history';
 
 export interface TabDef {
   id: TabType;
@@ -18,7 +10,7 @@ export interface TabDef {
 }
 
 export const TAB_DEFS: ReadonlyArray<TabDef> = [
-  { id: 'overview', label: 'Overview', icon: 'chart' },
+  { id: 'home', label: 'Home', icon: 'home' },
   { id: 'users', label: 'Users', icon: 'user' },
   { id: 'groups', label: 'Groups', icon: 'users' },
   { id: 'apps', label: 'Apps', icon: 'app' },
@@ -30,9 +22,10 @@ export const TAB_DEFS: ReadonlyArray<TabDef> = [
 ];
 
 const LEGACY_TAB_MAP: Readonly<Record<string, TabType>> = {
-  dashboard: 'overview',
-  operations: 'overview',
-  security: 'overview',
+  overview: 'home',
+  dashboard: 'home',
+  operations: 'home',
+  security: 'home',
   undo: 'history',
 };
 
@@ -40,5 +33,5 @@ export function migrateLegacyTabId(saved: string): TabType {
   if (TAB_DEFS.some((tab) => tab.id === saved)) {
     return saved as TabType;
   }
-  return LEGACY_TAB_MAP[saved] ?? 'overview';
+  return LEGACY_TAB_MAP[saved] ?? 'home';
 }

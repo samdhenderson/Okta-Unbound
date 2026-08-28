@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollableList, EmptyState } from '../shared';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import type { EntityExport } from '../../export/types';
 
 interface EntityPickerProps {

@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Button, IconButton, Input, LoadingSpinner } from '../shared';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import type { GroupSummary, BulkOperation, BulkOperationResult } from '../../../shared/types';
 
 type BulkOpType = 'cleanup_inactive' | 'export_all' | 'remove_user';

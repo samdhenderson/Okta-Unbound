@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon, { type IconType } from '../../overview/shared/Icon';
+import Icon, { type IconType } from '../../shared/Icon';
 import CauseWorklistRow from './CauseWorklistRow';
 import { groupCausesByRemedy, type AccessCause, type AccessRemedy } from './accessCause';
 import type { ClauseGroupReference } from '../../../../shared/rules/explainExpression';

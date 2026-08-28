@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon, { type IconType } from '../../overview/shared/Icon';
+import Icon, { type IconType } from '../../shared/Icon';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
 import type { RolesReadStatus } from '../../../hooks/useGroupAccessGrants';
 import type { MemberSourceBreakdown } from '../../../../shared/membership/groupSource';

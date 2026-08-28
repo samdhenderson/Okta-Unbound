@@ -341,3 +341,67 @@ describe('useOktaTabContext reload recovery', () => {
     consoleError.mockRestore();
   });
 });
+
+describe('useOktaPageContext enablement', () => {
+  const groupResponder = (action: string): SendResponse =>
+    action === 'getGroupInfo'
+      ? { success: true, data: { groupId: '00g1', groupName: 'Engineering' } }
+      : origin(action);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setVisibility('visible');
+  });
+
+  afterEach(() => {
+    setVisibility('visible');
+  });
+
+  function navigateTo(url: string): void {
+    const onUpdated = lastListener<
+      (id: number, change: { url?: string }, tab: chrome.tabs.Tab) => void
+    >(chrome.tabs.onUpdated.addListener);
+    onUpdated(42, { url }, { url } as chrome.tabs.Tab);
+  }
+
+  it('re-detects on navigation while enabled, whatever tab is on screen', async () => {
+    mockOktaTab(groupResponder);
+    const { result } = renderHook(() => useOktaPageContext(true));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const before = sendCount();
+    navigateTo('https://acme.okta.com/admin/groups/00gOTHER');
+    await waitFor(() => expect(sendCount()).toBeGreaterThan(before));
+  });
+
+  it('stays inert once pinned', async () => {
+    mockOktaTab(groupResponder);
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => useOktaPageContext(enabled),
+      { initialProps: { enabled: true } },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    rerender({ enabled: false });
+    const before = sendCount();
+    navigateTo('https://acme.okta.com/admin/groups/00gOTHER');
+    await afterDebounce();
+    expect(sendCount()).toBe(before);
+  });
+
+  it('stays inert while the panel is hidden, even though it is always enabled', async () => {
+    mockOktaTab(groupResponder);
+    const { result } = renderHook(() => useOktaPageContext(true));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const before = sendCount();
+    setVisibility('hidden');
+    navigateTo('https://acme.okta.com/admin/groups/00gHIDDEN');
+    await afterDebounce();
+    expect(sendCount()).toBe(before);
+
+    setVisibility('visible');
+    document.dispatchEvent(new globalThis.Event('visibilitychange'));
+    await waitFor(() => expect(sendCount()).toBeGreaterThan(before));
+  });
+});

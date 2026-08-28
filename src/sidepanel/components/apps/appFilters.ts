@@ -1,7 +1,9 @@
-import type { OktaAppListItem } from '../../../shared/schemas/okta';
+import { isGroupPushApp, type OktaAppListItem } from '../../../shared/schemas/okta';
 import { parseRegexQuery } from '../../../shared/utils/regexQuery';
 
 export type AppStatusFilter = '' | 'ACTIVE' | 'INACTIVE';
+
+export type AppGroupsFilter = '' | 'no-groups';
 
 export type AppSortField = 'label' | 'status' | 'created';
 
@@ -10,6 +12,7 @@ export type AppStatusVariant = 'success' | 'neutral' | 'danger';
 export interface AppFilterState {
   searchQuery: string;
   statusFilter: AppStatusFilter;
+  groupsFilter: AppGroupsFilter;
   sortBy: AppSortField;
   sortDesc: boolean;
 }
@@ -44,6 +47,13 @@ export function matchesAppStatus(status: string | undefined, filter: AppStatusFi
   return filter === 'ACTIVE' ? normalized === 'ACTIVE' : normalized !== 'ACTIVE';
 }
 
+export function pushesNoGroups(
+  app: OktaAppListItem,
+  appsWithPushedGroups: ReadonlySet<string>,
+): boolean {
+  return isGroupPushApp(app.features) && !appsWithPushedGroups.has(app.id);
+}
+
 export function compareAppsBy(
   a: OktaAppListItem,
   b: OktaAppListItem,
@@ -67,6 +77,7 @@ export function compareAppsBy(
 export function filterAndSortApps(
   apps: OktaAppListItem[],
   state: AppFilterState,
+  appsWithPushedGroups: ReadonlySet<string> = new Set(),
 ): OktaAppListItem[] {
   let filtered = [...apps];
 
@@ -76,6 +87,10 @@ export function filterAndSortApps(
 
   if (state.statusFilter) {
     filtered = filtered.filter((app) => matchesAppStatus(app.status, state.statusFilter));
+  }
+
+  if (state.groupsFilter === 'no-groups') {
+    filtered = filtered.filter((app) => pushesNoGroups(app, appsWithPushedGroups));
   }
 
   filtered.sort((a, b) => {
@@ -97,6 +112,8 @@ export function appStatusVariant(status: string | undefined): AppStatusVariant {
   }
 }
 
-export function computeActiveAppFilterCount(state: Pick<AppFilterState, 'statusFilter'>): number {
-  return state.statusFilter ? 1 : 0;
+export function computeActiveAppFilterCount(
+  state: Pick<AppFilterState, 'statusFilter' | 'groupsFilter'>,
+): number {
+  return (state.statusFilter ? 1 : 0) + (state.groupsFilter ? 1 : 0);
 }

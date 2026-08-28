@@ -7,8 +7,9 @@ import TabPanel from './components/TabPanel';
 import TabJumpPalette from './components/TabJumpPalette';
 import { useCommandPalette } from './hooks/useCommandPalette';
 import { migrateLegacyTabId, type TabType } from './tabs';
-import OverviewTab from './components/OverviewTab';
+import HomeTab from './components/HomeTab';
 import type { ExportRequest } from './components/export';
+import { viewFor, type ListViewRequest, type ListViewTab } from './listViewRequest';
 import ActivityBar from './components/ActivityBar';
 
 const RulesTab = lazy(() => import('./components/RulesTab'));
@@ -29,16 +30,16 @@ const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
 const PINNED_CONTEXT_KEY = 'okta_unbound_pinned_context';
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
-  const [scopeRulesToGroupId, setScopeRulesToGroupId] = useState<string | null>(null);
+  const [listViewRequest, setListViewRequest] = useState<ListViewRequest | null>(null);
   const [pinned, setPinned] = useState<PinnedContext | null>(null);
   const isPinned = pinned !== null;
   const [mountedTabs, setMountedTabs] = useState<ReadonlySet<TabType>>(
-    () => new Set<TabType>(['overview']),
+    () => new Set<TabType>(['home']),
   );
   useEffect(() => {
     setMountedTabs((prev) => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)));
@@ -57,7 +58,7 @@ const App: React.FC = () => {
     oktaOrigin,
     refetch: refetchGroupContext,
   } = useGroupContext();
-  const page = useOktaPageContext(activeTab === 'overview' && !isPinned);
+  const page = useOktaPageContext(!isPinned);
 
   useEffect(() => {
     chrome.storage.local.get([PINNED_CONTEXT_KEY], (result) => {
@@ -221,14 +222,19 @@ const App: React.FC = () => {
       contextLabel: groupName,
     });
 
-  const handleExportApp = (descriptorId: string, appId: string, appName: string) =>
-    handleNavigateToExport({ descriptorId, contextId: appId, contextLabel: appName });
+  const handleOpenListView = useCallback((request: ListViewRequest) => {
+    setListViewRequest(request);
+    setActiveTab(request.tab);
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: request.tab });
+  }, []);
 
-  const handleViewGroupRules = (groupId: string) => {
-    setScopeRulesToGroupId(groupId);
-    setActiveTab('rules');
-    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'rules' });
-  };
+  const clearListViewRequest = useCallback(() => setListViewRequest(null), []);
+
+  const handleOpenTab = useCallback((tab: ListViewTab) => {
+    setListViewRequest(null);
+    setActiveTab(tab);
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: tab });
+  }, []);
 
   const renderTabPanel = (tab: TabType, content: (isActive: boolean) => React.ReactNode) => {
     if (!mountedTabs.has(tab)) return null;
@@ -265,26 +271,13 @@ const App: React.FC = () => {
 
           <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
-          {renderTabPanel('overview', () => (
-            <OverviewTab
-              onTabChange={handleTabChange}
-              pageType={effective.pageType}
-              groupInfo={effective.groupInfo}
-              userInfo={effective.userInfo}
-              appInfo={page.appInfo ?? null}
-              policyInfo={page.policyInfo ?? null}
-              connectionStatus={effective.connectionStatus}
-              targetTabId={effective.targetTabId}
-              error={effective.error}
-              isLoading={effective.isLoading}
-              oktaOrigin={effective.oktaOrigin}
-              onRetry={handleRefreshAll}
-              onViewAllGroups={() => {
-                if (effective.userInfo) handleNavigateToUser(effective.userInfo.userId);
-              }}
-              onExportGroup={handleExportGroup}
-              onExportApp={handleExportApp}
-              onViewGroupRules={handleViewGroupRules}
+          {renderTabPanel('home', (isActive) => (
+            <HomeTab
+              isActive={isActive}
+              targetTabId={tabContext.targetTabId ?? null}
+              oktaOrigin={tabContext.oktaOrigin ?? undefined}
+              onOpenListView={handleOpenListView}
+              onOpenTab={handleOpenTab}
             />
           ))}
           {renderTabPanel('rules', (isActive) => (
@@ -296,8 +289,8 @@ const App: React.FC = () => {
               selectedRuleId={selectedRuleId}
               onRuleSelected={() => setSelectedRuleId(null)}
               onNavigateToGroup={handleNavigateToGroup}
-              scopeToGroupId={scopeRulesToGroupId}
-              onScopeConsumed={() => setScopeRulesToGroupId(null)}
+              listView={viewFor(listViewRequest, 'rules')}
+              onListViewConsumed={clearListViewRequest}
             />
           ))}
           {renderTabPanel('users', (isActive) => (
@@ -318,6 +311,8 @@ const App: React.FC = () => {
               selectedGroupId={selectedGroupId}
               onGroupSelected={() => setSelectedGroupId(null)}
               onExportGroup={handleExportGroup}
+              listView={viewFor(listViewRequest, 'groups')}
+              onListViewConsumed={clearListViewRequest}
             />
           ))}
           {renderTabPanel('apps', (isActive) => (
@@ -325,6 +320,8 @@ const App: React.FC = () => {
               isActive={isActive}
               targetTabId={tabContext.targetTabId ?? null}
               oktaOrigin={tabContext.oktaOrigin ?? undefined}
+              listView={viewFor(listViewRequest, 'apps')}
+              onListViewConsumed={clearListViewRequest}
             />
           ))}
           {renderTabPanel('policies', (isActive) => (

@@ -1,4 +1,4 @@
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 
 interface SelectionChipsProps<T> {
   items: T[];

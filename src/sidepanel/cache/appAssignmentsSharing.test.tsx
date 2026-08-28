@@ -11,9 +11,9 @@ const api = vi.hoisted(() => ({
 vi.mock('../hooks/useOktaApi', () => ({ useOktaApi: () => api }));
 vi.mock('../../sidepanel/hooks/useOktaApi', () => ({ useOktaApi: () => api }));
 
-import AppOverview from '../components/overview/AppOverview';
 import AppListItem from '../components/apps/AppListItem';
-import { resetEntityCache } from './entityCache';
+import { peek, resetEntityCache } from './entityCache';
+import { cacheKeys } from './keys';
 import type { AppAssignmentCounts } from '../hooks/useOktaApi/appOperations';
 
 const APP_ID = '0oaFAKE000000000001';
@@ -42,41 +42,22 @@ async function renderExpandedRow() {
 const rowCountBadge = () =>
   screen.getAllByText((_content, el) => el?.textContent === '1,284 users' && el.tagName === 'SPAN');
 
-describe('app assignment counts shared between the Overview and the Apps tab', () => {
-  it('renders the row counts when the Overview populated the cache first', async () => {
-    render(<AppOverview appId={APP_ID} appName="Payroll" targetTabId={1} onExport={vi.fn()} />);
-    await screen.findByText('1,284');
-
+describe('the shared app assignment-counts cache entry', () => {
+  it('holds the counts themselves, not a wrapper around them', async () => {
     const { unmount } = await renderExpandedRow();
     await waitFor(() => expect(rowCountBadge().length).toBeGreaterThan(0));
+    expect(peek(cacheKeys.appAssignmentCounts(APP_ID))).toEqual(COUNTS);
     unmount();
   });
 
-  it('renders the Overview counts when the Apps tab populated the cache first', async () => {
-    const { unmount } = await renderExpandedRow();
+  it('fetches once, then serves the entry warm', async () => {
+    const first = await renderExpandedRow();
     await waitFor(() => expect(rowCountBadge().length).toBeGreaterThan(0));
-    unmount();
+    first.unmount();
 
-    render(<AppOverview appId={APP_ID} appName="Payroll" targetTabId={1} onExport={vi.fn()} />);
-    expect(await screen.findByText('1,284')).toBeInTheDocument();
-  });
-
-  it('fetches the counts once across both consumers', async () => {
-    render(<AppOverview appId={APP_ID} appName="Payroll" targetTabId={1} onExport={vi.fn()} />);
-    await screen.findByText('1,284');
-    const afterOverview = api.getAppAssignmentCounts.mock.calls.length;
-
-    const { unmount } = await renderExpandedRow();
+    const second = await renderExpandedRow();
     await waitFor(() => expect(rowCountBadge().length).toBeGreaterThan(0));
-    unmount();
-
-    expect(api.getAppAssignmentCounts).toHaveBeenCalledTimes(afterOverview);
-  });
-
-  it('issues one GET /api/v1/apps/{id} per app overview', async () => {
-    render(<AppOverview appId={APP_ID} appName="Payroll" targetTabId={1} onExport={vi.fn()} />);
-    await screen.findByText('1,284');
-
-    expect(api.getAppById).toHaveBeenCalledTimes(1);
+    expect(api.getAppAssignmentCounts).toHaveBeenCalledTimes(1);
+    second.unmount();
   });
 });

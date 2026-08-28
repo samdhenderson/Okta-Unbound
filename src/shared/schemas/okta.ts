@@ -200,6 +200,12 @@ export function isProfileSourceApp(features: readonly string[] | undefined): boo
   return features !== undefined && features.includes(PROFILE_SOURCE_FEATURE);
 }
 
+const GROUP_PUSH_FEATURE = 'GROUP_PUSH';
+
+export function isGroupPushApp(features: readonly string[] | undefined): boolean {
+  return features !== undefined && features.includes(GROUP_PUSH_FEATURE);
+}
+
 const GROUP_ID_PATTERN = /^00g[A-Za-z0-9]{15,}$/;
 
 function trailingPathSegment(href: string): string | undefined {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import Icon from '../../overview/shared/Icon';
+import Icon from '../../shared/Icon';
 import Input from '../../shared/Input';
 import FilterPill from '../../shared/FilterPill';
 import type { ParityRow } from './comparisonAnalytics';

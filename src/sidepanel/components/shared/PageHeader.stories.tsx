@@ -4,6 +4,7 @@ import Breadcrumbs from './Breadcrumbs';
 import Button from './Button';
 import EntityIdentity from './EntityIdentity';
 import PageHeader from './PageHeader';
+import WorkingSetPinButton from './WorkingSetPinButton';
 
 const meta = {
   title: 'Shared/PageHeader',
@@ -18,6 +19,7 @@ const meta = {
           'The optional badge renders through the shared `Badge` primitive, so it speaks the canonical vocabulary — `danger`, never `error` (ADR-0002). Actions are right-aligned.\n\n' +
           'The leading-slot props (`onBack`, `leading`, `breadcrumbs`) are additive and optional — omitting them renders the original layout unchanged. They exist so a tab driven by `useViewStack` keeps **one** header mounted whose contents swap in place as views are pushed and popped, rather than each view rendering its own header.\n\n' +
           '`identity` extends that downward: an expanding region describing the entity you are browsing, so a detail view no longer opens with a card repeating the title. Changing `identityKey` crossfades it; the `<h1>` and its badge never do.\n\n' +
+          '`cornerAction` parks a small control in the bottom-right corner, below the actions — a different weight of thing from a page verb, kept out of `actions` so it does not read as one. It is in flow, not absolutely positioned, so it cannot land on top of a long identity region at 360px.\n\n' +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
       },
     },
@@ -159,6 +161,28 @@ export const WithIdentity: Story = {
       />
     ),
     actions: <Button icon="external-link">Open in Okta</Button>,
+  },
+};
+
+export const WithCornerAction: Story = {
+  args: {
+    ...WithIdentity.args,
+    cornerAction: <WorkingSetPinButton pinned={false} onToggle={fn()} />,
+  },
+};
+
+export const WithCornerActionPinned: Story = {
+  args: {
+    ...WithIdentity.args,
+    cornerAction: <WorkingSetPinButton pinned onToggle={fn()} />,
+  },
+};
+
+export const CornerActionWithoutIdentity: Story = {
+  args: {
+    title: 'Groups',
+    subtitle: 'Browse, search, and manage groups',
+    cornerAction: <WorkingSetPinButton pinned={false} onToggle={fn()} />,
   },
 };
 

@@ -113,7 +113,7 @@ export class TabStateManager {
   }
 
   static async getAllTabStates(): Promise<Partial<AllTabStates>> {
-    const tabNames: TabName[] = ['overview', 'rules', 'users', 'groups', 'history'];
+    const tabNames: TabName[] = ['home', 'rules', 'users', 'groups', 'history'];
     const states: Partial<Record<TabName, BaseTabState>> = {};
 
     for (const tabName of tabNames) {

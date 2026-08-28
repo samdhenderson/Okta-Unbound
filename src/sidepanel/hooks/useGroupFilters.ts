@@ -5,6 +5,7 @@ import {
   computeActiveFilterCount,
   type SortField,
   type PushFilter,
+  type RuleFilter,
 } from '../components/groups/groupFilters';
 
 interface UseGroupFiltersOptions {
@@ -19,6 +20,7 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
   const [sizeFilter, setSizeFilter] = useState<string>('');
   const [pushFilter, setPushFilter] = useState<PushFilter>('');
   const [pushAppFilter, setPushAppFilter] = useState<Set<string>>(new Set());
+  const [ruleFilter, setRuleFilter] = useState<RuleFilter>('');
   const [sortBy, setSortBy] = useState<SortField>('name');
   const [sortDesc, setSortDesc] = useState(false);
 
@@ -27,6 +29,7 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     sizeFilter,
     pushFilter,
     pushAppFilter,
+    ruleFilter,
   });
 
   const filteredGroups = useMemo(() => {
@@ -38,6 +41,7 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
       sizeFilter,
       pushFilter,
       pushAppFilter,
+      ruleFilter,
       sortBy,
       sortDesc,
     });
@@ -50,6 +54,7 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     sizeFilter,
     pushFilter,
     pushAppFilter,
+    ruleFilter,
     sortBy,
     sortDesc,
   ]);
@@ -75,6 +80,7 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     setSizeFilter('');
     setPushFilter('');
     setPushAppFilter(new Set());
+    setRuleFilter('');
     setSearchQuery('');
   }, []);
 
@@ -101,6 +107,8 @@ export function useGroupFilters({ groups, searchMode, liveSearchResults }: UseGr
     setPushFilter,
     pushAppFilter,
     setPushAppFilter,
+    ruleFilter,
+    setRuleFilter,
     sortBy,
     sortDesc,
     filteredGroups,

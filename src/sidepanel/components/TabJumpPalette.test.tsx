@@ -15,7 +15,7 @@ beforeEach(() => {
 
 function renderPalette(props: Partial<React.ComponentProps<typeof TabJumpPalette>> = {}) {
   return render(
-    <TabJumpPalette isOpen onClose={onClose} activeTab="overview" onSelect={onSelect} {...props} />,
+    <TabJumpPalette isOpen onClose={onClose} activeTab="home" onSelect={onSelect} {...props} />,
   );
 }
 
@@ -79,16 +79,9 @@ describe('TabJumpPalette', () => {
       expect(rows()).toHaveLength(1);
 
       rerender(
-        <TabJumpPalette
-          isOpen={false}
-          onClose={onClose}
-          activeTab="overview"
-          onSelect={onSelect}
-        />,
+        <TabJumpPalette isOpen={false} onClose={onClose} activeTab="home" onSelect={onSelect} />,
       );
-      rerender(
-        <TabJumpPalette isOpen onClose={onClose} activeTab="overview" onSelect={onSelect} />,
-      );
+      rerender(<TabJumpPalette isOpen onClose={onClose} activeTab="home" onSelect={onSelect} />);
 
       expect(field()).toHaveValue('');
       expect(rows()).toHaveLength(TAB_DEFS.length);
@@ -125,6 +118,12 @@ describe('TabJumpPalette', () => {
   });
 
   describe('keyboard model (roving focus)', () => {
+    it('CHARACTERIZED: shared Modal takes focus first, on the synchronous commit', () => {
+      renderPalette();
+
+      expect(screen.getByRole('button', { name: 'Close modal' })).toHaveFocus();
+    });
+
     it('focuses the search field on open, ahead of the modal header button', async () => {
       renderPalette();
 
@@ -136,13 +135,13 @@ describe('TabJumpPalette', () => {
       await waitFor(() => expect(field()).toHaveFocus());
 
       await userEvent.keyboard('{ArrowDown}');
-      expect(row('Overview')).toHaveFocus();
+      expect(row(TAB_DEFS[0].label)).toHaveFocus();
 
       await userEvent.keyboard('{ArrowDown}');
-      expect(row('Users')).toHaveFocus();
+      expect(row(TAB_DEFS[1].label)).toHaveFocus();
 
       await userEvent.keyboard('{ArrowUp}');
-      expect(row('Overview')).toHaveFocus();
+      expect(row(TAB_DEFS[0].label)).toHaveFocus();
 
       await userEvent.keyboard('{ArrowUp}');
       expect(field()).toHaveFocus();
@@ -166,7 +165,7 @@ describe('TabJumpPalette', () => {
 
       await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
 
-      expect(onSelect).toHaveBeenCalledWith('users');
+      expect(onSelect).toHaveBeenCalledWith(TAB_DEFS[1].id);
       expect(onClose).toHaveBeenCalled();
     });
 
@@ -176,19 +175,19 @@ describe('TabJumpPalette', () => {
 
       const tabbable = () => rows().filter((el) => el.getAttribute('tabindex') === '0');
       expect(tabbable()).toHaveLength(1);
-      expect(tabbable()[0]).toBe(row('Overview'));
+      expect(tabbable()[0]).toBe(row(TAB_DEFS[0].label));
 
       await userEvent.keyboard('{ArrowDown}{ArrowDown}');
 
       expect(tabbable()).toHaveLength(1);
-      expect(tabbable()[0]).toBe(row('Users'));
+      expect(tabbable()[0]).toBe(row(TAB_DEFS[1].label));
     });
 
     it('re-anchors the tab order to the top row when the query changes', async () => {
       renderPalette();
       await waitFor(() => expect(field()).toHaveFocus());
       await userEvent.keyboard('{ArrowDown}{ArrowDown}');
-      expect(row('Users')).toHaveAttribute('tabindex', '0');
+      expect(row(TAB_DEFS[1].label)).toHaveAttribute('tabindex', '0');
 
       await userEvent.click(field());
       await userEvent.type(field(), 'o');
@@ -199,7 +198,7 @@ describe('TabJumpPalette', () => {
     it('announces the number of matching sections', async () => {
       renderPalette();
 
-      expect(screen.getByRole('status')).toHaveTextContent('9 sections available');
+      expect(screen.getByRole('status')).toHaveTextContent(`${TAB_DEFS.length} sections available`);
 
       await userEvent.type(field(), 'export');
 
@@ -210,7 +209,7 @@ describe('TabJumpPalette', () => {
 
 const Harness: React.FC = () => {
   const palette = useCommandPalette();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   return (
     <>
       <p data-testid="active-tab">{activeTab}</p>
@@ -283,7 +282,7 @@ describe('useCommandPalette (shell-owned shortcut)', () => {
     await userEvent.type(field(), 'appl');
     await userEvent.keyboard('{Enter}');
 
-    expect(screen.getByTestId('active-tab')).toHaveTextContent('overview');
+    expect(screen.getByTestId('active-tab')).toHaveTextContent('home');
     expect(onSelect).not.toHaveBeenCalled();
 
     await userEvent.type(field(), '{Backspace}{Backspace}{Backspace}{Backspace}rul{Enter}');

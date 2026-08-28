@@ -1,6 +1,6 @@
 import React from 'react';
 import IconButton from './IconButton';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 
 export interface CopyableIdProps {

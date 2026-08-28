@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState, Input, Modal } from './shared';
-import Icon, { type IconType } from './overview/shared/Icon';
+import Icon, { type IconType } from './shared/Icon';
 import { TAB_DEFS, type TabType } from '../tabs';
 
 interface TabJumpPaletteProps {

@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon, { type IconType } from '../overview/shared/Icon';
+import Icon, { type IconType } from '../shared/Icon';
 import CopyableId from './CopyableId';
 import type { IdentityFact, IdentityRow } from './identityDescriptor';
 

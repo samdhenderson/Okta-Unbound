@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import {
+  isGroupPushApp,
   oktaAppGroupAssignmentSchema,
   oktaAppListItemSchema,
   oktaGroupListItemSchema,
@@ -434,8 +435,6 @@ export const APPS_SPEC: CollectionSpec = {
   context: 'GET /api/v1/apps',
 };
 
-const GROUP_PUSH_FEATURE = 'GROUP_PUSH';
-
 const APP_GROUPS_REFRESH_MS = 6 * 60 * 60 * 1000;
 
 interface StoredGroupSource {
@@ -462,7 +461,7 @@ async function pushEnabledAppShards(origin: string): Promise<Shard[]> {
 
   const appIds = new Set<string>();
   for (const app of apps) {
-    if (app.features?.includes(GROUP_PUSH_FEATURE) && app.id) appIds.add(app.id);
+    if (isGroupPushApp(app.features) && app.id) appIds.add(app.id);
   }
 
   if (appIds.size === 0) {

@@ -11,10 +11,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'Search, status filter, and sort controls for the Applications list.\n\n' +
+          'Search, status and group-push filters, and sort controls for the Applications list.\n\n' +
           'Fully controlled: the tab shell owns the filter state, so the same values drive ' +
           'both this row and the filtered list. The search box accepts a `/pattern/flags` ' +
-          'regex query (parsed by the shared `regexQuery` helper) as well as plain substrings.',
+          'regex query (parsed by the shared `regexQuery` helper) as well as plain substrings.\n\n' +
+          '**"Pushes nothing" is narrower than it sounds, deliberately.** It means Group Push is ' +
+          'enabled on the app and the org snapshot holds no group assignment for it. The snapshot ' +
+          'walks `/api/v1/apps/{id}/groups` only for `GROUP_PUSH` apps, so for anything else an ' +
+          'absent assignment means *nobody asked* — a wider bucket would report the whole ' +
+          'inventory as unassigned.',
       },
     },
   },
@@ -23,6 +28,8 @@ const meta = {
     onSearchQueryChange: { description: 'Called with the new search text.' },
     statusFilter: { description: "Selected status bucket (`''` = all)." },
     onStatusFilterChange: { description: 'Called with the newly selected status bucket.' },
+    groupsFilter: { description: "Selected group-push bucket (`''` = all)." },
+    onGroupsFilterChange: { description: 'Called with the newly selected group-push bucket.' },
     sortBy: { description: 'The active sort field.' },
     sortDesc: { description: 'Whether the active sort is descending.' },
     onToggleSort: {
@@ -36,6 +43,8 @@ const meta = {
     onSearchQueryChange: fn(),
     statusFilter: '',
     onStatusFilterChange: fn(),
+    groupsFilter: '',
+    onGroupsFilterChange: fn(),
     sortBy: 'label',
     sortDesc: false,
     onToggleSort: fn(),
@@ -59,6 +68,10 @@ export const RegexQuery: Story = {
 
 export const InactiveFilter: Story = {
   args: { statusFilter: 'INACTIVE', resultCount: 5 },
+};
+
+export const PushesNothingFilter: Story = {
+  args: { groupsFilter: 'no-groups', resultCount: 2 },
 };
 
 export const SortedByCreatedDesc: Story = {

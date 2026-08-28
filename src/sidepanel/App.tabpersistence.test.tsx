@@ -284,19 +284,28 @@ describe('App tab lifetime', () => {
     expect(screen.getByLabelText('Select Engineering')).toBeChecked();
   });
 
-  it('leaves the Overview mounted and does not re-run the Groups cache read on return', async () => {
+  it('leaves the first tab mounted and does not re-run the Groups cache read on return', async () => {
     const uev = userEvent.setup();
     renderApp();
 
+    const groupReads = () => collectionReads.filter((name) => name === 'groups').length;
+
+    await waitFor(() => {
+      expect(collectionReads).toContain('rules');
+      expect(collectionReads).toContain('apps');
+      expect(collectionReads).toContain('groups');
+    });
+    const beforeGroups = groupReads();
+
     await openTab(uev, 'Groups');
     await groupRow('Engineering');
-    const cacheReads = collectionReads.filter((name) => name === 'groups').length;
-    expect(cacheReads).toBe(1);
+    const afterGroups = groupReads();
+    expect(afterGroups - beforeGroups).toBe(1);
 
     await openTab(uev, 'Apps');
     await openTab(uev, 'Groups');
 
-    expect(collectionReads.filter((name) => name === 'groups')).toHaveLength(cacheReads);
+    expect(groupReads()).toBe(afterGroups);
   });
 
   it("restores each tab's own scroll offset on return, not the offset it was left at", async () => {

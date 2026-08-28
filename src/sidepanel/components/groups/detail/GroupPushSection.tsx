@@ -1,6 +1,6 @@
 import React from 'react';
 import { CopyableId, DetailSection, EntityLink } from '../../shared';
-import Icon from '../../overview/shared/Icon';
+import Icon from '../../shared/Icon';
 import type { PushGroupMapping } from '../../../../shared/types';
 
 interface GroupPushSectionProps {
