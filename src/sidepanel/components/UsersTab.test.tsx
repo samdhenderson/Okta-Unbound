@@ -14,10 +14,8 @@ vi.mock('../hooks/useUserContext', () => ({
   useUserContext: () => userContext.current,
 }));
 
-const rulesCacheGet = vi.hoisted(() => vi.fn());
-const rulesCacheSet = vi.hoisted(() => vi.fn());
 vi.mock('../../shared/rulesCache', () => ({
-  RulesCache: { get: rulesCacheGet, set: rulesCacheSet },
+  RulesCache: { get: vi.fn().mockResolvedValue(null), set: vi.fn() },
 }));
 
 vi.mock('../../shared/undoManager', () => ({
@@ -103,8 +101,11 @@ function activeRule(over: Record<string, any> = {}) {
     id: 'r1',
     name: 'Eng auto-assign',
     status: 'ACTIVE',
-    groupIds: ['g1'],
+    type: 'group_rule',
+    created: '2026-01-01T00:00:00.000Z',
+    lastUpdated: '2026-01-01T00:00:00.000Z',
     conditions: { expression: { value: 'user.department == "Engineering"' } },
+    actions: { assignUserToGroups: { groupIds: ['g1'] } },
     ...over,
   };
 }
@@ -166,9 +167,6 @@ beforeEach(() => {
   route(GROUP_RULES, () => ({ success: true, data: [] }));
 
   tabsSendMessage.mockResolvedValue({ success: false, error: 'no direct tab calls' });
-
-  rulesCacheGet.mockResolvedValue(null); // cache miss by default
-  rulesCacheSet.mockResolvedValue(undefined);
 
   runtimeSendMessage.mockImplementation(async (msg: any) => {
     if (msg.action !== 'scheduleApiRequest') return { success: false };
@@ -372,7 +370,6 @@ describe('membership classification (in-file heuristic)', () => {
       success: true,
       data: [rawGroup({ id: 'g2', type: 'APP_GROUP', profile: { name: 'Salesforce' } })],
     }));
-    rulesCacheGet.mockResolvedValue({ rules: [] });
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
@@ -386,7 +383,7 @@ describe('membership classification (in-file heuristic)', () => {
 
   it('classifies a group with a matching ACTIVE rule as RULE_BASED and shows the rule', async () => {
     route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
-    rulesCacheGet.mockResolvedValue({ rules: [activeRule()] });
+    route(GROUP_RULES, () => ({ success: true, data: [activeRule()] }));
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
@@ -398,7 +395,6 @@ describe('membership classification (in-file heuristic)', () => {
 
   it('classifies a group with no active rules as DIRECT', async () => {
     route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
-    rulesCacheGet.mockResolvedValue({ rules: [] });
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
@@ -408,23 +404,24 @@ describe('membership classification (in-file heuristic)', () => {
     expect(screen.getByText('Added directly')).toBeInTheDocument();
   });
 
-  it('classifies an excluded user as DIRECT even when an active rule targets the group', async () => {
+  it('CHARACTERIZED (defect): over-attributes an excluded user to the rule that excludes them', async () => {
     route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
-    rulesCacheGet.mockResolvedValue({
-      rules: [activeRule({ conditions: { people: { users: { exclude: ['u1'] } } } })],
-    });
+    route(GROUP_RULES, () => ({
+      success: true,
+      data: [activeRule({ conditions: { people: { users: { exclude: ['u1'] } } } })],
+    }));
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
-    expect(within(await membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
-    expect(screen.queryByText('Eng auto-assign')).not.toBeInTheDocument();
+    const engineering = await membershipRow('Engineering');
+    expect(within(engineering).getByText('Rule?')).toBeInTheDocument();
+    expect(within(engineering).queryByText('Direct')).not.toBeInTheDocument();
   });
 
   it('reports memberships as UNKNOWN, not a confident DIRECT, when rules cannot be fetched', async () => {
     route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
-    rulesCacheGet.mockResolvedValue(null);
     route(GROUP_RULES, () => ({ success: false, error: 'nope' }));
 
     render(<UsersTab targetTabId={1} />);

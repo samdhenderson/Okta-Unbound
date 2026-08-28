@@ -10,13 +10,9 @@ vi.mock('./getUserGroupsRequest', () => ({
 vi.mock('./fetchGroupRulesRequest', () => ({
   fetchGroupRulesRequest: vi.fn(),
 }));
-vi.mock('../../shared/rulesCache', () => ({
-  RulesCache: { get: vi.fn(), isFresh: vi.fn(), getRulesForGroup: vi.fn() },
-}));
 
 import { getUserGroupsRequest } from './getUserGroupsRequest';
 import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
-import { RulesCache } from '../../shared/rulesCache';
 
 globalThis.chrome = {
   tabs: { sendMessage: vi.fn() },
@@ -42,7 +38,6 @@ beforeEach(() => {
   vi.mocked(getUserGroupsRequest).mockResolvedValue(
     groupsResponse as unknown as Awaited<ReturnType<typeof getUserGroupsRequest>>,
   );
-  vi.mocked(RulesCache.get).mockResolvedValue(null);
 });
 
 async function load(): Promise<GroupMembership[]> {

@@ -1,7 +1,14 @@
 import { useState, useCallback, useRef } from 'react';
-import type { OktaUser, GroupMembership, OktaGroup, FormattedRule } from '../../shared/types';
-import { RulesCache } from '../../shared/rulesCache';
-import { getOrFetch, peek, invalidate } from '../cache/entityCache';
+import type {
+  OktaUser,
+  GroupMembership,
+  OktaGroup,
+  OktaGroupRule,
+  FormattedRule,
+} from '../../shared/types';
+import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
+import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
+import { getOrFetch, peek, setEntry, invalidate } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
 import { analyzeMemberships, unclassifiedMemberships } from '../../shared/utils/membershipAnalysis';
 import { createLogger } from '../../shared/utils/logger';
@@ -20,6 +27,7 @@ export type RuleInventoryState =
 
 interface UseUserMembershipsOptions {
   targetTabId: number | undefined;
+  oktaOrigin?: string | null;
   onError?: (message: string | null) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -35,6 +43,7 @@ interface UseUserMembershipsReturn {
 
 export function useUserMemberships({
   targetTabId,
+  oktaOrigin,
   onError,
   onLoadingChange,
 }: UseUserMembershipsOptions): UseUserMembershipsReturn {
@@ -48,6 +57,9 @@ export function useUserMemberships({
   const callbacksRef = useRef({ onError, onLoadingChange });
   callbacksRef.current = { onError, onLoadingChange };
 
+  const oktaOriginRef = useRef(oktaOrigin);
+  oktaOriginRef.current = oktaOrigin;
+
   const reportError = useCallback((message: string | null) => {
     setError(message);
     callbacksRef.current.onError?.(message);
@@ -57,25 +69,37 @@ export function useUserMemberships({
     callbacksRef.current.onLoadingChange?.(loading);
   }, []);
 
+  const deriveSnapshotRuleInventory = useCallback(async (): Promise<FormattedRule[] | null> => {
+    const origin = oktaOriginRef.current;
+    if (!origin) return null;
+    const meta = await orgSnapshotStore.getMeta('rules', origin);
+    if (!meta.complete) return null;
+    const rawRules = await orgSnapshotStore.getCollection<OktaGroupRule>('rules', origin);
+    const conflicts = detectConflicts(rawRules);
+    return rawRules.map((rule) => formatRuleForDisplay(rule, undefined, conflicts));
+  }, []);
+
   const adoptCachedRuleInventory = useCallback(async (): Promise<void> => {
     const cached = peek<FormattedRule[] | null>(RULE_INVENTORY_KEY);
     if (cached) {
       setRuleInventory({ status: 'available', rules: cached });
       return;
     }
-    const cachedRules = await RulesCache.get();
-    if (cachedRules) setRuleInventory({ status: 'available', rules: cachedRules.rules });
-  }, []);
+    const derived = await deriveSnapshotRuleInventory();
+    if (!derived) return;
+    setEntry(RULE_INVENTORY_KEY, derived);
+    setRuleInventory({ status: 'available', rules: derived });
+  }, [deriveSnapshotRuleInventory]);
 
   const loadRuleInventory = useCallback(async (): Promise<FormattedRule[] | null> => {
     const rules = await getOrFetch<FormattedRule[] | null>(RULE_INVENTORY_KEY, async () => {
-      const cachedRules = await RulesCache.get();
-      if (cachedRules) {
-        log.debug('Using cached rules from global cache');
-        return cachedRules.rules;
+      const derived = await deriveSnapshotRuleInventory();
+      if (derived) {
+        log.debug('Deriving the rule inventory from the org snapshot', { count: derived.length });
+        return derived;
       }
 
-      log.debug('Cache miss - fetching rules (names not needed for analysis)');
+      log.debug('Snapshot cold - fetching rules (names not needed for analysis)');
       const rulesResponse = await fetchGroupRulesRequest(makeApiRequest, undefined, {
         resolveGroupNames: false,
       });
@@ -91,7 +115,7 @@ export function useUserMemberships({
 
     setRuleInventory(rules === null ? { status: 'unavailable' } : { status: 'available', rules });
     return rules;
-  }, [makeApiRequest]);
+  }, [deriveSnapshotRuleInventory, makeApiRequest]);
 
   const loadMemberships = useCallback(
     async (user: OktaUser, options?: { force?: boolean }) => {

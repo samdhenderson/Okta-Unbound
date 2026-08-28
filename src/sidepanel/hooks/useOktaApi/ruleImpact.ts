@@ -39,14 +39,16 @@ export function createRuleImpactOperations(
 ): RuleImpactOperations {
   const fetchRawRules = async (): Promise<OktaGroupRule[]> => {
     if (oktaOrigin) {
-      const stored = await orgSnapshotStore.getCollection<OktaGroupRuleResponse>(
-        'rules',
-        oktaOrigin,
-      );
-      if (stored.length > 0) {
+      const meta = await orgSnapshotStore.getMeta('rules', oktaOrigin);
+      if (meta.complete) {
+        const stored = await orgSnapshotStore.getCollection<OktaGroupRuleResponse>(
+          'rules',
+          oktaOrigin,
+        );
         log.debug('Serving raw rules from the org snapshot', { count: stored.length });
         return stored as unknown as OktaGroupRule[];
       }
+      log.debug('Org snapshot rules incomplete; paginating instead');
     }
 
     const rules = await fetchAllPages<OktaGroupRuleResponse>(

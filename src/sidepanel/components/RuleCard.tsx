@@ -367,18 +367,6 @@ const RuleCard: React.FC<RuleCardProps> = memo(
       </ListRow>
     );
   },
-  (prevProps, nextProps) => {
-    return (
-      prevProps.rule.id === nextProps.rule.id &&
-      prevProps.rule.name === nextProps.rule.name &&
-      prevProps.rule.status === nextProps.rule.status &&
-      prevProps.rule.condition === nextProps.rule.condition &&
-      prevProps.rule.affectsCurrentGroup === nextProps.rule.affectsCurrentGroup &&
-      prevProps.isHighlighted === nextProps.isHighlighted &&
-      prevProps.oktaOrigin === nextProps.oktaOrigin &&
-      (prevProps.rule.conflicts?.length || 0) === (nextProps.rule.conflicts?.length || 0)
-    );
-  },
 );
 
 RuleCard.displayName = 'RuleCard';
