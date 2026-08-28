@@ -24,7 +24,7 @@ const StretchedButton: React.FC<StretchedButtonProps> = ({
     title={title ?? label}
     onClick={onClick}
     disabled={disabled}
-    className={`absolute inset-0 z-0 h-full w-full rounded-md focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed ${className}`}
+    className={`absolute inset-0 z-0 h-full w-full rounded-md transition-colors duration-(--dur-instant) active:bg-neutral-900/5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed ${className}`}
   />
 );
 

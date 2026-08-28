@@ -199,6 +199,39 @@ describe('useTabRail', () => {
     await waitFor(() => expect(scrollWidthReads).toBe(afterMount + 1));
   });
 
+  describe('the slide/unfurl sequence', () => {
+    it('never claims to be sliding on the first render', () => {
+      const { list } = makeStrip();
+      const { result } = renderRail(list);
+      expect(result.current.sliding).toBe(false);
+    });
+
+    it('slides for one --dur-move window after a selection change, then stops', () => {
+      vi.useFakeTimers();
+      try {
+        const { list } = makeStrip();
+        const { result, rerender } = renderRail(list);
+
+        act(() => rerender({ activeKey: 'export' }));
+        expect(result.current.sliding).toBe(true);
+
+        act(() => {
+          vi.advanceTimersByTime(220);
+        });
+        expect(result.current.sliding).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('never slides under reduced motion — there is nothing to sequence', () => {
+      const { list } = makeStrip();
+      const { result, rerender } = renderRail(list, { reducedMotion: true });
+      act(() => rerender({ activeKey: 'export' }));
+      expect(result.current.sliding).toBe(false);
+    });
+  });
+
   it('detaches the scroll listener and the observer on unmount', () => {
     const { list } = makeStrip();
     const removeSpy = vi.spyOn(list, 'removeEventListener');

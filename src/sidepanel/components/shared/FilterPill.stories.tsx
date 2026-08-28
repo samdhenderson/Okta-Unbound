@@ -57,6 +57,16 @@ export const WithTitle: Story = {
   args: { active: false, title: 'Click to toggle filter' },
 };
 
+export const Focus: Story = {
+  args: { active: false },
+  parameters: { pseudo: { focusVisible: true } },
+};
+
+export const Pressed: Story = {
+  args: { active: true },
+  parameters: { pseudo: { active: true } },
+};
+
 export const ActiveInactivePair: Story = {
   args: { active: false },
   render: (args) => (
@@ -74,9 +84,4 @@ export const ActiveInactivePair: Story = {
 export const Hover: Story = {
   args: { active: false },
   parameters: { pseudo: { hover: true } },
-};
-
-export const Focus: Story = {
-  args: { active: false },
-  parameters: { pseudo: { focusVisible: true } },
 };

@@ -141,7 +141,7 @@ const AppsTab: React.FC<AppsTabProps> = ({
         }
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
         <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
           <div className="shrink-0 space-y-3">
             <AppsToolbar

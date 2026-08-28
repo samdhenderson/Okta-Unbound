@@ -9,6 +9,7 @@ import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useOrgFigures } from '../hooks/useOrgFigures';
 import { useHomeReports } from '../hooks/useHomeReports';
 import { useJumpResolver, type JumpResult } from '../hooks/useJumpResolver';
+import { useStaggerReveal } from '../hooks/useStaggerReveal';
 import { useEntityNavigation } from '../contexts/NavigationContext';
 import { navigationTarget } from './home/jumpDestinations';
 import type { OktaIdKind } from '../../shared/utils/oktaId';
@@ -111,6 +112,8 @@ const HomeTab: React.FC<HomeTabProps> = ({
 
   const jump = useJumpResolver({ index, searchers, fetchers, enabled: isActive });
 
+  const setStaggerRef = useStaggerReveal();
+
   const handleSelect = (result: JumpResult) => {
     nav.navigateTo({ type: navigationTarget(result.kind), id: result.id });
   };
@@ -121,7 +124,11 @@ const HomeTab: React.FC<HomeTabProps> = ({
 
   return (
     <div className="tab-content active">
-      <div className="w-full max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div
+        ref={setStaggerRef}
+        data-testid="home-card-stack"
+        className="w-full max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung) rise-in-stagger"
+      >
         <JumpBar
           jump={jump}
           onSelect={handleSelect}

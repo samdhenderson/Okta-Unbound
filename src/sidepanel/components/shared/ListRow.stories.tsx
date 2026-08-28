@@ -28,7 +28,10 @@ const meta = {
   argTypes: {
     children: { description: "The row's content, owned by the feature." },
     density: {
-      description: 'Padding scale: `compact` (px-3 py-2) or `comfortable` (p-4).',
+      description:
+        'Content-density selector, not a viewport one: `compact` resolves the row ' +
+        'spacing role (`--sp-row-y`/`--sp-row-x`) and `comfortable` the card role ' +
+        '(`--sp-card`) — both still move together as the panel resizes (ADR-0048).',
     },
     state: { description: 'Resting appearance: `default`, `selected`, or `highlighted`.' },
     flash: { description: 'One-shot success confirmation via `animate-affirm-flash`.' },
@@ -75,10 +78,10 @@ export const Densities: Story = {
   render: () => (
     <div className="space-y-3">
       <ListRow density="compact">
-        <RowBody title="compact — px-3 py-2" meta="Dense scanning list" />
+        <RowBody title="compact — py-(--sp-row-y) px-(--sp-row-x)" meta="Dense scanning list" />
       </ListRow>
       <ListRow density="comfortable">
-        <RowBody title="comfortable — p-4" meta="Rich card with badges and a meta line" />
+        <RowBody title="comfortable — p-(--sp-card)" meta="Rich card with badges and a meta line" />
       </ListRow>
     </div>
   ),
@@ -117,6 +120,16 @@ export const Interactive: Story = {
       </ListRow>
     </div>
   ),
+};
+
+export const Pressed: Story = {
+  args: {
+    children: <RowBody title="Pressed" meta="scale(.995) — subtle, for a wide target" />,
+  },
+  render: (args) => (
+    <ListRow {...args} as="button" onClick={() => {}} ariaLabel="Open Engineering" />
+  ),
+  parameters: { pseudo: { active: true } },
 };
 
 export const InAList: Story = {

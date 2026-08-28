@@ -39,7 +39,9 @@ const ProfileDisplayAttributeRow: React.FC<ProfileDisplayAttributeRowProps> = ({
   onAssign,
   onMove,
 }) => (
-  <div className={`flex min-w-0 items-center gap-2 px-3 py-2 ${isHidden ? 'opacity-50' : ''}`}>
+  <div
+    className={`flex min-w-0 items-center gap-(--sp-inline) px-(--sp-row-x) py-(--sp-row-y) ${isHidden ? 'opacity-50' : ''}`}
+  >
     <Checkbox
       checked={!isHidden}
       onChange={(visible) => onToggleVisible(attribute.name, visible)}

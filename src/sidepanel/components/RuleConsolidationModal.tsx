@@ -90,7 +90,7 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
       {phase === 'loading' && <LoadingSpinner size="xl" centered message="Loading rule…" />}
 
       {phase === 'select' && (
-        <div className="space-y-3">
+        <div className="space-y-(--sp-card)">
           <p className="text-sm text-neutral-600">
             Okta only sets target groups when a rule is created, so adding one creates a replacement
             rule (same condition, extra group) and retires the original. Pick the group to add:
@@ -108,7 +108,7 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
                 <button
                   type="button"
                   onClick={() => onChooseGroup(hit.id, hit.name)}
-                  className="w-full text-left rounded-md border border-neutral-200 px-3 py-2 text-sm text-neutral-900 hover:border-primary hover:bg-primary-light transition-colors"
+                  className="press press-subtle w-full text-left rounded-md border border-neutral-200 px-(--sp-row-x) py-(--sp-row-y) text-sm text-neutral-900 hover:border-primary hover:bg-primary-light"
                 >
                   {hit.name}
                 </button>
@@ -122,8 +122,8 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
       )}
 
       {phase === 'preview' && preview && (
-        <div className="space-y-4">
-          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3 space-y-1.5">
+        <div className="space-y-(--sp-card)">
+          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-(--sp-card) space-y-1.5">
             <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
               New rule
             </div>
@@ -138,7 +138,7 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
             <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-2">
               Target groups ({preview.resultingGroupIds.length})
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-(--sp-inline)">
               {preview.resultingGroupIds.map((id) => {
                 const added = addedSet.has(id);
                 return (
@@ -166,7 +166,7 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
               {preview.retireRules.map((r) => (
                 <li
                   key={r.id}
-                  className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 px-(--sp-row-x) py-(--sp-row-y)"
                 >
                   <span className="text-sm text-neutral-900 truncate">{r.name}</span>
                   <span className="text-xs text-neutral-500">{r.status}</span>

@@ -30,7 +30,7 @@ const RulesToolbar: React.FC<RulesToolbarProps> = ({
   sortMode,
   onSortChange,
 }) => (
-  <div className="space-y-3">
+  <div className="space-y-(--sp-field)">
     <Input
       type="search"
       value={searchQuery}
@@ -39,8 +39,8 @@ const RulesToolbar: React.FC<RulesToolbarProps> = ({
       icon={<Icon type="search" size="sm" />}
     />
 
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-(--sp-field)">
+      <div className="flex flex-wrap gap-(--sp-inline)">
         <FilterPill active={activeFilter === 'all'} onClick={() => onFilterChange('all')}>
           All Rules
         </FilterPill>

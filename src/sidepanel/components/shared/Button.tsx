@@ -76,7 +76,7 @@ const Button: React.FC<ButtonProps> = ({
 }) => {
   const baseClasses = `
     inline-flex items-center justify-center gap-2
-    rounded-md transition-all duration-(--dur-instant)
+    rounded-md press active:brightness-90
     disabled:cursor-not-allowed
     focus:outline-2 focus:outline-offset-2 focus:outline-primary
     ${variantClasses[variant]}

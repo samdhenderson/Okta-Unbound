@@ -22,6 +22,7 @@ export interface ActionBarProps {
   actions: readonly ActionDescriptor[];
   ariaLabel: string;
   sticky?: boolean;
+  subRow?: React.ReactNode;
   expansion?: React.ReactNode;
   tierOpen?: boolean;
   defaultTierOpen?: boolean;
@@ -63,6 +64,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
   actions,
   ariaLabel,
   sticky = true,
+  subRow,
   expansion,
   tierOpen,
   defaultTierOpen = false,
@@ -125,7 +127,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
       ${
         sticky
           ? // `z-30` puts the band *above* the page header (`z-20`) and still below
-            'sticky top-[calc(var(--rail-h,0px)+var(--header-h,0px))] z-30'
+            'sticky top-[var(--header-h,0px)] z-30'
           : ''
       }
       ${className}
@@ -163,6 +165,8 @@ const ActionBar: React.FC<ActionBarProps> = ({
           </span>
         )}
       </div>
+
+      {subRow !== undefined && <div className="px-2 pb-2">{subRow}</div>}
 
       {hasTier && (
         <div id={tierId} className="disclose" data-open={open} inert={!open || undefined}>

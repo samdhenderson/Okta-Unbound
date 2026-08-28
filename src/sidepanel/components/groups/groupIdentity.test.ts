@@ -41,19 +41,27 @@ describe('groupIdentity', () => {
     ['OKTA_GROUP', 'Okta group', 'primary'],
     ['APP_GROUP', 'App group', 'warning'],
     ['BUILT_IN', 'Built-in', 'neutral'],
-  ] as const)('badges a %s as "%s"', (type, text, variant) => {
-    expect(groupIdentity(makeGroup({ type })).badge).toEqual({ text, variant });
+  ] as const)('demotes a %s to a "%s" status fact rather than a badge', (type, text, variant) => {
+    const identity = groupIdentity(makeGroup({ type }));
+
+    expect(identity.badge).toBeUndefined();
+    expect(identity.rows[0]).toContainEqual({ kind: 'status', variant, text });
   });
 
-  it('falls back to the built-in badge for a group type Okta added after this map', () => {
-    expect(groupIdentity(makeGroup({ type: 'DIRECTORY_GROUP' as GroupType })).badge).toEqual({
-      text: 'Built-in',
+  it('falls back to the built-in status fact for a group type Okta added after this map', () => {
+    const identity = groupIdentity(makeGroup({ type: 'DIRECTORY_GROUP' as GroupType }));
+
+    expect(identity.badge).toBeUndefined();
+    expect(identity.rows[0]).toContainEqual({
+      kind: 'status',
       variant: 'neutral',
+      text: 'Built-in',
     });
   });
 
-  it('opens with the copyable group id', () => {
+  it('opens with the type status fact, then the copyable group id', () => {
     expect(rowsOf(makeGroup()).identity).toEqual([
+      { kind: 'status', variant: 'primary', text: 'Okta group' },
       { kind: 'id', value: '00gFAKE1a2b3c4d5e6', copyLabel: 'Copy group id' },
     ]);
   });

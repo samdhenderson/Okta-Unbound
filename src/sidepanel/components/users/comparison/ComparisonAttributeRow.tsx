@@ -108,8 +108,8 @@ const ComparisonAttributeRow: React.FC<ComparisonAttributeRowProps> = ({
   );
 
   return (
-    <li className="flex flex-col gap-1.5 px-3 py-2 hover:bg-neutral-50/70">
-      <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+    <li className="flex flex-col gap-1.5 px-(--sp-row-x) py-(--sp-row-y) hover:bg-neutral-50/70">
+      <span className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
         <span
           className={`min-w-0 truncate text-sm text-neutral-800 ${showApiNames ? 'font-mono' : ''}`}
           title={showApiNames ? row.label : row.name}

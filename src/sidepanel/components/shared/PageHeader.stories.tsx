@@ -17,6 +17,7 @@ const meta = {
         component:
           'Top-of-view header bar rendered at the top of a tab/view — title with optional subtitle, status badge, leading slot, breadcrumb trail, and trailing actions.\n\n' +
           'The optional badge renders through the shared `Badge` primitive, so it speaks the canonical vocabulary — `danger`, never `error` (ADR-0002). Actions are right-aligned.\n\n' +
+          'For an entity-identity rung, the badge column is reserved for `danger` only — a deactivated or locked entity should shout. Every calmer status is demoted to a dot-marked `status` fact inside the identity region instead ("demoted to facts"), which is what keeps the header a constant height regardless of how many statuses an entity carries. `groupIdentity`/`userIdentity` make that call; list-rung callers passing `badge` for a plain count (`GroupsTab`, `AppsTab`) are unaffected.\n\n' +
           'The leading-slot props (`onBack`, `leading`, `breadcrumbs`) are additive and optional — omitting them renders the original layout unchanged. They exist so a tab driven by `useViewStack` keeps **one** header mounted whose contents swap in place as views are pushed and popped, rather than each view rendering its own header.\n\n' +
           '`identity` extends that downward: an expanding region describing the entity you are browsing, so a detail view no longer opens with a card repeating the title. Changing `identityKey` crossfades it; the `<h1>` and its badge never do.\n\n' +
           '`cornerAction` parks a small control in the bottom-right corner, below the actions — a different weight of thing from a page verb, kept out of `actions` so it does not read as one. It is in flow, not absolutely positioned, so it cannot land on top of a long identity region at 360px.\n\n' +
@@ -141,14 +142,16 @@ export const WithBreadcrumbs: Story = {
 export const WithIdentity: Story = {
   args: {
     title: 'Engineering',
-    badge: { text: 'Okta group', variant: 'primary' },
     onBack: fn(),
     backLabel: 'Back to groups',
     identityKey: '00gFAKE1a2b3c4d5e6',
     identity: (
       <EntityIdentity
         rows={[
-          [{ kind: 'id', value: '00gFAKE1a2b3c4d5e6', copyLabel: 'Copy group id' }],
+          [
+            { kind: 'status', variant: 'primary', text: 'Okta group' },
+            { kind: 'id', value: '00gFAKE1a2b3c4d5e6', copyLabel: 'Copy group id' },
+          ],
           [
             { kind: 'metric', icon: 'users', value: '1,284', label: 'members' },
             { kind: 'metric', icon: 'bolt', value: '2', label: 'rules' },
@@ -194,7 +197,29 @@ export const WithIdentityNarrow: Story = {
 export const WithIdentityUser: Story = {
   args: {
     title: 'Priya Raman',
-    badge: { text: 'ACTIVE', variant: 'success' },
+    onBack: fn(),
+    backLabel: 'Back to search',
+    identityKey: '00uFAKE9z8y7x6w5v',
+    identity: (
+      <EntityIdentity
+        rows={[
+          [
+            { kind: 'status', variant: 'success', text: 'ACTIVE' },
+            { kind: 'id', value: '00uFAKE9z8y7x6w5v', copyLabel: 'Copy user id' },
+          ],
+          [{ kind: 'metric', icon: 'users', value: '42', label: 'groups' }],
+          [{ kind: 'text', icon: 'clock', text: 'Last login 2 days ago' }],
+        ]}
+      />
+    ),
+    actions: <Button icon="external-link">Open in Okta</Button>,
+  },
+};
+
+export const WithIdentityUserLockedOut: Story = {
+  args: {
+    title: 'Priya Raman',
+    badge: { text: 'LOCKED_OUT', variant: 'danger' },
     onBack: fn(),
     backLabel: 'Back to search',
     identityKey: '00uFAKE9z8y7x6w5v',
@@ -209,6 +234,30 @@ export const WithIdentityUser: Story = {
     ),
     actions: <Button icon="external-link">Open in Okta</Button>,
   },
+};
+
+export const WithMultipleStatusFactsNarrow: Story = {
+  args: {
+    title: 'Priya Raman',
+    onBack: fn(),
+    backLabel: 'Back to search',
+    identityKey: '00uFAKE9z8y7x6w5v',
+    identity: (
+      <EntityIdentity
+        rows={[
+          [
+            { kind: 'status', variant: 'success', text: 'ACTIVE' },
+            { kind: 'status', variant: 'warning', text: 'PASSWORD_EXPIRED' },
+            { kind: 'id', value: '00uFAKE9z8y7x6w5v', copyLabel: 'Copy user id' },
+          ],
+          [{ kind: 'metric', icon: 'users', value: '42', label: 'groups' }],
+          [{ kind: 'text', icon: 'clock', text: 'Last login 2 days ago' }],
+        ]}
+      />
+    ),
+    actions: <Button icon="external-link">Open in Okta</Button>,
+  },
+  parameters: { viewport: { value: 'sidepanelCompact' } },
 };
 
 export const WithoutIdentity: Story = {

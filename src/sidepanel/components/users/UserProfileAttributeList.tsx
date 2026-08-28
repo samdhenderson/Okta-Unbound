@@ -35,9 +35,9 @@ const labelClasses: Record<ProfileAttributeLayout, string> = {
 };
 
 const valueClasses: Record<ProfileAttributeLayout, string> = {
-  rows: 'min-w-0 flex-1 flex flex-wrap items-center gap-2',
-  compact: 'min-w-0 flex-1 flex flex-wrap items-center gap-2',
-  grid: 'flex flex-wrap items-center gap-2',
+  rows: 'min-w-0 flex-1 flex flex-wrap items-center gap-(--sp-inline)',
+  compact: 'min-w-0 flex-1 flex flex-wrap items-center gap-(--sp-inline)',
+  grid: 'flex flex-wrap items-center gap-(--sp-inline)',
 };
 
 const LABEL_TYPE = 'text-xs font-medium text-neutral-600';

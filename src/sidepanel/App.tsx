@@ -112,17 +112,6 @@ const App: React.FC = () => {
           : effective.pageType === 'policy'
             ? (page.policyInfo?.policyName ?? undefined)
             : undefined;
-  const entityId =
-    effective.pageType === 'group'
-      ? (effective.groupInfo?.groupId ?? undefined)
-      : effective.pageType === 'user'
-        ? (effective.userInfo?.userId ?? undefined)
-        : effective.pageType === 'app'
-          ? (page.appInfo?.appId ?? undefined)
-          : effective.pageType === 'policy'
-            ? (page.policyInfo?.policyId ?? undefined)
-            : undefined;
-
   const handleTogglePin = () => {
     if (pinned) {
       setPinned(null);
@@ -249,15 +238,10 @@ const App: React.FC = () => {
   return (
     <SchedulerProvider>
       <NavigationProvider handlers={navigationHandlers}>
-        <div
-          ref={scrollRootRef}
-          data-testid="app-scroll-root"
-          className="flex flex-col h-screen overflow-y-auto [overflow-anchor:none] pb-14 bg-canvas"
-        >
+        <div className="flex flex-col h-screen overflow-hidden bg-canvas">
           <ContextBar
             pageType={effective.pageType}
             entityName={entityName}
-            entityId={entityId}
             connectionStatus={connectionStatus}
             isLoading={isLoading}
             error={error}
@@ -271,94 +255,104 @@ const App: React.FC = () => {
 
           <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
 
-          {renderTabPanel('home', (isActive) => (
-            <HomeTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? null}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-              onOpenListView={handleOpenListView}
-              onOpenTab={handleOpenTab}
-            />
-          ))}
-          {renderTabPanel('rules', (isActive) => (
-            <RulesTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? undefined}
-              currentGroupId={tabContext.currentGroupId}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-              selectedRuleId={selectedRuleId}
-              onRuleSelected={() => setSelectedRuleId(null)}
-              onNavigateToGroup={handleNavigateToGroup}
-              listView={viewFor(listViewRequest, 'rules')}
-              onListViewConsumed={clearListViewRequest}
-            />
-          ))}
-          {renderTabPanel('users', (isActive) => (
-            <UsersTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? undefined}
-              currentGroupId={tabContext.currentGroupId}
-              selectedUserId={selectedUserId}
-              onUserSelected={() => setSelectedUserId(null)}
-            />
-          ))}
-          {renderTabPanel('groups', (isActive) => (
-            <GroupsTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? null}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-              onNavigateToRule={handleNavigateToRule}
-              selectedGroupId={selectedGroupId}
-              onGroupSelected={() => setSelectedGroupId(null)}
-              onExportGroup={handleExportGroup}
-              listView={viewFor(listViewRequest, 'groups')}
-              onListViewConsumed={clearListViewRequest}
-            />
-          ))}
-          {renderTabPanel('apps', (isActive) => (
-            <AppsTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? null}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-              listView={viewFor(listViewRequest, 'apps')}
-              onListViewConsumed={clearListViewRequest}
-            />
-          ))}
-          {renderTabPanel('policies', (isActive) => (
-            <AuthPoliciesTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? undefined}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-            />
-          ))}
-          {renderTabPanel('export', (isActive) => (
-            <ExportTab
-              isActive={isActive}
-              targetTabId={tabContext.targetTabId ?? undefined}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-              exportRequest={exportRequest}
-              onExportRequestConsumed={() => setExportRequest(null)}
-            />
-          ))}
-          {renderTabPanel('explorer', () => (
-            <ApiExplorerTab
-              targetTabId={tabContext.targetTabId ?? null}
-              oktaOrigin={tabContext.oktaOrigin ?? undefined}
-            />
-          ))}
-          {renderTabPanel('history', (isActive) => (
-            <div
-              className="tab-content active"
-              style={{ fontFamily: 'var(--font-primary)', padding: 0 }}
-            >
-              <PageHeader title="Audit Log" subtitle="View history of actions performed" />
-              <div className="max-w-7xl mx-auto px-6 py-6">
-                <AuditLogViewer isActive={isActive} targetTabId={tabContext.targetTabId ?? null} />
+          <div
+            ref={scrollRootRef}
+            data-testid="app-scroll-root"
+            className="flex flex-col flex-1 min-h-0 overflow-y-auto [overflow-anchor:none] pb-14"
+          >
+            {renderTabPanel('home', (isActive) => (
+              <HomeTab
+                isActive={isActive}
+                targetTabId={tabContext.targetTabId ?? null}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                onOpenListView={handleOpenListView}
+                onOpenTab={handleOpenTab}
+              />
+            ))}
+            {renderTabPanel('rules', (isActive) => (
+              <RulesTab
+                isActive={isActive}
+                targetTabId={tabContext.targetTabId ?? undefined}
+                currentGroupId={tabContext.currentGroupId}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                selectedRuleId={selectedRuleId}
+                onRuleSelected={() => setSelectedRuleId(null)}
+                onNavigateToGroup={handleNavigateToGroup}
+                listView={viewFor(listViewRequest, 'rules')}
+                onListViewConsumed={clearListViewRequest}
+              />
+            ))}
+            {renderTabPanel('users', (isActive) => (
+              <UsersTab
+                isActive={isActive}
+                targetTabId={tabContext.targetTabId ?? undefined}
+                currentGroupId={tabContext.currentGroupId}
+                selectedUserId={selectedUserId}
+                onUserSelected={() => setSelectedUserId(null)}
+              />
+            ))}
+            {renderTabPanel('groups', (isActive) => (
+              <GroupsTab
+                isActive={isActive}
+                scrollRootRef={scrollRootRef}
+                targetTabId={tabContext.targetTabId ?? null}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                onNavigateToRule={handleNavigateToRule}
+                selectedGroupId={selectedGroupId}
+                onGroupSelected={() => setSelectedGroupId(null)}
+                onExportGroup={handleExportGroup}
+                listView={viewFor(listViewRequest, 'groups')}
+                onListViewConsumed={clearListViewRequest}
+              />
+            ))}
+            {renderTabPanel('apps', (isActive) => (
+              <AppsTab
+                isActive={isActive}
+                targetTabId={tabContext.targetTabId ?? null}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                listView={viewFor(listViewRequest, 'apps')}
+                onListViewConsumed={clearListViewRequest}
+              />
+            ))}
+            {renderTabPanel('policies', (isActive) => (
+              <AuthPoliciesTab
+                isActive={isActive}
+                targetTabId={tabContext.targetTabId ?? undefined}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+              />
+            ))}
+            {renderTabPanel('export', (isActive) => (
+              <ExportTab
+                isActive={isActive}
+                targetTabId={tabContext.targetTabId ?? undefined}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                exportRequest={exportRequest}
+                onExportRequestConsumed={() => setExportRequest(null)}
+              />
+            ))}
+            {renderTabPanel('explorer', () => (
+              <ApiExplorerTab
+                targetTabId={tabContext.targetTabId ?? null}
+                oktaOrigin={tabContext.oktaOrigin ?? undefined}
+              />
+            ))}
+            {renderTabPanel('history', (isActive) => (
+              <div
+                className="tab-content active"
+                style={{ fontFamily: 'var(--font-primary)', padding: 0 }}
+              >
+                <PageHeader title="Audit Log" subtitle="View history of actions performed" />
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                  <AuditLogViewer
+                    isActive={isActive}
+                    targetTabId={tabContext.targetTabId ?? null}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          <ActivityBar />
+            <ActivityBar />
+          </div>
         </div>
 
         <TabJumpPalette

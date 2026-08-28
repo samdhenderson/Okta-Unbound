@@ -77,7 +77,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   return (
     <section aria-label="Group memberships">
       {hasMemberships && !isLoading && (
-        <div className="space-y-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
+        <div className="space-y-(--sp-field) p-(--sp-card) pb-0">
           <p className="text-xs text-neutral-600">{summary}</p>
 
           <Input
@@ -103,7 +103,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
             }
           />
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-(--sp-inline)">
             <FilterPill active={bucket === 'all'} onClick={() => setBucket('all')}>
               All
             </FilterPill>
@@ -122,7 +122,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
       )}
 
       {isLoading ? (
-        <div className="space-y-3 p-4">
+        <div className="space-y-(--sp-rung) p-(--sp-card)">
           <Skeleton variant="row" size="lg" count={4} label="Loading group memberships..." />
         </div>
       ) : !hasMemberships ? (
@@ -137,7 +137,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
           actions={[{ label: 'Clear filters', onClick: clearFilters, variant: 'secondary' }]}
         />
       ) : (
-        <div className="space-y-3 p-4">
+        <div className="space-y-(--sp-rung) p-(--sp-card)">
           {visible.map((membership) => (
             <GroupMembershipRow
               key={membership.group.id}

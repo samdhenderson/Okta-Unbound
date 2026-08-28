@@ -62,7 +62,7 @@ const ReportPanel: React.FC<{
   id: string;
   onOpenGroup: (id: string) => void;
 }> = ({ report, id, onOpenGroup }) => (
-  <div id={id} className="border-t border-neutral-100 bg-neutral-50 px-3 py-3">
+  <div id={id} className="border-t border-neutral-100 bg-neutral-50 p-(--sp-card)">
     <p className="text-xs text-neutral-600">{report.caveat}</p>
     <ul className="mt-2 space-y-px">
       {report.findings.map((finding) => (
@@ -88,7 +88,7 @@ const Report: React.FC<{ report: HomeReport; onOpenGroup: (id: string) => void }
 
   if (report.status === 'reading') {
     return (
-      <li className="px-3 py-2.5">
+      <li className="px-(--sp-row-x) py-(--sp-row-y)">
         <Skeleton variant="text" size="sm" width="w-3/4" label={`Reading ${report.label}`} />
       </li>
     );
@@ -97,7 +97,7 @@ const Report: React.FC<{ report: HomeReport; onOpenGroup: (id: string) => void }
   if (report.value === null || report.findings.length === 0) {
     return (
       <li
-        className={`flex items-stretch gap-3 px-3 py-2.5 ${
+        className={`flex items-stretch gap-3 px-(--sp-row-x) py-(--sp-row-y) ${
           report.value === null ? 'bg-neutral-50' : ''
         }`}
       >
@@ -114,7 +114,7 @@ const Report: React.FC<{ report: HomeReport; onOpenGroup: (id: string) => void }
         aria-expanded={isOpen}
         aria-controls={panelId}
         onClick={() => setIsOpen((open) => !open)}
-        className="flex w-full items-stretch gap-3 px-3 py-2.5 transition-colors duration-(--dur-instant) hover:bg-neutral-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+        className="press press-subtle flex w-full items-stretch gap-3 px-(--sp-row-x) py-(--sp-row-y) hover:bg-neutral-50 active:brightness-90 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
       >
         <FigureNumber value={report.value} />
         <ReportLines report={report} id={labelId} />

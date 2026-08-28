@@ -101,7 +101,7 @@ const BlastRadiusGroupRow: React.FC<BlastRadiusGroupRowProps> = ({ effect }) => 
         </span>
 
         <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <span className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
             <span className="min-w-0 text-sm font-semibold break-words text-neutral-900">
               {effect.groupName}
             </span>

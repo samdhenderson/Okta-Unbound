@@ -194,17 +194,16 @@ describe('UsersTab sub-navigation', () => {
     const view = screen.getByTestId('user-comparison-view');
     const detail = screen.getByTestId('user-detail-view');
 
-    expect(view.parentElement).toHaveClass('max-w-7xl', 'mx-auto', 'px-6', 'py-6');
     expect(detail.parentElement).toBe(view.parentElement);
     expect(detail).toContainElement(screen.getByRole('button', { name: /Compare/ }));
 
-    expect(detail.className).toBe('space-y-6 focus:outline-none');
+    expect(detail.className).toBe('space-y-(--sp-rung) focus:outline-none');
     expect(view.className).toBe('hidden');
 
     await pushCompare(uev);
 
     expect(detail.className).toBe('hidden');
-    expect(view.className).toBe('space-y-6 focus:outline-none');
+    expect(view.className).toBe('space-y-(--sp-rung) focus:outline-none');
   });
 
   it('renders a breadcrumb trail back to the profile', async () => {

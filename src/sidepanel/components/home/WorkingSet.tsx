@@ -13,7 +13,7 @@ export interface WorkingSetProps {
 }
 
 const WorkingSet: React.FC<WorkingSetProps> = ({ pinned, recent, onOpen, onUnpin, onForget }) => (
-  <div className="space-y-4">
+  <div className="space-y-(--sp-rung)">
     <section aria-label="Pinned" className="space-y-2">
       <Eyebrow as="h3">Pinned</Eyebrow>
       {pinned.length > 0 ? (
@@ -25,7 +25,7 @@ const WorkingSet: React.FC<WorkingSetProps> = ({ pinned, recent, onOpen, onUnpin
           ))}
         </ul>
       ) : (
-        <p className="flex items-center gap-2 rounded-md border border-dashed border-neutral-200 px-3 py-4 text-xs text-neutral-600">
+        <p className="flex items-center gap-2 rounded-md border border-dashed border-neutral-200 p-(--sp-card) text-xs text-neutral-600">
           <Icon type="pin" size="sm" className="shrink-0 text-neutral-400" />
           <span>
             Nothing pinned yet. Open a group or a user and press the pin in the corner of its header

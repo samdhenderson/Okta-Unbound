@@ -51,7 +51,7 @@ const ConfirmBody: React.FC<{ changes: CapturedAttribute[] }> = ({ changes }) =>
   const skipped = changes.filter((change) => !change.restorable);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--sp-card)">
       <p className="text-sm text-pretty text-neutral-700">
         {restorable.length === changes.length
           ? `The previous value of ${restorable.length} attribute${restorable.length === 1 ? '' : 's'} will be written back to Okta.`
@@ -86,7 +86,7 @@ const ConfirmBody: React.FC<{ changes: CapturedAttribute[] }> = ({ changes }) =>
 };
 
 const DriftedBody: React.FC<{ attributeNames: readonly string[] }> = ({ attributeNames }) => (
-  <div className="space-y-4">
+  <div className="space-y-(--sp-card)">
     <AlertMessage
       message={{
         type: 'warning',
@@ -94,7 +94,7 @@ const DriftedBody: React.FC<{ attributeNames: readonly string[] }> = ({ attribut
       }}
     />
 
-    <ul className="flex flex-wrap gap-2">
+    <ul className="flex flex-wrap gap-(--sp-inline)">
       {attributeNames.map((name) => (
         <li key={name}>
           <Badge variant="warning">{name}</Badge>
@@ -147,7 +147,7 @@ const AuditLogUndoModal: React.FC<AuditLogUndoModalProps> = ({
       {isDrifted ? (
         <DriftedBody attributeNames={drifted} />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-(--sp-card)">
           {error !== undefined && <AlertMessage message={{ type: 'danger', text: error }} />}
           {changes.length > 0 ? (
             <ConfirmBody changes={changes} />

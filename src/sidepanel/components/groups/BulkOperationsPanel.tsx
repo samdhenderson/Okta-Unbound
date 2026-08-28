@@ -108,7 +108,7 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
 
   return (
     <div className="border border-neutral-200 rounded-md bg-white overflow-hidden">
-      <div className="flex items-center justify-between p-3 bg-neutral-50 border-b border-neutral-200">
+      <div className="flex items-center justify-between p-(--sp-card)">
         <div>
           <h4 className="text-sm font-semibold text-neutral-900">Bulk Operations</h4>
           <p className="text-xs text-neutral-500 mt-0.5">
@@ -121,10 +121,11 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
       </div>
 
       {!running && !results && (
-        <div className="p-3 space-y-2">
+        <div className="p-(--sp-card) space-y-(--sp-rung)">
           {OPERATIONS.map((op) => (
             <button
               key={op.type}
+              type="button"
               onClick={() => {
                 if (op.type === 'remove_user') {
                   setShowRemoveInput(true);
@@ -134,30 +135,18 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
                   handleExecute(op.type);
                 }
               }}
-              className="w-full flex items-center gap-3 p-3 rounded-md border border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50 transition-colors text-left"
+              className="press press-subtle w-full flex items-center gap-(--sp-field) p-(--sp-card) rounded-md border border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50 text-left"
             >
               <div className="flex-1">
                 <div className="text-sm font-medium text-neutral-900">{op.label}</div>
                 <div className="text-xs text-neutral-500 mt-0.5">{op.description}</div>
               </div>
-              <svg
-                className="w-4 h-4 text-neutral-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              <Icon type="chevron-right" size="sm" className="text-neutral-400" />
             </button>
           ))}
 
           {showRemoveInput && (
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-(--sp-field) mt-2">
               <Input
                 placeholder="Enter user ID to remove..."
                 value={removeUserId}
@@ -189,8 +178,8 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
       )}
 
       {running && (
-        <div className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
+        <div className="p-(--sp-card) space-y-(--sp-field)">
+          <div className="flex items-center gap-(--sp-field)">
             <LoadingSpinner size="sm" className="shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-neutral-900">
@@ -219,8 +208,8 @@ const BulkOperationsPanel: React.FC<BulkOperationsPanelProps> = ({
       )}
 
       {results && (
-        <div className="p-3 space-y-3">
-          <div className="flex gap-3">
+        <div className="p-(--sp-card) space-y-(--sp-field)">
+          <div className="flex gap-(--sp-field)">
             {successCount > 0 && (
               <div className="flex-1 p-2 bg-success-light rounded-md text-center">
                 <div className="text-lg font-bold text-success-text">{successCount}</div>

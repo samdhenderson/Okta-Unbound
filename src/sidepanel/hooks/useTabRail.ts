@@ -18,7 +18,10 @@ export interface UseTabRailOptions {
 export interface TabRailState {
   edge: TabRailEdge;
   indicator: TabRailIndicator;
+  sliding: boolean;
 }
+
+const SLIDE_MS = 220;
 
 const EPSILON = 1;
 
@@ -44,7 +47,19 @@ export function useTabRail({
 }: UseTabRailOptions): TabRailState {
   const [edge, setEdge] = useState<TabRailEdge>('none');
   const [indicator, setIndicator] = useState<TabRailIndicator>({ left: 0, width: 0 });
+  const [sliding, setSliding] = useState(false);
   const frameRef = useRef(0);
+  const lastKeyRef = useRef(activeKey);
+  const scrolledKeyRef = useRef<string | null>(null);
+
+  useLayoutEffect(() => {
+    if (lastKeyRef.current === activeKey) return;
+    lastKeyRef.current = activeKey;
+    if (reducedMotion) return;
+    setSliding(true);
+    const timer = window.setTimeout(() => setSliding(false), SLIDE_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeKey, reducedMotion]);
 
   useLayoutEffect(() => {
     const list = listRef.current;
@@ -97,7 +112,8 @@ export function useTabRail({
 
   useEffect(() => {
     const list = listRef.current;
-    if (!list) return;
+    if (!list || scrolledKeyRef.current === activeKey) return;
+    scrolledKeyRef.current = activeKey;
     findActive(list)?.scrollIntoView?.({
       inline: 'nearest',
       block: 'nearest',
@@ -105,5 +121,5 @@ export function useTabRail({
     });
   }, [listRef, activeKey, reducedMotion]);
 
-  return { edge, indicator };
+  return { edge, indicator, sliding };
 }

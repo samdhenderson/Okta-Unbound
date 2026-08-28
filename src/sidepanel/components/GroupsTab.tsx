@@ -30,7 +30,7 @@ import GroupCleanupPanel from './groups/GroupCleanupPanel';
 import GroupSearchBar from './groups/GroupSearchBar';
 import GroupFilterToggle from './groups/GroupFilterToggle';
 import GroupFilterPanel from './groups/GroupFilterPanel';
-import GroupSelectionBar, { type ActivePanel } from './groups/GroupSelectionBar';
+import GroupsListActionBar, { type ActivePanel } from './groups/GroupsListActionBar';
 import GroupsListPanel from './groups/GroupsListPanel';
 import GroupDetailView from './groups/detail/GroupDetailView';
 import GroupMergeModal from './groups/GroupMergeModal';
@@ -45,6 +45,7 @@ interface GroupsTabProps {
   onGroupSelected?: () => void;
   onExportGroup?: (groupId: string, groupName: string) => void;
   isActive?: boolean;
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
   listView?: GroupsListView | null;
   onListViewConsumed?: () => void;
 }
@@ -60,6 +61,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   selectedGroupId,
   onGroupSelected,
   isActive = true,
+  scrollRootRef,
   onExportGroup,
   listView,
   onListViewConsumed,
@@ -101,7 +103,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const merge = useGroupMerge(targetTabId ?? undefined);
 
   const detailViewRef = useRef<HTMLDivElement>(null);
-  const listScrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const noScroller = useRef<HTMLElement | null>(null);
   const [autoAnalyzeGroupId, setAutoAnalyzeGroupId] = useState<string | null>(null);
   const nav = useViewStack<GroupSummary>({
     rootLabel: 'Groups',
@@ -109,7 +112,10 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     getKey: groupCrumbKey,
     viewRef: detailViewRef,
   });
-  const captureListScroll = useScrollPreservation(listScrollRef, isActive && nav.isRoot);
+  const captureListScroll = useScrollPreservation(
+    scrollRootRef ?? noScroller,
+    isActive && nav.isRoot,
+  );
 
   const handleCloseMerge = useCallback(() => {
     setShowMergeModal(false);
@@ -226,6 +232,27 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     setActivePanel((prev) => (prev === panel ? 'none' : panel));
   }, []);
 
+  const searchRow = (
+    <div className="flex gap-2">
+      <GroupSearchBar
+        searchMode={searchMode}
+        liveSearchQuery={liveSearch.liveSearchQuery}
+        onLiveSearchQueryChange={liveSearch.setLiveSearchQuery}
+        searchQuery={filters.searchQuery}
+        onSearchQueryChange={filters.setSearchQuery}
+        isLiveSearching={liveSearch.isLiveSearching}
+      />
+
+      {searchMode === 'cached' && (
+        <GroupFilterToggle
+          showFilters={showFilters}
+          activeFilterCount={activeFilterCount}
+          onToggle={() => setShowFilters((prev) => !prev)}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
       <PageHeader
@@ -291,37 +318,35 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
         }
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
         <div
           className={
             nav.isRoot
               ? // `animate-pop-in` (arrive from the left) only after a real pop — the
-                `flex flex-col h-[calc(100vh-280px)] min-h-[400px] ${
-                  nav.transition === 'pop' ? 'animate-pop-in' : ''
-                }`
+                `space-y-(--sp-rung) ${nav.transition === 'pop' ? 'animate-pop-in' : ''}`
               : 'hidden'
           }
         >
-          <div className="shrink-0 space-y-3">
-            <div className="flex gap-2">
-              <GroupSearchBar
-                searchMode={searchMode}
-                liveSearchQuery={liveSearch.liveSearchQuery}
-                onLiveSearchQueryChange={liveSearch.setLiveSearchQuery}
-                searchQuery={filters.searchQuery}
-                onSearchQueryChange={filters.setSearchQuery}
-                isLiveSearching={liveSearch.isLiveSearching}
-              />
+          {searchMode === 'cached' ? (
+            <GroupsListActionBar
+              search={searchRow}
+              selectedCount={selectedGroupIds.size}
+              filteredCount={filteredGroups.length}
+              activePanel={activePanel}
+              crossSearchBadge={membersCache.groupMembersCache.size}
+              onSelectAll={() => selection.replaceSelection(filteredGroups.map((g) => g.id))}
+              onDeselectAll={selection.deselectAll}
+              onCompare={() => setShowComparisonModal(true)}
+              onMerge={() => setShowMergeModal(true)}
+              onTogglePanel={togglePanel}
+              onExportSelection={handleExportSelection}
+              onExportGroupsList={handleExportGroupsList}
+            />
+          ) : (
+            searchRow
+          )}
 
-              {searchMode === 'cached' && (
-                <GroupFilterToggle
-                  showFilters={showFilters}
-                  activeFilterCount={activeFilterCount}
-                  onToggle={() => setShowFilters((prev) => !prev)}
-                />
-              )}
-            </div>
-
+          <div className="space-y-3">
             {searchMode === 'cached' && showFilters && (
               <GroupFilterPanel
                 activeFilterCount={activeFilterCount}
@@ -340,22 +365,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
                 sortDesc={filters.sortDesc}
                 toggleSort={filters.toggleSort}
                 clearFilters={filters.clearFilters}
-              />
-            )}
-
-            {searchMode === 'cached' && (
-              <GroupSelectionBar
-                selectedCount={selectedGroupIds.size}
-                filteredCount={filteredGroups.length}
-                activePanel={activePanel}
-                crossSearchBadge={membersCache.groupMembersCache.size}
-                onSelectAll={() => selection.replaceSelection(filteredGroups.map((g) => g.id))}
-                onDeselectAll={selection.deselectAll}
-                onCompare={() => setShowComparisonModal(true)}
-                onMerge={() => setShowMergeModal(true)}
-                onTogglePanel={togglePanel}
-                onExportSelection={handleExportSelection}
-                onExportGroupsList={handleExportGroupsList}
               />
             )}
 
@@ -429,7 +438,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             onOpenDetail={handleOpenDetail}
             onAnalyzeSource={handleAnalyzeSource}
             highlightedGroupId={selectedGroupId ?? undefined}
-            scrollRef={listScrollRef}
+            scrollRef={listRef}
           />
         </div>
 

@@ -72,3 +72,8 @@ export const Disabled: Story = {
   ...Default,
   args: { disabled: true },
 };
+
+export const Pressed: Story = {
+  ...Default,
+  parameters: { pseudo: { active: true } },
+};

@@ -98,13 +98,8 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   return (
     <>
       {sticky && <div ref={sentinelRef} aria-hidden="true" className="h-0" />}
-      <div
-        ref={headerRef}
-        className={`bg-white border-b border-neutral-200 ${
-          sticky ? 'sticky top-[var(--rail-h,0px)] z-20' : ''
-        }`}
-      >
-        <div className={`px-5 py-4 flex ${align} justify-between gap-4`}>
+      <div ref={headerRef} className={`bg-white ${sticky ? 'sticky top-0 z-20' : ''}`}>
+        <div className={`px-(--sp-gutter) py-(--sp-card) flex ${align} justify-between gap-4`}>
           <div className={`flex-1 min-w-0 flex ${align} gap-2`}>
             {leadingNode && <div className="shrink-0">{leadingNode}</div>}
             <div className="flex-1 min-w-0">
@@ -115,7 +110,13 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               >
                 {title}
               </h1>
-              {subtitle && <p className="mt-0.5 text-sm text-neutral-600">{subtitle}</p>}
+              {subtitle && (
+                <div className="disclose" data-open={pinned ? 'false' : 'true'}>
+                  <div>
+                    <p className="mt-0.5 text-sm text-neutral-600">{subtitle}</p>
+                  </div>
+                </div>
+              )}
 
               {hasRegion && (
                 <div className="disclose" data-open={regionOpen ? 'true' : 'false'}>

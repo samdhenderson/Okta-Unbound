@@ -134,3 +134,7 @@ export const Hover: Story = {
 export const Focus: Story = {
   parameters: { pseudo: { focusVisible: true } },
 };
+
+export const Pressed: Story = {
+  parameters: { pseudo: { active: true } },
+};

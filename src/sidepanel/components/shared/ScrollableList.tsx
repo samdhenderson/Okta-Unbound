@@ -10,6 +10,7 @@ interface ScrollableListProps {
   skeleton?: React.ReactNode;
   maxHeight?: string;
   fillAvailable?: boolean;
+  scrolls?: boolean;
   scrollRef?: React.Ref<HTMLDivElement>;
   testId?: string;
 }
@@ -22,6 +23,7 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   loadingMessage = 'Loading...',
   maxHeight,
   fillAvailable = true,
+  scrolls = true,
   skeleton,
   scrollRef,
   testId,
@@ -61,7 +63,7 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   return (
     <div
       ref={scrollRef}
-      className={boxClasses('overflow-y-auto scrollable-list')}
+      className={boxClasses(scrolls ? 'overflow-y-auto scrollable-list' : '')}
       style={containerStyle}
       data-testid={testId}
     >

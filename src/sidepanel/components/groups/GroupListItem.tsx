@@ -76,7 +76,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
         flash={isHighlighted}
         className="group/row"
         dataAttributes={{ 'data-group-id': group.id }}
-        headerClassName="relative flex items-start gap-2"
+        headerClassName="relative flex items-start gap-(--sp-field)"
         body={
           <div
             id={detailsId}
@@ -110,7 +110,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-(--sp-inline)">
             <h3
               id={nameId}
               className="min-w-0 truncate text-sm font-semibold text-neutral-900 group-hover/row:text-primary-text"

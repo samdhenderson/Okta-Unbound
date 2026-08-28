@@ -32,7 +32,7 @@ const ApiExplorerTab: React.FC<ApiExplorerTabProps> = ({ targetTabId, oktaOrigin
         subtitle="Fire a read-only GET request and inspect the response"
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-4">
+      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
         <div className="flex items-center gap-2">
           <Badge variant="neutral" solid title="Read-only for now — writes are a future feature">
             GET

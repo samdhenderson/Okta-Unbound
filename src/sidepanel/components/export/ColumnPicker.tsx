@@ -1,5 +1,5 @@
 import React from 'react';
-import { CollapsibleSection, FilterPill } from '../shared';
+import { CollapsibleSection, Eyebrow, FilterPill } from '../shared';
 import type { ColumnGroup, ExportColumn } from '../../export/types';
 
 interface ColumnPickerProps {
@@ -17,16 +17,14 @@ const GROUP_ORDER: { key: ColumnGroup; label: string }[] = [
 const ColumnPicker: React.FC<ColumnPickerProps> = ({ catalog, enabled, onToggle }) => {
   return (
     <CollapsibleSection title="Columns" defaultOpen itemCount={enabled.size}>
-      <div className="space-y-4">
+      <div className="space-y-(--sp-field)">
         {GROUP_ORDER.map(({ key, label }) => {
           const columns = catalog.filter((column) => column.group === key);
           if (columns.length === 0) return null;
           return (
             <div key={key} className="space-y-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                {label}
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <Eyebrow>{label}</Eyebrow>
+              <div className="flex flex-wrap gap-(--sp-inline)">
                 {columns.map((column) => (
                   <FilterPill
                     key={column.id}

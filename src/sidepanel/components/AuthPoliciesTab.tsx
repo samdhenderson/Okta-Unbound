@@ -78,7 +78,7 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
         }
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
         {error && (
           <AlertMessage
             message={{ text: error, type: 'danger' }}

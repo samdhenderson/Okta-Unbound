@@ -27,7 +27,13 @@ const metric = (
 });
 
 export function groupIdentity(group: GroupSummary): EntityIdentityDescriptor {
-  const badge = TYPE_BADGES[group.type] ?? TYPE_BADGES.BUILT_IN;
+  const typeMark = TYPE_BADGES[group.type] ?? TYPE_BADGES.BUILT_IN;
+  const isAlarming = typeMark.variant === 'danger';
+
+  const identityRow: IdentityRow = isAlarming
+    ? []
+    : [{ kind: 'status', variant: typeMark.variant, text: typeMark.text }];
+  identityRow.push({ kind: 'id', value: group.id, copyLabel: 'Copy group id' });
 
   const counts: IdentityRow = [metric('users', group.memberCount, 'member')];
   if (group.ruleCount > 0) {
@@ -63,8 +69,8 @@ export function groupIdentity(group: GroupSummary): EntityIdentityDescriptor {
   return {
     key: group.id,
     name: group.name,
-    badge,
-    rows: [[{ kind: 'id', value: group.id, copyLabel: 'Copy group id' }], counts, timestamps],
+    badge: isAlarming ? typeMark : undefined,
+    rows: [identityRow, counts, timestamps],
     link: { entityType: 'group', entityId: group.id },
   };
 }

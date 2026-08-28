@@ -126,7 +126,7 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ targetTabId, isActive =
       : `${actions.length} action${actions.length === 1 ? '' : 's'} logged`;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-(--sp-rung)">
       {notice && <AlertMessage message={notice} onDismiss={() => setNotice(null)} />}
 
       <Checkbox
@@ -148,14 +148,19 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ targetTabId, isActive =
         />
       ) : (
         <>
-          <div className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-neutral-200 bg-neutral-50 p-(--sp-card)">
             <span className="text-sm font-medium text-neutral-700">{historyCountLabel}</span>
-            <Button variant="secondary" size="sm" onClick={() => setIsClearOpen(true)}>
+            <Button
+              variant="secondary"
+              size="sm"
+
+              onClick={() => setIsClearOpen(true)}
+            >
               Clear History
             </Button>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-(--sp-rung)">
             {historyItems.map((item) =>
               item.kind === 'action' ? (
                 <AuditLogRow

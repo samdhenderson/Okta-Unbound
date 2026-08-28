@@ -20,7 +20,7 @@ const UserSearchResults: React.FC<UserSearchResultsProps> = ({ results, onSelect
       <Eyebrow as="div">
         {results.length} {results.length === 1 ? 'match' : 'matches'}
       </Eyebrow>
-      <div ref={setStaggerRef} className="space-y-3 rise-in-stagger">
+      <div ref={setStaggerRef} className="space-y-(--sp-rung) rise-in-stagger">
         {results.map((user) => (
           <ListRow
             key={user.id}
@@ -29,7 +29,7 @@ const UserSearchResults: React.FC<UserSearchResultsProps> = ({ results, onSelect
             onClick={() => onSelectUser(user)}
             className="group"
           >
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-(--sp-inline)">
               <div className="flex-1 min-w-0 text-left">
                 <h4 className="truncate text-sm font-semibold text-neutral-900 group-hover:text-primary-text transition-colors duration-(--dur-instant)">
                   {user.profile.firstName} {user.profile.lastName}

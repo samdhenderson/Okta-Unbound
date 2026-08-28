@@ -75,6 +75,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
     <Button
       variant="danger"
       size="sm"
+
       disabled={!view.canCancel || view.isCancelling}
       onClick={onCancel}
       title="Cancel the current operation and clear the queue"
@@ -88,6 +89,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
       label={collapsed ? 'Show all activity stats' : 'Hide extra activity stats'}
       variant="subtle"
       size="sm"
+
       active={!collapsed}
       onClick={onToggleCollapse}
     >
@@ -121,7 +123,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
         className={barClasses}
         style={{ fontFamily: 'var(--font-primary)' }}
       >
-        <div className="flex items-center gap-3 px-5 py-2.5 text-xs">
+        <div className="flex items-center gap-(--sp-inline) px-(--sp-gutter) py-2.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {statusDot}
             {view.operationActive && view.operationName ? (
@@ -192,7 +194,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
       style={{ fontFamily: 'var(--font-primary)' }}
     >
       <div
-        className={`flex items-center gap-3 px-5 py-2.5 text-xs ${collapsible ? 'flex-wrap' : ''}`}
+        className={`flex items-center gap-(--sp-inline) px-(--sp-gutter) py-2.5 text-xs ${collapsible ? 'flex-wrap' : ''}`}
       >
         <div className="flex min-w-[8rem] items-center gap-2">
           {statusDot}

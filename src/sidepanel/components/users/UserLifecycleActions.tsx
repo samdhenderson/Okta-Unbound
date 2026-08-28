@@ -34,14 +34,14 @@ const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
   return (
     <>
       {user.status !== 'DEPROVISIONED' ? (
-        <div className="space-y-3">
+        <div className="space-y-(--sp-field)">
           <div className="flex items-center justify-between gap-2">
             <Eyebrow>Account state</Eyebrow>
             <span className="text-xs text-neutral-600">Each asks to confirm</span>
           </div>
 
           {canResetPassword && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-(--sp-field)">
               <Button
                 variant="secondary"
                 size="sm"
@@ -57,7 +57,7 @@ const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
           {canResetPassword && hasDestructive && <div className="h-px bg-neutral-200" />}
 
           {hasDestructive && (
-            <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-(--sp-field)">
               <span className="text-xs text-danger-text">
                 {isSuspended ? 'Restores sign-in immediately' : 'Blocks sign-in until reversed'}
               </span>

@@ -125,7 +125,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
 
   return (
     <>
-      <div className="space-y-6" data-testid="group-detail-view">
+      <div className="space-y-(--sp-rung)" data-testid="group-detail-view">
         <GroupActionBar
           group={group}
           targetTabId={targetTabId}
@@ -143,7 +143,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
             ariaLabel="Group detail sections"
           />
 
-          <div className="mt-6">
+          <div className="mt-(--sp-rung)">
             {activeTab === 'overview' && (
               <GroupOverviewPane
                 group={group}
@@ -192,7 +192,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
             )}
 
             {activeTab === 'access' && (
-              <div className="space-y-6" role="tabpanel" aria-label="Access">
+              <div className="space-y-(--sp-rung)" role="tabpanel" aria-label="Access">
                 <GroupAccessSection
                   oktaOrigin={oktaOrigin}
                   apps={accessGrants.apps}

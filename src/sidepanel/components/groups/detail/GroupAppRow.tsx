@@ -66,7 +66,7 @@ const GroupAppRow: React.FC<GroupAppRowProps> = ({ row, expanded, onToggle, okta
               )}
 
               {row.push.state === 'pushed' && (
-                <div className="rounded-md border border-neutral-200 bg-canvas p-3">
+                <div className="rounded-md border border-neutral-200 bg-canvas p-(--sp-card)">
                   <Eyebrow as="div" className="mb-1">
                     Membership pushed here
                   </Eyebrow>
