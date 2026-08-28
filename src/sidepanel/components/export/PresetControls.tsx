@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Select, Input, Button } from '../shared';
+import { CollapsibleSection, Select, Input, Button } from '../shared';
 import type { ExportPreset } from '../../../shared/storage/presetStore';
 
 interface PresetControlsProps {
@@ -32,54 +32,54 @@ const PresetControls: React.FC<PresetControlsProps> = ({
   };
 
   return (
-    <div className="rounded-md border border-neutral-200 bg-white p-4 space-y-3">
-      <div className="text-xs font-semibold uppercase tracking-wide text-neutral-500">Presets</div>
-
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <Select
-            ariaLabel="Apply a saved preset"
-            value={activePresetId ?? ''}
-            onChange={(value) => value && onApply(value)}
-            options={options}
-            disabled={presets.length === 0}
-          />
+    <CollapsibleSection title="Presets" defaultOpen={presets.length > 0} itemCount={presets.length}>
+      <div className="space-y-(--sp-field)">
+        <div className="flex items-end gap-(--sp-field)">
+          <div className="flex-1">
+            <Select
+              ariaLabel="Apply a saved preset"
+              value={activePresetId ?? ''}
+              onChange={(value) => value && onApply(value)}
+              options={options}
+              disabled={presets.length === 0}
+            />
+          </div>
+          {activePresetId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="trash"
+              onClick={() => onDelete(activePresetId)}
+              title="Delete the applied preset"
+            >
+              Delete
+            </Button>
+          )}
         </div>
-        {activePresetId && (
+
+        <div className="flex items-end gap-(--sp-field)">
+          <div className="flex-1">
+            <Input
+              value={name}
+              onChange={setName}
+              ariaLabel="Preset name"
+              placeholder="Name this selection"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && name.trim() && canSave) handleSave();
+              }}
+            />
+          </div>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="sm"
-            icon="trash"
-            onClick={() => onDelete(activePresetId)}
-            title="Delete the applied preset"
+            onClick={handleSave}
+            disabled={!name.trim() || !canSave}
           >
-            Delete
+            Save
           </Button>
-        )}
-      </div>
-
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <Input
-            value={name}
-            onChange={setName}
-            ariaLabel="Preset name"
-            placeholder="Name this selection"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && name.trim() && canSave) handleSave();
-            }}
-          />
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleSave}
-          disabled={!name.trim() || !canSave}
-        >
-          Save
-        </Button>
       </div>
-    </div>
+    </CollapsibleSection>
   );
 };
 

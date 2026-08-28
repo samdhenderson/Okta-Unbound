@@ -38,7 +38,7 @@ const VerdictTile: React.FC<VerdictTileProps> = ({ label, icon, headline, detail
   <button
     type="button"
     onClick={onClick}
-    className="flex w-full items-start gap-3 rounded-md border border-neutral-200 bg-white p-3 text-left transition-colors duration-(--dur-instant) ease-standard hover:border-neutral-300"
+    className="press press-subtle lift flex w-full items-start gap-3 rounded-md border border-neutral-200 bg-white p-(--sp-card) text-left hover:border-neutral-300"
   >
     <span className="mt-0.5 shrink-0 rounded-md bg-neutral-100 p-1.5">
       <Icon type={icon} size="sm" className="text-neutral-600" />
@@ -172,14 +172,14 @@ const GroupOverviewPane: React.FC<GroupOverviewPaneProps> = ({
   referencingStatus,
   onNavigate,
 }) => (
-  <div className="space-y-3" role="tabpanel" aria-label="Overview">
+  <div className="space-y-(--sp-rung)" role="tabpanel" aria-label="Overview">
     <MembershipSourceTile
       breakdown={breakdown}
       memberStatus={memberStatus}
       onClick={() => onNavigate('members')}
     />
 
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-(--sp-rung)">
       <AccessGrantsTile
         appsCount={appsCount}
         appsStatus={appsStatus}

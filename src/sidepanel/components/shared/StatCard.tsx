@@ -62,30 +62,47 @@ const StatCard: React.FC<StatCardProps> = ({
   const config = colorConfigs[color];
 
   const numericValue = typeof value === 'number' ? value : null;
-  const countedValue = useCountUp(numericValue ?? 0, {
+  const { value: countedValue, justResolved } = useCountUp(numericValue ?? 0, {
     enabled: countUp && numericValue !== null,
   });
   const displayValue = numericValue === null ? value : countedValue.toLocaleString();
 
+  const interactive = Boolean(onClick);
+
   const baseClasses = `
     relative overflow-hidden rounded-md border p-4
-    transition-colors duration-(--dur-instant) ease-standard
     ${config.cardBg} ${config.border}
-    ${onClick ? 'cursor-pointer hover:border-neutral-300' : ''}
+    ${
+      interactive
+        ? 'press lift cursor-pointer hover:border-neutral-300 active:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+        : 'transition-colors duration-(--dur-instant) ease-standard'
+    }
   `.trim();
+
+  const handleKeyDown = interactive
+    ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        onClick?.();
+      }
+    : undefined;
 
   return (
     <div
       className={baseClasses}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       role={onClick ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
       style={{ fontFamily: 'var(--font-primary)' }}
     >
       <div className="relative flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</p>
           <p
-            className={`mt-2 text-3xl font-bold ${config.textColor} tracking-tight truncate tabular-nums`}
+            className={`mt-2 text-3xl font-bold tracking-tight truncate tabular-nums transition-colors duration-(--dur-tell) ${
+              justResolved ? 'text-success-text' : config.textColor
+            }`}
             style={{ fontFamily: 'var(--font-primary)' }}
           >
             {displayValue}

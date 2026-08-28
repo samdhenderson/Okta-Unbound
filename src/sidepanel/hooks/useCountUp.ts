@@ -17,19 +17,26 @@ export interface UseCountUpOptions {
   enabled?: boolean;
 }
 
-export function useCountUp(target: number, options: UseCountUpOptions = {}): number {
+export interface UseCountUpResult {
+  value: number;
+  justResolved: boolean;
+}
+
+export function useCountUp(target: number, options: UseCountUpOptions = {}): UseCountUpResult {
   const { enabled = true } = options;
   const reduced = useReducedMotion();
   const animates = enabled && !reduced && motionAvailable();
 
   const [display, setDisplay] = useState(() => (animates ? 0 : target));
   const [seenTarget, setSeenTarget] = useState(target);
+  const [justResolved, setJustResolved] = useState(false);
 
   const displayRef = useRef(display);
 
   if (target !== seenTarget) {
     setSeenTarget(target);
     if (!animates) setDisplay(target);
+    if (enabled) setJustResolved(true);
   }
 
   useEffect(() => {
@@ -62,5 +69,11 @@ export function useCountUp(target: number, options: UseCountUpOptions = {}): num
     return () => cancelAnimationFrame(frame);
   }, [target, animates]);
 
-  return display;
+  useEffect(() => {
+    if (!justResolved) return undefined;
+    const timer = setTimeout(() => setJustResolved(false), COUNT_UP_MS);
+    return () => clearTimeout(timer);
+  }, [justResolved]);
+
+  return { value: display, justResolved };
 }

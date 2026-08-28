@@ -5,11 +5,12 @@ import type { ReactElement, ReactNode } from 'react';
 import GroupsTab from './GroupsTab';
 import { ProgressProvider } from '../contexts/ProgressContext';
 
-const render = (ui: ReactElement) =>
+const render = (ui: ReactElement, container?: HTMLElement) =>
   rtlRender(ui, {
     wrapper: ({ children }: { children: ReactNode }) => (
       <ProgressProvider>{children}</ProgressProvider>
     ),
+    ...(container ? { container } : {}),
   });
 
 const { fakeDB, idbTables } = vi.hoisted(() => {
@@ -261,19 +262,27 @@ describe('GroupsTab sub-navigation', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('restores the list scroll offset that display:none destroyed', async () => {
+  it('restores the list scroll offset a push into the detail view cost', async () => {
     const uev = userEvent.setup();
-    const { container } = await renderCached([cachedGroup()]);
+    const scroller = document.createElement('div');
+    document.body.appendChild(scroller);
+    const scrollRootRef = { current: scroller };
 
-    const scrollBox = container.querySelector('.scrollable-list') as HTMLElement;
-    Object.defineProperty(scrollBox, 'scrollTop', { value: 0, writable: true });
-    scrollBox.scrollTop = 240;
+    seedCache([cachedGroup()]);
+    render(
+      <GroupsTab targetTabId={1} oktaOrigin={ORIGIN} scrollRootRef={scrollRootRef} />,
+      scroller,
+    );
+    await act(async () => {});
+
+    Object.defineProperty(scroller, 'scrollTop', { value: 0, writable: true });
+    scroller.scrollTop = 240;
 
     await drillInto(uev, 'Engineering');
-    scrollBox.scrollTop = 0; // what hiding the box does
+    scroller.scrollTop = 0; // what a shorter detail view clamps it to
 
     await uev.click(screen.getByRole('button', { name: 'Back to groups' }));
-    expect(scrollBox.scrollTop).toBe(240);
+    expect(scroller.scrollTop).toBe(240);
   });
 
   it('pops back to the list when a cross-tab deep-link arrives', async () => {

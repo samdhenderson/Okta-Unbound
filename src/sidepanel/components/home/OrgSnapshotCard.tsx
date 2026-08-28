@@ -49,7 +49,7 @@ const Finding: React.FC<{
 
   if (subCount.status === 'reading') {
     return (
-      <li className="px-3 py-2.5">
+      <li className="px-(--sp-row-x) py-(--sp-row-y)">
         <Skeleton variant="text" size="sm" width="w-3/4" label={`Reading ${subCount.label}`} />
       </li>
     );
@@ -57,7 +57,7 @@ const Finding: React.FC<{
 
   if (subCount.value === null) {
     return (
-      <li className="flex items-stretch gap-3 bg-neutral-50 px-3 py-2.5">
+      <li className="flex items-stretch gap-3 bg-neutral-50 px-(--sp-row-x) py-(--sp-row-y)">
         <FigureNumber value={null} />
         <FindingLines subCount={subCount} id={labelId} />
       </li>
@@ -65,7 +65,7 @@ const Finding: React.FC<{
   }
 
   return (
-    <li className="relative flex items-stretch gap-3 px-3 py-2.5 transition-colors duration-(--dur-instant) hover:bg-neutral-50">
+    <li className="relative flex items-stretch gap-3 px-(--sp-row-x) py-(--sp-row-y) transition-colors duration-(--dur-instant) hover:bg-neutral-50">
       <StretchedButton
         label="Open the filtered list"
         describedBy={labelId}
@@ -93,7 +93,7 @@ const OrgSnapshotCard: React.FC<OrgSnapshotCardProps> = ({
 
   return (
     <section aria-label="This org" className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-(--sp-inline)">
         <Eyebrow as="h3">This org</Eyebrow>
         <IconButton
           label="Refresh this org"
@@ -112,7 +112,7 @@ const OrgSnapshotCard: React.FC<OrgSnapshotCardProps> = ({
       </ul>
 
       {totals.length > 0 && (
-        <p className="flex flex-wrap items-baseline gap-1 text-xs text-neutral-600">
+        <p className="flex flex-wrap items-baseline gap-(--sp-inline) text-xs text-neutral-600">
           {totals.map((box, index) => (
             <React.Fragment key={box.key}>
               {index > 0 && (
@@ -123,7 +123,7 @@ const OrgSnapshotCard: React.FC<OrgSnapshotCardProps> = ({
               <button
                 type="button"
                 onClick={() => onOpenTab(box.tab)}
-                className="rounded-sm px-0.5 text-primary-text underline decoration-primary-highlight underline-offset-2 hover:bg-primary-light focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
+                className="press rounded-sm px-0.5 text-primary-text underline decoration-primary-highlight underline-offset-2 hover:bg-primary-light active:brightness-90 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
               >
                 {box.status === 'partial' ? 'at least ' : ''}
                 {box.value?.toLocaleString()} {box.noun}

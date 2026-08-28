@@ -68,7 +68,7 @@ const MembershipProofAction: React.FC<MembershipProofActionProps> = ({
     const label = sourceLineLabel(line);
     return (
       <div
-        className="mt-3 rounded-md border border-success-light bg-success-light p-3"
+        className="mt-3 rounded-md border border-success-light bg-success-light p-(--sp-card)"
         title={`${label} — ${line.description}`}
       >
         <p className="flex items-center gap-2 text-xs font-medium text-success-text">
@@ -80,7 +80,7 @@ const MembershipProofAction: React.FC<MembershipProofActionProps> = ({
   }
 
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-2">
+    <div className="mt-3 flex flex-wrap items-center gap-(--sp-inline)">
       <Button
         variant="secondary"
         size="sm"

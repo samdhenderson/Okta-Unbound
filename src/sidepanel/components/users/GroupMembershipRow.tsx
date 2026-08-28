@@ -57,7 +57,7 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
           inert={!expanded || undefined}
         >
           <div>
-            <div className="space-y-3 border-t border-neutral-200 px-3 pb-3 pt-2">
+            <div className="space-y-(--sp-rung) border-t border-neutral-200 px-(--sp-row-x) pb-3 pt-2">
               <p className="text-xs text-pretty text-neutral-600">{line.description}</p>
 
               {rules.map((rule) => (
@@ -90,9 +90,9 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
         </div>
       }
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-(--sp-inline)">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
             <h4 className="truncate text-sm font-semibold text-neutral-900">{groupName}</h4>
             <Badge variant={verdict.variant} title={verdict.title} className="shrink-0">
               {verdict.label}

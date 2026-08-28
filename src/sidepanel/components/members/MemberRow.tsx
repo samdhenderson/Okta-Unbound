@@ -1,13 +1,6 @@
 import React, { useId } from 'react';
 import type { GroupMembership, OktaUser, MemberMfaResult } from '../../../shared/types';
-import {
-  Badge,
-  IconButton,
-  ListRow,
-  OpenInOktaLink,
-  userStatusVariant,
-  type UserStatusVariant,
-} from '../shared';
+import { Badge, IconButton, ListRow, OpenInOktaLink, userStatusVariant } from '../shared';
 import Icon from '../shared/Icon';
 import MembershipRuleEvidence from '../users/MembershipRuleEvidence';
 import MembershipProofAction, {
@@ -31,14 +24,6 @@ interface MemberRowProps {
   proofOutcome?: MembershipProofOutcome;
   onProve?: (membership: GroupMembership, rowKey: string) => void;
 }
-
-const VARIANT_CLASSES: Record<UserStatusVariant, string> = {
-  success: 'bg-success-light text-success-text',
-  info: 'bg-primary-light text-primary-text',
-  warning: 'bg-warning-light text-warning-text',
-  danger: 'bg-danger-light text-danger-text',
-  neutral: 'bg-neutral-100 text-neutral-700',
-};
 
 function browseableAttributes(user: OktaUser): Array<[string, string]> {
   const profile = user.profile as Record<string, unknown>;
@@ -66,13 +51,13 @@ const MemberRow: React.FC<MemberRowProps> = ({
   proofOutcome,
   onProve,
 }) => {
-  const badgeClass = VARIANT_CLASSES[userStatusVariant(user.status)];
   const fullName = userDisplayName(user);
 
   const disclosureId = useId();
   const attributes = browseableAttributes(user);
   const line = membership ? membershipSourceLine(membership) : null;
   const verdict = membership ? membershipVerdict(membership) : null;
+  const loginDiffersFromEmail = user.profile.login !== user.profile.email;
 
   return (
     <ListRow
@@ -86,7 +71,7 @@ const MemberRow: React.FC<MemberRowProps> = ({
           inert={!expanded || undefined}
         >
           <div>
-            <div className="space-y-3 border-t border-neutral-200 px-3 pb-3 pt-2">
+            <div className="space-y-3 border-t border-neutral-200 px-(--sp-row-x) pb-3 pt-2">
               {line && <p className="text-xs text-pretty text-neutral-600">{line.description}</p>}
 
               {membership?.rules.map((rule) => (
@@ -127,7 +112,9 @@ const MemberRow: React.FC<MemberRowProps> = ({
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold text-neutral-900">{fullName}</div>
           <div className="truncate text-xs text-neutral-600">{user.profile.email}</div>
-          <div className="truncate font-mono text-xs text-neutral-500">{user.profile.login}</div>
+          {loginDiffersFromEmail && (
+            <div className="truncate font-mono text-xs text-neutral-500">{user.profile.login}</div>
+          )}
           {line && (
             <p className="mt-0.5 truncate text-xs text-neutral-600">
               <span>{line.caption}</span>
@@ -135,33 +122,26 @@ const MemberRow: React.FC<MemberRowProps> = ({
             </p>
           )}
           {mfaScanned && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+            <div className="mt-1.5 flex flex-wrap gap-(--sp-inline)">
               {mfa && mfa.factorLabels.length > 0 ? (
                 mfa.factorLabels.map((label) => (
-                  <span
-                    key={label}
-                    className="rounded-md bg-primary-light px-2 py-0.5 text-xs font-medium text-primary-text"
-                  >
+                  <Badge key={label} variant="info">
                     {label}
-                  </span>
+                  </Badge>
                 ))
               ) : (
-                <span className="rounded-md bg-danger-light px-2 py-0.5 text-xs font-medium text-danger-text">
-                  No MFA
-                </span>
+                <Badge variant="danger">No MFA</Badge>
               )}
             </div>
           )}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-(--sp-inline)">
           {verdict && (
             <Badge variant={verdict.variant} title={verdict.title}>
               {verdict.label}
             </Badge>
           )}
-          <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${badgeClass}`}>
-            {user.status}
-          </span>
+          <Badge variant={userStatusVariant(user.status)}>{user.status}</Badge>
           {onRemove && (
             <IconButton
               label={`Remove ${fullName} from this group`}

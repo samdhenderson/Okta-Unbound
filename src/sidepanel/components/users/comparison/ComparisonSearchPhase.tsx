@@ -27,13 +27,9 @@ const ComparisonSearchPhase: React.FC<ComparisonSearchPhaseProps> = ({
   const filtered = searchResults.filter((u) => u.id !== contextUser.id);
 
   return (
-    <div className="space-y-5">
-      <div className="relative overflow-hidden rounded-md border border-primary-highlight bg-primary-light/60 p-4">
-        <div
-          className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-2xl"
-          aria-hidden
-        />
-        <div className="relative flex items-start gap-3">
+    <div className="space-y-(--sp-rung)">
+      <div className="rounded-md border border-primary-highlight bg-primary-light/60 p-(--sp-card)">
+        <div className="flex items-start gap-3">
           <div className="mt-0.5 rounded-md bg-white p-2 text-primary shadow-sm">
             <Icon type="sparkles" size="md" />
           </div>

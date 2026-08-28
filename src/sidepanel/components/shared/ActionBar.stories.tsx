@@ -5,6 +5,7 @@ import ActionBar from './ActionBar';
 import Button from './Button';
 import DetailSection from './DetailSection';
 import EntityIdentity from './EntityIdentity';
+import Input from './Input';
 import PageHeader from './PageHeader';
 
 const meta = {
@@ -36,6 +37,11 @@ const meta = {
     ariaLabel: {
       description:
         'Accessible name for the group, e.g. `"Actions for Jane Doe"`. Required — a bare group of buttons announces nothing about what it acts on.',
+    },
+    subRow: {
+      description:
+        'Always-visible caller UI inside the band, under the verbs and above the tier — a list ' +
+        "rung's search field. Never measured, so unlike a descriptor it may carry JSX.",
     },
     sticky: {
       description:
@@ -239,6 +245,41 @@ export const WithExpansion: Story = {
     await userEvent.click(more);
     await expect(more).toHaveAttribute('aria-expanded', 'true');
     await expect(canvas.getByRole('button', { name: 'Suspend user' })).toBeVisible();
+  },
+};
+
+export const WithSubRow: Story = {
+  args: {
+    ariaLabel: 'Actions for the groups list',
+    actions: [
+      { id: 'select-all', label: 'Select all (34)', onClick: fn(), priority: 'pinned' },
+      { id: 'cross-search', label: 'Cross-search', icon: 'search', onClick: fn() },
+      { id: 'cleanup', label: 'Cleanup', icon: 'sparkles', onClick: fn(), priority: 'tier' },
+    ],
+    subRow: (
+      <div className="flex gap-2">
+        <Input
+          size="sm"
+          type="search"
+          value=""
+          onChange={fn()}
+          ariaLabel="Filter groups"
+          placeholder="Search by name, description…"
+        />
+        <Button variant="secondary" size="sm" icon="settings" onClick={fn()}>
+          Filters
+        </Button>
+      </div>
+    ),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const band = canvasElement.querySelector('.dock-band') as HTMLElement;
+    await expect(band).toContainElement(canvas.getByRole('searchbox', { name: 'Filter groups' }));
+
+    const more = canvas.getByRole('button', { name: 'More' });
+    await userEvent.click(more);
+    await expect(canvas.getByRole('button', { name: 'Cleanup' })).toBeVisible();
   },
 };
 

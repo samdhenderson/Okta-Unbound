@@ -79,7 +79,7 @@ const CopyMembersModal: React.FC<CopyMembersModalProps> = ({ isOpen, onClose, me
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-(--sp-rung)">
         <div>
           <label className="mb-1.5 block text-xs font-medium text-neutral-600">Copy as</label>
           <div className="grid grid-cols-2 gap-2">
@@ -91,7 +91,7 @@ const CopyMembersModal: React.FC<CopyMembersModalProps> = ({ isOpen, onClose, me
                   type="button"
                   onClick={() => setFormatId(f.id)}
                   aria-pressed={active}
-                  className={`flex items-start gap-2.5 rounded-md border p-2.5 text-left transition-colors duration-(--dur-instant) ${
+                  className={`press flex items-start gap-2.5 rounded-md border p-2.5 text-left ${
                     active
                       ? 'border-primary bg-primary-light'
                       : 'border-neutral-200 bg-white hover:border-neutral-400'

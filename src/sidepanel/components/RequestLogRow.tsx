@@ -34,7 +34,7 @@ const RequestLogRow: React.FC<RequestLogRowProps> = ({ entry, isExpanded, onTogg
           inert={!isExpanded || undefined}
         >
           <div>
-            <ul className="space-y-1 border-t border-neutral-200 px-3 pb-3 pt-2">
+            <ul className="space-y-1 border-t border-neutral-200 px-(--sp-row-x) pb-(--sp-row-y) pt-2">
               {entry.endpoints.map((endpoint, index) => (
                 <li key={`${endpoint.method} ${endpoint.endpoint} ${index}`} className="text-sm">
                   <span className="font-mono text-xs text-neutral-600">{endpoint.method}</span>{' '}
@@ -51,12 +51,12 @@ const RequestLogRow: React.FC<RequestLogRowProps> = ({ entry, isExpanded, onTogg
         </div>
       }
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-(--sp-inline)">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-neutral-900">
             {isBatch ? `${entry.requestCount} requests — ${entry.reason}` : entry.reason}
           </p>
-          <div className="mt-1 flex flex-wrap items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-(--sp-inline)">
             {!isBatch && (
               <Badge>
                 {entry.endpoints[0]?.method} {entry.endpoints[0]?.endpoint}

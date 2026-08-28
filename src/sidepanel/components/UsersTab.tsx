@@ -66,7 +66,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
         isActive={isActive}
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
         {state.resultMessage && (
           <AlertMessage
             message={state.resultMessage}
@@ -76,7 +76,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
           />
         )}
 
-        <div className={nav.isRoot ? 'space-y-6' : 'hidden'}>
+        <div className={nav.isRoot ? 'space-y-(--sp-rung)' : 'hidden'}>
           <UserSearchPanel
             searchQuery={state.searchQuery}
             onSearchQueryChange={state.setSearchQuery}
@@ -108,7 +108,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
               ref={isDetailOpen ? compareViewRef : undefined}
               tabIndex={-1}
               data-testid="user-detail-view"
-              className={isDetailOpen ? 'space-y-6 focus:outline-none' : 'hidden'}
+              className={isDetailOpen ? 'space-y-(--sp-rung) focus:outline-none' : 'hidden'}
             >
               <UserActionBar
                 user={selectedUser}
@@ -154,7 +154,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
                 ref={isCompareOpen ? compareViewRef : undefined}
                 tabIndex={-1}
                 data-testid="user-comparison-view"
-                className={isCompareOpen ? 'space-y-6 focus:outline-none' : 'hidden'}
+                className={isCompareOpen ? 'space-y-(--sp-rung) focus:outline-none' : 'hidden'}
               >
                 <UserComparisonPanel
                   oktaOrigin={state.oktaOrigin}

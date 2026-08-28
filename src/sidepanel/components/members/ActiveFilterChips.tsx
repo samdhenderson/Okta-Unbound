@@ -13,7 +13,7 @@ const ActiveFilterChips: React.FC<ActiveFilterChipsProps> = ({ filters, onRemove
   if (filters.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-(--sp-inline)">
       <span className="text-xs font-medium text-neutral-500">Active:</span>
       {filters.map((filter) => (
         <span
@@ -32,7 +32,11 @@ const ActiveFilterChips: React.FC<ActiveFilterChipsProps> = ({ filters, onRemove
           </IconButton>
         </span>
       ))}
-      <button onClick={onClearAll} className="text-xs text-primary-text hover:underline ml-1">
+      <button
+        type="button"
+        onClick={onClearAll}
+        className="text-xs text-primary-text hover:underline ml-1"
+      >
         Clear all
       </button>
     </div>

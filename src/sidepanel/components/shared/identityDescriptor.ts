@@ -5,7 +5,8 @@ import type { BadgeVariant } from './Badge';
 export type IdentityFact =
   | { kind: 'metric'; icon: IconType; value: string; label: string; title?: string }
   | { kind: 'text'; icon?: IconType; text: string; title?: string }
-  | { kind: 'id'; value: string; copyLabel: string };
+  | { kind: 'id'; value: string; copyLabel: string }
+  | { kind: 'status'; variant: BadgeVariant; text: string };
 
 export type IdentityRow = IdentityFact[];
 

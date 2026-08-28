@@ -85,6 +85,11 @@ export const Focus: Story = {
   parameters: { pseudo: { focusVisible: true } },
 };
 
+export const Pressed: Story = {
+  args: { variant: 'primary' },
+  parameters: { pseudo: { active: true } },
+};
+
 export const Sizes: Story = {
   render: (args) => (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

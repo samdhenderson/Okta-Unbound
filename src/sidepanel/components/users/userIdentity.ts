@@ -32,6 +32,14 @@ export function userIdentity(
 ): EntityIdentityDescriptor {
   const { groupCount, appCount } = options;
 
+  const statusVariant = userStatusVariant(user.status);
+  const isAlarming = statusVariant === 'danger';
+
+  const identityRow: IdentityRow = isAlarming
+    ? []
+    : [{ kind: 'status', variant: statusVariant, text: user.status }];
+  identityRow.push({ kind: 'id', value: user.id, copyLabel: 'Copy user id' });
+
   const counts: IdentityRow = [];
   if (groupCount !== undefined) {
     counts.push(metric('users', groupCount, 'group'));
@@ -60,8 +68,8 @@ export function userIdentity(
   return {
     key: user.id,
     name: userDisplayName(user),
-    badge: { text: user.status, variant: userStatusVariant(user.status) },
-    rows: [[{ kind: 'id', value: user.id, copyLabel: 'Copy user id' }], counts, timestamps],
+    badge: isAlarming ? { text: user.status, variant: statusVariant } : undefined,
+    rows: [identityRow, counts, timestamps],
     link: { entityType: 'user', entityId: user.id },
   };
 }

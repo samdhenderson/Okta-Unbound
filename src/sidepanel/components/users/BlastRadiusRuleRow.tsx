@@ -65,7 +65,7 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect }) => {
   return (
     <ListRow as="li" density="compact">
       <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
           {presentation.icon && (
             <Icon
               type={presentation.icon}

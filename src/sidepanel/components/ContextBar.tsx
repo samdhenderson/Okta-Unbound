@@ -1,5 +1,5 @@
 import React from 'react';
-import { CopyableId, IconButton } from './shared';
+import { Button, IconButton } from './shared';
 import Icon from './shared/Icon';
 import type { ConnectionStatus } from '../hooks/useOktaTabContext';
 import type { PageType } from '../hooks/useOktaPageContext';
@@ -7,7 +7,6 @@ import type { PageType } from '../hooks/useOktaPageContext';
 interface ContextBarProps {
   pageType: PageType;
   entityName?: string;
-  entityId?: string;
   connectionStatus: ConnectionStatus;
   isLoading: boolean;
   error: string | null;
@@ -38,19 +37,9 @@ const NO_ENTITY_LABEL: Record<PageType, string> = {
   unknown: 'No context',
 };
 
-const PAGE_LABEL: Record<PageType, string> = {
-  group: 'Group',
-  user: 'User',
-  app: 'App',
-  policy: 'Policy',
-  admin: 'Admin',
-  unknown: '',
-};
-
 const ContextBar: React.FC<ContextBarProps> = ({
   pageType,
   entityName,
-  entityId,
   connectionStatus,
   isLoading,
   error,
@@ -80,73 +69,49 @@ const ContextBar: React.FC<ContextBarProps> = ({
       ? 'Connecting…'
       : 'Connected';
 
-  const wordmarkSuffix = PAGE_LABEL[pageType];
   const liveChanged = isPinned && liveContextChanged;
 
   return (
-    <div
-      className="bg-white border-b border-neutral-200 z-40"
-      style={{ fontFamily: 'var(--font-primary)' }}
-    >
-      <div className="px-5 py-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <span
-            className={`w-2.5 h-2.5 rounded-full shrink-0 ${connectionStatus === 'connecting' || isLoading ? 'animate-pulse' : ''}`}
-            style={{ backgroundColor: dotColor }}
-            title={connectionText}
-            role="img"
-            aria-label={connectionText}
-          />
-          <div className="min-w-0">
-            <div
-              className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 leading-none mb-1"
-              style={{ fontFamily: 'var(--font-heading)' }}
-            >
-              Okta Unbound{wordmarkSuffix ? ` · ${wordmarkSuffix}` : ''}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-neutral-900 truncate">{displayName}</span>
-              {isPinned && (
-                <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide bg-primary-light text-primary-text">
-                  <Icon type="pin" size="xs" />
-                  Pinned
-                </span>
-              )}
-            </div>
-            {error && onReconnect && (
-              <button
-                type="button"
-                onClick={onReconnect}
-                className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-primary-text hover:underline"
-                title="Reload the Okta tab to re-establish the connection"
-              >
-                <Icon type="refresh" size="xs" />
-                Reload tab to reconnect
-              </button>
-            )}
-            {entityId && !error && (
-              <CopyableId
-                value={entityId}
-                label={`Copy ${PAGE_LABEL[pageType].toLowerCase() || 'entity'} id`}
-                className="mt-0.5"
-              />
-            )}
-          </div>
-        </div>
+    <div className="bg-white" style={{ fontFamily: 'var(--font-primary)' }}>
+      <div className="px-(--sp-gutter) py-1.5 flex items-center gap-2">
+        <span
+          className={`w-2.5 h-2.5 rounded-full shrink-0 ${connectionStatus === 'connecting' || isLoading ? 'animate-pulse' : ''}`}
+          style={{ backgroundColor: dotColor }}
+          title={connectionText}
+          role="img"
+          aria-label={connectionText}
+        />
+        <span className="min-w-0 truncate text-sm font-semibold text-neutral-900">
+          {displayName}
+        </span>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <IconButton
-            label="Refresh context"
-            onClick={onRefresh}
-            variant="ghost"
+        <div className="ms-auto flex items-center gap-1 shrink-0">
+          {error && onReconnect ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              icon="refresh"
+              onClick={onReconnect}
+              title="Reload the Okta tab to re-establish the connection"
+            >
+              Reconnect
+            </Button>
+          ) : (
+            <IconButton
+              label="Refresh context"
+              onClick={onRefresh}
+              variant="ghost"
+              size="sm"
+              disabled={isPinned}
+              title={isPinned ? 'Unpin to refresh live context' : 'Refresh context'}
+            >
+              <Icon type="refresh" size="sm" className={isLoading ? 'animate-spin' : ''} />
+            </IconButton>
+          )}
+          <Button
+            variant={isPinned ? 'primary' : 'secondary'}
             size="sm"
-            disabled={isPinned}
-            title={isPinned ? 'Unpin to refresh live context' : 'Refresh context'}
-          >
-            <Icon type="refresh" size="sm" className={isLoading ? 'animate-spin' : ''} />
-          </IconButton>
-          <button
-            type="button"
+            icon="pin"
             onClick={onTogglePin}
             disabled={!canPin && !isPinned}
             title={
@@ -156,21 +121,14 @@ const ContextBar: React.FC<ContextBarProps> = ({
                   ? 'Pin this context while you cross-reference another page'
                   : 'Navigate to a group or user page to pin it'
             }
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors duration-(--dur-instant) disabled:opacity-40 disabled:cursor-not-allowed ${
-              isPinned
-                ? 'bg-primary text-white hover:bg-primary-dark'
-                : 'bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-500'
-            }`}
-            style={{ fontFamily: 'var(--font-heading)' }}
           >
-            <Icon type="pin" size="sm" />
-            <span>{isPinned ? 'Pinned' : 'Pin'}</span>
-          </button>
+            {isPinned ? 'Pinned' : 'Pin'}
+          </Button>
         </div>
       </div>
 
       {liveChanged && (
-        <div className="px-5 py-2 bg-warning-light border-t border-warning-light flex items-center justify-between gap-2 text-xs text-warning-text">
+        <div className="px-(--sp-gutter) py-2 bg-warning-light border-t border-warning-light flex items-center justify-between gap-2 text-xs text-warning-text">
           <span className="truncate">
             {liveEntityName ? (
               <>

@@ -7,8 +7,8 @@ export type ListRowState = 'default' | 'selected' | 'highlighted';
 export type ListRowAs = 'div' | 'li' | 'a' | 'button';
 
 const densityClasses: Record<ListRowDensity, string> = {
-  compact: 'px-3 py-2',
-  comfortable: 'p-4',
+  compact: 'py-(--sp-row-y) px-(--sp-row-x)',
+  comfortable: 'p-(--sp-card)',
 };
 
 const stateClasses: Record<ListRowState, string> = {
@@ -17,7 +17,11 @@ const stateClasses: Record<ListRowState, string> = {
   highlighted: 'border-primary bg-primary-light ring-2 ring-primary ring-offset-2',
 };
 
-const baseClasses = 'rounded-md border transition-colors duration-(--dur-instant)';
+const baseClasses = 'rounded-md border';
+
+const restingTransitionClass = 'transition-colors duration-(--dur-instant)';
+
+const pressClasses = 'press press-subtle';
 
 const hoverBorderClass = 'hover:border-neutral-500';
 
@@ -76,6 +80,7 @@ const ListRow: React.FC<ListRowProps> = ({
 
   const classes = [
     baseClasses,
+    interactive ? pressClasses : restingTransitionClass,
     hasBody ? 'overflow-hidden' : densityClasses[density],
     stateClasses[state],
     state === 'default' ? hoverBorderClass : '',

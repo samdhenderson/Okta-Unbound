@@ -38,7 +38,7 @@ const BreakdownReport: React.FC<BreakdownReportProps> = ({
               else onRowClick(row);
             }}
             className={`
-              relative w-full text-left rounded-md px-2.5 py-1.5
+              press-subtle relative w-full text-left rounded-md px-2.5 py-1.5
               transition-colors duration-(--dur-instant)
               ${clickable ? 'cursor-pointer hover:bg-neutral-50' : 'cursor-default'}
               ${isActive ? 'ring-1 ring-primary bg-primary-light/40' : ''}

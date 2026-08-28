@@ -1,6 +1,8 @@
+import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import StatCard from './StatCard';
+import Button from './Button';
 
 const meta = {
   title: 'Shared/StatCard',
@@ -16,13 +18,17 @@ const meta = {
           'Presentational only. Numeric values are localized with thousands separators; ' +
           'string values render verbatim. The `color` prop selects a semantic icon/border ' +
           'token set (`primary`, `success`, `warning`, `danger`, `neutral`). Passing ' +
-          '`onClick` turns the whole card into a clickable button.\n\n' +
+          '`onClick` turns the whole card into a real button — `role="button"`, a tab ' +
+          'stop, Enter/Space, and the shared `.press` depress + `.lift` hover elevation ' +
+          '(ADR-0046/ADR-0047).\n\n' +
           'A card can opt into `countUp`, which interpolates a numeric value up to its ' +
           'figure over `--dur-tell` when it first resolves and whenever it changes — the ' +
           'motion that says "this number just arrived" rather than "this was always here". ' +
           'It never fires on an incidental re-render, and is instant under ' +
           '`prefers-reduced-motion`. The value is always rendered with `tabular-nums`, so ' +
-          'the card cannot twitch as the digits change.',
+          'the card cannot twitch as the digits change. The same opt-in also tints the ' +
+          'settled figure `text-success-text` for a beat, easing back over `--dur-tell` — ' +
+          'a refreshed number that silently swapped is a missed event.',
       },
     },
   },
@@ -113,6 +119,21 @@ export const Clickable: Story = {
   },
 };
 
+export const ClickableHover: Story = {
+  ...Clickable,
+  parameters: { pseudo: { hover: true } },
+};
+
+export const ClickableFocus: Story = {
+  ...Clickable,
+  parameters: { pseudo: { focusVisible: true } },
+};
+
+export const ClickablePressed: Story = {
+  ...Clickable,
+  parameters: { pseudo: { active: true } },
+};
+
 export const LargeNumber: Story = {
   args: {
     title: 'Total Records',
@@ -126,6 +147,29 @@ export const CountUp: Story = {
   args: {
     title: 'Total Members',
     value: 4820,
+    color: 'primary',
+    icon: 'users',
+    countUp: true,
+  },
+};
+
+const RefreshDemo: React.FC<React.ComponentProps<typeof StatCard>> = (args) => {
+  const [value, setValue] = useState(4820);
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <StatCard {...args} value={value} />
+      <Button size="sm" onClick={() => setValue((v) => v + 137)}>
+        Refresh
+      </Button>
+    </div>
+  );
+};
+
+export const Refreshed: Story = {
+  parameters: { motion: 'on' },
+  render: (args) => <RefreshDemo {...args} />,
+  args: {
+    title: 'Total Members',
     color: 'primary',
     icon: 'users',
     countUp: true,

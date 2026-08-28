@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import Modal from './shared/Modal';
 import Button from './shared/Button';
+import IconButton from './shared/IconButton';
 import LoadingSpinner from './shared/LoadingSpinner';
 import StatCard from './shared/StatCard';
+import Icon from './shared/Icon';
 import type { RuleImpactSummary, TargetGroupImpact } from '../../shared/membership/ruleImpact';
 import type { RuleImpactMode, RuleImpactStatus, RuleImpactProgress } from '../hooks/useRuleImpact';
 import { userDisplayName } from '../../shared/utils/userDisplay';
@@ -27,6 +29,7 @@ const TargetGroupRow: React.FC<{
   onNavigateToGroup?: (groupId: string) => void;
 }> = ({ group, onNavigateToGroup }) => {
   const [expanded, setExpanded] = useState(false);
+  const disclosureId = useId();
   const hasLoss = group.losingCount > 0;
   const listed = group.losing.slice(0, MAX_LISTED);
   const overflow = group.losingCount - listed.length;
@@ -48,29 +51,17 @@ const TargetGroupRow: React.FC<{
         hasLoss ? 'border-danger-light' : 'border-neutral-200'
       }`}
     >
-      <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3 px-(--sp-row-x) py-(--sp-row-y)">
         {onNavigateToGroup ? (
           <button
             type="button"
             onClick={() => onNavigateToGroup(group.groupId)}
             title="View this group in the Groups tab"
-            className="min-w-0 text-left hover:opacity-80 transition-opacity"
+            className="press press-subtle min-w-0 text-left hover:opacity-80"
           >
             <span className="flex items-center gap-1.5 min-w-0">
               <p className="text-sm font-medium text-neutral-900 truncate">{group.groupName}</p>
-              <svg
-                className="w-3.5 h-3.5 text-neutral-400 shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M14 5l7 7m0 0l-7 7m7-7H3"
-                />
-              </svg>
+              <Icon type="chevron-right" size="xs" className="text-neutral-400 shrink-0" />
             </span>
             <p className="text-xs text-neutral-500">
               {group.memberCount.toLocaleString()} member{group.memberCount === 1 ? '' : 's'}
@@ -80,7 +71,7 @@ const TargetGroupRow: React.FC<{
           <div className="min-w-0">{memberLine}</div>
         )}
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-(--sp-inline) shrink-0">
           {hasLoss ? (
             <span className="px-2 py-0.5 rounded-md bg-danger-light text-danger-text text-xs font-bold border border-danger-light">
               −{group.losingCount.toLocaleString()} lose access
@@ -91,29 +82,21 @@ const TargetGroupRow: React.FC<{
             </span>
           )}
           {hasLoss && (
-            <button
-              type="button"
+            <IconButton
+              label={`${expanded ? 'Hide' : 'Show'} members losing access in ${group.groupName}`}
+              variant="ghost"
+              size="sm"
+
+              expanded={expanded}
+              controls={disclosureId}
               onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
-              aria-label={`${expanded ? 'Hide' : 'Show'} members losing access in ${group.groupName}`}
-              className="p-1 rounded hover:bg-neutral-100"
             >
-              <svg
-                className={`w-4 h-4 text-neutral-400 transition-transform duration-(--dur-instant) ${
-                  expanded ? 'rotate-90' : ''
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+              <Icon
+                type="chevron-right"
+                size="sm"
+                className={`transition-transform duration-(--dur-instant) ${expanded ? 'rotate-90' : ''}`}
+              />
+            </IconButton>
           )}
         </div>
       </div>
@@ -125,9 +108,15 @@ const TargetGroupRow: React.FC<{
       )}
 
       {hasLoss && expanded && (
-        <ul className="border-t border-neutral-100 divide-y divide-neutral-100 max-h-56 overflow-y-auto scrollable-list">
+        <ul
+          id={disclosureId}
+          className="border-t border-neutral-100 divide-y divide-neutral-100 max-h-56 overflow-y-auto scrollable-list"
+        >
           {listed.map((user) => (
-            <li key={user.id} className="px-3 py-2 flex items-center justify-between gap-3">
+            <li
+              key={user.id}
+              className="px-(--sp-row-x) py-(--sp-row-y) flex items-center justify-between gap-3"
+            >
               <span className="text-sm text-neutral-800 truncate">{userDisplayName(user)}</span>
               <span className="text-xs text-neutral-400 font-mono truncate">
                 {user.profile.email || user.profile.login}
@@ -135,7 +124,7 @@ const TargetGroupRow: React.FC<{
             </li>
           ))}
           {overflow > 0 && (
-            <li className="px-3 py-2 text-xs text-neutral-500">
+            <li className="px-(--sp-row-x) py-(--sp-row-y) text-xs text-neutral-500">
               and {overflow.toLocaleString()} more…
             </li>
           )}
@@ -168,6 +157,7 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
       {isDeactivate && (
         <Button
           variant="danger"
+
           onClick={onConfirmDeactivate}
           disabled={status === 'loading'}
           title={status === 'loading' ? 'Wait for the impact analysis to finish' : undefined}
@@ -186,7 +176,7 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
       size="lg"
       footer={footer}
     >
-      <div className="space-y-4">
+      <div className="space-y-(--sp-card)">
         <p className="text-sm text-neutral-600">
           {isDeactivate ? 'Deactivating ' : 'Previewing '}
           <span className="font-semibold text-neutral-900">{ruleName}</span>
@@ -211,14 +201,14 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
         )}
 
         {status === 'error' && (
-          <div className="rounded-md border border-danger-light bg-danger-light p-3">
+          <div className="rounded-md border border-danger-light bg-danger-light p-(--sp-card)">
             <p className="text-sm text-danger-text">{error || 'Failed to analyze rule impact.'}</p>
           </div>
         )}
 
         {status === 'done' && summary && (
           <>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-(--sp-rung)">
               <StatCard
                 title="Lose access"
                 value={totalLosing}
@@ -238,7 +228,7 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
             </div>
 
             {summary.targetGroups.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-(--sp-rung)">
                 <p className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
                   Target groups
                 </p>

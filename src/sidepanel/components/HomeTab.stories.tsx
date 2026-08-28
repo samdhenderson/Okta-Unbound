@@ -333,3 +333,10 @@ export const OrgFiguresAreFree: Story = {
     await waitFor(() => expect(syncRequests).toBe(0));
   },
 };
+
+export const CardStackCascades: Story = {
+  play: async ({ canvasElement }) => {
+    const stack = await within(canvasElement).findByTestId('home-card-stack');
+    await waitFor(() => expect(stack).toHaveAttribute('data-stagger-reveal', 'on'));
+  },
+};

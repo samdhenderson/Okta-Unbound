@@ -46,7 +46,7 @@ const ComparisonDiffTab: React.FC<ComparisonDiffTabProps> = ({
 
   return (
     <div className="flex min-h-[calc(100vh-22rem)] flex-1 flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-(--sp-inline)">
         <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
           All {rows.length}
         </FilterPill>
@@ -113,7 +113,7 @@ const ParityListRow: React.FC<{
   const matched = row.inContext && row.inCompared;
 
   return (
-    <li className="flex flex-col gap-1.5 px-3 py-2 hover:bg-neutral-50/70">
+    <li className="flex flex-col gap-1.5 px-(--sp-row-x) py-(--sp-row-y) hover:bg-neutral-50/70">
       <span className="flex min-w-0 flex-col items-start gap-0.5">
         <span className="w-full truncate text-sm text-neutral-800" title={row.label}>
           {row.label}

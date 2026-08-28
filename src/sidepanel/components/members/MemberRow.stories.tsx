@@ -8,6 +8,11 @@ const activeUser = mockUsers.find((u) => u.status === 'ACTIVE')!;
 const suspendedUser = mockUsers.find((u) => u.status === 'SUSPENDED')!;
 const deprovisionedUser = mockUsers.find((u) => u.status === 'DEPROVISIONED')!;
 
+const userWithDistinctLogin = {
+  ...activeUser,
+  profile: { ...activeUser.profile, login: 'jdoe' },
+};
+
 const enrolledMfa: MemberMfaResult = {
   userId: activeUser.id,
   factors: [],
@@ -61,11 +66,14 @@ const meta = {
     docs: {
       description: {
         component:
-          'Single member card: name, email, login, a status badge, MFA factor tags, and a ' +
+          'Single member card: name, email, login (only when it differs from the email — ' +
+          "most orgs provision the two identically, and restating a login that's already " +
+          'the email above it is the same fact twice), a status badge, MFA factor tags, and a ' +
           "disclosure carrying the member's profile attributes and an Okta deep link.\n\n" +
-          'Memoized for large lists. The status badge maps the user status to a semantic ' +
-          'token set (success / warning / danger, neutral fallback). Factor tags — or a ' +
-          '"No MFA" badge for 0-factor users — render only once a scan has completed.\n\n' +
+          'Memoized for large lists. The status badge and the factor/"No MFA" tags all go ' +
+          'through the shared `Badge`, which maps the user status to a semantic token set ' +
+          '(success / warning / danger, neutral fallback). Factor tags — or "No MFA" for a ' +
+          '0-factor user — render only once a scan has completed.\n\n' +
           '**The row is not a link.** It used to become one whenever an org origin was ' +
           "known, which foreclosed the disclosure: a chevron inside an anchor is axe's " +
           '`nested-interactive`. The deep link now lives inside the disclosure, where ' +
@@ -126,6 +134,13 @@ export const Suspended: Story = {
 
 export const Deprovisioned: Story = {
   args: { user: deprovisionedUser },
+};
+
+export const LoginDiffersFromEmail: Story = {
+  args: { user: userWithDistinctLogin },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('jdoe')).toBeInTheDocument();
+  },
 };
 
 export const WithMfaFactors: Story = {
