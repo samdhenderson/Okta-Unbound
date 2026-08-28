@@ -1,4 +1,4 @@
-import type { MessageRequest, MessageResponse, PolicyInfo } from '../shared/types';
+import type { AppInfo, MessageRequest, MessageResponse, PolicyInfo } from '../shared/types';
 import { createLogger } from '../shared/utils/logger';
 import { oktaPolicyListItemSchema, parseOkta } from '../shared/schemas/okta';
 import {
@@ -93,7 +93,7 @@ if (!isDuplicateInjection) {
   chrome.runtime.onMessage.addListener(handleMessage);
 }
 
-async function handleGetAppInfo(): Promise<MessageResponse<import('../shared/types').AppInfo>> {
+async function handleGetAppInfo(): Promise<MessageResponse<AppInfo>> {
   log.debug('Processing getAppInfo request');
 
   try {

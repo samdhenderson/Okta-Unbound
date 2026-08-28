@@ -5,6 +5,7 @@ export { parseRegexQuery } from '../../../shared/utils/regexQuery';
 
 export type SortField = 'name' | 'memberCount' | 'lastUpdated';
 export type PushFilter = '' | 'pushed' | 'not_pushed';
+export type RuleFilter = '' | 'ruled' | 'unruled';
 
 export interface GroupFilterState {
   searchQuery: string;
@@ -12,6 +13,7 @@ export interface GroupFilterState {
   sizeFilter: string;
   pushFilter: PushFilter;
   pushAppFilter: Set<string>;
+  ruleFilter: RuleFilter;
   sortBy: SortField;
   sortDesc: boolean;
 }
@@ -101,6 +103,10 @@ export function filterAndSortGroups(
     });
   }
 
+  if (state.ruleFilter) {
+    filtered = filtered.filter((g) => (state.ruleFilter === 'ruled' ? g.hasRules : !g.hasRules));
+  }
+
   filtered.sort((a, b) => {
     const cmp = compareGroupsBy(a, b, state.sortBy);
     return state.sortDesc ? -cmp : cmp;
@@ -110,10 +116,13 @@ export function filterAndSortGroups(
 }
 
 export function computeActiveFilterCount(
-  state: Pick<GroupFilterState, 'typeFilter' | 'sizeFilter' | 'pushFilter' | 'pushAppFilter'>,
+  state: Pick<
+    GroupFilterState,
+    'typeFilter' | 'sizeFilter' | 'pushFilter' | 'pushAppFilter' | 'ruleFilter'
+  >,
 ): number {
   return (
-    [state.typeFilter, state.sizeFilter, state.pushFilter].filter(Boolean).length +
-    (state.pushAppFilter.size > 0 ? 1 : 0)
+    [state.typeFilter, state.sizeFilter, state.pushFilter, state.ruleFilter].filter(Boolean)
+      .length + (state.pushAppFilter.size > 0 ? 1 : 0)
   );
 }

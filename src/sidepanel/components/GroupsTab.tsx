@@ -5,16 +5,19 @@ import AlertMessage from './shared/AlertMessage';
 import Button from './shared/Button';
 import EntityIdentity from './shared/EntityIdentity';
 import OpenInOktaLink from './shared/OpenInOktaLink';
+import WorkingSetPinButton from './shared/WorkingSetPinButton';
 import { groupIdentity } from './groups/groupIdentity';
 import { useOktaApi } from '../hooks/useOktaApi';
 import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useGroupsLoader } from '../hooks/useGroupsLoader';
 import { useGroupLiveSearch } from '../hooks/useGroupLiveSearch';
 import { useGroupFilters } from '../hooks/useGroupFilters';
+import type { GroupsListView } from '../listViewRequest';
 import { useGroupSelection } from '../hooks/useGroupSelection';
 import { useGroupMembersCache } from '../hooks/useGroupMembersCache';
 import { useGroupMerge } from '../hooks/useGroupMerge';
 import { useViewStack } from '../hooks/useViewStack';
+import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useScrollPreservation } from '../hooks/useScrollPreservation';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import type { GroupSummary } from '../../shared/types';
@@ -42,6 +45,8 @@ interface GroupsTabProps {
   onGroupSelected?: () => void;
   onExportGroup?: (groupId: string, groupName: string) => void;
   isActive?: boolean;
+  listView?: GroupsListView | null;
+  onListViewConsumed?: () => void;
 }
 
 const groupCrumbLabel = (group: GroupSummary): string => group.name;
@@ -56,6 +61,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   onGroupSelected,
   isActive = true,
   onExportGroup,
+  listView,
+  onListViewConsumed,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchMode, setSearchMode] = useState<'live' | 'cached'>('live');
@@ -120,6 +127,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
 
   const identity = detailGroup ? groupIdentity(detailGroup) : undefined;
 
+  const workingSet = useWorkingSet(oktaOrigin);
+
   const { push: pushView } = nav;
   const handleOpenDetail = useCallback(
     (group: GroupSummary) => {
@@ -175,6 +184,26 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId, groups, loading]);
+
+  const listViewHandledRef = useRef<GroupsListView | null>(null);
+  useEffect(() => {
+    if (!listView) {
+      listViewHandledRef.current = null;
+      return;
+    }
+    if (listViewHandledRef.current === listView) return;
+    listViewHandledRef.current = listView;
+
+    nav.reset();
+    setSearchMode('cached');
+    filters.clearFilters();
+    if (listView === 'empty') filters.setSizeFilter('empty');
+    else filters.setRuleFilter('unruled');
+
+    if (groups.length === 0 && !loading) void loadAllGroups();
+    onListViewConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listView, groups.length, loading]);
 
   const handleExportSelection = useCallback(() => {
     if (selectedGroupIds.size === 0) {
@@ -246,6 +275,20 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             </Button>
           )
         }
+        cornerAction={
+          detailGroup && (
+            <WorkingSetPinButton
+              pinned={workingSet.isPinned('group', detailGroup.id)}
+              onToggle={() =>
+                workingSet.togglePin({
+                  kind: 'group',
+                  id: detailGroup.id,
+                  name: detailGroup.name,
+                })
+              }
+            />
+          )
+        }
       />
 
       <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
@@ -288,6 +331,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
                 setSizeFilter={filters.setSizeFilter}
                 pushFilter={filters.pushFilter}
                 setPushFilter={filters.setPushFilter}
+                ruleFilter={filters.ruleFilter}
+                setRuleFilter={filters.setRuleFilter}
                 pushAppFilter={filters.pushAppFilter}
                 setPushAppFilter={filters.setPushAppFilter}
                 availablePushApps={filters.availablePushApps}

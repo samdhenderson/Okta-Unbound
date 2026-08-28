@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import Icon, { type IconType } from '../../overview/shared/Icon';
+import Icon, { type IconType } from '../../shared/Icon';
 import { AlertMessage } from '../../shared';
 import RuleExpressionText, { type GroupNameResolver } from './RuleExpressionText';
 import {

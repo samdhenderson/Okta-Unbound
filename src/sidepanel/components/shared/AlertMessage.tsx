@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import { type StatusType } from './status';
 
 export interface AlertMessageData {

@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import { oktaAdminEntityUrl, type OktaAdminEntityType } from '../../../shared/utils/oktaUrl';
 
 interface OpenInOktaLinkProps {

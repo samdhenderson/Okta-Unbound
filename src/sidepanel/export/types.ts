@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { OktaAdminEntityType } from '@/shared/utils/oktaUrl';
-import type { IconType } from '@/sidepanel/components/overview/shared/Icon';
+import type { IconType } from '@/sidepanel/components/shared/Icon';
 
 export type ColumnGroup = 'base' | 'profile' | 'custom';
 

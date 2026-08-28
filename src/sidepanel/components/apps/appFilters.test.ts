@@ -8,6 +8,7 @@ import {
   filterAndSortApps,
   matchesAppSearch,
   matchesAppStatus,
+  pushesNoGroups,
   type AppFilterState,
 } from './appFilters';
 
@@ -40,9 +41,25 @@ const bookmark = app({
 const baseState: AppFilterState = {
   searchQuery: '',
   statusFilter: '',
+  groupsFilter: '',
   sortBy: 'label',
   sortDesc: false,
 };
+
+const pusher = app({
+  id: '0oaFAKE0004',
+  name: 'pusher',
+  label: 'Pusher',
+  status: 'ACTIVE',
+  features: ['GROUP_PUSH', 'IMPORT_NEW_USERS'],
+});
+const idlePusher = app({
+  id: '0oaFAKE0005',
+  name: 'idle-pusher',
+  label: 'Idle Pusher',
+  status: 'ACTIVE',
+  features: ['GROUP_PUSH'],
+});
 
 describe('appDisplayLabel', () => {
   it('prefers label, then name, then id', () => {
@@ -156,8 +173,61 @@ describe('appStatusVariant', () => {
 });
 
 describe('computeActiveAppFilterCount', () => {
-  it('counts only the status bucket', () => {
-    expect(computeActiveAppFilterCount({ statusFilter: '' })).toBe(0);
-    expect(computeActiveAppFilterCount({ statusFilter: 'ACTIVE' })).toBe(1);
+  it('counts the status and group-push buckets, never the search query', () => {
+    expect(computeActiveAppFilterCount({ statusFilter: '', groupsFilter: '' })).toBe(0);
+    expect(computeActiveAppFilterCount({ statusFilter: 'ACTIVE', groupsFilter: '' })).toBe(1);
+    expect(computeActiveAppFilterCount({ statusFilter: '', groupsFilter: 'no-groups' })).toBe(1);
+    expect(computeActiveAppFilterCount({ statusFilter: 'ACTIVE', groupsFilter: 'no-groups' })).toBe(
+      2,
+    );
+  });
+});
+
+describe('pushesNoGroups', () => {
+  it('flags a Group Push app the snapshot holds no assignment for', () => {
+    expect(pushesNoGroups(idlePusher, new Set())).toBe(true);
+  });
+
+  it('clears a Group Push app that has an assignment', () => {
+    expect(pushesNoGroups(pusher, new Set([pusher.id]))).toBe(false);
+  });
+
+  it('never flags an app without Group Push, however empty the set', () => {
+    expect(pushesNoGroups(salesforce, new Set())).toBe(false);
+    expect(pushesNoGroups(bookmark, new Set())).toBe(false);
+    expect(pushesNoGroups(app({ id: '0oaFAKE0006', features: [] }), new Set())).toBe(false);
+    expect(pushesNoGroups(app({ id: '0oaFAKE0007' }), new Set())).toBe(false);
+  });
+});
+
+describe('the group-push filter', () => {
+  const apps = [salesforce, workday, bookmark, pusher, idlePusher];
+
+  it('narrows to push apps with nothing stored', () => {
+    const result = filterAndSortApps(
+      apps,
+      { ...baseState, groupsFilter: 'no-groups' },
+      new Set([pusher.id]),
+    );
+    expect(result.map((a) => a.id)).toEqual([idlePusher.id]);
+  });
+
+  it('leaves the list alone when unset', () => {
+    expect(filterAndSortApps(apps, baseState, new Set()).length).toBe(apps.length);
+  });
+
+  it('applies conjunctively with the status bucket', () => {
+    const inactivePusher = app({
+      id: '0oaFAKE0008',
+      label: 'Retired Pusher',
+      status: 'INACTIVE',
+      features: ['GROUP_PUSH'],
+    });
+    const result = filterAndSortApps(
+      [...apps, inactivePusher],
+      { ...baseState, statusFilter: 'INACTIVE', groupsFilter: 'no-groups' },
+      new Set(),
+    );
+    expect(result.map((a) => a.id)).toEqual([inactivePusher.id]);
   });
 });

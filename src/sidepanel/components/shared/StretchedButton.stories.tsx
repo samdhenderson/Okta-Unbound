@@ -3,7 +3,7 @@ import { fn } from 'storybook/test';
 import StretchedButton from './StretchedButton';
 import IconButton from './IconButton';
 import Checkbox from './Checkbox';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 
 const meta = {
   title: 'Shared/StretchedButton',

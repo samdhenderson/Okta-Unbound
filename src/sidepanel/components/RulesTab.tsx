@@ -6,6 +6,7 @@ import AlertMessage from './shared/AlertMessage';
 import RulesMetaRow from './rules/RulesMetaRow';
 import RulesStatsGrid from './rules/RulesStatsGrid';
 import RulesToolbar, { type RulesFilterType } from './rules/RulesToolbar';
+import type { RulesListView } from '../listViewRequest';
 import RulesListPanel from './rules/RulesListPanel';
 import RulesMergeBanner from './rules/RulesMergeBanner';
 import CurrentGroupRuleRelations from './rules/CurrentGroupRuleRelations';
@@ -38,8 +39,8 @@ interface RulesTabProps {
   selectedRuleId?: string | null;
   onRuleSelected?: () => void;
   onNavigateToGroup?: (groupId: string) => void;
-  scopeToGroupId?: string | null;
-  onScopeConsumed?: () => void;
+  listView?: RulesListView | null;
+  onListViewConsumed?: () => void;
   isActive?: boolean;
 }
 
@@ -50,8 +51,8 @@ const RulesTab: React.FC<RulesTabProps> = ({
   selectedRuleId,
   onRuleSelected,
   onNavigateToGroup,
-  scopeToGroupId,
-  onScopeConsumed,
+  listView,
+  onListViewConsumed,
   isActive = true,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -148,17 +149,36 @@ const RulesTab: React.FC<RulesTabProps> = ({
     if (isActive) void TabStateManager.markTabVisited('rules');
   }, [isActive]);
 
-  const scopeHandledRef = useRef<string | null>(null);
+  const listViewHandledRef = useRef<RulesListView | null>(null);
   useEffect(() => {
-    if (!scopeToGroupId) {
-      scopeHandledRef.current = null;
+    if (!listView) {
+      listViewHandledRef.current = null;
       return;
     }
-    if (!restoreAttempted || scopeHandledRef.current === scopeToGroupId) return;
-    scopeHandledRef.current = scopeToGroupId;
-    if (currentGroupId) setActiveFilter('current-group');
-    onScopeConsumed?.();
-  }, [scopeToGroupId, restoreAttempted, currentGroupId, onScopeConsumed]);
+    if (!restoreAttempted || listViewHandledRef.current === listView) return;
+    listViewHandledRef.current = listView;
+    setSearchQuery('');
+    setActiveFilter(listView);
+    onListViewConsumed?.();
+  }, [listView, restoreAttempted, onListViewConsumed]);
+
+  const listViewLoadRef = useRef<RulesListView | null>(null);
+  useEffect(() => {
+    if (!listView) {
+      listViewLoadRef.current = null;
+      return;
+    }
+    if (
+      restoreAttempted &&
+      rules.length === 0 &&
+      !data.isLoading &&
+      targetTabId != null &&
+      listViewLoadRef.current !== listView
+    ) {
+      listViewLoadRef.current = listView;
+      void loadRules(false);
+    }
+  }, [listView, restoreAttempted, rules.length, data.isLoading, targetTabId, loadRules]);
 
   const deepLinkLoadRef = useRef<string | null>(null);
   useEffect(() => {
@@ -228,6 +248,9 @@ const RulesTab: React.FC<RulesTabProps> = ({
     switch (activeFilter) {
       case 'active':
         result = result.filter((r) => r.status === 'ACTIVE');
+        break;
+      case 'paused':
+        result = result.filter((r) => r.status === 'INACTIVE');
         break;
       case 'conflicts':
         result = result.filter((r) => r.conflicts && r.conflicts.length > 0);

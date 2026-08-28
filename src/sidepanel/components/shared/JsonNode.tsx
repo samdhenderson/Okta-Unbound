@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 
 interface JsonNodeProps {
   keyLabel?: string;

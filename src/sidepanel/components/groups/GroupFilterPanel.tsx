@@ -1,8 +1,8 @@
 import React from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { FilterPill, SortPill } from '../shared';
-import Icon from '../overview/shared/Icon';
-import type { SortField, PushFilter } from './groupFilters';
+import Icon from '../shared/Icon';
+import type { SortField, PushFilter, RuleFilter } from './groupFilters';
 
 interface GroupFilterPanelProps {
   activeFilterCount: number;
@@ -12,6 +12,8 @@ interface GroupFilterPanelProps {
   setSizeFilter: (value: string) => void;
   pushFilter: PushFilter;
   setPushFilter: (value: PushFilter) => void;
+  ruleFilter: RuleFilter;
+  setRuleFilter: (value: RuleFilter) => void;
   pushAppFilter: Set<string>;
   setPushAppFilter: Dispatch<SetStateAction<Set<string>>>;
   availablePushApps: { id: string; name: string }[];
@@ -29,6 +31,8 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
   setSizeFilter,
   pushFilter,
   setPushFilter,
+  ruleFilter,
+  setRuleFilter,
   pushAppFilter,
   setPushAppFilter,
   availablePushApps,
@@ -52,6 +56,12 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
         )}
         {pushFilter && (
           <FilterChip label={`Push: ${pushFilter}`} onRemove={() => setPushFilter('')} />
+        )}
+        {ruleFilter && (
+          <FilterChip
+            label={ruleFilter === 'unruled' ? 'No rules' : 'Fed by a rule'}
+            onRemove={() => setRuleFilter('')}
+          />
         )}
         {pushAppFilter.size > 0 && (
           <FilterChip
@@ -107,6 +117,25 @@ const GroupFilterPanel: React.FC<GroupFilterPanelProps> = ({
               key={opt.value}
               active={sizeFilter === opt.value}
               onClick={() => setSizeFilter(opt.value)}
+            >
+              {opt.label}
+            </FilterPill>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-neutral-600 mb-1.5">Rules</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[
+            { value: '' as RuleFilter, label: 'All' },
+            { value: 'ruled' as RuleFilter, label: 'Fed by a rule' },
+            { value: 'unruled' as RuleFilter, label: 'No rules' },
+          ].map((opt) => (
+            <FilterPill
+              key={opt.value}
+              active={ruleFilter === opt.value}
+              onClick={() => setRuleFilter(opt.value)}
             >
               {opt.label}
             </FilterPill>

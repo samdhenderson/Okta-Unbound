@@ -1,7 +1,7 @@
 import type { FormattedRule, RuleStats, GroupSummary } from '../types';
 import type { RuleSortMode } from '../rules/similarity';
 
-export type TabName = 'overview' | 'rules' | 'users' | 'groups' | 'history';
+export type TabName = 'home' | 'rules' | 'users' | 'groups' | 'history';
 
 export interface BaseTabState {
   lastVisited: number;
@@ -9,7 +9,7 @@ export interface BaseTabState {
 
 export interface RulesTabState extends BaseTabState {
   searchQuery: string;
-  activeFilter: 'all' | 'active' | 'conflicts' | 'current-group';
+  activeFilter: 'all' | 'active' | 'paused' | 'conflicts' | 'current-group';
   sortMode: RuleSortMode;
   cachedRules: FormattedRule[] | null;
   cachedStats: RuleStats | null;
@@ -40,7 +40,7 @@ export interface HistoryTabState extends BaseTabState {
 }
 
 export interface AllTabStates {
-  overview: BaseTabState | null;
+  home: BaseTabState | null;
   rules: RulesTabState | null;
   users: UsersTabState | null;
   groups: GroupsTabState | null;

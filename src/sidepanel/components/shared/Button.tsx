@@ -1,5 +1,5 @@
 import React from 'react';
-import Icon, { type IconType } from '../overview/shared/Icon';
+import Icon, { type IconType } from '../shared/Icon';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
 export type ButtonSize = 'sm' | 'md' | 'lg';

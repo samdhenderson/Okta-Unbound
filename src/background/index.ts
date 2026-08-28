@@ -284,7 +284,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.sync.set({
       version,
       operationDelay: 100,
-      defaultView: 'overview',
+      defaultView: 'home',
     });
 
     setupAuditRetentionAlarm();

@@ -5,6 +5,7 @@ export interface EyebrowProps {
   as?: 'span' | 'div' | 'h3';
   className?: string;
   title?: string;
+  id?: string;
   testId?: string;
 }
 
@@ -16,8 +17,14 @@ const Eyebrow: React.FC<EyebrowProps> = ({
   className = '',
   title,
   testId,
+  id,
 }) => (
-  <Component className={`${eyebrowClasses} ${className}`} title={title} data-testid={testId}>
+  <Component
+    id={id}
+    className={`${eyebrowClasses} ${className}`}
+    title={title}
+    data-testid={testId}
+  >
     {children}
   </Component>
 );

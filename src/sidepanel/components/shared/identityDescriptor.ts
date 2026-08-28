@@ -1,4 +1,4 @@
-import type { IconType } from '../overview/shared/Icon';
+import type { IconType } from '../shared/Icon';
 import type { OktaAdminEntityType } from '../../../shared/utils/oktaUrl';
 import type { BadgeVariant } from './Badge';
 

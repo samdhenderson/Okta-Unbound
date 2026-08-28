@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Eyebrow, IconButton } from '../shared';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import type { UserInfo } from '../../../shared/types';
 
 interface DetectedUserBannerProps {

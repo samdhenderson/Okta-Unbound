@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import IconButton from './IconButton';
 import Badge, { type BadgeVariant } from './Badge';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -12,6 +12,7 @@ interface PageHeaderProps {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
+  cornerAction?: React.ReactNode;
   onBack?: () => void;
   backLabel?: string;
   leading?: React.ReactNode;
@@ -29,6 +30,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
   title,
   subtitle,
   actions,
+  cornerAction,
   badge,
   onBack,
   backLabel = 'Back',
@@ -130,10 +132,17 @@ const PageHeader: React.FC<PageHeaderProps> = ({
               )}
             </div>
           </div>
-          {(badge || actions) && (
-            <div className="shrink-0 flex items-center gap-2">
-              {badge && <Badge variant={badge.variant}>{badge.text}</Badge>}
-              {actions}
+          {(badge || actions || cornerAction) && (
+            <div
+              className={`shrink-0 flex flex-col items-end gap-2 ${hasRegion ? 'self-stretch' : ''}`}
+            >
+              {(badge || actions) && (
+                <div className="flex items-center gap-2">
+                  {badge && <Badge variant={badge.variant}>{badge.text}</Badge>}
+                  {actions}
+                </div>
+              )}
+              {cornerAction && <div className="mt-auto">{cornerAction}</div>}
             </div>
           )}
         </div>

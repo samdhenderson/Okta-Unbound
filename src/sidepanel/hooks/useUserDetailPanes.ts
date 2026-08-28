@@ -15,8 +15,16 @@ import { useProfileDisplayConfig } from './useProfileDisplayConfig';
 import { useUserApps, type AppsByGroupId } from './useUserApps';
 import type { UserAppAssignment, UserAppsResult } from './useOktaApi/userOperations';
 import type { RuleInventoryState } from './useUserMemberships';
+import { userDisplayName } from '../../shared/utils/userDisplay';
+import { useWorkingSetEntry } from './useWorkingSetEntry';
 
 export type UserDetailPane = 'groups' | 'apps' | 'profile';
+
+const PANE_LABEL: Record<UserDetailPane, string> = {
+  groups: 'Groups',
+  apps: 'Apps',
+  profile: 'Profile',
+};
 
 export interface UseUserDetailPanesOptions {
   user: OktaUser | null;
@@ -63,6 +71,15 @@ export function useUserDetailPanes({
     setPaneUserId(userId);
     setPane('groups');
   }
+
+  useWorkingSetEntry({
+    origin: oktaOrigin,
+    kind: 'user',
+    id: userId,
+    name: user ? userDisplayName(user) : null,
+    pane: PANE_LABEL[pane],
+    enabled,
+  });
 
   const appsResult = useUserApps(userId, {
     targetTabId: targetTabId ?? null,

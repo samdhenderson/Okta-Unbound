@@ -1,6 +1,6 @@
 import React from 'react';
 import { IconButton } from '../shared';
-import Icon from '../overview/shared/Icon';
+import Icon from '../shared/Icon';
 import type { MemberFilter } from './memberAnalytics';
 
 interface ActiveFilterChipsProps {

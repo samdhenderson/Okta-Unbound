@@ -1,6 +1,6 @@
 import React from 'react';
-import Icon from '../../overview/shared/Icon';
-import type { IconType } from '../../overview/shared/Icon';
+import Icon from '../../shared/Icon';
+import type { IconType } from '../../shared/Icon';
 import type { TabKey } from './comparisonAnalytics';
 
 interface ComparisonTabBarProps {
