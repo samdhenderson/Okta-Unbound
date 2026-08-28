@@ -5,6 +5,7 @@ import { nextPageUrl } from './useOktaApi/utilities';
 import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import type { RawOktaGroup } from '../components/groups/groupSummary';
 import { createLogger } from '../../shared/utils/logger';
+import { oktaGroupRuleSchema, parseOktaList } from '../../shared/schemas/okta';
 
 const log = createLogger('fetchGroupRulesRequest');
 
@@ -56,9 +57,10 @@ export async function fetchGroupRulesRequest(
       if (!response.success) {
         return response;
       }
-      const page: OktaGroupRule[] = response.data || [];
-      rules = rules.concat(page);
-      nextUrl = nextPageUrl(nextUrl, response.headers?.link, page.length);
+      const page = parseOktaList(oktaGroupRuleSchema, response.data, 'GET /api/v1/groups/rules');
+      rules = rules.concat(page as unknown as OktaGroupRule[]);
+      const rowsReturned = Array.isArray(response.data) ? response.data.length : 0;
+      nextUrl = nextPageUrl(nextUrl, response.headers?.link, rowsReturned);
     }
 
     log.debug('Fetched rules (total across all pages)', { count: rules.length });

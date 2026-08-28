@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import type { GroupSummary, AuditLogEntry, OktaUser } from '../../shared/types';
+import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { useOktaApi } from './useOktaApi';
+import { useActorNotice } from './useActorNotice';
 import { useProgress } from '../contexts/ProgressContext';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
@@ -27,6 +29,8 @@ export interface UseGroupMergeReturn {
   plan: MergePlan | null;
   results: MergeResults | null;
   error: string | null;
+  actorNotice: AlertMessageData | null;
+  dismissActorNotice: () => void;
   preview: (survivor: GroupSummary, sources: GroupSummary[]) => Promise<void>;
   execute: () => Promise<void>;
   reset: () => void;
@@ -50,6 +54,7 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     removeUserFromGroup,
   } = api;
   const { startProgress, updateProgress, completeProgress } = useProgress();
+  const { actorNotice, noteActor, dismissActorNotice } = useActorNotice();
 
   const [phase, setPhase] = useState<MergePhase>('idle');
   const [plan, setPlan] = useState<MergePlan | null>(null);
@@ -105,6 +110,7 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     const res: MergeResults = { copied: 0, copyFailed: 0, removed: 0, removeFailed: 0 };
 
     const actor = await getCurrentUser();
+    noteActor(actor);
 
     startProgress('Merging groups', `Copying members into ${plan.survivor.name}…`, total, false);
 
@@ -219,6 +225,7 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
   }, [
     plan,
     getCurrentUser,
+    noteActor,
     makeApiRequest,
     removeUserFromGroup,
     startProgress,
@@ -231,7 +238,18 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     setPlan(null);
     setResults(null);
     setError(null);
-  }, []);
+    dismissActorNotice();
+  }, [dismissActorNotice]);
 
-  return { phase, plan, results, error, preview, execute, reset };
+  return {
+    phase,
+    plan,
+    results,
+    error,
+    actorNotice,
+    dismissActorNotice,
+    preview,
+    execute,
+    reset,
+  };
 }

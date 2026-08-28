@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
 import type { FormattedRule, OktaGroupRule, AuditLogEntry } from '../../shared/types';
 import type { RetiredRuleSnapshot } from '../../shared/undoTypes';
+import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { useOktaApi } from './useOktaApi';
+import { useActorNotice } from './useActorNotice';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
 import {
@@ -53,6 +55,8 @@ export interface UseRuleConsolidationReturn {
   preview: ConsolidationPreview | null;
   result: ConsolidationResult | null;
   error: string | null;
+  actorNotice: AlertMessageData | null;
+  dismissActorNotice: () => void;
   openAddTarget: (rule: FormattedRule) => void;
   chooseGroup: (groupId: string, groupName: string) => void;
   openMerge: (baseRuleId: string, cluster: RetireRuleRef[], unionGroupIds: string[]) => void;
@@ -74,6 +78,7 @@ export function useRuleConsolidation({
     deactivateGroupRule,
     getCurrentUser,
   } = api;
+  const { actorNotice, noteActor, dismissActorNotice } = useActorNotice();
 
   const [phase, setPhase] = useState<ConsolidationPhase>('idle');
   const [baseRule, setBaseRule] = useState<OktaGroupRule | null>(null);
@@ -167,6 +172,7 @@ export function useRuleConsolidation({
     const startTime = Date.now();
 
     const actor = await getCurrentUser();
+    noteActor(actor);
 
     try {
       const addGroupIds =
@@ -268,6 +274,7 @@ export function useRuleConsolidation({
     deleteGroupRule,
     getRawGroupRule,
     getCurrentUser,
+    noteActor,
     onError,
     reload,
   ]);
@@ -278,7 +285,20 @@ export function useRuleConsolidation({
     setPreview(null);
     setResult(null);
     setError(null);
-  }, []);
+    dismissActorNotice();
+  }, [dismissActorNotice]);
 
-  return { phase, preview, result, error, openAddTarget, chooseGroup, openMerge, execute, close };
+  return {
+    phase,
+    preview,
+    result,
+    error,
+    actorNotice,
+    dismissActorNotice,
+    openAddTarget,
+    chooseGroup,
+    openMerge,
+    execute,
+    close,
+  };
 }

@@ -3,6 +3,7 @@ import Modal from './shared/Modal';
 import Button from './shared/Button';
 import Input from './shared/Input';
 import LoadingSpinner from './shared/LoadingSpinner';
+import AlertMessage, { type AlertMessageData } from './shared/AlertMessage';
 import type {
   ConsolidationPhase,
   ConsolidationPreview,
@@ -16,6 +17,8 @@ interface RuleConsolidationModalProps {
   preview: ConsolidationPreview | null;
   result: ConsolidationResult | null;
   error: string | null;
+  actorNotice?: AlertMessageData | null;
+  onDismissActorNotice?: () => void;
   searchGroups: (query: string) => Promise<Array<{ id: string; name: string }>>;
   onChooseGroup: (groupId: string, groupName: string) => void;
   onExecute: () => void;
@@ -27,6 +30,8 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
   preview,
   result,
   error,
+  actorNotice,
+  onDismissActorNotice,
   searchGroups,
   onChooseGroup,
   onExecute,
@@ -78,6 +83,10 @@ const RuleConsolidationModal: React.FC<RuleConsolidationModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Consolidate rule" size="lg" footer={footer}>
+      {actorNotice && (
+        <AlertMessage message={actorNotice} onDismiss={onDismissActorNotice} className="mb-4" />
+      )}
+
       {phase === 'loading' && <LoadingSpinner size="xl" centered message="Loading rule…" />}
 
       {phase === 'select' && (

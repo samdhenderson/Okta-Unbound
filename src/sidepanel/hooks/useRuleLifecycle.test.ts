@@ -289,6 +289,51 @@ describe('useRuleLifecycle thrown error', () => {
   });
 });
 
+describe('useRuleLifecycle actor-unavailable notice', () => {
+  const NOTICE_TEXT =
+    "Couldn't confirm your signed-in identity. This action will be recorded without an actor.";
+
+  it('raises the notice and still performs the rule change when the actor is unavailable', async () => {
+    api.getCurrentUser.mockResolvedValue({ kind: 'unavailable', reason: 'no-email' });
+    const { result, reload, onError } = setup();
+
+    await act(async () => {
+      await result.current.activateRule(RULE_ID);
+    });
+
+    expect(result.current.actorNotice).toEqual({ text: NOTICE_TEXT, type: 'warning' });
+    expect(api.activateGroupRule).toHaveBeenCalledWith(RULE_ID);
+    expect(onlyAuditEntry().result).toBe('success');
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('raises no notice when the actor resolved', async () => {
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.deactivateRule(RULE_ID);
+    });
+
+    expect(result.current.actorNotice).toBeNull();
+  });
+
+  it('clears the notice when the admin dismisses it', async () => {
+    api.getCurrentUser.mockResolvedValue({ kind: 'unavailable', reason: 'threw' });
+    const { result } = setup();
+
+    await act(async () => {
+      await result.current.activateRule(RULE_ID);
+    });
+    expect(result.current.actorNotice).not.toBeNull();
+
+    act(() => {
+      result.current.dismissActorNotice();
+    });
+    expect(result.current.actorNotice).toBeNull();
+  });
+});
+
 describe('useRuleLifecycle without a connected tab', () => {
   it('no-ops: no mutation, no audit entry, no error', async () => {
     const reload = vi.fn().mockResolvedValue(undefined);

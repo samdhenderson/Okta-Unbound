@@ -4,6 +4,7 @@ import GroupMergeModal from './GroupMergeModal';
 import type { GroupSummary } from '../../../shared/types';
 import type { MergePlan } from '../../../shared/membership/mergePlan';
 import type { MergeResults } from '../../hooks/useGroupMerge';
+import { ACTOR_UNAVAILABLE_NOTICE } from '../../hooks/useActorNotice';
 import { mockUsers } from '../../../test/mocks/fixtures';
 
 const selectedGroups: GroupSummary[] = [
@@ -96,6 +97,11 @@ const meta = {
     plan: { description: 'The previewed merge plan (member delta and per-source blockers).' },
     results: { description: 'Per-operation counts once the merge has run.' },
     error: { description: 'Error message when the merge fails.' },
+    actorNotice: {
+      description:
+        'Non-blocking notice for a run whose acting admin could not be confirmed, so the audit entries carry no actor (D-013c).',
+    },
+    onDismissActorNotice: { description: 'Dismiss the actor-unavailable notice.' },
     onPreview: { description: 'Load the preview for the chosen survivor + the remaining sources.' },
     onExecute: { description: 'Execute the previewed plan.' },
     onClose: { description: 'Close + reset.' },
@@ -140,6 +146,15 @@ export const Done: Story = {
 
 export const ErrorState: Story = {
   args: { phase: 'error', results: doneResults, error: 'Network error while emptying group.' },
+};
+
+export const ActorUnavailable: Story = {
+  args: {
+    phase: 'done',
+    results: doneResults,
+    actorNotice: ACTOR_UNAVAILABLE_NOTICE,
+    onDismissActorNotice: fn(),
+  },
 };
 
 export const Closed: Story = {
