@@ -26,6 +26,8 @@ vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));
 
 import { createRuleImpactOperations } from './ruleImpact';
 import type { CoreApi } from './core';
+import { emptySyncMeta } from '../../../shared/snapshot/syncMeta';
+import type { SyncMeta } from '../../../shared/snapshot/types';
 import type { OktaGroupRule, OktaUser } from '../../../shared/types';
 import { OperationCancelledError } from '../../../shared/scheduler/cancellation';
 import { makeFakeCore, sequentialRunOperation } from '@/test/factories/coreApi';
@@ -121,12 +123,19 @@ function seedRulesCache(rawRules: OktaGroupRule[], ageMs = 0) {
   vi.mocked(chrome.storage.local.remove).mockResolvedValue(undefined as never);
 }
 
+function seedRulesMeta(patch: Partial<SyncMeta>, origin = ORIGIN) {
+  const table = (idbTables.get('syncMeta') ?? new Map()) as Map<string, unknown>;
+  table.set(`${origin}::rules`, { ...emptySyncMeta(origin, 'rules'), ...patch });
+  idbTables.set('syncMeta', table);
+}
+
 function seedSnapshotRules(rules: OktaGroupRule[], origin = ORIGIN) {
   const table = (idbTables.get('rules') ?? new Map()) as Map<string, unknown>;
   for (const entity of rules) {
     table.set(`${origin}::${entity.id}`, { origin, id: entity.id, entity, syncedAt: WALKED_AT });
   }
   idbTables.set('rules', table);
+  seedRulesMeta({ complete: true, lastFullWalkAt: WALKED_AT, itemCount: rules.length }, origin);
 }
 
 function routeMetaOnly() {
@@ -275,5 +284,52 @@ describe('fetchRawRules snapshot consultation', () => {
       String(c[0]).startsWith('/api/v1/groups/rules'),
     );
     expect(rulesListings).toHaveLength(1);
+  });
+
+  it('does not serve a mid-walk snapshot as the org, paginating instead', async () => {
+    const analyzedRule: OktaGroupRule = { ...cachedRawRule, id: '0prFAKE9', name: 'Rule Nine' };
+    const staleGhostRule: OktaGroupRule = { ...cachedRawRule, id: '0prFAKE1' };
+    seedSnapshotRules([analyzedRule, staleGhostRule]);
+    seedRulesMeta({
+      complete: false,
+      cursor: '/api/v1/groups/rules?after=0prFAKE1',
+      lastFullWalkAt: null,
+    });
+    const makeApiRequest = vi.fn(async (endpoint: string) => {
+      if (endpoint.startsWith('/api/v1/groups/rules')) {
+        return { success: true, data: [analyzedRule], headers: {} };
+      }
+      return {
+        success: true,
+        data: { id: '00gFAKE1', profile: { name: 'Target Group' }, type: 'OKTA_GROUP' },
+      };
+    });
+    const core = makeCore({ makeApiRequest });
+    const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, ORIGIN);
+
+    const summary = await captureRuleImpact({ ...analyzedInput, id: '0prFAKE9' });
+
+    const rulesListings = makeApiRequest.mock.calls.filter((c) =>
+      String(c[0]).startsWith('/api/v1/groups/rules'),
+    );
+    expect(rulesListings).toHaveLength(1);
+    expect(summary.totalLosing).toBe(1);
+  });
+
+  it('serves a complete-but-empty snapshot without re-paginating', async () => {
+    seedRulesMeta({ complete: true, lastFullWalkAt: WALKED_AT, itemCount: 0 });
+    const makeApiRequest = routeMetaOnly();
+    const core = makeCore({ makeApiRequest });
+    const getAllGroupMembers = vi.fn().mockResolvedValue([member]);
+    const { captureRuleImpact } = createRuleImpactOperations(core, getAllGroupMembers, ORIGIN);
+
+    const summary = await captureRuleImpact(analyzedInput);
+
+    const rulesListings = makeApiRequest.mock.calls.filter((c) =>
+      String(c[0]).startsWith('/api/v1/groups/rules'),
+    );
+    expect(rulesListings).toHaveLength(0);
+    expect(summary.totalLosing).toBe(0);
   });
 });

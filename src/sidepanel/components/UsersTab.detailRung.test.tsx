@@ -17,10 +17,8 @@ vi.mock('../hooks/useUserContext', () => ({
   useUserContext: () => userContext.current,
 }));
 
-const rulesCacheGet = vi.hoisted(() => vi.fn());
-const rulesCacheSet = vi.hoisted(() => vi.fn());
 vi.mock('../../shared/rulesCache', () => ({
-  RulesCache: { get: rulesCacheGet, set: rulesCacheSet },
+  RulesCache: { get: vi.fn().mockResolvedValue(null), set: vi.fn() },
 }));
 
 vi.mock('../../shared/undoManager', () => ({
@@ -104,6 +102,17 @@ const RULE = {
   },
 };
 
+const RAW_RULE = {
+  id: RULE.id,
+  name: RULE.name,
+  status: RULE.status,
+  type: 'group_rule',
+  created: '2026-01-01T00:00:00.000Z',
+  lastUpdated: '2026-01-01T00:00:00.000Z',
+  conditions: RULE.conditions,
+  actions: { assignUserToGroups: { groupIds: [gRuleFed.id] } },
+};
+
 const classified = (group: OktaGroup, over: Partial<GroupMembership> = {}): GroupMembership => ({
   group,
   membershipType: 'DIRECT',
@@ -151,11 +160,8 @@ beforeEach(() => {
   route(/^\/api\/v1\/users\?/, () => ({ success: true, data: [] }));
   route(new RegExp(`^/api/v1/users/${ADA_ID}$`), () => ({ success: true, data: ada() }));
   route(new RegExp(`^/api/v1/users/${ADA_ID}/groups`), () => ({ success: true, data: [] }));
-  route(/^\/api\/v1\/groups\/rules/, () => ({ success: true, data: [] }));
+  route(/^\/api\/v1\/groups\/rules/, () => ({ success: true, data: [RAW_RULE] }));
   route(/^\/api\/v1\/apps/, () => ({ success: true, data: [], headers: {} }));
-
-  rulesCacheGet.mockResolvedValue({ rules: [RULE] });
-  rulesCacheSet.mockResolvedValue(undefined);
 
   runtimeSendMessage.mockImplementation(async (msg: any) => {
     if (msg.action !== 'scheduleApiRequest') return { success: false };
@@ -198,7 +204,6 @@ describe('detail rung: memberships render with their source line', () => {
 
   it('says an UNKNOWN membership was never classified rather than showing nothing', async () => {
     const uev = userEvent.setup();
-    rulesCacheGet.mockResolvedValue(null);
     route(/^\/api\/v1\/groups\/rules/, () => ({ success: false, error: 'rules unavailable' }));
     route(new RegExp(`^/api/v1/users/${ADA_ID}/groups`), () => ({
       success: true,

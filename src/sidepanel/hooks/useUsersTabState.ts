@@ -110,6 +110,7 @@ export function useUsersTabState({
 
   const { memberships, rules, loadMemberships, clearMemberships } = useUserMemberships({
     targetTabId,
+    oktaOrigin,
     onError: setError,
     onLoadingChange: setIsLoadingMemberships,
   });
