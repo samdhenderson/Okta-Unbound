@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import AlertMessage from './AlertMessage';
+import { ACTOR_UNAVAILABLE_NOTICE } from '../../hooks/useActorNotice';
 
 const meta = {
   title: 'Shared/AlertMessage',
@@ -93,6 +94,10 @@ export const DangerWithAction: Story = {
       variant: 'danger',
     },
   },
+};
+
+export const ActorUnavailable: Story = {
+  args: { message: ACTOR_UNAVAILABLE_NOTICE },
 };
 
 export const NoDismiss: Story = {

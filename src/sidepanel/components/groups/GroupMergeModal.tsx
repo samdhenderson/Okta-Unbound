@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import Modal from '../shared/Modal';
 import Button from '../shared/Button';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import AlertMessage, { type AlertMessageData } from '../shared/AlertMessage';
 import StatCard from '../overview/shared/StatCard';
 import type { GroupSummary } from '../../../shared/types';
 import type { MergePhase, MergeResults } from '../../hooks/useGroupMerge';
@@ -14,6 +15,8 @@ interface GroupMergeModalProps {
   plan: MergePlan | null;
   results: MergeResults | null;
   error: string | null;
+  actorNotice?: AlertMessageData | null;
+  onDismissActorNotice?: () => void;
   onPreview: (survivor: GroupSummary, sources: GroupSummary[]) => void;
   onExecute: () => void;
   onClose: () => void;
@@ -26,6 +29,8 @@ const GroupMergeModal: React.FC<GroupMergeModalProps> = ({
   plan,
   results,
   error,
+  actorNotice,
+  onDismissActorNotice,
   onPreview,
   onExecute,
   onClose,
@@ -73,6 +78,10 @@ const GroupMergeModal: React.FC<GroupMergeModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Merge groups" size="lg" footer={footer}>
+      {actorNotice && (
+        <AlertMessage message={actorNotice} onDismiss={onDismissActorNotice} className="mb-4" />
+      )}
+
       {showSelect && (
         <div className="space-y-3">
           <p className="text-sm text-neutral-600">

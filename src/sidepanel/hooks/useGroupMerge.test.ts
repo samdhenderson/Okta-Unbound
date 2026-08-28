@@ -100,3 +100,43 @@ describe('useGroupMerge audit attribution', () => {
     expect(result.current.phase).toBe('done');
   });
 });
+
+describe('useGroupMerge actor-unavailable notice', () => {
+  const NOTICE_TEXT =
+    "Couldn't confirm your signed-in identity. This action will be recorded without an actor.";
+
+  it('raises the notice and still merges when the actor is unavailable', async () => {
+    api.getCurrentUser.mockResolvedValue({ kind: 'unavailable', reason: 'no-email' });
+
+    const result = await runMerge();
+
+    expect(result.current.actorNotice).toEqual({ text: NOTICE_TEXT, type: 'warning' });
+    expect(api.makeApiRequest).toHaveBeenCalledTimes(1);
+    expect(api.removeUserFromGroup).toHaveBeenCalledTimes(1);
+    expect(result.current.phase).toBe('done');
+    expect(result.current.results).toEqual({
+      copied: 1,
+      copyFailed: 0,
+      removed: 1,
+      removeFailed: 0,
+    });
+  });
+
+  it('raises no notice when the actor resolved', async () => {
+    const result = await runMerge();
+
+    expect(result.current.actorNotice).toBeNull();
+  });
+
+  it('clears the notice when the wizard is reset', async () => {
+    api.getCurrentUser.mockResolvedValue({ kind: 'unavailable', reason: 'failed' });
+
+    const result = await runMerge();
+    expect(result.current.actorNotice).not.toBeNull();
+
+    act(() => {
+      result.current.reset();
+    });
+    expect(result.current.actorNotice).toBeNull();
+  });
+});

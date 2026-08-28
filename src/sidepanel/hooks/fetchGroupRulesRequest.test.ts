@@ -190,4 +190,56 @@ describe('fetchGroupRulesRequest', () => {
 
     expect(result).toEqual({ success: false, error: 'scheduler down' });
   });
+
+  describe('boundary validation', () => {
+    it('drops a malformed row instead of poisoning the whole load', async () => {
+      const poison = rawRule({
+        id: 'rBAD',
+        name: 'Bad',
+        conditions: { expression: { value: 42 } },
+      });
+      const good = rawRule({ id: 'rOK', name: 'OK' });
+      const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([poison, good])]]);
+
+      const result = await fetchGroupRulesRequest(makeApiRequest);
+
+      expect(result.success).toBe(true);
+      expect(result.rules?.map((r) => r.id)).toEqual(['rOK']);
+      expect(result.rawRules?.map((r) => r.id)).toEqual(['rOK']);
+      expect(result.stats).toEqual({ total: 1, active: 1, inactive: 0, conflicts: 0 });
+    });
+
+    it('keeps a non-string group id out of every consumer-facing shape', async () => {
+      const poison = rawRule({
+        id: 'rBAD',
+        name: 'Bad',
+        actions: { assignUserToGroups: { groupIds: [{ evil: true }] } },
+      });
+      const good = rawRule({ id: 'rOK', name: 'OK' });
+      const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([poison, good])]]);
+
+      const result = await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
+
+      expect(result.rawRules).toEqual([good]);
+      expect(result.rules?.flatMap((r) => r.groupNames)).toEqual(['gX']);
+      expect(result.rules?.flatMap((r) => r.groupIds)).toEqual(['gX']);
+      expect(result.stats?.total).toBe(1);
+    });
+
+    it('keeps paginating when every row on a page was dropped', async () => {
+      const makeApiRequest = vi
+        .fn()
+        .mockResolvedValueOnce(
+          ok([rawRule({ id: 'rBAD', status: 'PENDING' })], {
+            link: '<https://acme.okta.com/api/v1/groups/rules?after=CUR&limit=200>; rel="next"',
+          }),
+        )
+        .mockResolvedValueOnce(ok([rawRule({ id: 'rOK', name: 'OK' })]));
+
+      const result = await fetchGroupRulesRequest(makeApiRequest);
+
+      expect(makeApiRequest).toHaveBeenCalledTimes(2);
+      expect(result.rules?.map((r) => r.id)).toEqual(['rOK']);
+    });
+  });
 });

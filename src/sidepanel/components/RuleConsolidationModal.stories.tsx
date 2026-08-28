@@ -6,6 +6,7 @@ import type {
   ConsolidationResult,
   RetireRuleRef,
 } from '../hooks/useRuleConsolidation';
+import { ACTOR_UNAVAILABLE_NOTICE } from '../hooks/useActorNotice';
 
 const mockGroupHits = [
   { id: 'grp1', name: 'Engineering' },
@@ -69,6 +70,11 @@ const meta = {
     preview: { description: 'The dry-run diff of the resulting rule, or null before a preview.' },
     result: { description: 'The outcome of a completed run, or null until done.' },
     error: { description: 'Failure message to surface, or null.' },
+    actorNotice: {
+      description:
+        'Non-blocking notice for a run whose acting admin could not be confirmed, so the audit entry carries no actor (D-013c).',
+    },
+    onDismissActorNotice: { description: 'Dismiss the actor-unavailable notice.' },
     searchGroups: { description: 'Search groups by name (add-target select step).' },
     onChooseGroup: { description: 'Choose the group to add.' },
     onExecute: { description: 'Execute the consolidation.' },
@@ -113,4 +119,13 @@ export const Done: Story = {
 
 export const ErrorState: Story = {
   args: { phase: 'error', error: 'Failed to create the consolidated rule: rate limited.' },
+};
+
+export const ActorUnavailable: Story = {
+  args: {
+    phase: 'done',
+    result: mockResult,
+    actorNotice: ACTOR_UNAVAILABLE_NOTICE,
+    onDismissActorNotice: fn(),
+  },
 };

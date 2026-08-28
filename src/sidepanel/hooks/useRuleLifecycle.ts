@@ -1,10 +1,12 @@
 import { useCallback } from 'react';
 import type { FormattedRule, AuditLogEntry } from '../../shared/types';
 import type { Actor } from './useOktaApi/core';
+import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
 import { createLogger } from '../../shared/utils/logger';
 import { useOktaApi } from './useOktaApi';
+import { useActorNotice } from './useActorNotice';
 
 const log = createLogger('RulesTab');
 
@@ -39,6 +41,8 @@ interface UseRuleLifecycleOptions {
 interface UseRuleLifecycleReturn {
   activateRule: (ruleId: string) => Promise<void>;
   deactivateRule: (ruleId: string) => Promise<void>;
+  actorNotice: AlertMessageData | null;
+  dismissActorNotice: () => void;
 }
 
 export function useRuleLifecycle({
@@ -50,6 +54,7 @@ export function useRuleLifecycle({
   const { getCurrentUser, activateGroupRule, deactivateGroupRule } = useOktaApi({
     targetTabId: targetTabId ?? null,
   });
+  const { actorNotice, noteActor, dismissActorNotice } = useActorNotice();
 
   const runLifecycle = useCallback(
     async (ruleId: string, kind: LifecycleKind) => {
@@ -63,6 +68,7 @@ export function useRuleLifecycle({
         log.debug(`${cfg.gerund} rule:`, ruleId);
 
         actor = await getCurrentUser();
+        noteActor(actor);
 
         const rule = rules.find((r) => r.id === ruleId);
         const ruleName = rule?.name || 'Unknown Rule';
@@ -158,7 +164,16 @@ export function useRuleLifecycle({
         });
       }
     },
-    [targetTabId, rules, reload, onError, getCurrentUser, activateGroupRule, deactivateGroupRule],
+    [
+      targetTabId,
+      rules,
+      reload,
+      onError,
+      getCurrentUser,
+      noteActor,
+      activateGroupRule,
+      deactivateGroupRule,
+    ],
   );
 
   const activateRule = useCallback(
@@ -170,5 +185,5 @@ export function useRuleLifecycle({
     [runLifecycle],
   );
 
-  return { activateRule, deactivateRule };
+  return { activateRule, deactivateRule, actorNotice, dismissActorNotice };
 }

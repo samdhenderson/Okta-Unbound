@@ -301,6 +301,10 @@ const RulesTab: React.FC<RulesTabProps> = ({
           />
         )}
 
+        {lifecycle.actorNotice && (
+          <AlertMessage message={lifecycle.actorNotice} onDismiss={lifecycle.dismissActorNotice} />
+        )}
+
         {rules.length > 0 && <RulesStatsGrid stats={stats} />}
 
         {rules.length > 0 && (
@@ -371,6 +375,8 @@ const RulesTab: React.FC<RulesTabProps> = ({
         preview={consolidation.preview}
         result={consolidation.result}
         error={consolidation.error}
+        actorNotice={consolidation.actorNotice}
+        onDismissActorNotice={consolidation.dismissActorNotice}
         searchGroups={api.searchGroups}
         onChooseGroup={consolidation.chooseGroup}
         onExecute={consolidation.execute}
