@@ -1,6 +1,7 @@
 import type jsep from 'jsep';
 import {
-  RULE_CONNECTIVE_OPERATORS,
+  RULE_CONJUNCTIVE_OPERATORS,
+  RULE_DISJUNCTIVE_OPERATORS,
   checkRuleNodeSupport,
   evaluateParsedRule,
   evaluateRuleNode,
@@ -35,6 +36,7 @@ export interface ClauseExplanation {
   readonly reasonCode?: RuleUnevaluableReason;
   readonly groupReferences?: readonly ClauseGroupReference[];
   readonly groupRequirement?: ClauseGroupRequirement;
+  readonly alternatives?: readonly ClauseExplanation[];
 }
 
 export interface RuleExplanationSummary {
@@ -158,7 +160,7 @@ function collectClauseNodes(
   limit: number,
 ): void {
   const binary = asBinaryExpression(node);
-  if (binary && RULE_CONNECTIVE_OPERATORS.has(binary.operator)) {
+  if (binary && RULE_CONJUNCTIVE_OPERATORS.has(binary.operator)) {
     collectClauseNodes(binary.left, collection, limit);
     collectClauseNodes(binary.right, collection, limit);
     return;
@@ -254,6 +256,16 @@ function groupClauseFactsOf(
   return { requirement: negated ? 'non-member' : 'member', references };
 }
 
+function collectAlternativeNodes(node: jsep.Expression, into: jsep.Expression[]): void {
+  const binary = asBinaryExpression(node);
+  if (binary && RULE_DISJUNCTIVE_OPERATORS.has(binary.operator)) {
+    collectAlternativeNodes(binary.left, into);
+    collectAlternativeNodes(binary.right, into);
+    return;
+  }
+  into.push(node);
+}
+
 function explainClause(
   node: jsep.Expression,
   user: OktaUser,
@@ -262,12 +274,21 @@ function explainClause(
   const expressionText = stringifyNode(node);
   const resolvedValue = resolveClauseValue(node, user);
   const groupFacts = groupClauseFactsOf(node, groups);
+  const disjunction = asBinaryExpression(node);
+  let alternatives: ClauseExplanation[] | undefined;
+  if (disjunction && RULE_DISJUNCTIVE_OPERATORS.has(disjunction.operator)) {
+    const nodes: jsep.Expression[] = [];
+    collectAlternativeNodes(node, nodes);
+    alternatives = nodes.map((alt) => explainClause(alt, user, groups));
+  }
+
   const base = {
     expressionText,
     resolvedValue,
     ...(groupFacts
       ? { groupReferences: groupFacts.references, groupRequirement: groupFacts.requirement }
       : {}),
+    ...(alternatives ? { alternatives } : {}),
   };
 
   const support = checkRuleNodeSupport(node, { hasGroupContext: groups !== undefined });

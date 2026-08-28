@@ -28,6 +28,10 @@ export function formatDateShort(date: DateInput): string {
   }
 }
 
+function plural(count: number, unit: string): string {
+  return `${count} ${unit}${count === 1 ? '' : 's'} ago`;
+}
+
 export function getRelativeTime(dateString: string | null | undefined): string | null {
   if (!dateString) return null;
   try {
@@ -37,10 +41,10 @@ export function getRelativeTime(dateString: string | null | undefined): string |
 
     if (diffDays === 0) return 'today';
     if (diffDays === 1) return 'yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-    return `${Math.floor(diffDays / 365)} years ago`;
+    if (diffDays < 7) return plural(diffDays, 'day');
+    if (diffDays < 30) return plural(Math.floor(diffDays / 7), 'week');
+    if (diffDays < 365) return plural(Math.floor(diffDays / 30), 'month');
+    return plural(Math.floor(diffDays / 365), 'year');
   } catch {
     return null;
   }

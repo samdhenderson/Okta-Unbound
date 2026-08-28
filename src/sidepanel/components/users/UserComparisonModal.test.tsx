@@ -637,7 +637,7 @@ describe('UserComparisonModal', () => {
       await selectComparedUser();
 
       expect(await screen.findByText('··')).toBeInTheDocument();
-      expect(screen.getByText('— —')).toBeInTheDocument();
+      expect(screen.getByText('· ·')).toBeInTheDocument();
       expect(screen.queryByText('Match')).not.toBeInTheDocument();
 
       releaseGroups({ success: true, data: scenario.comparedGroups });
