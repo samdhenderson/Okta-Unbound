@@ -78,6 +78,10 @@ export const RULE_CONNECTIVE_OPERATORS: ReadonlySet<string> = new Set([
   ...OR_OPERATORS,
 ]);
 
+export const RULE_CONJUNCTIVE_OPERATORS: ReadonlySet<string> = new Set([...AND_OPERATORS]);
+
+export const RULE_DISJUNCTIVE_OPERATORS: ReadonlySet<string> = new Set([...OR_OPERATORS]);
+
 const SUPPORTED_BINARY_OPERATORS: ReadonlySet<string> = new Set([
   ...EQUALITY_OPERATORS,
   ...INEQUALITY_OPERATORS,

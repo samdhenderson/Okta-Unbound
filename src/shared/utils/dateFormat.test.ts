@@ -51,4 +51,12 @@ describe('getRelativeTime', () => {
     expect(getRelativeTime('2026-06-28T12:00:00Z')).toBe('2 weeks ago');
     expect(getRelativeTime('2026-05-14T12:00:00Z')).toBe('2 months ago');
   });
+
+  it('says one week, not one weeks', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-14T12:00:00Z'));
+    expect(getRelativeTime('2026-07-05T12:00:00Z')).toBe('1 week ago');
+    expect(getRelativeTime('2026-06-04T12:00:00Z')).toBe('1 month ago');
+    expect(getRelativeTime('2025-06-14T12:00:00Z')).toBe('1 year ago');
+  });
 });

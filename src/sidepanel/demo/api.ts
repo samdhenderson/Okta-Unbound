@@ -1,10 +1,13 @@
-import type { OktaGroup, OktaUser } from '../../shared/types';
+import type { MemberMfaResult, OktaGroup, OktaUser } from '../../shared/types';
+import { summarizeFactors } from '../../shared/utils/mfaUtils';
 import {
   summarizeRuleImpact,
   toImpactRule,
   type RuleImpactSummary,
   type TargetGroupMembers,
 } from '../../shared/membership/ruleImpact';
+import type { DemoControls } from './control';
+import { demoFactorsFor } from './factors';
 import { demoGroupMembers, demoUserGroups } from './memberships';
 import { demoApps, demoGroups, demoGroupsById, demoRules } from './snapshot';
 import { demoUsers, demoUsersById } from './users';
@@ -107,6 +110,9 @@ export async function demoMakeApiRequest(endpoint?: string): Promise<DemoResult>
     const q = queryParam(queryString, 'q') || queryParam(queryString, 'search');
     return ok(demoUsers.filter((u) => matchesQuery(u, q)).slice(0, 20));
   }
+
+  const factorsUserId = captured(/^\/api\/v1\/users\/([^/]+)\/factors$/);
+  if (factorsUserId !== undefined) return ok(demoFactorsFor(factorsUserId));
 
   const singleUserId = captured(/^\/api\/v1\/users\/([^/]+)$/);
   if (singleUserId !== undefined) return ok(demoUsersById.get(singleUserId) ?? null);
@@ -216,4 +222,33 @@ export async function demoSearchGroups(query: string): Promise<typeof demoGroups
 
 export async function demoGetGroupRulesForGroup(groupId: string): Promise<typeof demoRules> {
   return demoRules.filter((r) => (r.actions?.assignUserToGroups?.groupIds ?? []).includes(groupId));
+}
+
+const SCAN_WALL_CLOCK_MS = 7000;
+
+export async function demoScanGroupMfa(
+  userIds: string[],
+  onProgress?: (current: number, total: number) => void,
+): Promise<Map<string, MemberMfaResult>> {
+  const total = userIds.length;
+  const results = new Map<string, MemberMfaResult>();
+  const progress = (globalThis as { __OKTA_DEMO__?: DemoControls }).__OKTA_DEMO__?.progress;
+
+  progress?.start('MFA scan', `Scanning 0/${total} members`, total);
+
+  const started = Date.now();
+  for (const [i, userId] of userIds.entries()) {
+    const completed = i + 1;
+    results.set(userId, summarizeFactors(userId, demoFactorsFor(userId)));
+
+    const due = started + (SCAN_WALL_CLOCK_MS * completed) / Math.max(total, 1);
+    const wait = due - Date.now();
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+
+    progress?.update(completed, total, `Scanned ${completed}/${total} members`);
+    onProgress?.(completed, total);
+  }
+
+  progress?.complete();
+  return results;
 }

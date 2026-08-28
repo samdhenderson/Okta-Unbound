@@ -32,6 +32,7 @@ import {
   demoGetUserRaw,
   demoMakeApiRequest,
   demoSearchGroups,
+  demoScanGroupMfa,
   demoSearchUsers,
 } from './api';
 import { demoDelay, installDemoControls, seedDemoSnapshot, setDemoLatency } from './control';
@@ -61,6 +62,7 @@ const demoApiValue = makeUseOktaApiValue({
   getUserGroupMemberships: slow(demoGetUserGroupMemberships),
   batchGetUserDetails: slow(demoBatchGetUserDetails),
   captureRuleImpact: slow(demoCaptureRuleImpact),
+  scanGroupMfa: fn(demoScanGroupMfa),
 });
 
 const DemoBridge: React.FC = () => {
@@ -118,17 +120,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const heroGroupContext = {
+  getGroupInfo: {
+    groupId: DEMO_HERO_GROUP_ID,
+    groupName: demoGroupsById.get(DEMO_HERO_GROUP_ID)?.profile?.name ?? 'Engineering - All',
+  },
+};
+
 export const GroupDrilldown: Story = {
   beforeEach: async () => {
-    await stage({
-      tab: 'groups',
-      context: {
-        getGroupInfo: {
-          groupId: DEMO_HERO_GROUP_ID,
-          groupName: demoGroupsById.get(DEMO_HERO_GROUP_ID)?.profile?.name ?? 'Engineering - All',
-        },
-      },
-    });
+    await stage({ tab: 'groups', context: heroGroupContext });
   },
 };
 
@@ -138,9 +139,15 @@ export const RuleImpact: Story = {
   },
 };
 
-export const BulkOperation: Story = {
+export const MfaCoverage: Story = {
   beforeEach: async () => {
-    await stage({ tab: 'users', latency: 300 });
+    await stage({ tab: 'groups', latency: 300, context: heroGroupContext });
+  },
+};
+
+export const GroupComposition: Story = {
+  beforeEach: async () => {
+    await stage({ tab: 'groups', latency: 300, context: heroGroupContext });
   },
 };
 
@@ -164,17 +171,28 @@ export const UserComparison: Story = {
   },
 };
 
-export const ActionBarShowcase: Story = {
+export const AccessCauses: Story = {
   beforeEach: async () => {
+    const left = demoUsersById.get(DEMO_COMPARISON_PAIR.left);
     await stage({
-      tab: 'groups',
-      latency: 200,
+      tab: 'users',
+      latency: 350,
       context: {
-        getGroupInfo: {
-          groupId: DEMO_HERO_GROUP_ID,
-          groupName: demoGroupsById.get(DEMO_HERO_GROUP_ID)?.profile?.name ?? 'Engineering - All',
-        },
+        getUserInfo: left
+          ? {
+              userId: left.id,
+              userName: `${left.profile.firstName} ${left.profile.lastName}`,
+              userEmail: left.profile.email,
+              userStatus: left.status,
+            }
+          : null,
       },
     });
+  },
+};
+
+export const ActionBarShowcase: Story = {
+  beforeEach: async () => {
+    await stage({ tab: 'groups', latency: 200, context: heroGroupContext });
   },
 };

@@ -26,8 +26,6 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"*.{json,js,ts}\"",
     "prepare": "husky",
     "shoot": "node .storybook/scripts/shoot-stories.mjs",
-    "film": "node .storybook/scripts/film-scenes.mjs",
-    "frames": "node .storybook/scripts/frames.mjs",
     "storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook dev -p 6006",
     "build-storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook build"
   },
