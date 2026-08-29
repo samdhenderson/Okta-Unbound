@@ -30,6 +30,7 @@ import { emptySyncMeta } from '../../../shared/snapshot/syncMeta';
 import type { SyncMeta } from '../../../shared/snapshot/types';
 import type { OktaGroupRule, OktaUser } from '../../../shared/types';
 import { OperationCancelledError } from '../../../shared/scheduler/cancellation';
+import type { RequestResult } from '../../../shared/scheduler/types';
 import { makeFakeCore, sequentialRunOperation } from '@/test/factories/coreApi';
 
 const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
@@ -66,7 +67,7 @@ describe('captureRuleImpact boundary validation', () => {
       status: 'ACTIVE',
       actions: { assignUserToGroups: { groupIds: ['00gFAKE1'] } },
     };
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [analyzedRule, malformedRule], headers: {} };
       }
@@ -139,7 +140,7 @@ function seedSnapshotRules(rules: OktaGroupRule[], origin = ORIGIN) {
 }
 
 function routeMetaOnly() {
-  return vi.fn(async (endpoint: string) => {
+  return vi.fn(async (endpoint: string): Promise<RequestResult> => {
     if (endpoint === '/api/v1/groups/00gFAKE1') {
       return {
         success: true,
@@ -176,7 +177,7 @@ describe('fetchRawRules snapshot consultation', () => {
 
   it('ignores a RulesCache entry now that the snapshot is the source of rules', async () => {
     seedRulesCache([cachedRawRule]);
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [cachedRawRule], headers: {} };
       }
@@ -199,7 +200,7 @@ describe('fetchRawRules snapshot consultation', () => {
 
   it('still paginates when no origin has resolved yet', async () => {
     seedSnapshotRules([cachedRawRule]);
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [cachedRawRule], headers: {} };
       }
@@ -223,7 +224,7 @@ describe('fetchRawRules snapshot consultation', () => {
 
   it('reads only the connected org, paginating when the snapshot holds another org', async () => {
     seedSnapshotRules([cachedRawRule], 'https://other.okta.com');
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [cachedRawRule], headers: {} };
       }
@@ -265,7 +266,7 @@ describe('fetchRawRules snapshot consultation', () => {
   });
 
   it('still paginates on a cold snapshot', async () => {
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [cachedRawRule], headers: {} };
       }
@@ -295,7 +296,7 @@ describe('fetchRawRules snapshot consultation', () => {
       cursor: '/api/v1/groups/rules?after=0prFAKE1',
       lastFullWalkAt: null,
     });
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.startsWith('/api/v1/groups/rules')) {
         return { success: true, data: [analyzedRule], headers: {} };
       }

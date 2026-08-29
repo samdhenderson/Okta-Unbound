@@ -162,7 +162,7 @@ export function createGroupMemberOperations(
       });
     }
 
-    return { success: result.success, error: result.error };
+    return result.success ? { success: true } : { success: false, error: result.error };
   };
 
   return {

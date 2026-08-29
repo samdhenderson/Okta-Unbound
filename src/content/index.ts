@@ -114,19 +114,21 @@ async function handleGetAppInfo(): Promise<MessageResponse<AppInfo>> {
     let appLabel: string | undefined;
     log.debug('Extracted appName from page', { found: Boolean(appName) });
 
-    log.debug('Fetching app details from API');
-    try {
-      const response = await handleMakeApiRequest(`/api/v1/apps/${appId}`, 'GET');
-      if (response.success && response.data) {
-        appName = appName || response.data.name || response.data.label || 'Unknown';
-        appLabel = response.data.label;
-        log.debug('Fetched app details from API', {
-          hasName: Boolean(appName),
-          hasLabel: Boolean(appLabel),
-        });
+    if (!appName) {
+      log.debug('Fetching app details from API');
+      try {
+        const response = await handleMakeApiRequest(`/api/v1/apps/${appId}`, 'GET');
+        if (response.success && response.data) {
+          appName = response.data.name || response.data.label || 'Unknown';
+          appLabel = response.data.label;
+          log.debug('Fetched app details from API', {
+            hasName: Boolean(appName),
+            hasLabel: Boolean(appLabel),
+          });
+        }
+      } catch (e) {
+        log.warn('Failed to fetch app details from API', e);
       }
-    } catch (e) {
-      log.warn('Failed to fetch app details from API', e);
     }
 
     const result = {

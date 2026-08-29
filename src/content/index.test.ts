@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import type { MessageRequest, MessageResponse, OktaUser } from '../shared/types';
+import { NO_HTTP_STATUS } from '../shared/scheduler/requestResult';
 
 type Listener = (
   request: MessageRequest,
@@ -379,13 +380,16 @@ describe('makeApiRequest response shapes', () => {
     expect(result.status).toBe(429);
   });
 
-  it('fetch rejects → success:false with the message, and NO status, NO headers, NO data', async () => {
+  it('fetch rejects → success:false with the message and the no-HTTP-status sentinel', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
 
     const result = await call();
 
-    expect(result).toEqual({ success: false, error: 'Failed to fetch' });
-    expect(result).not.toHaveProperty('status');
+    expect(result).toEqual({
+      success: false,
+      error: 'Failed to fetch',
+      status: NO_HTTP_STATUS,
+    });
     expect(result).not.toHaveProperty('headers');
     expect(result).not.toHaveProperty('data');
   });
@@ -393,7 +397,11 @@ describe('makeApiRequest response shapes', () => {
   it('fetch rejects with a non-Error → "Unknown error"', async () => {
     fetchMock.mockRejectedValue('a string');
 
-    await expect(call()).resolves.toEqual({ success: false, error: 'Unknown error' });
+    await expect(call()).resolves.toEqual({
+      success: false,
+      error: 'Unknown error',
+      status: NO_HTTP_STATUS,
+    });
   });
 });
 
@@ -744,16 +752,16 @@ describe('getUserInfo', () => {
 });
 
 describe('getAppInfo', () => {
-  it('is page-WINS: a scraped name beats the API name (opposite of getUserInfo)', async () => {
+  it('is page-WINS and issues NO request when the DOM supplies the name', async () => {
     setPageUrl(`/admin/app/${APP_ID}`);
     document.body.innerHTML = '<span data-se="app-name">Page App</span>';
     routeFetch([[`/api/v1/apps/${APP_ID}`, () => res({ name: 'api_app', label: 'API Label' })]]);
 
     await expect(send({ action: 'getAppInfo' }).response).resolves.toEqual({
       success: true,
-      data: { appId: APP_ID, appName: 'Page App', appLabel: 'API Label' },
+      data: { appId: APP_ID, appName: 'Page App', appLabel: undefined },
     });
-    expect(fetchedEndpoints()).toEqual([`/api/v1/apps/${APP_ID}`]);
+    expect(fetchedEndpoints()).toEqual([]);
   });
 
   it('falls back to the API name, then label, then "Unknown" (no zod validation here)', async () => {
@@ -764,6 +772,7 @@ describe('getAppInfo', () => {
       success: true,
       data: { appId: APP_ID, appName: 'Only Label', appLabel: 'Only Label' },
     });
+    expect(fetchedEndpoints()).toEqual([`/api/v1/apps/${APP_ID}`]);
   });
 
   it('API success with an empty payload → appName "Unknown"', async () => {

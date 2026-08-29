@@ -1,8 +1,13 @@
 import type { OktaGroupRule, RuleConflict, FormattedRule } from '../shared/types';
 
+function expressionText(rule: OktaGroupRule): string {
+  const value: unknown = rule.conditions?.expression?.value;
+  return typeof value === 'string' ? value : '';
+}
+
 export function extractUserAttributes(rule: OktaGroupRule): string[] {
   const attributes = new Set<string>();
-  const expression = rule.conditions?.expression?.value || '';
+  const expression = expressionText(rule);
 
   const matches = expression.match(/user\.(\w+)/g) || [];
   matches.forEach((match) => {
@@ -75,7 +80,7 @@ export function formatRuleForDisplay(
 ): FormattedRule {
   const groupIds = rule.actions?.assignUserToGroups?.groupIds || [];
   const userAttributes = extractUserAttributes(rule);
-  const expression = rule.conditions?.expression?.value || 'No condition specified';
+  const expression = expressionText(rule) || 'No condition specified';
 
   let simpleCondition = expression
     .replace(/user\./g, '')

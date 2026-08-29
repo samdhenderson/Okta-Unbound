@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createUserOperations } from './userOperations';
 import type { CoreApi } from './core';
+import type { RequestResult } from '@/shared/scheduler/types';
 import { makeFakeCore } from '@/test/factories/coreApi';
 
 const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
@@ -119,7 +120,7 @@ describe('getUserApps', () => {
 
 describe('batchGetUserDetails', () => {
   it('loads users in batches of 3 at low priority, omitting failures, and reports progress', async () => {
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.endsWith('/00uFAKE2')) return { success: true, data: null }; // omitted
       if (endpoint.endsWith('/00uFAKE4')) throw new Error('boom'); // omitted via catch
       const id = endpoint.split('/').pop();
@@ -169,7 +170,7 @@ describe('batchGetUserDetails', () => {
       },
     ) as unknown as CoreApi['runOperation'];
     const core = makeCore({
-      makeApiRequest: vi.fn(async (endpoint: string) => ({
+      makeApiRequest: vi.fn(async (endpoint: string): Promise<RequestResult> => ({
         success: true,
         data: { id: endpoint.split('/').pop(), profile: {} },
       })),
@@ -185,7 +186,7 @@ describe('batchGetUserDetails', () => {
 
 describe('scanGroupMfa', () => {
   it('summarizes factors per user, treating non-array/failed data as no factors', async () => {
-    const makeApiRequest = vi.fn(async (endpoint: string) => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.includes('00uFAKE1')) {
         return { success: true, data: [{ factorType: 'sms', status: 'ACTIVE' }] };
       }

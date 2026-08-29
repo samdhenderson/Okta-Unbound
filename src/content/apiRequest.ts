@@ -1,9 +1,14 @@
 import type { ApiResponse } from '../shared/types';
+import { NO_HTTP_STATUS } from '../shared/scheduler/requestResult';
 import { createLogger } from '../shared/utils/logger';
 
 const log = createLogger('Content');
 
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+
+function failure(error: string, status: number): ApiResponse {
+  return { success: false, error, status };
+}
 
 function getXsrfToken(): string {
   const xsrfElement = document.getElementById('_xsrfToken');
@@ -34,13 +39,13 @@ export async function handleMakeApiRequest(
 
   if (!isSameOriginPath(endpoint)) {
     log.warn('Rejected API request: endpoint is not a same-origin path');
-    return { success: false, error: 'Rejected request: endpoint must be a same-origin path' };
+    return failure('Rejected request: endpoint must be a same-origin path', NO_HTTP_STATUS);
   }
 
   const normalizedMethod = (method || 'GET').toUpperCase();
   if (!ALLOWED_METHODS.has(normalizedMethod)) {
     log.warn('Rejected API request: unsupported HTTP method', { method: normalizedMethod });
-    return { success: false, error: 'Rejected request: unsupported HTTP method' };
+    return failure('Rejected request: unsupported HTTP method', NO_HTTP_STATUS);
   }
 
   try {
@@ -123,9 +128,6 @@ export async function handleMakeApiRequest(
     };
   } catch (error) {
     log.error('makeApiRequest error', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    return failure(error instanceof Error ? error.message : 'Unknown error', NO_HTTP_STATUS);
   }
 }

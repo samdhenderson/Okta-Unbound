@@ -44,15 +44,25 @@ export interface SchedulerState {
   lastError: string | null;
 }
 
-export interface RequestResult {
-  success: boolean;
+export interface RequestSuccess {
+  success: true;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data?: any;
-  error?: string;
   headers?: Record<string, string>;
   status?: number;
   fromCache?: boolean;
 }
+
+export interface RequestFailure {
+  success: false;
+  status: number;
+  error?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
+  headers?: Record<string, string>;
+}
+
+export type RequestResult = RequestSuccess | RequestFailure;
 
 export interface SchedulerMetrics {
   totalRequests: number;

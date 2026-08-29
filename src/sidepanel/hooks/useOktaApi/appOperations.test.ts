@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createAppOperations } from './appOperations';
 import type { CoreApi } from './core';
 import { makeFakeCore } from '@/test/factories/coreApi';
+import { NO_HTTP_STATUS } from '@/shared/scheduler/requestResult';
 
 const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
   makeFakeCore({
@@ -76,47 +77,87 @@ describe('searchApps', () => {
 });
 
 describe('getAppById', () => {
-  it('fetches one app and returns the validated entity', async () => {
+  it('returns the validated entity when Okta answers', async () => {
     const core = makeCore({
       makeApiRequest: vi.fn().mockResolvedValue({
         success: true,
+        status: 200,
         data: { id: '0oaFAKE1', label: 'Salesforce', signOnMode: 'SAML_2_0', created: null },
       }),
     });
     const { getAppById } = createAppOperations(core);
 
-    const app = await getAppById('0oaFAKE1');
+    const lookup = await getAppById('0oaFAKE1');
 
     expect(core.makeApiRequest).toHaveBeenCalledWith('/api/v1/apps/0oaFAKE1', {
       reason: 'Load app details',
     });
-    expect(app?.label).toBe('Salesforce');
-    expect(app?.signOnMode).toBe('SAML_2_0');
+    expect(lookup.kind).toBe('found');
+    if (lookup.kind !== 'found') throw new Error('expected a found lookup');
+    expect(lookup.app.label).toBe('Salesforce');
+    expect(lookup.app.signOnMode).toBe('SAML_2_0');
   });
 
-  it('returns null when the request fails', async () => {
+  it('reports 404 — and only 404 — as missing', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockResolvedValue({ success: false, error: 'not found' }),
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, status: 404, error: 'Not found' }),
     });
     const { getAppById } = createAppOperations(core);
 
-    expect(await getAppById('0oaFAKE1')).toBeNull();
+    expect(await getAppById('0oaFAKE1')).toEqual({ kind: 'missing' });
   });
 
-  it('returns null when the response fails validation', async () => {
+  it('reports a rate-limited lookup as failed, not missing', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: { label: 'no id' } }),
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, status: 429, error: 'Too many requests' }),
     });
     const { getAppById } = createAppOperations(core);
 
-    expect(await getAppById('0oaFAKE1')).toBeNull();
+    expect(await getAppById('0oaFAKE1')).toEqual({ kind: 'failed', status: 429 });
   });
 
-  it('returns null (never throws) when the transport rejects', async () => {
+  it('reports 401 as an expired session', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, status: 401, error: 'Invalid session' }),
+    });
+    const { getAppById } = createAppOperations(core);
+
+    expect(await getAppById('0oaFAKE1')).toEqual({ kind: 'session-expired' });
+  });
+
+  it('does not mistake 403 for an expired session', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, status: 403, error: 'Forbidden' }),
+    });
+    const { getAppById } = createAppOperations(core);
+
+    expect(await getAppById('0oaFAKE1')).toEqual({ kind: 'failed', status: 403 });
+  });
+
+  it('reports a response that fails validation as failed, not missing', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: true, status: 200, data: { label: 'no id' } }),
+    });
+    const { getAppById } = createAppOperations(core);
+
+    expect(await getAppById('0oaFAKE1')).toEqual({ kind: 'failed', status: 200 });
+  });
+
+  it('reports a transport rejection as failed with the no-HTTP-response sentinel', async () => {
     const core = makeCore({ makeApiRequest: vi.fn().mockRejectedValue(new Error('network')) });
     const { getAppById } = createAppOperations(core);
 
-    expect(await getAppById('0oaFAKE1')).toBeNull();
+    expect(await getAppById('0oaFAKE1')).toEqual({ kind: 'failed', status: NO_HTTP_STATUS });
   });
 });
 

@@ -94,8 +94,21 @@ const HomeTab: React.FC<HomeTabProps> = ({
         : null;
     },
     app: async (id) => {
-      const app = await getAppById(id);
-      return app ? { kind: 'app', id: app.id, name: app.label || app.name || app.id } : null;
+      const lookup = await getAppById(id);
+      switch (lookup.kind) {
+        case 'found':
+          return {
+            kind: 'app',
+            id: lookup.app.id,
+            name: lookup.app.label || lookup.app.name || lookup.app.id,
+          };
+        case 'missing':
+          return null;
+        case 'session-expired':
+          throw new Error('Your Okta session has expired. Sign in again on the Okta tab.');
+        case 'failed':
+          throw new Error('Could not look that app up. Try again.');
+      }
     },
     rule: async (id) => {
       const rule = await getRawGroupRule(id);
