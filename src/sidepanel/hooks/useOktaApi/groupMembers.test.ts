@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createGroupMemberOperations } from './groupMembers';
 import type { CoreApi } from './core';
+import type { RequestResult } from '@/shared/scheduler/types';
 import type { OktaUser } from './types';
 import {
   makeFakeCore,
@@ -70,7 +71,7 @@ describe('getAllGroupMembers rule attribution', () => {
   it('re-applies the dropped expand on every page after the first', async () => {
     const page1 = '/api/v1/groups/00gFAKE1/users?limit=200&expand=group-rules';
     const droppedNext = '/api/v1/groups/00gFAKE1/users?limit=200&after=cursor2';
-    const makeApiRequest = vi.fn(async (url: string) => {
+    const makeApiRequest = vi.fn(async (url: string): Promise<RequestResult> => {
       const headers: Record<string, string> = url === page1 ? { link: nextLink(droppedNext) } : {};
       const data = url === page1 ? [validMember] : [{ ...validMember, id: '00uFAKE2' }];
       return { success: true, data, headers };

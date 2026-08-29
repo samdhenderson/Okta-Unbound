@@ -1,4 +1,5 @@
 import type { CoreApi } from './core';
+import type { RequestResult } from '@/shared/scheduler/types';
 import { oktaAppListItemSchema, type OktaAppListItem } from '@/shared/schemas/okta';
 import {
   oktaAppUserSchema,
@@ -7,14 +8,23 @@ import {
 } from '@/shared/schemas/okta';
 import { parseOkta, parseOktaList } from '@/shared/schemas/okta';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { isSessionExpired, NO_HTTP_STATUS } from '@/shared/scheduler/requestResult';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('useOktaApi');
+
+const HTTP_NOT_FOUND = 404;
 
 export interface AppAssignmentCounts {
   users: number;
   groups: number;
 }
+
+export type AppLookup =
+  | { kind: 'found'; app: OktaAppListItem }
+  | { kind: 'missing' }
+  | { kind: 'session-expired' }
+  | { kind: 'failed'; status: number };
 
 export interface AppSummary {
   id: string;
@@ -43,16 +53,38 @@ export function createAppOperations(coreApi: CoreApi) {
     }
   };
 
-  const getAppById = async (appId: string): Promise<OktaAppListItem | null> => {
+  const getAppById = async (appId: string): Promise<AppLookup> => {
+    let response: RequestResult;
     try {
-      const response = await coreApi.makeApiRequest(`/api/v1/apps/${encodeURIComponent(appId)}`, {
+      response = await coreApi.makeApiRequest(`/api/v1/apps/${encodeURIComponent(appId)}`, {
         reason: 'Load app details',
       });
-      if (!response.success || !response.data) return null;
-      return parseOkta(oktaAppListItemSchema, response.data, 'GET /api/v1/apps/{id}');
     } catch {
-      log.error('getAppById failed', { code: 'get_app_failed', appId });
-      return null;
+      log.error('getAppById transport failed', { code: 'get_app_failed', appId });
+      return { kind: 'failed', status: NO_HTTP_STATUS };
+    }
+
+    if (!response.success) {
+      if (response.status === HTTP_NOT_FOUND) return { kind: 'missing' };
+      if (isSessionExpired(response)) return { kind: 'session-expired' };
+      log.error('getAppById failed', {
+        code: 'get_app_failed',
+        appId,
+        status: response.status,
+      });
+      return { kind: 'failed', status: response.status };
+    }
+
+    const status = response.status ?? NO_HTTP_STATUS;
+    if (!response.data) return { kind: 'failed', status };
+    try {
+      return {
+        kind: 'found',
+        app: parseOkta(oktaAppListItemSchema, response.data, 'GET /api/v1/apps/{id}'),
+      };
+    } catch {
+      log.error('getAppById validation failed', { code: 'get_app_invalid', appId });
+      return { kind: 'failed', status };
     }
   };
 

@@ -2,6 +2,7 @@ import { createLogger } from '../utils/logger';
 import { flushAllPending, recordRequest } from '../requestLog';
 import { OperationCancelledError } from './cancellation';
 import { RateLimitDetector } from './rateLimitDetector';
+import { normalizeRequestResult } from './requestResult';
 import type {
   QueuedRequest,
   RequestPriority,
@@ -331,7 +332,7 @@ export class ApiScheduler {
         })
         .then((response) => {
           clearTimeout(timeout);
-          resolve(response);
+          resolve(normalizeRequestResult(response));
         })
         .catch((error) => {
           clearTimeout(timeout);

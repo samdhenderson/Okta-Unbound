@@ -68,7 +68,7 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
       method: 'DELETE',
       reason: 'Delete group rule',
     });
-    return { success: response.success, error: response.error };
+    return response.success ? { success: true } : { success: false, error: response.error };
   };
 
   const activateGroupRule = async (ruleId: string): Promise<RuleWriteResult> => {
@@ -76,7 +76,7 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
       `/api/v1/groups/rules/${ruleId}/lifecycle/activate`,
       { method: 'POST', reason: 'Activate group rule' },
     );
-    return { success: response.success, error: response.error };
+    return response.success ? { success: true } : { success: false, error: response.error };
   };
 
   const deactivateGroupRule = async (ruleId: string): Promise<RuleWriteResult> => {
@@ -84,7 +84,7 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
       `/api/v1/groups/rules/${ruleId}/lifecycle/deactivate`,
       { method: 'POST', reason: 'Deactivate group rule' },
     );
-    return { success: response.success, error: response.error };
+    return response.success ? { success: true } : { success: false, error: response.error };
   };
 
   return {

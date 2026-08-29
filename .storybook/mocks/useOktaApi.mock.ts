@@ -94,7 +94,7 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     getUserRaw: asyncFn(null),
     updateUserProfile: asyncFn({ outcome: 'saved' }),
 
-    getAppById: asyncFn(null),
+    getAppById: asyncFn({ kind: 'missing' }),
     getAppAssignmentCounts: asyncFn(null),
     getAppGroupAssignments: asyncFn([]),
 
