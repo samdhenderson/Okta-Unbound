@@ -2,7 +2,8 @@ import type { OktaGroupRule } from '../../shared/types';
 import type { OktaAppGroupAssignment, OktaAppListItem } from '../../shared/schemas/okta';
 import type { RawOktaGroup } from '../components/groups/groupSummary';
 import { fakeId, isoDaysAgo } from './org';
-import { GROUP, demoMemberCount } from './memberships';
+import { GROUP, demoGroupMembers } from './memberships';
+import { demoRevision } from './state';
 
 function group(
   n: number,
@@ -14,7 +15,6 @@ function group(
     id: fakeId('00g', n),
     type: options.type ?? 'OKTA_GROUP',
     profile: { name, description },
-    _embedded: { stats: { usersCount: demoMemberCount(n) } },
     ...(options.source
       ? { source: options.source, _links: { apps: { href: `/api/v1/apps/${options.source.id}` } } }
       : {}),
@@ -23,7 +23,7 @@ function group(
   };
 }
 
-export const demoGroups: RawOktaGroup[] = [
+const groupTemplates: readonly RawOktaGroup[] = [
   group(GROUP.everyone, 'Everyone', 'All users in your organization', { type: 'BUILT_IN' }),
   group(GROUP.engineering, 'Engineering - All', 'Every engineer, rule-assigned by department'),
   group(GROUP.sales, 'Sales - All', 'Rule-assigned by department'),
@@ -80,6 +80,13 @@ export const demoGroups: RawOktaGroup[] = [
     type: 'APP_GROUP',
     source: { id: fakeId('0oa', 7), name: 'Datadog' },
   }),
+  group(
+    GROUP.migrationAccess,
+    'Temp - Migration Access',
+    'Cutover access for the IdP migration. Nobody closed it.',
+  ),
+  group(GROUP.salesEmeaLegacy, 'Sales - EMEA legacy', 'Superseded by Sales - All'),
+  group(GROUP.verifyRollout, 'Okta Verify Rollout', 'Pilot cohort for the Okta Verify rollout'),
 ];
 
 function rule(
@@ -141,6 +148,7 @@ function app(
   label: string,
   signOnMode: string,
   status: 'ACTIVE' | 'INACTIVE' = 'ACTIVE',
+  features?: readonly string[],
 ): OktaAppListItem {
   return {
     id: fakeId('0oa', n),
@@ -150,17 +158,20 @@ function app(
     signOnMode,
     created: isoDaysAgo(700 + n * 11),
     lastUpdated: isoDaysAgo(n * 4 + 3),
+    ...(features ? { features: [...features] } : {}),
   };
 }
 
+const GROUP_PUSH_FEATURES = ['GROUP_PUSH', 'IMPORT_NEW_USERS'] as const;
+
 export const demoApps: OktaAppListItem[] = [
-  app(1, 'salesforce', 'Salesforce', 'SAML_2_0'),
+  app(1, 'salesforce', 'Salesforce', 'SAML_2_0', 'ACTIVE', GROUP_PUSH_FEATURES),
   app(2, 'workday', 'Workday HR', 'SAML_2_0'),
-  app(3, 'github', 'GitHub Enterprise', 'SAML_2_0'),
-  app(4, 'slack', 'Slack', 'SAML_2_0'),
-  app(5, 'zoom', 'Zoom', 'SAML_2_0'),
-  app(6, 'atlassian', 'Atlassian Cloud', 'SAML_2_0'),
-  app(7, 'datadog', 'Datadog', 'SAML_2_0'),
+  app(3, 'github', 'GitHub Enterprise', 'SAML_2_0', 'ACTIVE', GROUP_PUSH_FEATURES),
+  app(4, 'slack', 'Slack', 'SAML_2_0', 'ACTIVE', GROUP_PUSH_FEATURES),
+  app(5, 'zoom', 'Zoom', 'SAML_2_0', 'ACTIVE', GROUP_PUSH_FEATURES),
+  app(6, 'atlassian', 'Atlassian Cloud', 'SAML_2_0', 'ACTIVE', GROUP_PUSH_FEATURES),
+  app(7, 'datadog', 'Datadog', 'SAML_2_0', 'ACTIVE', GROUP_PUSH_FEATURES),
   app(8, 'aws_account_federation', 'AWS Account Federation', 'SAML_2_0'),
   app(9, 'boxnet', 'Box', 'SAML_2_0'),
   app(10, 'docusign', 'DocuSign', 'SAML_2_0'),
@@ -199,8 +210,31 @@ export const demoAppGroups: readonly { appId: string; assignment: OktaAppGroupAs
   },
 ];
 
-export const demoGroupsById: ReadonlyMap<string, RawOktaGroup> = new Map(
-  demoGroups.map((g) => [g.id, g]),
-);
+export const DEMO_GROUP_COUNT = groupTemplates.length;
+
+let stampedRevision = -1;
+let stampedGroups: readonly RawOktaGroup[] = [];
+let stampedById: ReadonlyMap<string, RawOktaGroup> = new Map();
+
+function stamp(): void {
+  const revision = demoRevision();
+  if (stampedRevision === revision && stampedGroups.length > 0) return;
+  stampedGroups = groupTemplates.map((template) => ({
+    ...template,
+    _embedded: { stats: { usersCount: demoGroupMembers().get(template.id)?.length ?? 0 } },
+  }));
+  stampedById = new Map(stampedGroups.map((g) => [g.id, g]));
+  stampedRevision = revision;
+}
+
+export function currentGroups(): readonly RawOktaGroup[] {
+  stamp();
+  return stampedGroups;
+}
+
+export function currentGroupsById(): ReadonlyMap<string, RawOktaGroup> {
+  stamp();
+  return stampedById;
+}
 
 export const DEMO_HERO_GROUP_ID = fakeId('00g', 2);

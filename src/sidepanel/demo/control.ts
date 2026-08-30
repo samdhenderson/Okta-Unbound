@@ -1,9 +1,11 @@
 import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import { SHARD_KEY_SEPARATOR } from '../../shared/snapshot/types';
 import { DEMO_ORIGIN } from './org';
-import { demoAppGroups, demoApps, demoGroups, demoRules } from './snapshot';
+import { DEMO_GROUP_COUNT, currentGroups, demoAppGroups, demoApps, demoRules } from './snapshot';
 
 let latencyMs = 450;
+
+let installedControls: DemoControls | null = null;
 
 export function setDemoLatency(ms: number): void {
   latencyMs = Math.max(0, ms);
@@ -20,7 +22,7 @@ export async function seedDemoSnapshot(): Promise<void> {
   await orgSnapshotStore.upsertMany(
     'groups',
     DEMO_ORIGIN,
-    demoGroups.map((entity) => ({ id: entity.id, entity })),
+    currentGroups().map((entity) => ({ id: entity.id, entity })),
     now,
   );
   await orgSnapshotStore.upsertMany(
@@ -51,7 +53,7 @@ export async function seedDemoSnapshot(): Promise<void> {
       lastFullWalkAt: now,
       itemCount:
         collection === 'groups'
-          ? demoGroups.length
+          ? DEMO_GROUP_COUNT
           : collection === 'rules'
             ? demoRules.length
             : collection === 'apps'
@@ -67,13 +69,30 @@ export async function seedDemoSnapshotPartial(groupCount: number): Promise<void>
   await orgSnapshotStore.upsertMany(
     'groups',
     DEMO_ORIGIN,
-    demoGroups.slice(0, groupCount).map((entity) => ({ id: entity.id, entity })),
+    currentGroups()
+      .slice(0, groupCount)
+      .map((entity) => ({ id: entity.id, entity })),
     now,
   );
   await orgSnapshotStore.patchMeta('groups', DEMO_ORIGIN, {
     complete: false,
-    itemCount: demoGroups.length,
+    itemCount: DEMO_GROUP_COUNT,
   });
+}
+
+export async function republishDemoGroups(): Promise<void> {
+  await orgSnapshotStore.upsertMany(
+    'groups',
+    DEMO_ORIGIN,
+    currentGroups().map((entity) => ({ id: entity.id, entity })),
+    Date.now(),
+  );
+  await orgSnapshotStore.patchMeta('groups', DEMO_ORIGIN, {
+    complete: true,
+    lastFullWalkAt: Date.now(),
+    itemCount: DEMO_GROUP_COUNT,
+  });
+  installedControls?.emitSnapshotUpdated();
 }
 
 export interface DemoProgressHandle {
@@ -97,6 +116,7 @@ export function installDemoControls(emitSnapshotUpdated: () => void): DemoContro
     seedPartial: seedDemoSnapshotPartial,
     emitSnapshotUpdated,
   };
+  installedControls = controls;
   (globalThis as unknown as { __OKTA_DEMO__?: DemoControls }).__OKTA_DEMO__ = controls;
   return controls;
 }

@@ -81,3 +81,6 @@ seed/.state/
 
 # Demo reel: shot footage and the composition workspace.
 # Clips are large and reproducible from `npm run capture`.
+# Rendered output: stills and encodes, hundreds of MB, all reproducible from
+# `npm run still` / `npm run render`. `out/` is Remotion's default and fills up
+# fast during a judging pass, which is exactly when nobody is watching git.

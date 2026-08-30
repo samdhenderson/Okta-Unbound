@@ -15,8 +15,11 @@ import {
   setStorageSeed,
 } from '../../../.storybook/mocks/chrome';
 
-import { DEMO_HERO_GROUP_ID, demoGroupsById } from './snapshot';
+import { DEMO_HERO_GROUP_ID, currentGroupsById } from './snapshot';
 import { DEMO_COMPARISON_PAIR, demoUsersById } from './users';
+import { DEMO_ORIGIN, fakeId } from './org';
+import { GROUP } from './memberships';
+import { WORKING_SET_STORAGE_KEY, type WorkingSetRef } from '../../shared/storage/workingSetStore';
 import {
   demoBatchGetUserDetails,
   demoCaptureRuleImpact,
@@ -29,13 +32,16 @@ import {
   demoGetUserById,
   demoGetUserGroupMemberships,
   demoGetUserLastLogin,
+  demoGetUserProfileSchema,
   demoGetUserRaw,
   demoMakeApiRequest,
   demoSearchGroups,
   demoScanGroupMfa,
   demoSearchUsers,
+  demoUpdateUserProfile,
 } from './api';
 import { demoDelay, installDemoControls, seedDemoSnapshot, setDemoLatency } from './control';
+import { resetDemoWrites } from './state';
 
 const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
 
@@ -57,11 +63,13 @@ const demoApiValue = makeUseOktaApiValue({
   searchUsers: slow(demoSearchUsers),
   getUserById: slow(demoGetUserById),
   getUserRaw: slow(demoGetUserRaw),
+  getUserProfileSchema: slow(demoGetUserProfileSchema),
   getUserApps: slow(demoGetUserApps),
   getUserLastLogin: slow(demoGetUserLastLogin),
   getUserGroupMemberships: slow(demoGetUserGroupMemberships),
   batchGetUserDetails: slow(demoBatchGetUserDetails),
   captureRuleImpact: slow(demoCaptureRuleImpact),
+  updateUserProfile: slow(demoUpdateUserProfile),
   scanGroupMfa: fn(demoScanGroupMfa),
 });
 
@@ -88,6 +96,7 @@ async function stage(options: {
 }): Promise<void> {
   resetSyncSnapshotResponder();
   resetSchedulerState();
+  resetDemoWrites();
   resetPageContext();
   resetStorageSeed();
 
@@ -123,7 +132,7 @@ type Story = StoryObj<typeof meta>;
 const heroGroupContext = {
   getGroupInfo: {
     groupId: DEMO_HERO_GROUP_ID,
-    groupName: demoGroupsById.get(DEMO_HERO_GROUP_ID)?.profile?.name ?? 'Engineering - All',
+    groupName: currentGroupsById().get(DEMO_HERO_GROUP_ID)?.profile?.name ?? 'Engineering - All',
   },
 };
 
@@ -194,5 +203,62 @@ export const AccessCauses: Story = {
 export const ActionBarShowcase: Story = {
   beforeEach: async () => {
     await stage({ tab: 'groups', latency: 200, context: heroGroupContext });
+  },
+};
+
+function homeWorkingSetSeed(): {
+  version: 1;
+  origins: Record<string, { pinned: WorkingSetRef[]; recent: WorkingSetRef[] }>;
+} {
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  const day = 24 * hour;
+
+  const engineeringGroup = currentGroupsById().get(DEMO_HERO_GROUP_ID);
+  const salesId = fakeId('00g', GROUP.sales);
+  const salesGroup = currentGroupsById().get(salesId);
+  const left = demoUsersById.get(DEMO_COMPARISON_PAIR.left);
+  const right = demoUsersById.get(DEMO_COMPARISON_PAIR.right);
+
+  const pinned: WorkingSetRef[] = [
+    {
+      kind: 'group',
+      id: DEMO_HERO_GROUP_ID,
+      name: engineeringGroup?.profile?.name ?? 'Engineering - All',
+      lastPane: 'Attributes',
+      lastSeenAt: now - 5 * hour,
+    },
+    {
+      kind: 'user',
+      id: DEMO_COMPARISON_PAIR.left,
+      name: left ? `${left.profile.firstName} ${left.profile.lastName}` : 'Amara Okonkwo',
+      lastPane: 'Groups',
+      lastSeenAt: now - 2 * day,
+    },
+  ];
+
+  const recent: WorkingSetRef[] = [
+    {
+      kind: 'user',
+      id: DEMO_COMPARISON_PAIR.right,
+      name: right ? `${right.profile.firstName} ${right.profile.lastName}` : 'Tomas Lindqvist',
+      lastPane: 'Apps',
+      lastSeenAt: now - 30 * 60 * 1000,
+    },
+    {
+      kind: 'group',
+      id: salesId,
+      name: salesGroup?.profile?.name ?? 'Sales - All',
+      lastSeenAt: now - 3 * day,
+    },
+  ];
+
+  return { version: 1, origins: { [DEMO_ORIGIN]: { pinned, recent } } };
+}
+
+export const Home: Story = {
+  beforeEach: async () => {
+    await stage({ tab: 'home', latency: 300 });
+    setStorageSeed({ [WORKING_SET_STORAGE_KEY]: homeWorkingSetSeed() });
   },
 };

@@ -146,3 +146,24 @@ if (heroRight) {
   heroRight.profile.employeeType = 'CONTRACTOR';
   heroRight.profile.userType = 'Contractor';
 }
+
+export const DEMO_ONBOARDING_USER = fakeId('00u', 31);
+
+const heroOnboarding = demoUsersById.get(DEMO_ONBOARDING_USER);
+if (heroOnboarding) {
+  heroOnboarding.status = 'ACTIVE';
+  heroOnboarding.profile.firstName = 'Priya';
+  heroOnboarding.profile.lastName = 'Achterberg';
+  heroOnboarding.profile.login = 'priya.achterberg@example.com';
+  heroOnboarding.profile.email = 'priya.achterberg@example.com';
+  heroOnboarding.profile.department = 'Enginering';
+  heroOnboarding.profile.title = 'Software Engineer';
+  heroOnboarding.profile.city = 'Seattle';
+  heroOnboarding.profile.state = 'WA';
+  heroOnboarding.profile.countryCode = 'US';
+  heroOnboarding.profile.employeeType = 'FULL_TIME';
+  heroOnboarding.profile.userType = 'Employee';
+  heroOnboarding.created = isoDaysAgo(3);
+  heroOnboarding.activated = isoDaysAgo(2);
+  heroOnboarding.lastLogin = isoDaysAgo(1);
+}

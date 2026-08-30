@@ -1,5 +1,6 @@
 import type { OktaUser } from '../../shared/types';
 import { EMEA_COUNTRIES, SeededRandom, fakeId } from './org';
+import { currentUsers, demoRevision } from './state';
 import { demoUsers } from './users';
 
 export const GROUP = {
@@ -37,6 +38,9 @@ export const GROUP = {
   githubEngineering: 32,
   zoomLicensed: 33,
   datadogEngineering: 34,
+  migrationAccess: 35,
+  salesEmeaLegacy: 36,
+  verifyRollout: 37,
 } as const;
 
 const DEPARTMENT_GROUPS: readonly { ordinal: number; department: string }[] = [
@@ -167,16 +171,11 @@ const HAND_MANAGED: readonly {
   },
 ];
 
-function buildMemberships(): Map<string, string[]> {
-  const byGroup = new Map<string, string[]>();
+let handManaged: ReadonlyMap<string, readonly string[]> | null = null;
 
-  for (const { ordinal, predicate } of RULE_FED) {
-    byGroup.set(
-      fakeId('00g', ordinal),
-      demoUsers.filter(predicate).map((u) => u.id),
-    );
-  }
-
+function sampleHandManaged(): ReadonlyMap<string, readonly string[]> {
+  if (handManaged) return handManaged;
+  const byGroup = new Map<string, readonly string[]>();
   const rng = new SeededRandom(778899);
   for (const { ordinal, size, eligible } of HAND_MANAGED) {
     const pool = demoUsers.filter(eligible);
@@ -195,26 +194,48 @@ function buildMemberships(): Map<string, string[]> {
     }
     byGroup.set(fakeId('00g', ordinal), chosen);
   }
-
-  return byGroup;
+  handManaged = byGroup;
+  return handManaged;
 }
 
-export const demoGroupMembers: ReadonlyMap<string, readonly string[]> = buildMemberships();
+let memoRevision = -1;
+let memoByGroup: ReadonlyMap<string, readonly string[]> = new Map();
+let memoByUser: ReadonlyMap<string, readonly string[]> = new Map();
 
-export function demoMemberCount(ordinal: number): number {
-  return demoGroupMembers.get(fakeId('00g', ordinal))?.length ?? 0;
-}
+function derive(): void {
+  const revision = demoRevision();
+  if (memoRevision === revision) return;
 
-function buildUserGroups(): Map<string, string[]> {
+  const users = currentUsers();
+  const byGroup = new Map<string, readonly string[]>(sampleHandManaged());
+
+  for (const { ordinal, predicate } of RULE_FED) {
+    byGroup.set(
+      fakeId('00g', ordinal),
+      users.filter(predicate).map((u) => u.id),
+    );
+  }
+
   const byUser = new Map<string, string[]>();
-  for (const [groupId, memberIds] of demoGroupMembers) {
+  for (const [groupId, memberIds] of byGroup) {
     for (const userId of memberIds) {
       const existing = byUser.get(userId);
       if (existing) existing.push(groupId);
       else byUser.set(userId, [groupId]);
     }
   }
-  return byUser;
+
+  memoByGroup = byGroup;
+  memoByUser = byUser;
+  memoRevision = revision;
 }
 
-export const demoUserGroups: ReadonlyMap<string, readonly string[]> = buildUserGroups();
+export function demoGroupMembers(): ReadonlyMap<string, readonly string[]> {
+  derive();
+  return memoByGroup;
+}
+
+export function demoUserGroups(): ReadonlyMap<string, readonly string[]> {
+  derive();
+  return memoByUser;
+}

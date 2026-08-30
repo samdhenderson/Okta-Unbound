@@ -8,7 +8,7 @@ const log = createLogger('useJumpResolver');
 
 export const JUMP_SEARCH_MIN_CHARS = 3;
 
-export const JUMP_SEARCH_DEBOUNCE_MS = 300;
+export const JUMP_SEARCH_DEBOUNCE_MS = 600;
 
 export type JumpMode = 'idle' | 'searching' | 'resolving' | 'results' | 'error';
 

@@ -30,7 +30,7 @@ export class SeededRandom {
 }
 
 export function fakeId(prefix: string, n: number): string {
-  return `${prefix}FAKE${String(n).padStart(4, '0')}`;
+  return `${prefix}FAKE${String(n).padStart(13, '0')}`;
 }
 
 export interface Department {
