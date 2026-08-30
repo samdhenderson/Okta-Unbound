@@ -30,11 +30,11 @@ const TargetGroupRow: React.FC<{
 }> = ({ group, onNavigateToGroup }) => {
   const [expanded, setExpanded] = useState(false);
   const disclosureId = useId();
-  const hasLoss = group.losingCount > 0;
-  const listed = group.losing.slice(0, MAX_LISTED);
-  const overflow = group.losingCount - listed.length;
-  const lossPct =
-    group.memberCount > 0 ? Math.round((group.losingCount / group.memberCount) * 100) : 0;
+  const hasSoleHolds = group.heldSolelyCount > 0;
+  const listed = group.heldSolelyByRule.slice(0, MAX_LISTED);
+  const overflow = group.heldSolelyCount - listed.length;
+  const sharePct =
+    group.memberCount > 0 ? Math.round((group.heldSolelyCount / group.memberCount) * 100) : 0;
 
   const memberLine = (
     <>
@@ -48,7 +48,7 @@ const TargetGroupRow: React.FC<{
   return (
     <div
       className={`rounded-md border bg-white overflow-hidden ${
-        hasLoss ? 'border-danger-light' : 'border-neutral-200'
+        hasSoleHolds ? 'border-warning-light' : 'border-neutral-200'
       }`}
     >
       <div className="flex items-center justify-between gap-3 px-(--sp-row-x) py-(--sp-row-y)">
@@ -72,18 +72,18 @@ const TargetGroupRow: React.FC<{
         )}
 
         <div className="flex items-center gap-(--sp-inline) shrink-0">
-          {hasLoss ? (
-            <span className="px-2 py-0.5 rounded-md bg-danger-light text-danger-text text-xs font-bold border border-danger-light">
-              −{group.losingCount.toLocaleString()} lose access
+          {hasSoleHolds ? (
+            <span className="px-2 py-0.5 rounded-md bg-warning-light text-warning-text text-xs font-bold border border-warning-light">
+              {group.heldSolelyCount.toLocaleString()} held by this rule alone
             </span>
           ) : (
             <span className="px-2 py-0.5 rounded-md bg-success-light text-success-text text-xs font-medium border border-success-light">
               No change
             </span>
           )}
-          {hasLoss && (
+          {hasSoleHolds && (
             <IconButton
-              label={`${expanded ? 'Hide' : 'Show'} members losing access in ${group.groupName}`}
+              label={`${expanded ? 'Hide' : 'Show'} members held by this rule alone in ${group.groupName}`}
               variant="ghost"
               size="sm"
 
@@ -101,13 +101,13 @@ const TargetGroupRow: React.FC<{
         </div>
       </div>
 
-      {hasLoss && (
-        <div className="h-1 bg-neutral-100" title={`${lossPct}% of members`}>
-          <div className="h-full bg-danger" style={{ width: `${lossPct}%` }} />
+      {hasSoleHolds && (
+        <div className="h-1 bg-neutral-100" title={`${sharePct}% of members`}>
+          <div className="h-full bg-warning" style={{ width: `${sharePct}%` }} />
         </div>
       )}
 
-      {hasLoss && expanded && (
+      {hasSoleHolds && expanded && (
         <ul
           id={disclosureId}
           className="border-t border-neutral-100 divide-y divide-neutral-100 max-h-56 overflow-y-auto scrollable-list"
@@ -147,7 +147,7 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
   onNavigateToGroup,
 }) => {
   const isDeactivate = mode === 'deactivate';
-  const totalLosing = summary?.totalLosing ?? 0;
+  const totalHeldSolely = summary?.totalHeldSolely ?? 0;
 
   const footer = (
     <>
@@ -181,8 +181,8 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
           {isDeactivate ? 'Deactivating ' : 'Previewing '}
           <span className="font-semibold text-neutral-900">{ruleName}</span>
           {isDeactivate
-            ? ' removes its assignments. Members below are held by this rule alone and would lose access.'
-            : ' — members held by this rule alone would lose access if it were deactivated.'}
+            ? ' stops it placing new members. Nobody is removed from a group — Okta keeps existing memberships. The members below are held by this rule alone, so they would stay put with no rule left to explain their membership. Reactivating the rule restores it.'
+            : ' — the members below appear to be held by this rule alone. Deactivating it removes nobody; they stay in the group, no longer explained by any rule. Only deleting the rule can remove them, and that choice is irreversible.'}
         </p>
 
         {status === 'loading' && (
@@ -210,10 +210,10 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
           <>
             <div className="grid grid-cols-2 gap-(--sp-rung)">
               <StatCard
-                title="Lose access"
-                value={totalLosing}
-                color={totalLosing > 0 ? 'danger' : 'success'}
-                icon={totalLosing > 0 ? 'alert' : 'check'}
+                title="Held by this rule alone"
+                value={totalHeldSolely}
+                color={totalHeldSolely > 0 ? 'warning' : 'success'}
+                icon={totalHeldSolely > 0 ? 'alert' : 'check'}
                 subtitle={`across ${summary.targetGroups.length} target group${
                   summary.targetGroups.length === 1 ? '' : 's'
                 }`}
@@ -245,8 +245,8 @@ const RuleImpactModal: React.FC<RuleImpactModalProps> = ({
             )}
 
             <p className="text-xs text-neutral-400">
-              Loss is inferred from rule targets and exclusions (the same attribution used across
-              the app); members added manually cannot always be distinguished.
+              Attribution is inferred from rule targets and exclusions (the same attribution used
+              across the app); members added manually cannot always be distinguished.
             </p>
           </>
         )}

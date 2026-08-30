@@ -91,8 +91,8 @@ describe('captureRuleImpact boundary validation', () => {
     });
 
     expect(summary.targetGroups).toHaveLength(1);
-    expect(summary.targetGroups[0].losingCount).toBe(1);
-    expect(summary.totalLosing).toBe(1);
+    expect(summary.targetGroups[0].heldSolelyCount).toBe(1);
+    expect(summary.totalHeldSolely).toBe(1);
   });
 });
 
@@ -172,7 +172,7 @@ describe('fetchRawRules snapshot consultation', () => {
       String(c[0]).startsWith('/api/v1/groups/rules'),
     );
     expect(rulesListings).toHaveLength(0);
-    expect(summary.totalLosing).toBe(1);
+    expect(summary.totalHeldSolely).toBe(1);
   });
 
   it('ignores a RulesCache entry now that the snapshot is the source of rules', async () => {
@@ -219,7 +219,7 @@ describe('fetchRawRules snapshot consultation', () => {
       String(c[0]).startsWith('/api/v1/groups/rules'),
     );
     expect(rulesListings).toHaveLength(1);
-    expect(summary.totalLosing).toBe(1);
+    expect(summary.totalHeldSolely).toBe(1);
   });
 
   it('reads only the connected org, paginating when the snapshot holds another org', async () => {
@@ -315,7 +315,7 @@ describe('fetchRawRules snapshot consultation', () => {
       String(c[0]).startsWith('/api/v1/groups/rules'),
     );
     expect(rulesListings).toHaveLength(1);
-    expect(summary.totalLosing).toBe(1);
+    expect(summary.totalHeldSolely).toBe(1);
   });
 
   it('serves a complete-but-empty snapshot without re-paginating', async () => {
@@ -331,6 +331,6 @@ describe('fetchRawRules snapshot consultation', () => {
       String(c[0]).startsWith('/api/v1/groups/rules'),
     );
     expect(rulesListings).toHaveLength(0);
-    expect(summary.totalLosing).toBe(0);
+    expect(summary.totalHeldSolely).toBe(0);
   });
 });

@@ -27,44 +27,44 @@ export function classifyGroupImpact(
   ruleId: string,
   target: TargetGroupMembers,
   rules: ImpactRule[],
-): { losing: OktaUser[]; retaining: OktaUser[] } {
+): { heldSolelyByRule: OktaUser[]; unaffected: OktaUser[] } {
   if (target.groupType === 'APP_GROUP') {
-    return { losing: [], retaining: [...target.members] };
+    return { heldSolelyByRule: [], unaffected: [...target.members] };
   }
 
   const activeRulesForGroup = rules.filter(
     (r) => r.status === 'ACTIVE' && r.targetGroupIds.includes(target.groupId),
   );
 
-  const losing: OktaUser[] = [];
-  const retaining: OktaUser[] = [];
+  const heldSolelyByRule: OktaUser[] = [];
+  const unaffected: OktaUser[] = [];
 
   for (const member of target.members) {
     const nonExcluding = activeRulesForGroup.filter((r) => !r.excludedUserIds.includes(member.id));
     const managedByThisRule = nonExcluding.some((r) => r.id === ruleId);
 
     if (!managedByThisRule) {
-      retaining.push(member);
+      unaffected.push(member);
       continue;
     }
 
     const otherActiveRules = nonExcluding.filter((r) => r.id !== ruleId);
     if (otherActiveRules.length === 0) {
-      losing.push(member);
+      heldSolelyByRule.push(member);
     } else {
-      retaining.push(member);
+      unaffected.push(member);
     }
   }
 
-  return { losing, retaining };
+  return { heldSolelyByRule, unaffected };
 }
 
 export interface TargetGroupImpact {
   groupId: string;
   groupName: string;
   memberCount: number;
-  losingCount: number;
-  losing: OktaUser[];
+  heldSolelyCount: number;
+  heldSolelyByRule: OktaUser[];
 }
 
 export interface RuleImpactSummary {
@@ -72,7 +72,7 @@ export interface RuleImpactSummary {
   ruleName: string;
   targetGroups: TargetGroupImpact[];
   distinctMemberCount: number;
-  totalLosing: number;
+  totalHeldSolely: number;
 }
 
 export function summarizeRuleImpact(
@@ -83,19 +83,19 @@ export function summarizeRuleImpact(
 ): RuleImpactSummary {
   const targetGroups: TargetGroupImpact[] = [];
   const distinctMembers = new Set<string>();
-  const distinctLosers = new Set<string>();
+  const distinctHeldSolely = new Set<string>();
 
   for (const target of targets) {
-    const { losing } = classifyGroupImpact(ruleId, target, rules);
+    const { heldSolelyByRule } = classifyGroupImpact(ruleId, target, rules);
     for (const m of target.members) distinctMembers.add(m.id);
-    for (const u of losing) distinctLosers.add(u.id);
+    for (const u of heldSolelyByRule) distinctHeldSolely.add(u.id);
 
     targetGroups.push({
       groupId: target.groupId,
       groupName: target.groupName,
       memberCount: target.members.length,
-      losingCount: losing.length,
-      losing,
+      heldSolelyCount: heldSolelyByRule.length,
+      heldSolelyByRule,
     });
   }
 
@@ -104,6 +104,6 @@ export function summarizeRuleImpact(
     ruleName,
     targetGroups,
     distinctMemberCount: distinctMembers.size,
-    totalLosing: distinctLosers.size,
+    totalHeldSolely: distinctHeldSolely.size,
   };
 }
