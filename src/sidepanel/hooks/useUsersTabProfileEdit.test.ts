@@ -144,6 +144,7 @@ interface Published {
 function setup(attributes: AttributeDescriptor[] = [writable('department')]) {
   const published: Published[] = [];
   const lifted: OktaUser[] = [];
+  const refreshed: OktaUser[] = [];
 
   const rendered = renderHook(() =>
     useUsersTabProfileEdit({
@@ -154,11 +155,12 @@ function setup(attributes: AttributeDescriptor[] = [writable('department')]) {
       targetTabId: 7,
       enabled: true,
       onUserUpdated: (next) => lifted.push(next),
+      onMembershipsChanged: (next) => refreshed.push(next),
       onResult: (message, action) => published.push({ message, action }),
     }),
   );
 
-  return { ...rendered, published, lifted };
+  return { ...rendered, published, lifted, refreshed };
 }
 
 function last(published: Published[]): Published {
@@ -243,6 +245,32 @@ describe('confirming a save', () => {
     expect(last(published).action?.label).toBe('Undo');
   });
 
+  it('re-reads the memberships, because a profile write can move them', async () => {
+    editState.pendingSave = [change('department', 'Department')];
+    confirmSave.mockResolvedValue({ kind: 'saved', user });
+    mockedHistory.mockResolvedValue({ actions: [savedEntry()], maxSize: 50 });
+
+    const { result, refreshed } = setup();
+    await act(async () => {
+      result.current.save.onConfirm();
+    });
+
+    expect(refreshed).toHaveLength(1);
+    expect(refreshed[0]).toBe(user);
+  });
+
+  it('leaves the memberships alone when the write did not land', async () => {
+    editState.pendingSave = [change('department', 'Department')];
+    confirmSave.mockResolvedValue({ kind: 'failed', error: 'Okta rejected the update.' });
+
+    const { result, refreshed } = setup();
+    await act(async () => {
+      result.current.save.onConfirm();
+    });
+
+    expect(refreshed).toHaveLength(0);
+  });
+
   it('still reports the save when the history entry cannot be identified', async () => {
     editState.pendingSave = [change('department', 'Department')];
     confirmSave.mockResolvedValue({ kind: 'saved', user });
@@ -320,6 +348,19 @@ describe('undoing a save', () => {
     expect(lifted).toContain(restored);
     expect(last(published).message.type).toBe('success');
     expect(last(published).message.text).toContain('1 attribute');
+  });
+
+  it('re-reads the memberships again, because putting the value back moves them back', async () => {
+    getUserRaw.mockResolvedValue(user);
+
+    const { refreshed } = await saveThenUndo({
+      kind: 'undone',
+      restored: 1,
+      skipped: 0,
+      actionId: 'action_2',
+    });
+
+    expect(refreshed).toHaveLength(2);
   });
 
   it('says how many attributes were left alone when some were never captured', async () => {

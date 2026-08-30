@@ -171,11 +171,18 @@ export function useUsersTabState({
     return () => window.clearTimeout(timer);
   }, [recentlyAddedGroupId]);
 
+  const refreshMembershipsFor = useCallback(
+    (user: OktaUser) => {
+      invalidate(cacheKeys.userMemberships(user.id));
+      void loadMemberships(user, { force: true });
+    },
+    [loadMemberships],
+  );
+
   const refreshSelectedUserMemberships = useCallback(() => {
     if (!selectedUser) return;
-    invalidate(cacheKeys.userMemberships(selectedUser.id));
-    void loadMemberships(selectedUser, { force: true });
-  }, [selectedUser, loadMemberships]);
+    refreshMembershipsFor(selectedUser);
+  }, [selectedUser, refreshMembershipsFor]);
 
   const onResetSearch = useCallback(() => {
     setSearchResults([]);
@@ -297,6 +304,7 @@ export function useUsersTabState({
     targetTabId,
     enabled: isActive && panes.pane === 'profile',
     onUserUpdated: setSelectedUser,
+    onMembershipsChanged: refreshMembershipsFor,
     onResult: publishResult,
   });
 

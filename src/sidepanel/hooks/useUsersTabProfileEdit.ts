@@ -68,6 +68,7 @@ export interface UseUsersTabProfileEditOptions {
   targetTabId: number | undefined;
   enabled: boolean;
   onUserUpdated: (user: OktaUser) => void;
+  onMembershipsChanged: (user: OktaUser) => void;
   onResult: (message: AlertMessageData, action?: AlertAction) => void;
 }
 
@@ -80,6 +81,7 @@ export function useUsersTabProfileEdit({
   targetTabId,
   enabled,
   onUserUpdated,
+  onMembershipsChanged,
   onResult,
   oktaOrigin,
 }: UseUsersTabProfileEditOptions): UserProfileEditing {
@@ -110,6 +112,7 @@ export function useUsersTabProfileEdit({
         case 'undone': {
           const restored = await getUserRaw(userId);
           if (restored) onUserUpdated(restored);
+          if (restored) onMembershipsChanged(restored);
 
           const text =
             outcome.skipped > 0
@@ -140,7 +143,7 @@ export function useUsersTabProfileEdit({
           return;
       }
     },
-    [undo, onResult, getUserRaw, onUserUpdated],
+    [undo, onResult, getUserRaw, onUserUpdated, onMembershipsChanged],
   );
 
   const handleConfirmSave = useCallback(async (): Promise<void> => {
@@ -161,6 +164,7 @@ export function useUsersTabProfileEdit({
     }
 
     const saved = outcome.user;
+    onMembershipsChanged(saved);
     const message: AlertMessageData = {
       type: 'success',
       text: `Saved ${attributeCountLabel(count)} on ${userDisplayName(saved)}.`,
@@ -178,7 +182,7 @@ export function useUsersTabProfileEdit({
         void runUndo(recorded, saved.id);
       },
     });
-  }, [pendingSave, confirmSave, onResult, runUndo]);
+  }, [pendingSave, confirmSave, onResult, onMembershipsChanged, runUndo]);
 
   return useMemo(
     () => ({

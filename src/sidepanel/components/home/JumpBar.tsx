@@ -24,6 +24,8 @@ const JumpBar: React.FC<JumpBarProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const isBusy = jump.mode === 'searching' || jump.mode === 'resolving';
 
+  const showResults = jump.results.length > 0 && (jump.mode === 'results' || isBusy);
+
   const handleClear = () => {
     jump.clear();
     inputRef.current?.focus();
@@ -75,7 +77,7 @@ const JumpBar: React.FC<JumpBarProps> = ({
         <AlertMessage message={{ text: jump.error, type: 'danger' }} onDismiss={jump.clear} />
       )}
 
-      {jump.mode === 'results' && jump.results.length > 0 && (
+      {showResults && (
         <>
           <ul className="rise-in-stagger space-y-1">
             {jump.results.map((result) => {
@@ -91,7 +93,7 @@ const JumpBar: React.FC<JumpBarProps> = ({
               );
             })}
           </ul>
-          {jump.resolution && (
+          {jump.mode === 'results' && jump.resolution && (
             <p className="text-xs text-neutral-600">
               Exact id match · {jump.resolution.cost === 0 ? 'no request' : '1 request'}
             </p>

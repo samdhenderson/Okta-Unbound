@@ -86,6 +86,12 @@ export const Searching: Story = {
   args: { jump: jumpState({ query: 'engineering', mode: 'searching' }) },
 };
 
+export const SearchingOverResults: Story = {
+  args: {
+    jump: jumpState({ query: 'engineering', mode: 'searching', results: [GROUP, USER] }),
+  },
+};
+
 export const ResolvedFromSnapshot: Story = {
   args: {
     jump: jumpState({
