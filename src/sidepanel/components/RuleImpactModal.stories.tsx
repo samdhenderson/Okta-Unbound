@@ -4,47 +4,47 @@ import RuleImpactModal from './RuleImpactModal';
 import type { RuleImpactSummary, TargetGroupImpact } from '../../shared/membership/ruleImpact';
 import { mockUsers } from '../../test/mocks/fixtures';
 
-const losingUsers = mockUsers.slice(10, 22);
-const manyLosingUsers = mockUsers.slice(10, 90);
+const soleHeldUsers = mockUsers.slice(10, 22);
+const manySoleHeldUsers = mockUsers.slice(10, 90);
 
-const targetWithLoss: TargetGroupImpact = {
+const targetWithSoleHolds: TargetGroupImpact = {
   groupId: 'grp1',
   groupName: 'Engineering',
   memberCount: 60,
-  losingCount: losingUsers.length,
-  losing: losingUsers,
+  heldSolelyCount: soleHeldUsers.length,
+  heldSolelyByRule: soleHeldUsers,
 };
 
-const targetWithManyLoss: TargetGroupImpact = {
+const targetWithManySoleHolds: TargetGroupImpact = {
   groupId: 'grp2',
   groupName: 'Engineering Contractors',
   memberCount: 90,
-  losingCount: manyLosingUsers.length,
-  losing: manyLosingUsers,
+  heldSolelyCount: manySoleHeldUsers.length,
+  heldSolelyByRule: manySoleHeldUsers,
 };
 
-const targetNoLoss: TargetGroupImpact = {
+const targetNoSoleHolds: TargetGroupImpact = {
   groupId: 'grp3',
   groupName: 'Engineering Managers',
   memberCount: 12,
-  losingCount: 0,
-  losing: [],
+  heldSolelyCount: 0,
+  heldSolelyByRule: [],
 };
 
 const mockSummary: RuleImpactSummary = {
   ruleId: 'rule1',
   ruleName: 'Engineering - US',
-  targetGroups: [targetWithLoss, targetNoLoss],
+  targetGroups: [targetWithSoleHolds, targetNoSoleHolds],
   distinctMemberCount: 72,
-  totalLosing: losingUsers.length,
+  totalHeldSolely: soleHeldUsers.length,
 };
 
 const mockLargeSummary: RuleImpactSummary = {
   ruleId: 'rule2',
   ruleName: 'Engineering - EU',
-  targetGroups: [targetWithManyLoss],
+  targetGroups: [targetWithManySoleHolds],
   distinctMemberCount: 90,
-  totalLosing: manyLosingUsers.length,
+  totalHeldSolely: manySoleHeldUsers.length,
 };
 
 const mockEmptySummary: RuleImpactSummary = {
@@ -52,7 +52,7 @@ const mockEmptySummary: RuleImpactSummary = {
   ruleName: 'Orphaned rule',
   targetGroups: [],
   distinctMemberCount: 0,
-  totalLosing: 0,
+  totalHeldSolely: 0,
 };
 
 const meta = {
@@ -64,8 +64,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Read-only "who loses access?" preview for a group rule.\n\n' +
-          "Shows a rule's target groups with live member counts and, crucially, how many members would lose access if the rule were deactivated (the members held by this rule alone). Doubles as the confirmation gate for a deactivation: in `deactivate` mode it leads with the loss headline and its footer commits the change. Computation is read-only — see `shared/membership/ruleImpact`.\n\n" +
+          'Read-only "what does this rule hold up?" preview for a group rule.\n\n' +
+          "Shows a rule's target groups with live member counts and, crucially, how many members are held by this rule **alone** — nobody else's rule explains their membership. Doubles as the confirmation gate for a deactivation: in `deactivate` mode its footer commits the change. Computation is read-only — see `shared/membership/ruleImpact`.\n\n" +
+          'It used to call that population "lose access" in both modes, which was wrong for the only verb it can perform (D-052): deactivating a rule removes nobody, it merely leaves those members unattributed. Removal exists only on delete, via `removeUsers`, irreversibly.\n\n' +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Shared utilities](?path=/docs/internals-shared-utilities--docs)',
       },
     },
@@ -125,6 +126,6 @@ export const NoTargetGroups: Story = {
   args: { summary: mockEmptySummary },
 };
 
-export const LargeLossList: Story = {
+export const LargeSoleHoldList: Story = {
   args: { ruleName: 'Engineering - EU', summary: mockLargeSummary },
 };

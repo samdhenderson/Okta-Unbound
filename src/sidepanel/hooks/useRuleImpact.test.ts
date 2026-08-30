@@ -39,7 +39,7 @@ const summaryFor = (rule: RuleImpactInput): RuleImpactSummary => ({
   ruleName: rule.name,
   targetGroups: [],
   distinctMemberCount: 0,
-  totalLosing: 0,
+  totalHeldSolely: 0,
 });
 
 const makeCapture = () => {

@@ -17,16 +17,22 @@ const summary: RuleImpactSummary = {
   ruleId: 'r1',
   ruleName: 'Engineering',
   distinctMemberCount: 3,
-  totalLosing: 2,
+  totalHeldSolely: 2,
   targetGroups: [
     {
       groupId: 'g1',
       groupName: 'Eng All',
       memberCount: 3,
-      losingCount: 2,
-      losing: [member('u1', 'Ada'), member('u2', 'Bea')],
+      heldSolelyCount: 2,
+      heldSolelyByRule: [member('u1', 'Ada'), member('u2', 'Bea')],
     },
-    { groupId: 'g2', groupName: 'Eng Leads', memberCount: 1, losingCount: 0, losing: [] },
+    {
+      groupId: 'g2',
+      groupName: 'Eng Leads',
+      memberCount: 1,
+      heldSolelyCount: 0,
+      heldSolelyByRule: [],
+    },
   ],
 };
 
@@ -43,14 +49,14 @@ const baseProps = {
 describe('RuleImpactModal', () => {
   it('shows the summary tiles and per-group breakdown when done', () => {
     render(<RuleImpactModal {...baseProps} mode="preview" />);
-    expect(screen.getByText('Lose access')).toBeInTheDocument();
+    expect(screen.getByText('Held by this rule alone')).toBeInTheDocument();
     expect(screen.getByText('Current members')).toBeInTheDocument();
     expect(screen.getByText('Eng All')).toBeInTheDocument();
-    expect(screen.getByText('−2 lose access')).toBeInTheDocument();
+    expect(screen.getByText('2 held by this rule alone')).toBeInTheDocument();
     expect(screen.getByText('No change')).toBeInTheDocument();
   });
 
-  it('expands a group to list the members who would lose access', async () => {
+  it('expands a group to list the members it holds up alone', async () => {
     render(<RuleImpactModal {...baseProps} mode="preview" />);
     expect(screen.queryByText('Ada U')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /Eng All/ }));
@@ -112,21 +118,40 @@ describe('RuleImpactModal', () => {
     expect(onNavigateToGroup).toHaveBeenCalledWith('g1');
   });
 
-  it('reports zero loss cleanly', () => {
+  it('deactivate mode says nobody is removed, never that members lose access', () => {
+    render(<RuleImpactModal {...baseProps} mode="deactivate" onConfirmDeactivate={() => {}} />);
+    expect(screen.getByText(/Nobody is removed from a group/)).toBeInTheDocument();
+    expect(screen.queryByText(/lose access/)).not.toBeInTheDocument();
+  });
+
+  it('preview mode attributes removal to delete, not to deactivation', () => {
+    render(<RuleImpactModal {...baseProps} mode="preview" />);
+    expect(screen.getByText(/Deactivating it removes nobody/)).toBeInTheDocument();
+    expect(screen.getByText(/Only deleting the rule can remove them/)).toBeInTheDocument();
+    expect(screen.queryByText(/lose access/)).not.toBeInTheDocument();
+  });
+
+  it('reports nobody solely held cleanly', () => {
     render(
       <RuleImpactModal
         {...baseProps}
         mode="preview"
         summary={{
           ...summary,
-          totalLosing: 0,
+          totalHeldSolely: 0,
           targetGroups: [
-            { groupId: 'g2', groupName: 'Eng Leads', memberCount: 1, losingCount: 0, losing: [] },
+            {
+              groupId: 'g2',
+              groupName: 'Eng Leads',
+              memberCount: 1,
+              heldSolelyCount: 0,
+              heldSolelyByRule: [],
+            },
           ],
         }}
       />,
     );
-    expect(screen.queryByText(/lose access$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^\d+ held by this rule alone$/)).not.toBeInTheDocument();
     expect(screen.getByText('No change')).toBeInTheDocument();
   });
 });
