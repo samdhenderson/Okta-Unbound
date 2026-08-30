@@ -340,6 +340,7 @@ export interface GroupSummary {
   type: GroupType;
   memberCount: number;
   lastUpdated?: Date;
+  lastMembershipUpdated?: Date;
   hasRules: boolean;
   ruleCount: number;
   usedInRuleCount?: number;

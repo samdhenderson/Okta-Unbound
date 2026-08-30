@@ -7,6 +7,7 @@ interface GroupMetadataSectionProps {
   description?: string;
   created?: Date;
   lastUpdated?: Date;
+  lastMembershipUpdated?: Date;
 }
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -21,6 +22,7 @@ const GroupMetadataSection: React.FC<GroupMetadataSectionProps> = ({
   description,
   created,
   lastUpdated,
+  lastMembershipUpdated,
 }) => (
   <div className="space-y-3">
     <Field label="Description">
@@ -48,9 +50,16 @@ const GroupMetadataSection: React.FC<GroupMetadataSectionProps> = ({
           <span className="text-neutral-500 italic">Not reported by Okta</span>
         )}
       </Field>
-      <Field label="Last updated">
+      <Field label="Profile updated">
         {lastUpdated ? (
           formatDate(lastUpdated)
+        ) : (
+          <span className="text-neutral-500 italic">Not reported by Okta</span>
+        )}
+      </Field>
+      <Field label="Membership changed">
+        {lastMembershipUpdated ? (
+          formatDate(lastMembershipUpdated)
         ) : (
           <span className="text-neutral-500 italic">Not reported by Okta</span>
         )}

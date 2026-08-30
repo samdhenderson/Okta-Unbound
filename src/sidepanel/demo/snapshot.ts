@@ -9,7 +9,11 @@ function group(
   n: number,
   name: string,
   description: string,
-  options: { type?: RawOktaGroup['type']; source?: { id: string; name: string } } = {},
+  options: {
+    type?: RawOktaGroup['type'];
+    source?: { id: string; name: string };
+    membershipDaysAgo?: number;
+  } = {},
 ): RawOktaGroup {
   return {
     id: fakeId('00g', n),
@@ -20,6 +24,7 @@ function group(
       : {}),
     created: isoDaysAgo(600 + n),
     lastUpdated: isoDaysAgo(n * 3 + 2),
+    lastMembershipUpdated: isoDaysAgo(options.membershipDaysAgo ?? n * 3 + 5),
   };
 }
 
@@ -39,6 +44,7 @@ const groupTemplates: readonly RawOktaGroup[] = [
     GROUP.awsProdAdmin,
     'AWS Prod - Admin',
     'Production AWS console access. Reviewed quarterly.',
+    { membershipDaysAgo: 1180 },
   ),
   group(GROUP.awsProdReadOnly, 'AWS Prod - ReadOnly', 'Read-only production AWS access'),
   group(GROUP.vpnUsers, 'VPN Users', 'Rule-assigned to every active employee'),
@@ -48,7 +54,9 @@ const groupTemplates: readonly RawOktaGroup[] = [
   group(GROUP.onCallEngineering, 'On-Call - Engineering', 'Paged rotation. Managed by hand.'),
   group(GROUP.releaseManagers, 'Release Managers', 'Can promote a build to production'),
   group(GROUP.incidentResponse, 'Security - Incident Response', 'IR pager rotation'),
-  group(GROUP.interns, 'Interns 2026', 'Summer cohort. Expires at the end of the season.'),
+  group(GROUP.interns, 'Interns 2026', 'Summer cohort. Expires at the end of the season.', {
+    membershipDaysAgo: 430,
+  }),
   group(GROUP.dormant, 'Dormant - 120d', 'No sign-in in 120 days. Review for deactivation.'),
   group(GROUP.executiveStaff, 'Executive Staff', 'Leadership team'),
   group(GROUP.londonOffice, 'London Office', 'Rule-assigned by city'),

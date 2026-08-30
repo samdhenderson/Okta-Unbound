@@ -23,7 +23,8 @@ const mixedGroups: GroupSummary[] = [
     id: 'g4',
     name: 'Contractors 2019',
     memberCount: 8,
-    lastUpdated: new Date('2019-06-01'),
+    lastUpdated: new Date('2026-06-01'),
+    lastMembershipUpdated: new Date('2019-06-01'),
   }),
   makeGroup({ id: 'g5', name: 'Sales Team', memberCount: 40 }),
   makeGroup({ id: 'g6', name: 'Sales Team', memberCount: 15 }),
@@ -51,7 +52,7 @@ const meta = {
       description: {
         component:
           'Read-only clutter-triage panel over the loaded groups.\n\n' +
-          'Buckets groups into cleanup categories (empty, duplicate-named, stale, …), ' +
+          'Buckets groups into cleanup categories (empty, duplicate-named, dormant, …), ' +
           'offers category selectors, and previews a ranked review list that can be ' +
           'pushed back as the current selection. When nothing is flagged it renders an ' +
           'empty state; a long flagged list is capped with an "N more" overflow line. ' +

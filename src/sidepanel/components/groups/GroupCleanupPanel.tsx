@@ -49,7 +49,7 @@ const GroupCleanupPanel: React.FC<GroupCleanupPanelProps> = ({
         <EmptyState
           icon="check"
           title="No clutter detected"
-          description="No empty, duplicate-named, or stale groups in the loaded list."
+          description="No empty, duplicate-named, or dormant groups in the loaded list."
         />
       ) : (
         <>
@@ -79,11 +79,11 @@ const GroupCleanupPanel: React.FC<GroupCleanupPanelProps> = ({
               }
             />
             <StatCard
-              title="Stale"
+              title="Dormant"
               value={report.categories.stale.length}
               color="warning"
               icon="pause"
-              subtitle="not updated in 1+ year"
+              subtitle="no membership change in 1+ year"
               onClick={
                 report.categories.stale.length > 0
                   ? () => onSelectGroups(report.categories.stale)

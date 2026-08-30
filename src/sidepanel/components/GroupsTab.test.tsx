@@ -816,7 +816,7 @@ describe('mount snapshot rehydrate', () => {
     ]);
 
     await uev.click(screen.getByRole('button', { name: /^Filters/ }));
-    await uev.click(section('Sort by').getByRole('button', { name: /^Last Updated/ }));
+    await uev.click(section('Sort by').getByRole('button', { name: /^Profile Updated/ }));
 
     expect(renderedGroupNames()).toEqual(['Newer', 'Older']);
   });
@@ -1085,10 +1085,10 @@ describe('sorting (cached mode)', () => {
     await renderCached(fixtures);
     await open(uev);
 
-    await uev.click(sortBtn('Last Updated'));
+    await uev.click(sortBtn('Profile Updated'));
     expect(renderedGroupNames()).toEqual(['Gamma', 'Beta', 'Alpha']);
 
-    await uev.click(sortBtn('Last Updated'));
+    await uev.click(sortBtn('Profile Updated'));
     expect(renderedGroupNames()).toEqual(['Alpha', 'Beta', 'Gamma']);
   });
 });

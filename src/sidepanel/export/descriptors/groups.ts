@@ -6,6 +6,7 @@ import type { EntityExport, ExportColumn } from '../types';
 export const groupWithStatsSchema = oktaGroupListItemSchema.extend({
   created: z.string().nullish(),
   lastUpdated: z.string().nullish(),
+  lastMembershipUpdated: z.string().nullish(),
   _embedded: z
     .object({
       stats: z
@@ -42,6 +43,14 @@ export const groupColumns: ExportColumn<GroupWithStats>[] = [
     group: 'base',
     defaultEnabled: false,
     accessor: (g) => g.lastUpdated,
+    format: (v) => formatDateForCSV(v as string | null | undefined),
+  },
+  {
+    id: 'lastMembershipUpdated',
+    label: 'Membership Changed',
+    group: 'base',
+    defaultEnabled: false,
+    accessor: (g) => g.lastMembershipUpdated,
     format: (v) => formatDateForCSV(v as string | null | undefined),
   },
   {

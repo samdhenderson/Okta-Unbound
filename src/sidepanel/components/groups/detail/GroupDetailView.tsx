@@ -242,6 +242,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
                   description={group.description}
                   created={group.created}
                   lastUpdated={group.lastUpdated}
+                  lastMembershipUpdated={group.lastMembershipUpdated}
                 />
               </div>
             )}
