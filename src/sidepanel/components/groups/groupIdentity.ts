@@ -62,7 +62,14 @@ export function groupIdentity(group: GroupSummary): EntityIdentityDescriptor {
     const relative = getRelativeTime(group.lastUpdated.toISOString());
     timestamps.push({
       kind: 'text',
-      text: `Updated ${relative ?? formatDateShort(group.lastUpdated)}`,
+      text: `Profile ${relative ?? formatDateShort(group.lastUpdated)}`,
+    });
+  }
+  if (group.lastMembershipUpdated) {
+    const relative = getRelativeTime(group.lastMembershipUpdated.toISOString());
+    timestamps.push({
+      kind: 'text',
+      text: `Membership ${relative ?? formatDateShort(group.lastMembershipUpdated)}`,
     });
   }
 

@@ -59,13 +59,19 @@ export const oktaUserSchema = z.object({
   profile: oktaProfileSchema,
 });
 
-export const oktaGroupSchema = z.object({
-  id: z.string(),
-  profile: z.object({
-    name: z.string(),
-    description: z.string().nullish(),
-  }),
-});
+export const oktaGroupSchema = z
+  .object({
+    id: z.string(),
+    type: z.enum(['OKTA_GROUP', 'APP_GROUP', 'BUILT_IN']).optional(),
+    created: z.string().nullish(),
+    lastUpdated: z.string().nullish(),
+    lastMembershipUpdated: z.string().nullish(),
+    profile: z.object({
+      name: z.string(),
+      description: z.string().nullish(),
+    }),
+  })
+  .passthrough();
 
 export const oktaGroupRuleSchema = z
   .object({

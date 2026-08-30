@@ -3,7 +3,7 @@ import { parseRegexQuery } from '../../../shared/utils/regexQuery';
 
 export { parseRegexQuery } from '../../../shared/utils/regexQuery';
 
-export type SortField = 'name' | 'memberCount' | 'lastUpdated';
+export type SortField = 'name' | 'memberCount' | 'lastUpdated' | 'lastMembershipUpdated';
 export type PushFilter = '' | 'pushed' | 'not_pushed';
 export type RuleFilter = '' | 'ruled' | 'unruled';
 
@@ -66,6 +66,10 @@ export function compareGroupsBy(a: GroupSummary, b: GroupSummary, sortBy: SortFi
       if (!a.lastUpdated) return 1;
       if (!b.lastUpdated) return -1;
       return a.lastUpdated.getTime() - b.lastUpdated.getTime();
+    case 'lastMembershipUpdated':
+      if (!a.lastMembershipUpdated) return 1;
+      if (!b.lastMembershipUpdated) return -1;
+      return a.lastMembershipUpdated.getTime() - b.lastMembershipUpdated.getTime();
     default:
       return 0;
   }

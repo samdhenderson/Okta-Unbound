@@ -51,19 +51,79 @@ describe('analyzeClutter', () => {
   it('flags groups at/above the age threshold only', () => {
     const report = analyzeClutter(
       [
-        group({ id: 'g1', name: 'Stale', lastUpdated: daysAgo(STALE_AGE_DAYS) }),
-        group({ id: 'g2', name: 'Fresh', lastUpdated: daysAgo(STALE_AGE_DAYS - 1) }),
+        group({ id: 'g1', name: 'Stale', lastMembershipUpdated: daysAgo(STALE_AGE_DAYS) }),
+        group({ id: 'g2', name: 'Fresh', lastMembershipUpdated: daysAgo(STALE_AGE_DAYS - 1) }),
       ],
       NOW,
     );
     expect(report.categories.stale).toEqual(['g1']);
-    expect(report.entries[0].reasons).toContain('Not updated in over a year');
+    expect(report.entries[0].reasons).toContain('No membership change in over a year');
   });
 
-  it('does not flag a group with no lastUpdated date (missing data is not age)', () => {
+  it('flags a group whose roster is frozen even though its profile was edited yesterday', () => {
+    const report = analyzeClutter(
+      [
+        group({
+          id: 'g1',
+          name: 'AWS Prod - Admin',
+          lastUpdated: daysAgo(1),
+          lastMembershipUpdated: daysAgo(STALE_AGE_DAYS + 800),
+        }),
+      ],
+      NOW,
+    );
+    expect(report.categories.stale).toEqual(['g1']);
+  });
+
+  it('does not flag a group whose members churn weekly but whose profile is untouched', () => {
+    const report = analyzeClutter(
+      [
+        group({
+          id: 'g1',
+          name: 'Engineering',
+          lastUpdated: daysAgo(STALE_AGE_DAYS + 800),
+          lastMembershipUpdated: daysAgo(3),
+        }),
+      ],
+      NOW,
+    );
+    expect(report.categories.stale).toEqual([]);
+  });
+
+  it('falls back to lastUpdated when Okta reported no membership date', () => {
+    const report = analyzeClutter(
+      [group({ id: 'g1', name: 'Stale', lastUpdated: daysAgo(STALE_AGE_DAYS) })],
+      NOW,
+    );
+    expect(report.categories.stale).toEqual(['g1']);
+  });
+
+  it('does not claim a membership fact when it only had the profile clock', () => {
+    const report = analyzeClutter(
+      [group({ id: 'g1', name: 'Stale', lastUpdated: daysAgo(STALE_AGE_DAYS) })],
+      NOW,
+    );
+    expect(report.entries[0].reasons).toContain('Not updated in over a year');
+    expect(report.entries[0].reasons).not.toContain('No membership change in over a year');
+  });
+
+  it('does not flag a group with neither date (missing data is not age)', () => {
     const report = analyzeClutter([group({ id: 'g1', name: 'NoDate' })], NOW);
     expect(report.categories.stale).toEqual([]);
     expect(report.entries).toHaveLength(0);
+  });
+
+  it('never calls an APP_GROUP or BUILT_IN stale, however old its roster', () => {
+    const ancient = daysAgo(STALE_AGE_DAYS + 2000);
+    const report = analyzeClutter(
+      [
+        group({ id: 'g1', name: 'AD Synced', type: 'APP_GROUP', lastMembershipUpdated: ancient }),
+        group({ id: 'g2', name: 'Everyone', type: 'BUILT_IN', lastMembershipUpdated: ancient }),
+        group({ id: 'g3', name: 'Okta Owned', type: 'OKTA_GROUP', lastMembershipUpdated: ancient }),
+      ],
+      NOW,
+    );
+    expect(report.categories.stale).toEqual(['g3']);
   });
 
   it('does not flag a group solely for a missing description (hygiene, not clutter)', () => {

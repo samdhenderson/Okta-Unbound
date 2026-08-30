@@ -108,12 +108,36 @@ describe('groupIdentity', () => {
     expect(counts.map((fact) => ('label' in fact ? fact.label : fact.kind))).toEqual(['members']);
   });
 
-  it('renders created as an absolute date and last-updated as recency', () => {
-    const { timestamps } = rowsOf(makeGroup({ created: daysAgo(1600), lastUpdated: daysAgo(4) }));
+  it('renders created as an absolute date and both update clocks as recency', () => {
+    const { timestamps } = rowsOf(
+      makeGroup({
+        created: daysAgo(1600),
+        lastUpdated: daysAgo(4),
+        lastMembershipUpdated: daysAgo(900),
+      }),
+    );
 
     expect(timestamps[0]).toMatchObject({ kind: 'text', icon: 'clock' });
     expect((timestamps[0] as { text: string }).text).toMatch(/^Created /);
-    expect(timestamps[1]).toMatchObject({ kind: 'text', text: 'Updated 4 days ago' });
+    expect(timestamps[1]).toMatchObject({ kind: 'text', text: 'Profile 4 days ago' });
+    expect(timestamps[2]).toMatchObject({ kind: 'text', text: 'Membership 2 years ago' });
+  });
+
+  it('names which clock each chip reports, so a fresh profile cannot read as a fresh roster', () => {
+    const { timestamps } = rowsOf(
+      makeGroup({ lastUpdated: daysAgo(4), lastMembershipUpdated: daysAgo(900) }),
+    );
+
+    const texts = timestamps.map((fact) => ('text' in fact ? fact.text : ''));
+    expect(texts).toEqual(['Profile 4 days ago', 'Membership 2 years ago']);
+  });
+
+  it('omits the membership chip when Okta reported no membership date', () => {
+    const { timestamps } = rowsOf(makeGroup({ lastUpdated: daysAgo(4) }));
+
+    expect(timestamps.map((fact) => ('text' in fact ? fact.text : ''))).toEqual([
+      'Profile 4 days ago',
+    ]);
   });
 
   it('leaves the timestamp row empty when Okta reported neither date', () => {

@@ -5,10 +5,17 @@ export const STALE_AGE_DAYS = 365;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export function isStaleByAge(group: GroupSummary, now: number = Date.now()): boolean {
-  if (!group.lastUpdated) return false;
-  const time = group.lastUpdated.getTime();
+  const clock = group.lastMembershipUpdated ?? group.lastUpdated;
+  if (!clock) return false;
+  const time = clock.getTime();
   if (Number.isNaN(time)) return false;
   return now - time >= STALE_AGE_DAYS * MS_PER_DAY;
+}
+
+function staleReason(group: GroupSummary): string {
+  return group.lastMembershipUpdated
+    ? 'No membership change in over a year'
+    : 'Not updated in over a year';
 }
 
 export const CLUTTER_WEIGHTS = {
@@ -82,7 +89,8 @@ export function analyzeClutter(groups: GroupSummary[], now: number = Date.now())
   for (const group of groups) {
     const empty = group.memberCount === 0;
     const duplicateName = duplicateIds.has(group.id);
-    const stale = isStaleByAge(group, now);
+    const maintainedHere = group.type !== 'BUILT_IN' && group.type !== 'APP_GROUP';
+    const stale = maintainedHere && isStaleByAge(group, now);
     const noDescription = !group.description || group.description.trim() === '';
 
     if (empty) categories.empty.push(group.id);
@@ -94,7 +102,7 @@ export function analyzeClutter(groups: GroupSummary[], now: number = Date.now())
     const reasons: string[] = [];
     if (empty) reasons.push('No members');
     if (duplicateName) reasons.push('Duplicate name');
-    if (stale) reasons.push('Not updated in over a year');
+    if (stale) reasons.push(staleReason(group));
     if (noDescription) reasons.push('No description');
 
     const reviewScore = Math.min(

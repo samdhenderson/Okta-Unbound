@@ -38,6 +38,7 @@ interface GroupInsightsPaneProps {
   description?: string;
   created?: Date;
   lastUpdated?: Date;
+  lastMembershipUpdated?: Date;
 }
 
 const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
@@ -58,6 +59,7 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
   description,
   created,
   lastUpdated,
+  lastMembershipUpdated,
 }) => {
   const rosterReady = memberStatus === 'done' && members !== null;
 
@@ -166,6 +168,7 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
           description={description}
           created={created}
           lastUpdated={lastUpdated}
+          lastMembershipUpdated={lastMembershipUpdated}
         />
       </CollapsibleSection>
     </div>
