@@ -1,10 +1,14 @@
 import React from 'react';
 import { Button, IconButton } from './shared';
+import BucketList from './activity/BucketList';
+import OperationList from './activity/OperationList';
+import ResetTimeline from './activity/ResetTimeline';
 import type { ActivityView } from '../hooks/useActivityBar';
 
 export interface ActivityBarViewProps {
   view: ActivityView;
   onCancel: () => void;
+  onCancelOperation?: (planId: string) => void;
   collapsible?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
@@ -56,6 +60,7 @@ const CollapseChevron: React.FC<{ collapsed: boolean }> = ({ collapsed }) => (
 const ActivityBarView: React.FC<ActivityBarViewProps> = ({
   view,
   onCancel,
+  onCancelOperation,
   collapsible = false,
   collapsed = false,
   onToggleCollapse,
@@ -71,6 +76,8 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
     />
   );
 
+  const cancelsEverything = view.operations.length > 1;
+
   const cancelButton = (
     <Button
       variant="danger"
@@ -78,9 +85,13 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
 
       disabled={!view.canCancel || view.isCancelling}
       onClick={onCancel}
-      title="Cancel the current operation and clear the queue"
+      title={
+        cancelsEverything
+          ? 'Cancel every running operation and clear the queue'
+          : 'Cancel the current operation and clear the queue'
+      }
     >
-      {view.isCancelling ? 'Cancelling…' : 'Cancel'}
+      {view.isCancelling ? 'Cancelling…' : cancelsEverything ? 'Cancel all' : 'Cancel'}
     </Button>
   );
 
@@ -265,6 +276,16 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
           {cancelButton}
         </div>
       </div>
+
+      <OperationList operations={view.operations} onCancelOperation={onCancelOperation} />
+
+      <ResetTimeline buckets={view.buckets} now={view.now} />
+
+      <BucketList
+        buckets={view.buckets}
+        lowThresholdPercent={view.lowThresholdPercent}
+        now={view.now}
+      />
 
       {progressTrack}
     </div>

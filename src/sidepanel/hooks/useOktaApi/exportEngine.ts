@@ -2,6 +2,7 @@ import type { CoreApi } from './core';
 import type { AuditLogEntry } from './types';
 import type { EntityExport, CellValue } from '@/sidepanel/export/types';
 import { parseNextLink, nextPageUrl } from '@/shared/utils/oktaPagination';
+import { openingWalkEstimate, refinedWalkEstimate } from '@/shared/scheduler/planEstimate';
 import { parseOktaList } from '@/shared/schemas/okta';
 import {
   generateCSV,
@@ -41,42 +42,55 @@ export function createExportEngineOperations(coreApi: CoreApi) {
     resolvedEndpoint: string,
     onPage?: (rowsSoFar: number) => void,
   ): Promise<FetchAllResult<Row>> => {
-    const rows: Row[] = [];
     const cap = descriptor.maxRows ?? DEFAULT_MAX_ROWS;
     const context = `EXPORT ${descriptor.id}`;
-    let fetched = 0;
-    let dropped = 0;
-    let capped = false;
-    let nextUrl: string | null = resolvedEndpoint;
 
-    while (nextUrl) {
-      coreApi.checkCancelled();
-      const response = await coreApi.makeApiRequest(nextUrl, {
-        method: 'GET',
-        priority: 'low',
-        reason: `Export: ${descriptor.displayName}`,
-      });
-      if (!response.success) {
-        throw new Error(response.error || `Export fetch failed (${descriptor.id})`);
-      }
+    return coreApi.withPlan(
+      `Export: ${descriptor.displayName}`,
+      [{ endpoint: resolvedEndpoint, method: 'GET', estimate: openingWalkEstimate() }],
+      async (plan) => {
+        const rows: Row[] = [];
+        let fetched = 0;
+        let dropped = 0;
+        let capped = false;
+        let pages = 0;
+        let nextUrl: string | null = resolvedEndpoint;
 
-      const rawLength = Array.isArray(response.data) ? response.data.length : 0;
-      fetched += rawLength;
-      const page = parseOktaList(descriptor.schema, response.data, context) as Row[];
-      dropped += rawLength - page.length;
-      rows.push(...page);
-      onPage?.(rows.length);
-      coreApi.callbacks.onResult?.({ message: `Loaded ${rows.length} rows…`, type: 'info' });
+        while (nextUrl) {
+          coreApi.checkCancelled();
+          const response = await coreApi.makeApiRequest(nextUrl, {
+            method: 'GET',
+            priority: 'low',
+            reason: `Export: ${descriptor.displayName}`,
+            planId: plan.planId,
+          });
+          if (!response.success) {
+            throw new Error(response.error || `Export fetch failed (${descriptor.id})`);
+          }
+          pages++;
 
-      if (rows.length >= cap) {
-        capped = true;
-        rows.length = cap;
-        break;
-      }
-      nextUrl = nextPageUrl(nextUrl, response.headers?.link, rawLength);
-    }
+          const rawLength = Array.isArray(response.data) ? response.data.length : 0;
+          fetched += rawLength;
+          const page = parseOktaList(descriptor.schema, response.data, context) as Row[];
+          dropped += rawLength - page.length;
+          rows.push(...page);
+          onPage?.(rows.length);
+          coreApi.callbacks.onResult?.({ message: `Loaded ${rows.length} rows…`, type: 'info' });
 
-    return { rows, fetched, dropped, capped };
+          if (rows.length >= cap) {
+            capped = true;
+            rows.length = cap;
+            break;
+          }
+          nextUrl = nextPageUrl(nextUrl, response.headers?.link, rawLength);
+          plan.refine(resolvedEndpoint, refinedWalkEstimate(pages, nextUrl !== null));
+        }
+
+        if (capped) plan.refine(resolvedEndpoint, refinedWalkEstimate(pages, false));
+
+        return { rows, fetched, dropped, capped };
+      },
+    );
   };
 
   const countRows = async <Row>(

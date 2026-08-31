@@ -1,4 +1,5 @@
 import type { CoreApi } from './core';
+import { openingWalkEstimate, walkEstimate } from '@/shared/scheduler/planEstimate';
 import type { OktaUser } from './types';
 import type { BatchOutcome } from '@/shared/scheduler/runBatch';
 import { logAction } from '../../../shared/undoManager';
@@ -31,10 +32,12 @@ export function createGroupMemberOperations(
     groupName: string,
     user: OktaUser,
     skipUndoLog = false,
+    planId?: string,
   ) => {
     const result = await coreApi.makeApiRequest(`/api/v1/groups/${groupId}/users/${user.id}`, {
       method: 'DELETE',
       reason: 'Remove user from group',
+      planId,
     });
 
     if (result.success) onMembershipChanged?.(groupId);
@@ -65,10 +68,11 @@ export function createGroupMemberOperations(
     return coreApi.runOperation(
       'Remove user from groups',
       groupIds,
-      async (groupId) => {
+      async (groupId, _index, planId) => {
         await coreApi.makeApiRequest(`/api/v1/groups/${groupId}/users/${userId}`, {
           method: 'DELETE',
           reason: 'Remove user from groups',
+          planId,
         });
         onMembershipChanged?.(groupId);
         completedCount += 1;
@@ -78,32 +82,56 @@ export function createGroupMemberOperations(
         concurrency: 1,
         stopOnError: () => true,
         message: (p) => `Removing user from groups (${p.completed}/${p.total})`,
+        plan: { endpoint: '/api/v1/groups', method: 'DELETE' },
       },
     );
   };
 
-  const getAllGroupMembers = async (groupId: string): Promise<OktaUser[]> => {
+  const getAllGroupMembers = async (
+    groupId: string,
+    options: { memberCount?: number; planId?: string } = {},
+  ): Promise<OktaUser[]> => {
     let pageCount = 0;
+    const firstPage = `/api/v1/groups/${groupId}/users?limit=${OKTA_PAGE_SIZE}&expand=${GROUP_RULES_EXPAND}`;
 
-    const allMembers: OktaUser[] = await fetchAllPages<MemberWithGroupRules>(
-      (url) => coreApi.makeApiRequest(url, { reason: 'Load all group members' }),
-      `/api/v1/groups/${groupId}/users?limit=${OKTA_PAGE_SIZE}&expand=${GROUP_RULES_EXPAND}`,
+    const declaredLegs = [
       {
-        schema: memberWithGroupRulesSchema,
-        preserveParams: ['expand'],
-        errorMessage: 'Failed to fetch group members',
-        onBeforePage: (pageNumber) => {
-          pageCount = pageNumber;
-          coreApi.callbacks.onResult?.({ message: `Fetching page ${pageNumber}...`, type: 'info' });
-        },
-        onPage: (pageMembers, totalSoFar) => {
-          coreApi.callbacks.onResult?.({
-            message: `Page ${pageCount}: Loaded ${pageMembers.length} members (Total: ${totalSoFar})`,
-            type: 'info',
-          });
-        },
+        endpoint: firstPage,
+        method: 'GET',
+        estimate:
+          options.memberCount === undefined
+            ? openingWalkEstimate()
+            : walkEstimate(options.memberCount),
       },
-    );
+    ];
+
+    const walk = async (planId: string | undefined): Promise<OktaUser[]> =>
+      fetchAllPages<MemberWithGroupRules>(
+        (url) => coreApi.makeApiRequest(url, { reason: 'Load all group members', planId }),
+        firstPage,
+        {
+          schema: memberWithGroupRulesSchema,
+          preserveParams: ['expand'],
+          errorMessage: 'Failed to fetch group members',
+          onBeforePage: (pageNumber) => {
+            pageCount = pageNumber;
+            coreApi.callbacks.onResult?.({
+              message: `Fetching page ${pageNumber}...`,
+              type: 'info',
+            });
+          },
+          onPage: (pageMembers, totalSoFar) => {
+            coreApi.callbacks.onResult?.({
+              message: `Page ${pageCount}: Loaded ${pageMembers.length} members (Total: ${totalSoFar})`,
+              type: 'info',
+            });
+          },
+        },
+      );
+
+    const allMembers = options.planId
+      ? await walk(options.planId)
+      : await coreApi.withPlan('Load all group members', declaredLegs, (plan) => walk(plan.planId));
 
     coreApi.callbacks.onResult?.({
       message: `Loaded ${allMembers.length} total members`,

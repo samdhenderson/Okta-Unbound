@@ -87,12 +87,13 @@ export function createUserOperations(coreApi: CoreApi) {
     await coreApi.runOperation(
       'Load user details',
       userIds,
-      async (userId) => {
+      async (userId, _index, planId) => {
         try {
           const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`, {
             method: 'GET',
             priority: 'low',
             reason: 'Load user details',
+            planId,
           });
           if (response.success && response.data) {
             userDetailsMap.set(userId, response.data);
@@ -106,7 +107,10 @@ export function createUserOperations(coreApi: CoreApi) {
           }
         }
       },
-      { message: (p) => `Loading user details (${p.completed}/${p.total})` },
+      {
+        message: (p) => `Loading user details (${p.completed}/${p.total})`,
+        plan: { endpoint: '/api/v1/users', method: 'GET' },
+      },
     );
 
     return userDetailsMap;
@@ -121,12 +125,13 @@ export function createUserOperations(coreApi: CoreApi) {
     await coreApi.runOperation(
       'MFA scan',
       userIds,
-      async (userId) => {
+      async (userId, _index, planId) => {
         try {
           const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}/factors`, {
             method: 'GET',
             priority: 'low',
             reason: 'MFA scan',
+            planId,
           });
           const rawFactors = response.success ? response.data : [];
           const validated = parseOktaList(
@@ -146,7 +151,10 @@ export function createUserOperations(coreApi: CoreApi) {
           resultMap.set(userId, summarizeFactors(userId, []));
         }
       },
-      { message: (p) => `Scanned ${p.completed}/${p.total} members` },
+      {
+        message: (p) => `Scanned ${p.completed}/${p.total} members`,
+        plan: { endpoint: '/api/v1/users', method: 'GET' },
+      },
     );
 
     return resultMap;

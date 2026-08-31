@@ -1,4 +1,5 @@
 import type { SchedulerState, SchedulerMetrics } from './scheduler/types';
+import type { PlanEstimate, PlanLegInput } from './scheduler/plan';
 
 export interface OktaUser {
   id: string;
@@ -244,6 +245,22 @@ export interface SchedulerStateChangedMessage {
   state: SchedulerState;
   metrics: SchedulerMetrics;
 }
+
+export type OperationPlanUpdate = {
+  planId: string;
+} & (
+  | {
+      op: 'declare';
+      name: string;
+      tabId: number;
+      legs: PlanLegInput[];
+    }
+  | { op: 'refine'; endpoint: string; estimate: PlanEstimate }
+  | { op: 'complete' }
+  | { op: 'cancel' }
+);
+
+export type UpdateOperationPlanMessage = { action: 'updateOperationPlan' } & OperationPlanUpdate;
 
 export interface RuleStats {
   total: number;

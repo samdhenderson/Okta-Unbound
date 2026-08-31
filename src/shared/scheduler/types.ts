@@ -1,3 +1,5 @@
+import type { PlanSummary } from './plan';
+
 export type RequestPriority = 'interactive' | 'high' | 'normal' | 'low';
 export type SchedulerStatus = 'idle' | 'processing' | 'throttled' | 'cooldown' | 'paused';
 
@@ -10,6 +12,7 @@ export interface QueuedRequest {
   tabId: number;
   timestamp: number;
   reason?: string;
+  planId?: string;
   resolve: (response: RequestResult) => void;
   reject: (error: Error) => void;
   retryCount: number;
@@ -34,6 +37,17 @@ export interface SchedulerConfig {
   requestTimeout: number; // Timeout for individual requests (ms)
 }
 
+export interface BucketState {
+  bucket: string;
+  limit: number | null;
+  remaining: number | null;
+  resetAt: number | null;
+  queued: number;
+  active: number;
+  planned: number;
+  gatedUntil: number | null;
+}
+
 export interface SchedulerState {
   status: SchedulerStatus;
   queueLength: number;
@@ -43,6 +57,9 @@ export interface SchedulerState {
   cooldownEndsAt: number | null; // Timestamp when cooldown ends
   errorCount: number;
   lastError: string | null;
+  buckets: BucketState[];
+  plans: PlanSummary[];
+  minRemainingThresholdPercent: number;
 }
 
 export interface RequestSuccess {

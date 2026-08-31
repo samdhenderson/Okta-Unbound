@@ -146,7 +146,9 @@ function route(pattern: RegExp, respond: (msg: any) => any) {
 }
 
 function schedulerCalls() {
-  return runtimeSendMessage.mock.calls.map((c) => c[0]);
+  return runtimeSendMessage.mock.calls
+    .map((c) => c[0])
+    .filter((m: any) => m?.action === 'scheduleApiRequest');
 }
 
 const SEARCH_RE = /^\/api\/v1\/groups\?q=/;

@@ -19,6 +19,7 @@ interface SchedulerContextType {
   pause: () => Promise<void>;
   resume: () => Promise<void>;
   clearQueue: () => Promise<void>;
+  cancelPlan: (planId: string) => Promise<void>;
   refreshState: () => Promise<void>;
   refreshMetrics: () => Promise<void>;
 }
@@ -108,6 +109,22 @@ export const SchedulerProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [refreshState]);
 
+  const cancelPlan = useCallback(
+    async (planId: string) => {
+      try {
+        await chrome.runtime.sendMessage({
+          action: 'updateOperationPlan',
+          op: 'cancel',
+          planId,
+        });
+        await refreshState();
+      } catch (error) {
+        log.error('Failed to cancel operation:', error);
+      }
+    },
+    [refreshState],
+  );
+
   const contextValue = useMemo(
     () => ({
       state,
@@ -115,10 +132,11 @@ export const SchedulerProvider: React.FC<{ children: ReactNode }> = ({ children 
       pause,
       resume,
       clearQueue,
+      cancelPlan,
       refreshState,
       refreshMetrics,
     }),
-    [state, metrics, pause, resume, clearQueue, refreshState, refreshMetrics],
+    [state, metrics, pause, resume, clearQueue, cancelPlan, refreshState, refreshMetrics],
   );
 
   return <SchedulerContext.Provider value={contextValue}>{children}</SchedulerContext.Provider>;

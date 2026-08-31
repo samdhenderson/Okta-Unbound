@@ -15,6 +15,7 @@ export function createGroupBulkOperations(
     groupName: string,
     user: OktaUser,
     skipUndoLog?: boolean,
+    planId?: string,
   ) => Promise<RequestResult>,
   getAllGroupMembers: (groupId: string) => Promise<OktaUser[]>,
 ) {
@@ -58,12 +59,13 @@ export function createGroupBulkOperations(
             const outcome = await coreApi.runOperation(
               'Remove inactive members',
               inactiveUsers,
-              async (user) => {
-                await removeUserFromGroup(groupId, groupName, user);
+              async (user, _index, planId) => {
+                await removeUserFromGroup(groupId, groupName, user, false, planId);
               },
               {
                 stopOnError: () => true,
                 message: (p) => `Removing inactive members (${p.completed}/${p.total})`,
+                plan: { endpoint: '/api/v1/groups', method: 'DELETE' },
               },
             );
             if (outcome.cancelled) {
