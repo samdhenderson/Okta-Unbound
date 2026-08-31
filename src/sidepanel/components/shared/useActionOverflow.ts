@@ -48,6 +48,17 @@ function readPx(style: CSSStyleDeclaration, property: string, fallback: string):
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+function gapAboveBand(band: HTMLElement, host: HTMLElement): number {
+  const margin = readPx(getComputedStyle(band), 'margin-block-start', 'margin-top');
+  const hostStyle = getComputedStyle(host);
+  const display = hostStyle.display;
+  const rowGap =
+    display.includes('flex') || display.includes('grid')
+      ? readPx(hostStyle, 'row-gap', 'row-gap')
+      : 0;
+  return Math.max(0, Math.round(margin + rowGap));
+}
+
 export function useActionOverflow(
   actions: readonly MeasurableAction[],
   options: ActionOverflowOptions,
@@ -165,8 +176,7 @@ export function useActionOverflow(
     const sentinel = refs.sentinel.current;
     const host = band.parentElement;
     if (sentinel && host) {
-      const offset = Math.max(0, Math.round(bandRect.top - sentinel.getBoundingClientRect().top));
-      host.style.setProperty('--dock-offset', `${offset}px`);
+      host.style.setProperty('--dock-offset', `${gapAboveBand(band, host)}px`);
     }
   };
 

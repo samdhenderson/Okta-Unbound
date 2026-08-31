@@ -129,6 +129,7 @@ function makeFixture(options: { width?: number; withProbe?: boolean } = {}): Fix
 
   setRect(sentinel, { left: 24, top: 76, height: 0 });
   setRect(band, { left: 24, top: 100, width, height: 48 });
+  band.style.marginTop = '24px';
 
   const fixture: Fixture = {
     parent,
@@ -320,6 +321,18 @@ describe('useActionOverflow', () => {
 
       expect(parent.getPropertyValue('--dock-offset')).toBe('24px');
       expect(parent.getPropertyValue('--bar-bleed')).toBe('');
+    });
+
+    it('keeps --dock-offset a layout gap once the band has stuck', () => {
+      const fixture = makeFixture({ width: 500 });
+      mount(fixture);
+      expect(fixture.parent.style.getPropertyValue('--dock-offset')).toBe('24px');
+
+      setRect(fixture.sentinel, { left: 24, top: -304, height: 0 });
+      fixture.setWidth(480);
+      resize();
+
+      expect(fixture.parent.style.getPropertyValue('--dock-offset')).toBe('24px');
     });
 
     it('publishes nothing while the band is hidden', () => {
