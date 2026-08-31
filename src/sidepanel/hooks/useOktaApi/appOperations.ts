@@ -95,12 +95,14 @@ export function createAppOperations(coreApi: CoreApi) {
     walkUrl: string,
     schema: z.ZodType<T, z.ZodTypeDef, unknown>,
     context: string,
+    planId?: string,
   ): Promise<number> => {
     const request = (url: string) =>
       coreApi.makeApiRequest(url, {
         method: 'GET',
         priority: 'low',
         reason: 'Count app assignments',
+        planId,
       });
 
     const probe = await request(probeUrl);
@@ -116,20 +118,29 @@ export function createAppOperations(coreApi: CoreApi) {
   const getAppAssignmentCounts = async (appId: string): Promise<AppAssignmentCounts | null> => {
     const encodedId = encodeURIComponent(appId);
     try {
-      const [users, groups] = await Promise.all([
-        countAssignments(
-          `/api/v1/apps/${encodedId}/users?limit=1`,
-          `/api/v1/apps/${encodedId}/users?limit=${OKTA_PAGE_SIZE}`,
-          oktaAppUserSchema,
-          'GET /api/v1/apps/{id}/users',
-        ),
-        countAssignments(
-          `/api/v1/apps/${encodedId}/groups?limit=1`,
-          `/api/v1/apps/${encodedId}/groups?limit=${OKTA_PAGE_SIZE}`,
-          oktaAppGroupSchema,
-          'GET /api/v1/apps/{id}/groups',
-        ),
-      ]);
+      const { users, groups } = await coreApi.withPlan(
+        'Count app assignments',
+        [{ endpoint: `/api/v1/apps`, method: 'GET', estimate: { kind: 'atLeast', requests: 2 } }],
+        async (plan) => {
+          const [users, groups] = await Promise.all([
+            countAssignments(
+              `/api/v1/apps/${encodedId}/users?limit=1`,
+              `/api/v1/apps/${encodedId}/users?limit=${OKTA_PAGE_SIZE}`,
+              oktaAppUserSchema,
+              'GET /api/v1/apps/{id}/users',
+              plan.planId,
+            ),
+            countAssignments(
+              `/api/v1/apps/${encodedId}/groups?limit=1`,
+              `/api/v1/apps/${encodedId}/groups?limit=${OKTA_PAGE_SIZE}`,
+              oktaAppGroupSchema,
+              'GET /api/v1/apps/{id}/groups',
+              plan.planId,
+            ),
+          ]);
+          return { users, groups };
+        },
+      );
       return { users, groups };
     } catch {
       log.error('getAppAssignmentCounts failed', { code: 'app_assignment_counts_failed', appId });
@@ -137,7 +148,10 @@ export function createAppOperations(coreApi: CoreApi) {
     }
   };
 
-  const getAppGroupAssignments = async (appId: string): Promise<string[] | null> => {
+  const getAppGroupAssignments = async (
+    appId: string,
+    planId?: string,
+  ): Promise<string[] | null> => {
     try {
       const groups = await fetchAllPages(
         (url) =>
@@ -145,6 +159,7 @@ export function createAppOperations(coreApi: CoreApi) {
             method: 'GET',
             priority: 'low',
             reason: 'Load app group assignments',
+            planId,
           }),
         `/api/v1/apps/${encodeURIComponent(appId)}/groups?limit=${OKTA_PAGE_SIZE}`,
         {

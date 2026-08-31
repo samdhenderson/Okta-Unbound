@@ -7,7 +7,10 @@ const mockRuntimeSendMessage = vi.fn();
 const mockTabsSendMessage = vi.fn();
 globalThis.chrome = {
   runtime: {
-    sendMessage: mockRuntimeSendMessage,
+    sendMessage: (message: { action?: string }) =>
+      message?.action === 'updateOperationPlan'
+        ? Promise.resolve({ success: true })
+        : mockRuntimeSendMessage(message),
   },
   tabs: {
     sendMessage: mockTabsSendMessage,
@@ -305,6 +308,7 @@ describe('useOktaApi', () => {
         tabId: targetTabId,
         priority: 'normal',
         reason: 'Load all group members',
+        planId: expect.any(String),
       });
     });
 
@@ -383,6 +387,7 @@ describe('useOktaApi', () => {
         tabId: targetTabId,
         priority: 'low',
         reason: 'MFA scan',
+        planId: expect.any(String),
       });
       expect(map.get('alice')).toMatchObject({
         enrolled: true,

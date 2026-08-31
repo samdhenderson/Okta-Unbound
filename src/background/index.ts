@@ -2,7 +2,7 @@ import { auditStore } from '../shared/storage/auditStore';
 import { ApiScheduler } from '../shared/scheduler/apiScheduler';
 import { TabStateManager } from '../shared/tabState/tabStateManager';
 import type { SchedulerState } from '../shared/scheduler/types';
-import type { SchedulerStateChangedMessage } from '../shared/types';
+import type { SchedulerStateChangedMessage, UpdateOperationPlanMessage } from '../shared/types';
 import { createLogger } from '../shared/utils/logger';
 import { isOktaUrl } from '../shared/utils/oktaUrl';
 import { createThrottledRelay } from './throttledRelay';
@@ -79,6 +79,73 @@ function isValidScheduleRequest(request: {
   return true;
 }
 
+const MAX_PLAN_NAME_LENGTH = 80;
+const MAX_PLAN_ID_LENGTH = 64;
+const MAX_PLAN_LEGS = 16;
+const PLAN_OPS = new Set(['declare', 'refine', 'complete', 'cancel']);
+const ESTIMATE_KINDS = new Set(['exact', 'atLeast', 'unknown']);
+
+function isValidPlanEstimate(estimate: unknown): boolean {
+  if (typeof estimate !== 'object' || estimate === null) return false;
+  const { kind, requests } = estimate as { kind?: unknown; requests?: unknown };
+  if (typeof kind !== 'string' || !ESTIMATE_KINDS.has(kind)) return false;
+  if (kind === 'unknown') return true;
+  return typeof requests === 'number' && Number.isFinite(requests) && requests >= 0;
+}
+
+function isValidPlanUpdate(request: {
+  op?: unknown;
+  planId?: unknown;
+  name?: unknown;
+  tabId?: unknown;
+  legs?: unknown;
+  endpoint?: unknown;
+  estimate?: unknown;
+}): request is UpdateOperationPlanMessage {
+  if (typeof request.op !== 'string' || !PLAN_OPS.has(request.op)) return false;
+  if (
+    typeof request.planId !== 'string' ||
+    request.planId.length === 0 ||
+    request.planId.length > MAX_PLAN_ID_LENGTH
+  ) {
+    return false;
+  }
+
+  const isPlainPath = (value: unknown): boolean =>
+    typeof value === 'string' && value.startsWith('/') && !value.startsWith('//');
+
+  if (request.op === 'declare') {
+    if (
+      typeof request.name !== 'string' ||
+      request.name.length === 0 ||
+      request.name.length > MAX_PLAN_NAME_LENGTH
+    ) {
+      return false;
+    }
+    if (typeof request.tabId !== 'number' || !Number.isInteger(request.tabId)) return false;
+    if (!Array.isArray(request.legs) || request.legs.length === 0) return false;
+    if (request.legs.length > MAX_PLAN_LEGS) return false;
+
+    return request.legs.every((leg: unknown) => {
+      if (typeof leg !== 'object' || leg === null) return false;
+      const { endpoint, method, estimate } = leg as {
+        endpoint?: unknown;
+        method?: unknown;
+        estimate?: unknown;
+      };
+      if (!isPlainPath(endpoint)) return false;
+      if (method !== undefined && !ALLOWED_METHODS.has(String(method).toUpperCase())) return false;
+      return isValidPlanEstimate(estimate);
+    });
+  }
+
+  if (request.op === 'refine') {
+    return isPlainPath(request.endpoint) && isValidPlanEstimate(request.estimate);
+  }
+
+  return true;
+}
+
 function isValidSyncSnapshotRequest(request: {
   origin?: unknown;
   tabId?: unknown;
@@ -135,6 +202,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           request.tabId,
           request.priority || 'normal',
           request.reason,
+          typeof request.planId === 'string' ? request.planId : undefined,
         )
         .then((result) => {
           sendResponse(result);
@@ -147,6 +215,43 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         });
 
       return true; // Keep message channel open for async response
+
+    case 'updateOperationPlan': {
+      if (rejectIfFromTab(sender, 'updateOperationPlan', sendResponse)) {
+        return true;
+      }
+
+      if (!isValidPlanUpdate(request)) {
+        sendResponse({ success: false, error: 'Invalid updateOperationPlan message' });
+        return true;
+      }
+
+      switch (request.op) {
+        case 'declare':
+          sendResponse({
+            success: globalScheduler.declarePlan({
+              id: request.planId,
+              name: request.name,
+              tabId: request.tabId,
+              legs: request.legs,
+            }),
+          });
+          break;
+        case 'refine':
+          globalScheduler.refinePlan(request.planId, request.endpoint, request.estimate);
+          sendResponse({ success: true });
+          break;
+        case 'complete':
+          globalScheduler.completePlan(request.planId);
+          sendResponse({ success: true });
+          break;
+        default:
+          sendResponse({ success: true, dropped: globalScheduler.cancelPlan(request.planId) });
+          break;
+      }
+
+      return true;
+    }
 
     case 'syncSnapshot':
       if (rejectIfFromTab(sender, 'syncSnapshot', sendResponse)) {

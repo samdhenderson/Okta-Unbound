@@ -85,7 +85,9 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     setError(null);
 
     Promise.all([
-      getOrFetch(cacheKeys.groupMembers(group.id), () => getAllGroupMembers(group.id)),
+      getOrFetch(cacheKeys.groupMembers(group.id), () =>
+        getAllGroupMembers(group.id, { memberCount: group.memberCount }),
+      ),
       getGroupRulesForGroup(group.id),
     ])
       .then(([members, rules]) => {

@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useScheduler } from '../contexts/SchedulerContext';
 import { useProgress } from '../contexts/ProgressContext';
-import type { SchedulerStatus } from '../../shared/scheduler/types';
+import type { SchedulerStatus, BucketState } from '../../shared/scheduler/types';
+import type { PlanSummary } from '../../shared/scheduler/plan';
 
 export interface ActivityView {
   statusLabel: string;
@@ -27,12 +28,23 @@ export interface ActivityView {
   failed: number;
   isCancelling: boolean;
   canCancel: boolean;
+  buckets: BucketState[];
+  lowThresholdPercent: number;
+  operations: PlanSummary[];
+  now: number;
 }
 
 export interface UseActivityBar {
   view: ActivityView;
   cancel: () => void;
+  cancelOperation: (planId: string) => void;
 }
+
+const DEFAULT_LOW_THRESHOLD_PERCENT = 10;
+
+const EMPTY_BUCKETS: BucketState[] = [];
+
+const EMPTY_PLANS: PlanSummary[] = [];
 
 const STATUS_COLOR: Record<SchedulerStatus, string> = {
   idle: 'var(--color-success)',
@@ -65,12 +77,16 @@ function cooldownClock(ms: number): string {
 }
 
 export function useActivityBar(): UseActivityBar {
-  const { state, metrics, clearQueue } = useScheduler();
+  const { state, metrics, clearQueue, cancelPlan } = useScheduler();
   const { progress, cancel: cancelOperation } = useProgress();
 
   const [now, setNow] = useState(() => Date.now());
   const cooldownEndsAt = state?.cooldownEndsAt ?? null;
-  const ticking = (progress.isLoading && Boolean(progress.startTime)) || cooldownEndsAt !== null;
+  const buckets = state?.buckets ?? EMPTY_BUCKETS;
+  const ticking =
+    (progress.isLoading && Boolean(progress.startTime)) ||
+    cooldownEndsAt !== null ||
+    buckets.some((bucket) => bucket.gatedUntil !== null);
 
   useEffect(() => {
     if (!ticking) return;
@@ -89,6 +105,13 @@ export function useActivityBar(): UseActivityBar {
     void clearQueue();
   }, [cancelOperation, clearQueue]);
 
+  const cancelSingleOperation = useCallback(
+    (planId: string) => {
+      void cancelPlan(planId);
+    },
+    [cancelPlan],
+  );
+
   const status: SchedulerStatus = state?.status ?? 'idle';
   const operationActive = progress.isLoading;
   const done = progress.current;
@@ -100,10 +123,16 @@ export function useActivityBar(): UseActivityBar {
   const etaLabel =
     operationActive && remaining > 0 && done > 2 ? `~${clock(remaining)} left` : undefined;
 
+  const lowThreshold = state?.minRemainingThresholdPercent ?? DEFAULT_LOW_THRESHOLD_PERCENT;
   const rl = state?.rateLimitInfo ?? null;
-  const rateLimit = rl
-    ? { remaining: rl.remaining, limit: rl.limit, low: (rl.remaining / rl.limit) * 100 <= 20 }
-    : null;
+  const rateLimit =
+    rl && rl.limit > 0
+      ? {
+          remaining: rl.remaining,
+          limit: rl.limit,
+          low: (rl.remaining / rl.limit) * 100 <= lowThreshold,
+        }
+      : null;
 
   const queueLength = state?.queueLength ?? 0;
 
@@ -132,7 +161,11 @@ export function useActivityBar(): UseActivityBar {
     failed: metrics?.failedRequests ?? 0,
     isCancelling: Boolean(progress.isCancelling),
     canCancel: (operationActive || queueLength > 0) && !progress.isCancelling,
+    buckets,
+    lowThresholdPercent: lowThreshold,
+    operations: state?.plans ?? EMPTY_PLANS,
+    now,
   };
 
-  return { view, cancel };
+  return { view, cancel, cancelOperation: cancelSingleOperation };
 }

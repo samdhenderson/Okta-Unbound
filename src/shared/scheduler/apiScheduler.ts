@@ -2,6 +2,7 @@ import { createLogger } from '../utils/logger';
 import { flushAllPending, recordRequest } from '../requestLog';
 import { OperationCancelledError } from './cancellation';
 import { RateLimitDetector, bucketOf } from './rateLimitDetector';
+import { PlanRegistry, type PlanDeclaration, type PlanEstimate } from './plan';
 import { normalizeRequestResult } from './requestResult';
 import type {
   QueuedRequest,
@@ -12,6 +13,7 @@ import type {
   SchedulerMetrics,
   RequestResult,
   RateLimitInfo,
+  BucketState,
 } from './types';
 
 const log = createLogger('ApiScheduler');
@@ -27,6 +29,8 @@ const DEFAULT_CONFIG: SchedulerConfig = {
 
 const GLOBAL_GATE = '*';
 
+const MAX_CANCELLED_PLANS = 64;
+
 export class ApiScheduler {
   private queue: QueuedRequest[] = [];
   private activeRequests: Map<string, QueuedRequest> = new Map();
@@ -38,6 +42,7 @@ export class ApiScheduler {
     }
   > = new Map();
   private rateLimitDetector: RateLimitDetector;
+  private plans: PlanRegistry;
   private config: SchedulerConfig;
   private status: SchedulerStatus = 'idle';
   private cooldowns: Map<string, number> = new Map();
@@ -46,6 +51,8 @@ export class ApiScheduler {
   private isProcessing: boolean = false;
   private reprocessRequested: boolean = false;
   private cancelGeneration: number = 0;
+
+  private cancelledPlans: string[] = [];
 
   private metrics: SchedulerMetrics = {
     totalRequests: 0,
@@ -66,6 +73,7 @@ export class ApiScheduler {
   constructor(config: Partial<SchedulerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this.rateLimitDetector = new RateLimitDetector();
+    this.plans = new PlanRegistry(bucketOf);
 
     log.debug('Initialized with config:', this.config);
 
@@ -79,7 +87,12 @@ export class ApiScheduler {
     tabId: number,
     priority: RequestPriority = 'normal',
     reason?: string,
+    planId?: string,
   ): Promise<RequestResult> {
+    if (planId && this.cancelledPlans.includes(planId)) {
+      throw new OperationCancelledError();
+    }
+
     const dedupKey = this.getGetDedupKey(method, endpoint, tabId);
 
     if (dedupKey) {
@@ -103,6 +116,7 @@ export class ApiScheduler {
         tabId,
         timestamp: Date.now(),
         reason,
+        planId,
         resolve: (result: RequestResult) => resolve(result),
         reject,
         retryCount: 0,
@@ -347,6 +361,10 @@ export class ApiScheduler {
   }
 
   private recordSettledRequest(request: QueuedRequest, success: boolean): void {
+    if (request.planId) {
+      this.plans.attribute(request.planId, request.endpoint);
+    }
+
     recordRequest({
       reason: request.reason,
       method: request.method,
@@ -497,7 +515,91 @@ export class ApiScheduler {
       cooldownEndsAt: this.latestCooldownEnd(),
       errorCount: this.metrics.failedRequests,
       lastError: this.lastError,
+      buckets: this.buildBucketStates(),
+      plans: this.plans.summarize(),
+      minRemainingThresholdPercent: this.config.minRemainingThreshold,
     };
+  }
+
+  private buildBucketStates(): BucketState[] {
+    const buckets = new Set<string>();
+    for (const { bucket } of this.rateLimitDetector.getState().bucketLimits) buckets.add(bucket);
+    for (const request of this.queue) buckets.add(bucketOf(request.endpoint));
+    for (const request of this.activeRequests.values()) buckets.add(bucketOf(request.endpoint));
+    for (const bucket of this.plans.plannedBuckets()) buckets.add(bucket);
+
+    const globalGateEndsAt = this.isGated(GLOBAL_GATE)
+      ? (this.cooldowns.get(GLOBAL_GATE) as number)
+      : null;
+
+    const states: BucketState[] = [...buckets].map((bucket) => {
+      const info = this.rateLimitDetector.getForBucket(bucket);
+
+      const gatedUntil = info
+        ? this.isGated(bucket)
+          ? (this.cooldowns.get(bucket) as number)
+          : null
+        : globalGateEndsAt;
+
+      return {
+        bucket,
+        limit: info?.limit ?? null,
+        remaining: info?.remaining ?? null,
+        resetAt: info ? info.reset * 1000 : null,
+        queued: this.queue.filter((request) => bucketOf(request.endpoint) === bucket).length,
+        active: [...this.activeRequests.values()].filter(
+          (request) => bucketOf(request.endpoint) === bucket,
+        ).length,
+        planned: this.plans.plannedForBucket(bucket),
+        gatedUntil,
+      };
+    });
+
+    return states.sort(byPressure);
+  }
+
+  declarePlan(declaration: PlanDeclaration): boolean {
+    const declared = this.plans.declare(declaration) !== null;
+    if (declared) this.notifyStateChange();
+    return declared;
+  }
+
+  refinePlan(planId: string, endpoint: string, estimate: PlanEstimate): void {
+    if (!this.plans.has(planId)) return;
+    this.plans.refine(planId, endpoint, estimate);
+    this.notifyStateChange();
+  }
+
+  completePlan(planId: string): void {
+    if (!this.plans.has(planId)) return;
+    this.plans.complete(planId);
+    this.notifyStateChange();
+  }
+
+  cancelPlan(planId: string): number {
+    const dropped = this.queue.filter((request) => request.planId === planId);
+    if (dropped.length > 0) {
+      this.queue = this.queue.filter((request) => request.planId !== planId);
+    }
+
+    this.plans.cancel(planId);
+    this.tombstone(planId);
+
+    for (const request of dropped) {
+      request.reject(new OperationCancelledError());
+    }
+
+    log.debug('Cancelled plan', { dropped: dropped.length });
+    this.notifyStateChange();
+    return dropped.length;
+  }
+
+  private tombstone(planId: string): void {
+    if (this.cancelledPlans.includes(planId)) return;
+    this.cancelledPlans.push(planId);
+    if (this.cancelledPlans.length > MAX_CANCELLED_PLANS) {
+      this.cancelledPlans.shift();
+    }
   }
 
   getMetrics(): SchedulerMetrics {
@@ -544,6 +646,9 @@ export class ApiScheduler {
       request.reject(new OperationCancelledError());
     }
 
+    for (const plan of this.plans.summarize()) this.tombstone(plan.id);
+    this.plans.reset();
+
     log.debug(`Cleared ${dropped.length} requests from queue`);
     this.notifyStateChange();
     return dropped.length;
@@ -564,4 +669,20 @@ export class ApiScheduler {
     };
     log.debug('Metrics reset');
   }
+}
+
+function byPressure(a: BucketState, b: BucketState): number {
+  const fractionOf = (state: BucketState): number | null =>
+    state.limit && state.limit > 0 && state.remaining !== null
+      ? state.remaining / state.limit
+      : null;
+
+  const left = fractionOf(a);
+  const right = fractionOf(b);
+
+  if (left === null && right === null) return a.bucket.localeCompare(b.bucket);
+  if (left === null) return 1;
+  if (right === null) return -1;
+  if (left !== right) return left - right;
+  return a.bucket.localeCompare(b.bucket);
 }

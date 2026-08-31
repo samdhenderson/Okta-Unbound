@@ -1,6 +1,9 @@
 import type { MessageRequest, MessageResponse, OperationCallbacks } from './types';
 import type { RequestResult, RequestPriority } from '@/shared/scheduler/types';
 import { runBatch, type BatchProgress, type BatchOutcome } from '@/shared/scheduler/runBatch';
+import type { PlanEstimate, PlanLegInput } from '@/shared/scheduler/plan';
+import { fanOutEstimate, atLeastFanOutEstimate } from '@/shared/scheduler/planEstimate';
+import type { OperationPlanUpdate } from '@/shared/types';
 import { createLogger } from '@/shared/utils/logger';
 import { z } from 'zod';
 import {
@@ -46,12 +49,19 @@ export interface MakeApiRequestOptions {
   body?: unknown;
   priority?: RequestPriority;
   reason: string;
+  planId?: string;
 }
 
 export interface RunOperationOptions<T> {
   concurrency?: number;
   stopOnError?: (error: unknown, item: T, index: number) => boolean;
   message?: (progress: BatchProgress) => string;
+  plan?: {
+    endpoint: string;
+    method?: string;
+    requestsPerItem?: number;
+    approximate?: boolean;
+  };
 }
 
 export interface CoreApi {
@@ -64,10 +74,24 @@ export interface CoreApi {
   runOperation: <T, R>(
     name: string,
     items: T[],
-    task: (item: T, index: number) => Promise<R>,
+    task: (item: T, index: number, planId?: string) => Promise<R>,
     options?: RunOperationOptions<T>,
   ) => Promise<BatchOutcome<T, R>>;
+  withPlan: <R>(
+    name: string,
+    legs: PlanLegInput[],
+    run: (handle: PlanHandle) => Promise<R>,
+  ) => Promise<R>;
   callbacks: OperationCallbacks;
+}
+
+export interface PlanHandle {
+  planId: string;
+  refine: (endpoint: string, estimate: PlanEstimate) => void;
+}
+
+function newPlanId(): string {
+  return `plan-${crypto.randomUUID()}`;
 }
 
 export function createCoreApi(
@@ -93,7 +117,7 @@ export function createCoreApi(
     endpoint: string,
     options: MakeApiRequestOptions,
   ): Promise<RequestResult> => {
-    const { method = 'GET', body, priority = 'normal', reason } = options;
+    const { method = 'GET', body, priority = 'normal', reason, planId } = options;
 
     if (!targetTabId) {
       throw new Error('No target tab ID - not connected to Okta page');
@@ -119,6 +143,7 @@ export function createCoreApi(
           tabId: targetTabId,
           priority,
           reason,
+          planId,
         });
         break;
       } catch (error) {
@@ -172,27 +197,76 @@ export function createCoreApi(
     }
   };
 
+  const postPlanUpdate = (message: OperationPlanUpdate): void => {
+    void chrome.runtime.sendMessage({ action: 'updateOperationPlan', ...message }).catch(() => {
+      log.debug('Plan update dropped', { op: message.op });
+    });
+  };
+
+  const withPlan = async <R>(
+    name: string,
+    legs: PlanLegInput[],
+    run: (handle: PlanHandle) => Promise<R>,
+  ): Promise<R> => {
+    const planId = newPlanId();
+
+    if (targetTabId !== null) {
+      postPlanUpdate({ op: 'declare', planId, name, tabId: targetTabId, legs });
+    }
+
+    const handle: PlanHandle = {
+      planId,
+      refine: (endpoint, estimate) => postPlanUpdate({ op: 'refine', planId, endpoint, estimate }),
+    };
+
+    try {
+      return await run(handle);
+    } finally {
+      postPlanUpdate({ op: 'complete', planId });
+    }
+  };
+
   const runOperation = async <T, R>(
     name: string,
     items: T[],
-    task: (item: T, index: number) => Promise<R>,
+    task: (item: T, index: number, planId?: string) => Promise<R>,
     options: RunOperationOptions<T> = {},
   ): Promise<BatchOutcome<T, R>> => {
     resetCancellation();
     progress.start(name, items.length);
-    try {
-      return await runBatch(items, task, {
+
+    const drive = (planId?: string) =>
+      runBatch(items, (item, index) => task(item, index, planId), {
         concurrency: options.concurrency,
         stopOnError: options.stopOnError,
         throwIfCancelled: checkCancelled,
         onProgress: (p) => progress.reportBatch(p, options.message?.(p)),
       });
+
+    try {
+      const plan = options.plan;
+      if (!plan) return await drive();
+
+      return await withPlan(
+        name,
+        [
+          {
+            endpoint: plan.endpoint,
+            method: plan.method,
+            estimate: plan.approximate
+              ? atLeastFanOutEstimate(items.length, plan.requestsPerItem)
+              : fanOutEstimate(items.length, plan.requestsPerItem),
+          },
+        ],
+        (handle) => drive(handle.planId),
+      );
     } finally {
       progress.complete();
     }
   };
 
   return {
+    withPlan,
     targetTabId,
     sendMessage,
     makeApiRequest,

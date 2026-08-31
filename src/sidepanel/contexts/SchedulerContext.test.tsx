@@ -15,6 +15,9 @@ const baseState: SchedulerState = {
   cooldownEndsAt: null,
   errorCount: 0,
   lastError: null,
+  buckets: [],
+  plans: [],
+  minRemainingThresholdPercent: 10,
 };
 
 const Probe = () => {

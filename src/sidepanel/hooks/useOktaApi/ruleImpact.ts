@@ -34,7 +34,10 @@ export interface RuleImpactOperations {
 
 export function createRuleImpactOperations(
   coreApi: CoreApi,
-  getAllGroupMembers: (groupId: string) => Promise<OktaUser[]>,
+  getAllGroupMembers: (
+    groupId: string,
+    options?: { memberCount?: number; planId?: string },
+  ) => Promise<OktaUser[]>,
   oktaOrigin?: string | null,
 ): RuleImpactOperations {
   const fetchRawRules = async (): Promise<OktaGroupRule[]> => {
@@ -69,11 +72,13 @@ export function createRuleImpactOperations(
   const fetchGroupMeta = async (
     groupId: string,
     fallbackName: string,
+    planId?: string,
   ): Promise<{ name: string; type?: GroupType }> => {
     try {
       const response = await coreApi.makeApiRequest(`/api/v1/groups/${groupId}`, {
         priority: 'low',
         reason: 'Rule impact preview',
+        planId,
       });
       if (response.success && response.data) {
         return {
@@ -104,17 +109,18 @@ export function createRuleImpactOperations(
     const outcome = await coreApi.runOperation(
       'Rule impact preview',
       groupInputs,
-      async ({ groupId, fallbackName }): Promise<TargetGroupMembers> => {
+      async ({ groupId, fallbackName }, _index, planId): Promise<TargetGroupMembers> => {
         started += 1;
         opts?.onProgress?.(Math.min(started, total), total, `Loading members for ${fallbackName}…`);
 
-        const meta = await fetchGroupMeta(groupId, fallbackName);
-        const members = await getAllGroupMembers(groupId);
+        const meta = await fetchGroupMeta(groupId, fallbackName, planId);
+        const members = await getAllGroupMembers(groupId, { planId });
         return { groupId, groupName: meta.name, groupType: meta.type, members };
       },
       {
         stopOnError: () => true,
         message: (p) => `Loading rule targets (${p.completed}/${p.total})`,
+        plan: { endpoint: '/api/v1/groups', method: 'GET' },
       },
     );
 

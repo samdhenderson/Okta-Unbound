@@ -25,6 +25,9 @@ const meta = {
         'Merged, display-ready activity state (status, metric slots, progress, cancel flags).',
     },
     onCancel: { description: 'Invoked when the user confirms cancellation of the current work.' },
+    onCancelOperation: {
+      description: 'Stops one declared operation, leaving every other one running.',
+    },
     collapsible: {
       description:
         'Whether the panel is narrow enough to offer collapsing; when `true` the chevron toggle is shown.',
@@ -37,12 +40,15 @@ const meta = {
   },
   args: {
     onCancel: fn(),
+    onCancelOperation: fn(),
     onToggleCollapse: fn(),
   },
 } satisfies Meta<typeof ActivityBarView>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+const FIXED_NOW = 1_760_000_000_000;
 
 const idleView: ActivityView = {
   statusLabel: 'Ready',
@@ -62,6 +68,10 @@ const idleView: ActivityView = {
   failed: 0,
   isCancelling: false,
   canCancel: false,
+  buckets: [],
+  lowThresholdPercent: 10,
+  operations: [],
+  now: FIXED_NOW,
 };
 
 export const Default: Story = {
@@ -238,6 +248,206 @@ export const Cancelling: Story = {
       queueLength: 3,
       isCancelling: true,
       canCancel: false,
+    },
+  },
+};
+
+function bucket(
+  overrides: { bucket: string } & Partial<ActivityView['buckets'][number]>,
+): ActivityView['buckets'][number] {
+  return {
+    limit: 600,
+    remaining: 600,
+    resetAt: FIXED_NOW + 60_000,
+    queued: 0,
+    active: 0,
+    planned: 0,
+    gatedUntil: null,
+    ...overrides,
+  };
+}
+
+export const BucketsAllQuiet: Story = {
+  args: {
+    view: {
+      ...idleView,
+      processed: 128,
+      buckets: [
+        bucket({ bucket: '/api/v1/users' }),
+        bucket({ bucket: '/api/v1/groups' }),
+        bucket({ bucket: '/api/v1/apps' }),
+        bucket({ bucket: '/api/v1/policies' }),
+        bucket({ bucket: '/api/v1/meta', limit: null, remaining: null, resetAt: null }),
+      ],
+    },
+  },
+};
+
+export const BucketsWithPlannedWork: Story = {
+  args: {
+    view: {
+      ...idleView,
+      statusLabel: 'Processing',
+      statusColorVar: 'var(--color-info)',
+      busy: true,
+      operationActive: true,
+      operationName: 'Export all users',
+      current: 312,
+      total: 812,
+      percentage: 38,
+      opCompleted: 312,
+      opActive: 4,
+      queueLength: 26,
+      activeRequests: 4,
+      rateLimit: { remaining: 288, limit: 600, low: false },
+      canCancel: true,
+      buckets: [
+        bucket({ bucket: '/api/v1/users', remaining: 288, active: 4, queued: 26, planned: 470 }),
+        bucket({ bucket: '/api/v1/groups' }),
+        bucket({ bucket: '/api/v1/policies' }),
+      ],
+    },
+  },
+};
+
+export const BucketCoolingDown: Story = {
+  args: {
+    view: {
+      ...idleView,
+      statusLabel: 'Cooldown',
+      statusColorVar: 'var(--color-danger)',
+      busy: true,
+      queueLength: 40,
+      rateLimit: { remaining: 18, limit: 600, low: true },
+      cooldownLabel: '24s',
+      canCancel: true,
+      buckets: [
+        bucket({
+          bucket: '/api/v1/users',
+          remaining: 18,
+          queued: 40,
+          planned: 500,
+          gatedUntil: FIXED_NOW + 24_000,
+        }),
+        bucket({ bucket: '/api/v1/apps', limit: 300, remaining: 81, queued: 3, planned: 402 }),
+        bucket({ bucket: '/api/v1/groups' }),
+        bucket({ bucket: '/api/v1/policies' }),
+      ],
+    },
+  },
+};
+
+function leg(bucket: string, estimated: number | null, spent = 0) {
+  return {
+    id: `${bucket}-leg`,
+    bucket,
+    method: 'GET',
+    estimated,
+    spent,
+    remaining: estimated === null ? null : Math.max(0, estimated - spent),
+    approximate: false,
+  };
+}
+
+export const ConcurrentOperations: Story = {
+  args: {
+    view: {
+      ...idleView,
+      statusLabel: 'Processing',
+      statusColorVar: 'var(--color-info)',
+      busy: true,
+      operationActive: true,
+      operationName: 'Export all users',
+      current: 312,
+      total: 812,
+      percentage: 38,
+      opCompleted: 312,
+      opActive: 4,
+      queueLength: 26,
+      activeRequests: 4,
+      rateLimit: { remaining: 288, limit: 600, low: false },
+      canCancel: true,
+      buckets: [
+        bucket({ bucket: '/api/v1/users', remaining: 288, active: 4, queued: 26, planned: 470 }),
+        bucket({ bucket: '/api/v1/groups', active: 1, planned: 2 }),
+      ],
+      operations: [
+        {
+          id: 'export',
+          name: 'Export all users',
+          startedAt: FIXED_NOW - 90_000,
+          legs: [leg('/api/v1/users', 812, 342)],
+          spent: 342,
+          estimated: 812,
+          remaining: 470,
+          approximate: false,
+        },
+        {
+          id: 'search',
+          name: 'Search groups',
+          startedAt: FIXED_NOW - 2_000,
+          legs: [leg('/api/v1/groups', 3, 1)],
+          spent: 1,
+          estimated: 3,
+          remaining: 2,
+          approximate: true,
+        },
+      ],
+    },
+  },
+};
+
+export const GatedWithLedger: Story = {
+  args: {
+    view: {
+      ...idleView,
+      statusLabel: 'Cooldown',
+      statusColorVar: 'var(--color-danger)',
+      busy: true,
+      queueLength: 40,
+      rateLimit: { remaining: 18, limit: 600, low: true },
+      cooldownLabel: '24s',
+      canCancel: true,
+      buckets: [
+        bucket({
+          bucket: '/api/v1/users',
+          remaining: 18,
+          queued: 40,
+          planned: 470,
+          gatedUntil: FIXED_NOW + 24_000,
+        }),
+        bucket({
+          bucket: '/api/v1/apps',
+          limit: 300,
+          remaining: 4,
+          queued: 3,
+          planned: 402,
+          gatedUntil: FIXED_NOW + 95_000,
+        }),
+        bucket({ bucket: '/api/v1/groups' }),
+      ],
+      operations: [
+        {
+          id: 'export',
+          name: 'Export all users',
+          startedAt: FIXED_NOW - 90_000,
+          legs: [leg('/api/v1/users', 812, 342)],
+          spent: 342,
+          estimated: 812,
+          remaining: 470,
+          approximate: false,
+        },
+        {
+          id: 'assignments',
+          name: 'Count app assignments',
+          startedAt: FIXED_NOW - 30_000,
+          legs: [leg('/api/v1/apps', 402, 0)],
+          spent: 0,
+          estimated: 402,
+          remaining: 402,
+          approximate: true,
+        },
+      ],
     },
   },
 };

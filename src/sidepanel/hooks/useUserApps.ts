@@ -48,7 +48,7 @@ interface ResolveGrantingGroupsOptions {
   memberGroupIds: Set<string>;
   oktaOrigin?: string | null;
   api: {
-    getAppGroupAssignments: (appId: string) => Promise<string[] | null>;
+    getAppGroupAssignments: (appId: string, planId?: string) => Promise<string[] | null>;
     runOperation: ReturnType<typeof useOktaApi>['runOperation'];
   };
   onResolved: (named: Record<string, string>) => void;
@@ -96,17 +96,20 @@ async function resolveGrantingGroups({
   const outcome = await api.runOperation<string, [string, string] | null>(
     'Name the groups granting these apps',
     toWalk,
-    async (appId) =>
+    async (appId, _index, planId) =>
       nameGrantor(
         appId,
         await getOrFetch<string[] | null>(
           cacheKeys.appGroups(appId),
-          () => api.getAppGroupAssignments(appId),
+          () => api.getAppGroupAssignments(appId, planId),
           { ttl: TTL_LONG },
         ),
         memberGroupIds,
       ),
-    { message: ({ completed, total }) => `Naming granting groups (${completed}/${total})` },
+    {
+      message: ({ completed, total }) => `Naming granting groups (${completed}/${total})`,
+      plan: { endpoint: '/api/v1/apps', method: 'GET', approximate: true },
+    },
   );
 
   const named: Record<string, string> = {};
