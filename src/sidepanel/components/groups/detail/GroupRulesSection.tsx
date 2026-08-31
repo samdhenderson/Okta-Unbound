@@ -12,9 +12,8 @@ const RuleRelationList: React.FC<{
   error: string | null;
   emptyMessage: string;
   rules: FormattedRule[];
-  oktaOrigin?: string | null;
   onNavigateToRule?: (ruleId: string) => void;
-}> = ({ heading, hint, status, error, emptyMessage, rules, oktaOrigin, onNavigateToRule }) => (
+}> = ({ heading, hint, status, error, emptyMessage, rules, onNavigateToRule }) => (
   <div>
     <h3 className="text-xs font-medium text-neutral-600">
       {heading}
@@ -31,12 +30,7 @@ const RuleRelationList: React.FC<{
       ) : (
         <div className="space-y-2">
           {rules.map((rule) => (
-            <RuleCard
-              key={rule.id}
-              rule={rule}
-              oktaOrigin={oktaOrigin}
-              onOpenInRulesTab={onNavigateToRule}
-            />
+            <RuleCard key={rule.id} rule={rule} onOpenInRulesTab={onNavigateToRule} />
           ))}
         </div>
       )}
@@ -52,7 +46,6 @@ interface GroupRulesSectionProps {
   referencingStatus: SourceStatus;
   referencingError: string | null;
   onNavigateToRule?: (ruleId: string) => void;
-  oktaOrigin?: string | null;
 }
 
 const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
@@ -63,7 +56,6 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
   referencingStatus,
   referencingError,
   onNavigateToRule,
-  oktaOrigin,
 }) => (
   <DetailSection title="Rules">
     <div className="space-y-4">
@@ -74,7 +66,6 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
         error={assigningError}
         emptyMessage="No rule assigns users to this group. Members are added manually or by app push."
         rules={assigningRules}
-        oktaOrigin={oktaOrigin}
         onNavigateToRule={onNavigateToRule}
       />
 
@@ -85,7 +76,6 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
         error={referencingError}
         emptyMessage="No rule condition references this group by id."
         rules={referencingRules}
-        oktaOrigin={oktaOrigin}
         onNavigateToRule={onNavigateToRule}
       />
     </div>

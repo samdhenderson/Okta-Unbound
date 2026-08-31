@@ -29,17 +29,6 @@ const base = {
   referencingError: null,
 };
 
-function expandRule(scope: ReturnType<typeof within>, name: string) {
-  return userEvent.click(scope.getByRole('button', { name: `Expand ${name}` }));
-}
-
-function disclosureFor(toggle: HTMLElement): HTMLElement {
-  const id = toggle.getAttribute('aria-controls');
-  const panel = id ? document.getElementById(id) : null;
-  if (!panel) throw new Error('the disclosure toggle names no panel');
-  return panel;
-}
-
 function listUnder(heading: string) {
   const block = screen.getByText(new RegExp(`^${heading}`)).parentElement as HTMLElement;
   return within(block);
@@ -100,50 +89,33 @@ describe('GroupRulesSection', () => {
     expect(screen.getByText('All Engineers')).toBeInTheDocument();
   });
 
-  it('deep-links a rule from inside its expanded card', async () => {
+  it('deep-links a rule by pressing its row', async () => {
     const onNavigateToRule = vi.fn();
     render(<GroupRulesSection {...base} onNavigateToRule={onNavigateToRule} />);
 
-    await expandRule(listUnder(REFERENCES), 'Contractors gate');
-    const jump = await screen.findByTitle('Open rule Contractors gate in the Rules tab');
-    await userEvent.click(jump);
+    await userEvent.click(await screen.findByTitle('Open rule Contractors gate in the Rules tab'));
+
     expect(onNavigateToRule).toHaveBeenCalledWith('r2');
   });
 
   it('offers no jump control when no navigation handler is supplied', () => {
     render(<GroupRulesSection {...base} />);
-    expect(screen.queryByText('Open in Rules tab')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open rule/ })).not.toBeInTheDocument();
     expect(screen.getByText('All Engineers')).toBeInTheDocument();
   });
 
-  it('shows the rule itself, not just a link to it', async () => {
+  it("shows each rule's condition on the row, with nothing to open first", () => {
     render(<GroupRulesSection {...base} />);
 
-    const toggle = listUnder(ASSIGNS).getByRole('button', { name: 'Expand All Engineers' });
-    const disclosure = disclosureFor(toggle);
-    expect(disclosure).toHaveAttribute('data-open', 'false');
-
-    await userEvent.click(toggle);
-
-    expect(disclosure).toHaveAttribute('data-open', 'true');
-    expect(within(disclosure).getByText('user.department == "Engineering"')).toBeInTheDocument();
+    expect(listUnder(ASSIGNS).getByText('department == "Engineering"')).toBeInTheDocument();
   });
 
-  it('renders no write verb it cannot perform', async () => {
-    render(<GroupRulesSection {...base} />);
+  it('renders no write verb it cannot perform', () => {
+    render(<GroupRulesSection {...base} onNavigateToRule={vi.fn()} />);
 
-    await expandRule(listUnder(ASSIGNS), 'All Engineers');
-    expect(screen.queryByRole('button', { name: /Deactivate Rule/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Activate Rule/ })).not.toBeInTheDocument();
-  });
-
-  it('offers the Okta deep link only when an org origin is known', async () => {
-    const { rerender } = render(<GroupRulesSection {...base} />);
-    await expandRule(listUnder(ASSIGNS), 'All Engineers');
-    expect(screen.queryByRole('link', { name: /View in Okta/ })).not.toBeInTheDocument();
-
-    rerender(<GroupRulesSection {...base} oktaOrigin="https://example.okta.com" />);
-    expect(screen.getAllByRole('link', { name: /View in Okta/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Deactivate/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Activate/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /Open rule/ }).length).toBe(2);
   });
 
   it("shows each rule's Okta status verbatim", () => {

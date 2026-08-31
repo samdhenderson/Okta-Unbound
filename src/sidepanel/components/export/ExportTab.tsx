@@ -14,8 +14,8 @@ import ExportPreviewTable from './ExportPreviewTable';
 
 export interface ExportRequest {
   descriptorId: string;
-  contextId: string;
-  contextLabel: string;
+  contextId?: string;
+  contextLabel?: string;
 }
 
 interface ExportTabProps {
@@ -83,11 +83,18 @@ const ExportTab: React.FC<ExportTabProps> = ({
       handledExportRef.current = null;
       return;
     }
-    const key = `${exportRequest.descriptorId}:${exportRequest.contextId}`;
+    const key = `${exportRequest.descriptorId}:${exportRequest.contextId ?? ''}`;
     if (handledExportRef.current === key) return;
     handledExportRef.current = key;
     selectEntity(exportRequest.descriptorId);
-    setContext({ id: exportRequest.contextId, label: exportRequest.contextLabel });
+    setContext(
+      exportRequest.contextId
+        ? {
+            id: exportRequest.contextId,
+            label: exportRequest.contextLabel ?? exportRequest.contextId,
+          }
+        : null,
+    );
     onExportRequestConsumed?.();
   }, [exportRequest, selectEntity, setContext, onExportRequestConsumed]);
 

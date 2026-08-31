@@ -211,6 +211,8 @@ const App: React.FC = () => {
       contextLabel: groupName,
     });
 
+  const handleExportRules = () => handleNavigateToExport({ descriptorId: 'group-rules' });
+
   const handleOpenListView = useCallback((request: ListViewRequest) => {
     setListViewRequest(request);
     setActiveTab(request.tab);
@@ -278,6 +280,8 @@ const App: React.FC = () => {
                 selectedRuleId={selectedRuleId}
                 onRuleSelected={() => setSelectedRuleId(null)}
                 onNavigateToGroup={handleNavigateToGroup}
+                onExportRules={handleExportRules}
+                scrollRootRef={scrollRootRef}
                 listView={viewFor(listViewRequest, 'rules')}
                 onListViewConsumed={clearListViewRequest}
               />

@@ -3,18 +3,16 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RuleCard from './RuleCard';
-import { NavigationProvider } from '../contexts/NavigationContext';
 import type { FormattedRule } from '../../shared/types';
 
 const TARGET_GROUP_ID = '00gFAKE0000000000TGT';
-const CONDITION_GROUP_ID = '00gFAKE0000000000CND';
 
-const unresolved: FormattedRule = {
+const initial: FormattedRule = {
   id: '00rFAKE0000000000001',
   name: 'Engineering auto-assign',
   status: 'ACTIVE',
   condition: 'user.department == "Engineering"',
-  conditionExpression: `isMemberOfAnyGroup("${CONDITION_GROUP_ID}")`,
+  conditionExpression: 'user.department == "Engineering"',
   groupIds: [TARGET_GROUP_ID],
   groupNames: undefined,
   allGroupNamesMap: {},
@@ -24,71 +22,89 @@ const unresolved: FormattedRule = {
   affectsCurrentGroup: false,
 };
 
-const resolved: FormattedRule = {
-  ...unresolved,
-  groupNames: ['Engineering – All'],
-  allGroupNamesMap: { [CONDITION_GROUP_ID]: 'Condition Group' },
+const withConflict: FormattedRule = {
+  ...initial,
+  conflicts: [
+    {
+      rule1: { id: initial.id, name: initial.name },
+      rule2: { id: '00rFAKE0000000000002', name: 'Contractors auto-assign' },
+      reason: 'Both rules assign users to the same group on overlapping conditions.',
+      severity: 'high',
+      affectedGroups: [TARGET_GROUP_ID],
+    },
+  ],
 };
 
 const renderCard = (props: Partial<ComponentProps<typeof RuleCard>> = {}) =>
-  render(
-    <NavigationProvider handlers={{ group: vi.fn() }}>
-      <RuleCard rule={unresolved} {...props} />
-    </NavigationProvider>,
-  );
+  render(<RuleCard rule={initial} {...props} />);
 
 const rerenderCard = (
   rerender: ReturnType<typeof renderCard>['rerender'],
   props: Partial<ComponentProps<typeof RuleCard>> = {},
-) =>
-  rerender(
-    <NavigationProvider handlers={{ group: vi.fn() }}>
-      <RuleCard rule={unresolved} {...props} />
-    </NavigationProvider>,
-  );
-
-const expand = () => userEvent.click(screen.getByRole('button', { name: /^Expand / }));
+) => rerender(<RuleCard rule={initial} {...props} />);
 
 describe('RuleCard', () => {
-  it('repaints its target groups when their names arrive after first paint', async () => {
+  it('repaints when a later pass adds a conflict to a rule already on screen', () => {
     const { rerender } = renderCard();
-    await expand();
+    expect(screen.queryByText(/Conflict/)).not.toBeInTheDocument();
 
-    expect(screen.getByText('Group name not loaded')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Open group Engineering – All' }),
-    ).not.toBeInTheDocument();
+    rerenderCard(rerender, { rule: withConflict });
 
-    rerenderCard(rerender, { rule: resolved });
-
-    expect(
-      screen.getByRole('button', { name: 'Open group Engineering – All' }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText('Group name not loaded')).not.toBeInTheDocument();
+    expect(screen.getByText('1 Conflict')).toBeInTheDocument();
   });
 
-  it('repaints a condition-expression group id when its name arrives after first paint', async () => {
+  it('repaints when the rule it was handed changes status underneath it', () => {
     const { rerender } = renderCard();
-    await expand();
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
 
-    expect(screen.getByText(new RegExp(CONDITION_GROUP_ID))).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Open group Condition Group' }),
-    ).not.toBeInTheDocument();
+    rerenderCard(rerender, { rule: { ...initial, status: 'INACTIVE' } });
 
-    rerenderCard(rerender, { rule: resolved });
-
-    expect(screen.getByRole('button', { name: 'Open group Condition Group' })).toBeInTheDocument();
+    expect(screen.getByText('INACTIVE')).toBeInTheDocument();
+    expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
   });
 
-  it('shows an action whose handler is wired up after first paint', async () => {
+  it('shows the way in once its handler is wired up after first paint', () => {
     const { rerender } = renderCard();
-    await expand();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
 
-    expect(screen.queryByRole('button', { name: 'Deactivate Rule' })).not.toBeInTheDocument();
+    rerenderCard(rerender, { onOpenRule: vi.fn() });
 
-    rerenderCard(rerender, { onDeactivate: vi.fn() });
+    expect(screen.getByRole('button', { name: 'Open rule' })).toBeInTheDocument();
+  });
 
-    expect(screen.getByRole('button', { name: 'Deactivate Rule' })).toBeInTheDocument();
+  it('opens the rule when the row is pressed', async () => {
+    const onOpenRule = vi.fn();
+    renderCard({ onOpenRule });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open rule' }));
+
+    expect(onOpenRule).toHaveBeenCalledWith(initial);
+  });
+
+  it('says where the press lands when it deep-links across tabs', async () => {
+    const onOpenInRulesTab = vi.fn();
+    renderCard({ onOpenInRulesTab });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open rule in the Rules tab' }));
+
+    expect(onOpenInRulesTab).toHaveBeenCalledWith(initial.id);
+  });
+
+  it('renders no affordance when it can open nothing', () => {
+    renderCard();
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByText(initial.name)).toBeInTheDocument();
+  });
+
+  it('names the specific rule its overlay opens', () => {
+    renderCard({ onOpenRule: vi.fn() });
+
+    const describedBy = screen
+      .getByRole('button', { name: 'Open rule' })
+      .getAttribute('aria-describedby');
+
+    expect(describedBy).toBeTruthy();
+    expect(screen.getByText(initial.name)).toHaveAttribute('id', describedBy);
   });
 });

@@ -10,9 +10,7 @@ const captured = vi.hoisted(() => ({ impact: {} as Record<string, unknown> }));
 vi.mock('./RuleCard', () => ({
   default: (props: {
     rule: FormattedRule;
-    onActivate?: (id: string) => void;
-    onDeactivate?: (id: string) => void;
-    onPreviewImpact?: (rule: FormattedRule) => void;
+    onOpenRule?: (rule: FormattedRule) => void;
     isHighlighted?: boolean;
   }) => (
     <div
@@ -20,11 +18,7 @@ vi.mock('./RuleCard', () => ({
       data-highlighted={String(Boolean(props.isHighlighted))}
     >
       <span>{props.rule.name}</span>
-      <button onClick={() => props.onActivate?.(props.rule.id)}>activate {props.rule.id}</button>
-      <button onClick={() => props.onDeactivate?.(props.rule.id)}>
-        deactivate {props.rule.id}
-      </button>
-      <button onClick={() => props.onPreviewImpact?.(props.rule)}>preview {props.rule.id}</button>
+      <button onClick={() => props.onOpenRule?.(props.rule)}>open {props.rule.id}</button>
     </div>
   ),
 }));
@@ -140,6 +134,27 @@ function renderTab(props: Partial<React.ComponentProps<typeof RulesTab>> = {}) {
   );
 }
 
+async function openMoreTier(): Promise<void> {
+  const more = screen.queryByRole('button', { name: 'More' });
+  if (more && more.getAttribute('aria-expanded') !== 'true') await userEvent.click(more);
+}
+
+async function openPanel(label: RegExp): Promise<void> {
+  await openMoreTier();
+  await userEvent.click(screen.getByRole('button', { name: label }));
+}
+
+async function openFilters(): Promise<void> {
+  await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
+}
+
+async function openRuleRung(ruleId: string): Promise<void> {
+  await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+  await waitFor(() => expect(screen.getByTestId(`rule-${ruleId}`)).toBeInTheDocument());
+  await userEvent.click(screen.getByRole('button', { name: `open ${ruleId}` }));
+  await screen.findByTestId('rule-action-bar');
+}
+
 let rulesFetchResponse: () => { success: boolean; data?: unknown[]; error?: string };
 
 beforeEach(() => {
@@ -178,6 +193,7 @@ describe('RulesTab characterization', () => {
     expect(screen.getByText('Engineering Rule')).toBeInTheDocument();
     expect(screen.getByText('Sales Rule')).toBeInTheDocument();
 
+    await openPanel(/^Stats/);
     expect(
       within(screen.getByText('Total Rules').closest('div')!).getByText('2'),
     ).toBeInTheDocument();
@@ -198,29 +214,55 @@ describe('RulesTab characterization', () => {
     expect(rulesFetchCalls()).toHaveLength(0);
   });
 
-  it('activates a rule immediately (no confirmation gate)', async () => {
+  it('gates activation behind a confirm that states what cannot be undone', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
-    await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
+    await openRuleRung('r2');
 
-    await userEvent.click(screen.getByRole('button', { name: 'activate r2' }));
+    const activateEndpoint = '/api/v1/groups/rules/r2/lifecycle/activate';
+    await openMoreTier();
+    await userEvent.click(screen.getByRole('button', { name: 'Activate rule' }));
+
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/only ever adds members/);
+    expect(runtimeSendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: activateEndpoint }),
+    );
+
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Activate' }),
+    );
     await waitFor(() =>
       expect(runtimeSendMessage).toHaveBeenCalledWith(
         expect.objectContaining({
           action: 'scheduleApiRequest',
-          endpoint: '/api/v1/groups/rules/r2/lifecycle/activate',
+          endpoint: activateEndpoint,
           method: 'POST',
         }),
       ),
     );
   });
 
+  it('writes nothing when the activation confirm is cancelled', async () => {
+    renderTab();
+    await openRuleRung('r2');
+
+    await openMoreTier();
+    await userEvent.click(screen.getByRole('button', { name: 'Activate rule' }));
+    await userEvent.click(
+      within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }),
+    );
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(runtimeSendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: '/api/v1/groups/rules/r2/lifecycle/activate' }),
+    );
+  });
+
   it('gates deactivation behind the impact modal, committing only on confirm', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
-    await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
+    await openRuleRung('r1');
 
-    await userEvent.click(screen.getByRole('button', { name: 'deactivate r1' }));
+    await openMoreTier();
+    await userEvent.click(screen.getByRole('button', { name: 'Deactivate rule' }));
     const modal = await screen.findByTestId('impact-modal');
     expect(modal).toHaveAttribute('data-mode', 'deactivate');
     const deactivateEndpoint = '/api/v1/groups/rules/r1/lifecycle/deactivate';
@@ -242,10 +284,9 @@ describe('RulesTab characterization', () => {
 
   it('opens the impact modal in preview mode (read-only)', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
-    await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
+    await openRuleRung('r1');
 
-    await userEvent.click(screen.getByRole('button', { name: 'preview r1' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
     const modal = await screen.findByTestId('impact-modal');
     expect(modal).toHaveAttribute('data-mode', 'preview');
     expect(runtimeSendMessage).not.toHaveBeenCalledWith(
@@ -268,6 +309,7 @@ describe('RulesTab characterization', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
     await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
 
+    await openFilters();
     await userEvent.click(screen.getByRole('button', { name: 'Active Only' }));
     expect(screen.getByTestId('rule-r1')).toBeInTheDocument();
     expect(screen.queryByTestId('rule-r2')).not.toBeInTheDocument();
@@ -283,12 +325,12 @@ describe('RulesTab characterization', () => {
   it('auto-loads rules when deep-linked to a rule with nothing loaded yet', async () => {
     renderTab({ selectedRuleId: 'r2' });
 
-    await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('rule-action-bar')).toBeInTheDocument());
     expect(rulesFetchCalls()).toHaveLength(1);
-    expect(screen.getByTestId('rule-r2')).toHaveAttribute('data-highlighted', 'true');
+    expect(screen.getByLabelText('Actions for Sales Rule')).toBeInTheDocument();
   });
 
-  it('clears a persisted filter that would hide the deep-linked rule', async () => {
+  it('opens a deep-linked rule that the persisted filter would have hidden', async () => {
     loadTabState.mockResolvedValue({
       cachedRules: [rule(), rule({ id: 'r2', name: 'Sales Rule', status: 'INACTIVE' })],
       cachedStats: stats,
@@ -298,18 +340,19 @@ describe('RulesTab characterization', () => {
 
     renderTab({ selectedRuleId: 'r2' });
 
-    await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
-    expect(screen.getByTestId('rule-r2')).toHaveAttribute('data-highlighted', 'true');
+    await waitFor(() =>
+      expect(screen.getByLabelText('Actions for Sales Rule')).toBeInTheDocument(),
+    );
     expect(rulesFetchCalls()).toHaveLength(0);
   });
 
-  it('the merge banner "View" link highlights the rule card in the list', async () => {
+  it('the duplicates panel "View" link opens the rule\'s rung', async () => {
     renderTab();
     await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
     await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
-    expect(screen.getByTestId('rule-r1')).toHaveAttribute('data-highlighted', 'false');
+    expect(screen.queryByTestId('rule-action-bar')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /duplicate-condition rules/ }));
+    await openPanel(/^Duplicates/);
     await userEvent.click(screen.getByRole('button', { name: /rules → .* target group/ }));
     const bannerRow = screen
       .getAllByText('Engineering Rule')
@@ -320,7 +363,7 @@ describe('RulesTab characterization', () => {
       await userEvent.click(within(bannerRow).getByRole('button', { name: 'View' }));
     }
 
-    expect(screen.getByTestId('rule-r1')).toHaveAttribute('data-highlighted', 'true');
+    expect(await screen.findByLabelText('Actions for Engineering Rule')).toBeInTheDocument();
   });
 });
 
@@ -350,6 +393,7 @@ describe('RulesTab current-group filter', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
     await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
 
+    await openFilters();
     await userEvent.click(screen.getByRole('button', { name: 'Current Group' }));
 
     expect(screen.getByTestId('rule-r1')).toBeInTheDocument();
@@ -376,6 +420,7 @@ describe('RulesTab current-group filter', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
     await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
 
+    await openFilters();
     await userEvent.click(screen.getByRole('button', { name: 'Current Group' }));
 
     expect(screen.getByTestId('rule-r1')).toBeInTheDocument();
@@ -398,6 +443,8 @@ describe('RulesTab current-group filter', () => {
     await waitFor(() => expect(screen.getByText('No Matching Rules')).toBeInTheDocument());
     expect(screen.queryByTestId('rule-r1')).not.toBeInTheDocument();
     expect(screen.queryByTestId('rule-r2')).not.toBeInTheDocument();
+    await openFilters();
+    expect(screen.getByRole('button', { name: 'All Rules' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Current Group' })).not.toBeInTheDocument();
   });
 });

@@ -11,11 +11,7 @@ interface RulesListPanelProps {
   hasRules: boolean;
   filteredRules: FormattedRule[];
   onLoad: () => void;
-  onActivate: (ruleId: string) => void;
-  onDeactivate: (ruleId: string) => void;
-  onPreviewImpact: (rule: FormattedRule) => void;
-  onAddTargetGroup: (rule: FormattedRule) => void;
-  oktaOrigin?: string | null;
+  onOpenRule: (rule: FormattedRule) => void;
   selectedRuleId?: string | null;
 }
 
@@ -24,11 +20,7 @@ const RulesListPanel: React.FC<RulesListPanelProps> = ({
   hasRules,
   filteredRules,
   onLoad,
-  onActivate,
-  onDeactivate,
-  onPreviewImpact,
-  onAddTargetGroup,
-  oktaOrigin,
+  onOpenRule,
   selectedRuleId,
 }) => {
   const setStaggerRef = useStaggerReveal();
@@ -66,11 +58,7 @@ const RulesListPanel: React.FC<RulesListPanelProps> = ({
               <div key={rule.id} data-rule-id={rule.id}>
                 <RuleCard
                   rule={rule}
-                  onActivate={onActivate}
-                  onDeactivate={onDeactivate}
-                  onPreviewImpact={onPreviewImpact}
-                  onAddTargetGroup={onAddTargetGroup}
-                  oktaOrigin={oktaOrigin}
+                  onOpenRule={onOpenRule}
                   isHighlighted={selectedRuleId === rule.id}
                 />
               </div>
