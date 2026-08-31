@@ -84,6 +84,7 @@ export function useUserDetailPanes({
   const appsResult = useUserApps(userId, {
     targetTabId: targetTabId ?? null,
     memberships,
+    oktaOrigin,
     enabled: enabled && pane === 'apps',
   });
 

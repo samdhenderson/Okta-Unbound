@@ -117,6 +117,7 @@ export async function handleMakeApiRequest(
           `Request failed with status ${response.status}`,
         status: response.status,
         data,
+        headers,
       };
     }
 

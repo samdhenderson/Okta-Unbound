@@ -1,7 +1,7 @@
 import { createLogger } from '../utils/logger';
 import { flushAllPending, recordRequest } from '../requestLog';
 import { OperationCancelledError } from './cancellation';
-import { RateLimitDetector } from './rateLimitDetector';
+import { RateLimitDetector, bucketOf } from './rateLimitDetector';
 import { normalizeRequestResult } from './requestResult';
 import type {
   QueuedRequest,
@@ -25,6 +25,8 @@ const DEFAULT_CONFIG: SchedulerConfig = {
   requestTimeout: 30000, // 30 second timeout per request
 };
 
+const GLOBAL_GATE = '*';
+
 export class ApiScheduler {
   private queue: QueuedRequest[] = [];
   private activeRequests: Map<string, QueuedRequest> = new Map();
@@ -38,7 +40,7 @@ export class ApiScheduler {
   private rateLimitDetector: RateLimitDetector;
   private config: SchedulerConfig;
   private status: SchedulerStatus = 'idle';
-  private cooldownEndsAt: number | null = null;
+  private cooldowns: Map<string, number> = new Map();
   private isPaused: boolean = false;
   private processingInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing: boolean = false;
@@ -200,39 +202,77 @@ export class ApiScheduler {
     }
   }
 
+  private isGated(key: string): boolean {
+    const endsAt = this.cooldowns.get(key);
+    if (endsAt === undefined) return false;
+    if (Date.now() >= endsAt) {
+      this.cooldowns.delete(key);
+      log.debug('Cooldown ended, resuming processing', { gate: key });
+      return false;
+    }
+    return true;
+  }
+
+  private anyGateArmed(): boolean {
+    let armed = false;
+    for (const key of [...this.cooldowns.keys()]) {
+      if (this.isGated(key)) armed = true;
+    }
+    return armed;
+  }
+
+  private gateKeyFor(request: QueuedRequest): { key: string; observed: boolean } {
+    const bucket = bucketOf(request.endpoint);
+    const observed = this.rateLimitDetector.getForBucket(bucket) !== null;
+    return { key: observed ? bucket : GLOBAL_GATE, observed };
+  }
+
+  private gateFor(request: QueuedRequest): 'go' | 'gated' | 'cooldown' {
+    const { key, observed } = this.gateKeyFor(request);
+    const bucket = observed ? key : undefined;
+
+    if (request.priority === 'interactive' && !this.rateLimitDetector.isLimitExceeded(bucket)) {
+      return 'go';
+    }
+
+    if (this.isGated(key)) return 'gated';
+
+    if (
+      this.rateLimitDetector.isApproachingLimit(
+        this.config.minRemainingThreshold,
+        this.activeRequests.size,
+        bucket,
+      )
+    ) {
+      return 'cooldown';
+    }
+
+    return 'go';
+  }
+
   private drainQueue(): void {
     if (this.isPaused) {
       this.updateStatus('paused');
       return;
     }
 
-    if (this.cooldownEndsAt && Date.now() >= this.cooldownEndsAt) {
-      log.debug('Cooldown ended, resuming processing');
-      this.cooldownEndsAt = null;
-    }
-
     while (this.activeRequests.size < this.config.maxConcurrent && this.queue.length > 0) {
-      const interactiveBypass =
-        this.queue[0]?.priority === 'interactive' && !this.rateLimitDetector.isLimitExceeded();
+      let index = -1;
+      for (let i = 0; i < this.queue.length; i++) {
+        const verdict = this.gateFor(this.queue[i]);
+        if (verdict === 'go') {
+          index = i;
+          break;
+        }
+        if (verdict === 'cooldown') this.enterCooldown(this.gateKeyFor(this.queue[i]).key);
+      }
 
-      if (this.cooldownEndsAt && Date.now() < this.cooldownEndsAt && !interactiveBypass) {
+      if (index === -1) {
         this.updateStatus('cooldown');
         return;
       }
 
-      if (
-        this.rateLimitDetector.isApproachingLimit(
-          this.config.minRemainingThreshold,
-          this.activeRequests.size,
-        ) &&
-        !interactiveBypass
-      ) {
-        this.enterCooldown();
-        return;
-      }
-
-      const request = this.queue.shift();
-      if (!request) return;
+      const [request] = this.queue.splice(index, 1);
 
       this.updateStatus('processing');
       this.executeRequest(request);
@@ -240,7 +280,7 @@ export class ApiScheduler {
 
     if (this.queue.length > 0 || this.activeRequests.size > 0) {
       this.updateStatus('processing');
-    } else if (this.cooldownEndsAt && Date.now() < this.cooldownEndsAt) {
+    } else if (this.anyGateArmed()) {
       this.updateStatus('cooldown');
     } else {
       this.updateStatus('idle');
@@ -267,7 +307,7 @@ export class ApiScheduler {
         const rateLimitInfo = this.rateLimitDetector.parseHeaders(result.headers, request.endpoint);
 
         if (rateLimitInfo && this.shouldEnterCooldown(rateLimitInfo)) {
-          this.enterCooldown();
+          this.enterCooldown(rateLimitInfo.bucket);
         }
       }
 
@@ -374,28 +414,46 @@ export class ApiScheduler {
     return percentRemaining <= this.config.minRemainingThreshold;
   }
 
-  private enterCooldown(): void {
-    const info = this.rateLimitDetector.getMostRestrictive();
-    if (!info) return;
+  private enterCooldown(gate: string = GLOBAL_GATE): void {
+    const info =
+      (gate === GLOBAL_GATE ? null : this.rateLimitDetector.getForBucket(gate)) ??
+      this.rateLimitDetector.getMostRestrictive();
 
-    const resetWaitTime = this.rateLimitDetector.getMillisecondsUntilReset(info);
+    const resetWaitTime = info ? this.rateLimitDetector.getMillisecondsUntilReset(info) : 0;
     const cooldownDuration =
       resetWaitTime > 0
         ? Math.min(this.config.cooldownDuration, resetWaitTime)
         : this.config.cooldownDuration;
 
-    this.cooldownEndsAt = Date.now() + cooldownDuration;
+    const endsAt = Date.now() + cooldownDuration;
+    const existing = this.cooldowns.get(gate);
+    if (existing !== undefined && existing >= endsAt) return;
+    this.cooldowns.set(gate, endsAt);
     this.metrics.cooldownEvents++;
 
     log.warn('Entering cooldown mode:', {
-      remaining: info.remaining,
-      limit: info.limit,
+      gate,
+      remaining: info?.remaining,
+      limit: info?.limit,
       cooldownDuration: `${Math.ceil(cooldownDuration / 1000)}s`,
-      endsAt: new Date(this.cooldownEndsAt).toISOString(),
+      endsAt: new Date(endsAt).toISOString(),
     });
 
     this.updateStatus('cooldown');
     this.notifyStateChange();
+  }
+
+  setMinRemainingThreshold(percent: number): void {
+    if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+      log.warn('Ignoring out-of-range cooldown threshold', { percent });
+      return;
+    }
+    if (this.config.minRemainingThreshold === percent) return;
+    log.info('Cooldown threshold updated', {
+      from: this.config.minRemainingThreshold,
+      to: percent,
+    });
+    this.config.minRemainingThreshold = percent;
   }
 
   pause(): void {
@@ -419,6 +477,16 @@ export class ApiScheduler {
     }
   }
 
+  private latestCooldownEnd(): number | null {
+    let latest: number | null = null;
+    for (const key of [...this.cooldowns.keys()]) {
+      if (!this.isGated(key)) continue;
+      const endsAt = this.cooldowns.get(key) as number;
+      if (latest === null || endsAt > latest) latest = endsAt;
+    }
+    return latest;
+  }
+
   getState(): SchedulerState {
     return {
       status: this.status,
@@ -426,7 +494,7 @@ export class ApiScheduler {
       activeRequests: this.activeRequests.size,
       totalProcessed: this.metrics.successfulRequests + this.metrics.failedRequests,
       rateLimitInfo: this.rateLimitDetector.getMostRestrictive(),
-      cooldownEndsAt: this.cooldownEndsAt,
+      cooldownEndsAt: this.latestCooldownEnd(),
       errorCount: this.metrics.failedRequests,
       lastError: this.lastError,
     };

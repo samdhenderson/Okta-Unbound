@@ -3,6 +3,14 @@ import type { RateLimitInfo } from './types';
 
 const log = createLogger('RateLimitDetector');
 
+const API_V1_RESOURCE = /^\/api\/v1\/([^/]+)/;
+
+export function bucketOf(endpoint: string): string {
+  const path = endpoint.split('?')[0];
+  const match = API_V1_RESOURCE.exec(path);
+  return match ? `/api/v1/${match[1]}` : path;
+}
+
 export class RateLimitDetector {
   private limits: Map<string, RateLimitInfo> = new Map();
   private globalLimit: RateLimitInfo | null = null;
@@ -17,22 +25,24 @@ export class RateLimitDetector {
       return null;
     }
 
+    const bucket = bucketOf(endpoint);
     const info: RateLimitInfo = {
       limit: parseInt(limit, 10),
       remaining: parseInt(remaining, 10),
       reset: parseInt(reset, 10),
       endpoint,
+      bucket,
       timestamp: Date.now(),
     };
 
-    this.limits.set(endpoint, info);
+    this.limits.set(bucket, info);
 
     if (!this.globalLimit || info.remaining < this.globalLimit.remaining) {
       this.globalLimit = info;
     }
 
     log.debug('Rate limit updated:', {
-      endpoint: endpoint.split('?')[0],
+      bucket,
       remaining: info.remaining,
       limit: info.limit,
       resetIn: this.getSecondsUntilReset(info),
@@ -46,20 +56,28 @@ export class RateLimitDetector {
     return this.globalLimit;
   }
 
-  getForEndpoint(endpoint: string): RateLimitInfo | null {
-    const info = this.limits.get(endpoint);
+  getForBucket(bucket: string): RateLimitInfo | null {
+    const info = this.limits.get(bucket);
     if (!info) return null;
 
     if (this.isExpired(info)) {
-      this.limits.delete(endpoint);
+      this.limits.delete(bucket);
       return null;
     }
 
     return info;
   }
 
-  isApproachingLimit(thresholdPercent: number = 10, inFlightCount: number = 0): boolean {
-    const info = this.getMostRestrictive();
+  getForEndpoint(endpoint: string): RateLimitInfo | null {
+    return this.getForBucket(bucketOf(endpoint));
+  }
+
+  isApproachingLimit(
+    thresholdPercent: number = 10,
+    inFlightCount: number = 0,
+    bucket?: string,
+  ): boolean {
+    const info = bucket === undefined ? this.getMostRestrictive() : this.getForBucket(bucket);
     if (!info) return false;
 
     const effectiveRemaining = Math.max(0, info.remaining - inFlightCount);
@@ -68,6 +86,7 @@ export class RateLimitDetector {
 
     if (approaching) {
       log.warn('Approaching rate limit:', {
+        bucket: info.bucket,
         remaining: info.remaining,
         limit: info.limit,
         percentRemaining: percentRemaining.toFixed(1) + '%',
@@ -78,8 +97,8 @@ export class RateLimitDetector {
     return approaching;
   }
 
-  isLimitExceeded(): boolean {
-    const info = this.getMostRestrictive();
+  isLimitExceeded(bucket?: string): boolean {
+    const info = bucket === undefined ? this.getMostRestrictive() : this.getForBucket(bucket);
     if (!info) return false;
     return info.remaining <= 0;
   }
@@ -124,9 +143,9 @@ export class RateLimitDetector {
   }
 
   private cleanExpiredLimits(): void {
-    for (const [endpoint, info] of this.limits.entries()) {
+    for (const [bucket, info] of this.limits.entries()) {
       if (this.isExpired(info)) {
-        this.limits.delete(endpoint);
+        this.limits.delete(bucket);
       }
     }
 
@@ -153,14 +172,14 @@ export class RateLimitDetector {
 
   getState(): {
     globalLimit: RateLimitInfo | null;
-    endpointLimits: Array<{ endpoint: string; info: RateLimitInfo }>;
+    bucketLimits: Array<{ bucket: string; info: RateLimitInfo }>;
   } {
     this.cleanExpiredLimits();
 
     return {
       globalLimit: this.globalLimit,
-      endpointLimits: Array.from(this.limits.entries()).map(([endpoint, info]) => ({
-        endpoint,
+      bucketLimits: Array.from(this.limits.entries()).map(([bucket, info]) => ({
+        bucket,
         info,
       })),
     };

@@ -8,6 +8,7 @@ import { isOktaUrl } from '../shared/utils/oktaUrl';
 import { createThrottledRelay } from './throttledRelay';
 import { reinjectContentScripts } from './reinjectContentScripts';
 import { syncSnapshot } from './snapshotBridge';
+import { ensureRateLimitThreshold } from './rateLimitThreshold';
 import { startSnapshotScheduler } from './snapshotScheduler';
 
 const log = createLogger('Background');
@@ -124,6 +125,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
       }
 
+      ensureRateLimitThreshold(globalScheduler, request.tabId);
+
       globalScheduler
         .scheduleRequest(
           request.endpoint,
@@ -154,6 +157,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: 'Invalid syncSnapshot message' });
         return true;
       }
+
+      ensureRateLimitThreshold(globalScheduler, request.tabId);
 
       syncSnapshot(
         globalScheduler,

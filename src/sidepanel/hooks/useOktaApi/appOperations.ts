@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { CoreApi } from './core';
 import type { RequestResult } from '@/shared/scheduler/types';
 import { oktaAppListItemSchema, type OktaAppListItem } from '@/shared/schemas/okta';
@@ -8,6 +9,7 @@ import {
 } from '@/shared/schemas/okta';
 import { parseOkta, parseOktaList } from '@/shared/schemas/okta';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { readTotalCount } from '@/shared/snapshot/syncMeta';
 import { isSessionExpired, NO_HTTP_STATUS } from '@/shared/scheduler/requestResult';
 import { createLogger } from '@/shared/utils/logger';
 
@@ -88,32 +90,47 @@ export function createAppOperations(coreApi: CoreApi) {
     }
   };
 
+  const countAssignments = async <T>(
+    probeUrl: string,
+    walkUrl: string,
+    schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+    context: string,
+  ): Promise<number> => {
+    const request = (url: string) =>
+      coreApi.makeApiRequest(url, {
+        method: 'GET',
+        priority: 'low',
+        reason: 'Count app assignments',
+      });
+
+    const probe = await request(probeUrl);
+    if (probe.success) {
+      const total = readTotalCount(probe.headers);
+      if (total !== null) return total;
+    }
+
+    const rows = await fetchAllPages(request, walkUrl, { schema, context });
+    return rows.length;
+  };
+
   const getAppAssignmentCounts = async (appId: string): Promise<AppAssignmentCounts | null> => {
     const encodedId = encodeURIComponent(appId);
     try {
       const [users, groups] = await Promise.all([
-        fetchAllPages(
-          (url) =>
-            coreApi.makeApiRequest(url, {
-              method: 'GET',
-              priority: 'low',
-              reason: 'Count app assignments',
-            }),
+        countAssignments(
+          `/api/v1/apps/${encodedId}/users?limit=1`,
           `/api/v1/apps/${encodedId}/users?limit=${OKTA_PAGE_SIZE}`,
-          { schema: oktaAppUserSchema, context: 'GET /api/v1/apps/{id}/users' },
+          oktaAppUserSchema,
+          'GET /api/v1/apps/{id}/users',
         ),
-        fetchAllPages(
-          (url) =>
-            coreApi.makeApiRequest(url, {
-              method: 'GET',
-              priority: 'low',
-              reason: 'Count app assignments',
-            }),
+        countAssignments(
+          `/api/v1/apps/${encodedId}/groups?limit=1`,
           `/api/v1/apps/${encodedId}/groups?limit=${OKTA_PAGE_SIZE}`,
-          { schema: oktaAppGroupSchema, context: 'GET /api/v1/apps/{id}/groups' },
+          oktaAppGroupSchema,
+          'GET /api/v1/apps/{id}/groups',
         ),
       ]);
-      return { users: users.length, groups: groups.length };
+      return { users, groups };
     } catch {
       log.error('getAppAssignmentCounts failed', { code: 'app_assignment_counts_failed', appId });
       return null;
