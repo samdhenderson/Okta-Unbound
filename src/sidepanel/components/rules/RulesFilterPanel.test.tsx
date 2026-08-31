@@ -1,12 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import RulesToolbar from './RulesToolbar';
+import RulesFilterPanel, { countActiveRuleFilters } from './RulesFilterPanel';
 
-function renderToolbar(over: Partial<React.ComponentProps<typeof RulesToolbar>> = {}) {
-  const props: React.ComponentProps<typeof RulesToolbar> = {
-    searchQuery: '',
-    onSearchChange: vi.fn(),
+function renderPanel(over: Partial<React.ComponentProps<typeof RulesFilterPanel>> = {}) {
+  const props: React.ComponentProps<typeof RulesFilterPanel> = {
     activeFilter: 'all',
     onFilterChange: vi.fn(),
     conflictsCount: 0,
@@ -15,25 +13,12 @@ function renderToolbar(over: Partial<React.ComponentProps<typeof RulesToolbar>> 
     onSortChange: vi.fn(),
     ...over,
   };
-  return { props, ...render(<RulesToolbar {...props} />) };
+  return { props, ...render(<RulesFilterPanel {...props} />) };
 }
 
-describe('RulesToolbar search', () => {
-  it('renders the current query and reports each keystroke', async () => {
-    const uev = userEvent.setup();
-    const { props } = renderToolbar({ searchQuery: 'Eng' });
-
-    const field = screen.getByPlaceholderText(/Search rules/i);
-    expect(field).toHaveValue('Eng');
-
-    await uev.type(field, 'i');
-    expect(props.onSearchChange).toHaveBeenCalledWith('Engi');
-  });
-});
-
-describe('RulesToolbar filter chips', () => {
+describe('RulesFilterPanel filter chips', () => {
   it('renders the always-on chips and marks the active one pressed', () => {
-    renderToolbar({ activeFilter: 'active' });
+    renderPanel({ activeFilter: 'active' });
 
     expect(screen.getByRole('button', { name: 'All Rules' })).toHaveAttribute(
       'aria-pressed',
@@ -48,7 +33,7 @@ describe('RulesToolbar filter chips', () => {
 
   it('reports the chosen filter', async () => {
     const uev = userEvent.setup();
-    const { props } = renderToolbar();
+    const { props } = renderPanel();
 
     await uev.click(screen.getByRole('button', { name: 'Active Only' }));
     expect(props.onFilterChange).toHaveBeenCalledWith('active');
@@ -59,7 +44,7 @@ describe('RulesToolbar filter chips', () => {
 
   it('disables the Conflicts chip until conflicts exist, and shows the count', async () => {
     const uev = userEvent.setup();
-    const { props, unmount } = renderToolbar({ conflictsCount: 0 });
+    const { props, unmount } = renderPanel({ conflictsCount: 0 });
 
     const emptyChip = screen.getByRole('button', { name: 'Conflicts (0)' });
     expect(emptyChip).toBeDisabled();
@@ -67,7 +52,7 @@ describe('RulesToolbar filter chips', () => {
     expect(props.onFilterChange).not.toHaveBeenCalled();
 
     unmount();
-    const second = renderToolbar({ conflictsCount: 3 });
+    const second = renderPanel({ conflictsCount: 3 });
     const chip = screen.getByRole('button', { name: 'Conflicts (3)' });
     expect(chip).toBeEnabled();
     await uev.click(chip);
@@ -75,11 +60,11 @@ describe('RulesToolbar filter chips', () => {
   });
 
   it('hides the Current Group chip until a group is detected', () => {
-    const { unmount } = renderToolbar({ showCurrentGroup: false });
+    const { unmount } = renderPanel({ showCurrentGroup: false });
     expect(screen.queryByRole('button', { name: 'Current Group' })).not.toBeInTheDocument();
 
     unmount();
-    renderToolbar({ showCurrentGroup: true, activeFilter: 'current-group' });
+    renderPanel({ showCurrentGroup: true, activeFilter: 'current-group' });
     expect(screen.getByRole('button', { name: 'Current Group' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -88,16 +73,16 @@ describe('RulesToolbar filter chips', () => {
 
   it('reports the current-group filter when its chip is clicked', async () => {
     const uev = userEvent.setup();
-    const { props } = renderToolbar({ showCurrentGroup: true });
+    const { props } = renderPanel({ showCurrentGroup: true });
 
     await uev.click(screen.getByRole('button', { name: 'Current Group' }));
     expect(props.onFilterChange).toHaveBeenCalledWith('current-group');
   });
 });
 
-describe('RulesToolbar sort selector', () => {
+describe('RulesFilterPanel sort selector', () => {
   it('offers every sort mode and reflects the active one', () => {
-    renderToolbar({ sortMode: 'similarity' });
+    renderPanel({ sortMode: 'similarity' });
 
     const select = screen.getByRole('combobox', { name: 'Sort rules' });
     expect(select).toHaveValue('similarity');
@@ -108,9 +93,27 @@ describe('RulesToolbar sort selector', () => {
 
   it('reports the chosen sort mode', async () => {
     const uev = userEvent.setup();
-    const { props } = renderToolbar();
+    const { props } = renderPanel();
 
     await uev.selectOptions(screen.getByRole('combobox', { name: 'Sort rules' }), 'name');
     expect(props.onSortChange).toHaveBeenCalledWith('name');
+  });
+});
+
+describe('countActiveRuleFilters', () => {
+  it('counts nothing in the resting state', () => {
+    expect(countActiveRuleFilters('all', 'default')).toBe(0);
+  });
+
+  it('counts a filter chip', () => {
+    expect(countActiveRuleFilters('paused', 'default')).toBe(1);
+  });
+
+  it('counts a non-default sort, which reorders the list without removing anything', () => {
+    expect(countActiveRuleFilters('all', 'similarity')).toBe(1);
+  });
+
+  it('counts both together', () => {
+    expect(countActiveRuleFilters('conflicts', 'name')).toBe(2);
   });
 });

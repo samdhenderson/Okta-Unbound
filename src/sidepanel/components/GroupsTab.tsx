@@ -4,6 +4,7 @@ import Breadcrumbs from './shared/Breadcrumbs';
 import AlertMessage from './shared/AlertMessage';
 import Button from './shared/Button';
 import EntityIdentity from './shared/EntityIdentity';
+import FilterToggle from './shared/FilterToggle';
 import OpenInOktaLink from './shared/OpenInOktaLink';
 import WorkingSetPinButton from './shared/WorkingSetPinButton';
 import { groupIdentity } from './groups/groupIdentity';
@@ -28,7 +29,6 @@ import BulkOperationsPanel from './groups/BulkOperationsPanel';
 import GroupCollections from './groups/GroupCollections';
 import GroupCleanupPanel from './groups/GroupCleanupPanel';
 import GroupSearchBar from './groups/GroupSearchBar';
-import GroupFilterToggle from './groups/GroupFilterToggle';
 import GroupFilterPanel from './groups/GroupFilterPanel';
 import GroupsListActionBar, { type ActivePanel } from './groups/GroupsListActionBar';
 import GroupsListPanel from './groups/GroupsListPanel';
@@ -244,10 +244,11 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
       />
 
       {searchMode === 'cached' && (
-        <GroupFilterToggle
-          showFilters={showFilters}
-          activeFilterCount={activeFilterCount}
+        <FilterToggle
+          open={showFilters}
+          activeCount={activeFilterCount}
           onToggle={() => setShowFilters((prev) => !prev)}
+          size="lg"
         />
       )}
     </div>

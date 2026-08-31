@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '../shared';
-import { extractReferencedGroupIds } from '../../../shared/rules/groupRuleIndex';
+import { splitCurrentGroupRuleRelations } from '../../../shared/rules/currentGroupRelations';
 import type { FormattedRule } from '../../../shared/types';
 
 interface CurrentGroupRuleRelationsProps {
@@ -102,18 +102,10 @@ const CurrentGroupRuleRelations: React.FC<CurrentGroupRuleRelationsProps> = ({
   currentGroupId,
   onFocusRule,
 }) => {
-  const { assigning, referencing } = React.useMemo(() => {
-    const assigningRules: FormattedRule[] = [];
-    const referencingRules: FormattedRule[] = [];
-    if (!currentGroupId) return { assigning: assigningRules, referencing: referencingRules };
-    for (const rule of rules) {
-      if (rule.groupIds?.includes(currentGroupId)) assigningRules.push(rule);
-      if (extractReferencedGroupIds(rule.conditionExpression).includes(currentGroupId)) {
-        referencingRules.push(rule);
-      }
-    }
-    return { assigning: assigningRules, referencing: referencingRules };
-  }, [rules, currentGroupId]);
+  const { assigning, referencing } = React.useMemo(
+    () => splitCurrentGroupRuleRelations(rules, currentGroupId),
+    [rules, currentGroupId],
+  );
 
   if (!currentGroupId) return null;
 

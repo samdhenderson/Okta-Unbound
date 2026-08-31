@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import Button from '../shared/Button';
 import type { MergeableRuleGroup } from '../../../shared/rules/consolidation';
 
-interface RulesMergeBannerProps {
+interface RulesDuplicatesPanelProps {
   clusters: MergeableRuleGroup[];
   onMerge: (cluster: MergeableRuleGroup) => void;
   onFocusRule?: (ruleId: string) => void;
@@ -108,63 +108,37 @@ const MergeClusterRow: React.FC<{
   );
 };
 
-const RulesMergeBanner: React.FC<RulesMergeBannerProps> = ({ clusters, onMerge, onFocusRule }) => {
-  const [open, setOpen] = useState(false);
+const RulesDuplicatesPanel: React.FC<RulesDuplicatesPanelProps> = ({
+  clusters,
+  onMerge,
+  onFocusRule,
+}) => {
   if (clusters.length === 0) return null;
 
   return (
-    <div className="rounded-md border border-primary-highlight bg-primary-light">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="press-subtle flex w-full items-center gap-2 px-4 py-3 text-left"
-      >
-        <svg
-          className={`h-4 w-4 shrink-0 text-primary-text transition-transform duration-(--dur-instant) ${
-            open ? 'rotate-90' : ''
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-        <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-primary-text">
-            {clusters.length} set{clusters.length === 1 ? '' : 's'} of duplicate-condition rules
-          </h3>
-          {!open && (
-            <p className="truncate text-xs text-neutral-600">
-              Rules sharing an identical condition — expand to review and merge.
-            </p>
-          )}
-        </div>
-        <span className="shrink-0 rounded-md border border-primary-highlight bg-white px-2 py-0.5 text-xs font-medium text-primary-text">
-          {open ? 'Hide' : 'Review'}
-        </span>
-      </button>
-
-      {open && (
-        <div className="space-y-(--sp-rung) px-(--sp-card) pb-(--sp-card)">
-          <p className="text-xs text-neutral-600">
-            Each set below shares an identical condition. Merging one folds its rules into a single
-            rule carrying the union of their target groups — no change to who is matched.
-          </p>
-          <ul className="space-y-(--sp-rung)">
-            {clusters.map((cluster) => (
-              <MergeClusterRow
-                key={cluster.expression}
-                cluster={cluster}
-                onMerge={onMerge}
-                onFocusRule={onFocusRule}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+    <section
+      aria-labelledby="rules-duplicates-heading"
+      className="animate-rise-in rounded-md border border-primary-highlight bg-primary-light p-(--sp-card)"
+    >
+      <h3 id="rules-duplicates-heading" className="text-sm font-semibold text-primary-text">
+        {clusters.length} set{clusters.length === 1 ? '' : 's'} of duplicate-condition rules
+      </h3>
+      <p className="mt-0.5 text-xs text-neutral-600">
+        Each set below shares an identical condition. Merging one folds its rules into a single rule
+        carrying the union of their target groups — no change to who is matched.
+      </p>
+      <ul className="mt-(--sp-card) space-y-(--sp-rung)">
+        {clusters.map((cluster) => (
+          <MergeClusterRow
+            key={cluster.expression}
+            cluster={cluster}
+            onMerge={onMerge}
+            onFocusRule={onFocusRule}
+          />
+        ))}
+      </ul>
+    </section>
   );
 };
 
-export default RulesMergeBanner;
+export default RulesDuplicatesPanel;

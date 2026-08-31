@@ -1,17 +1,18 @@
 import React from 'react';
 import FilterPill from '../shared/FilterPill';
 import Select from '../shared/Select';
-import Input from '../shared/Input';
-import Icon from '../shared/Icon';
 import { RULE_SORT_LABELS, type RuleSortMode } from '../../../shared/rules/similarity';
 
 export type RulesFilterType = 'all' | 'active' | 'paused' | 'conflicts' | 'current-group';
 
 const SORT_OPTIONS: RuleSortMode[] = ['default', 'similarity', 'name'];
 
-interface RulesToolbarProps {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
+export const countActiveRuleFilters = (
+  activeFilter: RulesFilterType,
+  sortMode: RuleSortMode,
+): number => (activeFilter !== 'all' ? 1 : 0) + (sortMode !== 'default' ? 1 : 0);
+
+interface RulesFilterPanelProps {
   activeFilter: RulesFilterType;
   onFilterChange: (filter: RulesFilterType) => void;
   conflictsCount: number;
@@ -20,9 +21,7 @@ interface RulesToolbarProps {
   onSortChange: (mode: RuleSortMode) => void;
 }
 
-const RulesToolbar: React.FC<RulesToolbarProps> = ({
-  searchQuery,
-  onSearchChange,
+const RulesFilterPanel: React.FC<RulesFilterPanelProps> = ({
   activeFilter,
   onFilterChange,
   conflictsCount,
@@ -30,15 +29,7 @@ const RulesToolbar: React.FC<RulesToolbarProps> = ({
   sortMode,
   onSortChange,
 }) => (
-  <div className="space-y-(--sp-field)">
-    <Input
-      type="search"
-      value={searchQuery}
-      onChange={onSearchChange}
-      placeholder="Search rules by name, condition, or attributes..."
-      icon={<Icon type="search" size="sm" />}
-    />
-
+  <div className="animate-rise-in space-y-(--sp-field) rounded-md border border-neutral-200 bg-white p-(--sp-card)">
     <div className="flex flex-wrap items-center justify-between gap-(--sp-field)">
       <div className="flex flex-wrap gap-(--sp-inline)">
         <FilterPill active={activeFilter === 'all'} onClick={() => onFilterChange('all')}>
@@ -81,4 +72,4 @@ const RulesToolbar: React.FC<RulesToolbarProps> = ({
   </div>
 );
 
-export default RulesToolbar;
+export default RulesFilterPanel;

@@ -1,27 +1,37 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import RuleImpactModal from './RuleImpactModal';
 import PageHeader from './shared/PageHeader';
-import Button from './shared/Button';
+import Breadcrumbs from './shared/Breadcrumbs';
+import EntityIdentity from './shared/EntityIdentity';
 import AlertMessage from './shared/AlertMessage';
 import RulesMetaRow from './rules/RulesMetaRow';
 import RulesStatsGrid from './rules/RulesStatsGrid';
-import RulesToolbar, { type RulesFilterType } from './rules/RulesToolbar';
+import RulesFilterPanel, {
+  countActiveRuleFilters,
+  type RulesFilterType,
+} from './rules/RulesFilterPanel';
+import RulesSearchRow from './rules/RulesSearchRow';
+import RulesListActionBar, { type RulesPanel } from './rules/RulesListActionBar';
+import RuleDetailView from './rules/RuleDetailView';
+import { ruleIdentity } from './rules/ruleIdentity';
 import type { RulesListView } from '../listViewRequest';
 import RulesListPanel from './rules/RulesListPanel';
-import RulesMergeBanner from './rules/RulesMergeBanner';
+import RulesDuplicatesPanel from './rules/RulesDuplicatesPanel';
 import CurrentGroupRuleRelations from './rules/CurrentGroupRuleRelations';
 import RuleConsolidationModal from './RuleConsolidationModal';
 import type { FormattedRule, OktaGroupRule } from '../../shared/types';
 import { filterRules } from '../../shared/ruleUtils';
 import { findMergeableRuleGroups, type MergeableRuleGroup } from '../../shared/rules/consolidation';
 import { sortRules, type RuleSortMode } from '../../shared/rules/similarity';
+import { countCurrentGroupRuleRelations } from '../../shared/rules/currentGroupRelations';
 import { useOktaApi } from '../hooks/useOktaApi';
 import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useRuleImpact } from '../hooks/useRuleImpact';
 import { useRulesData } from '../hooks/useRulesData';
 import { useRuleLifecycle } from '../hooks/useRuleLifecycle';
 import { useRuleConsolidation } from '../hooks/useRuleConsolidation';
-import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useViewStack } from '../hooks/useViewStack';
+import { useScrollPreservation } from '../hooks/useScrollPreservation';
 import type { RuleImpactInput } from '../hooks/useOktaApi/ruleImpact';
 import { TabStateManager, saveRulesTabState } from '../../shared/tabState/tabStateManager';
 import type { RulesTabState } from '../../shared/tabState/types';
@@ -39,9 +49,11 @@ interface RulesTabProps {
   selectedRuleId?: string | null;
   onRuleSelected?: () => void;
   onNavigateToGroup?: (groupId: string) => void;
+  onExportRules?: () => void;
   listView?: RulesListView | null;
   onListViewConsumed?: () => void;
   isActive?: boolean;
+  scrollRootRef?: React.RefObject<HTMLElement | null>;
 }
 
 const RulesTab: React.FC<RulesTabProps> = ({
@@ -51,21 +63,25 @@ const RulesTab: React.FC<RulesTabProps> = ({
   selectedRuleId,
   onRuleSelected,
   onNavigateToGroup,
+  onExportRules,
   listView,
   onListViewConsumed,
   isActive = true,
+  scrollRootRef,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<RulesFilterType>('all');
   const [sortMode, setSortMode] = useState<RuleSortMode>('default');
+  const [activePanel, setActivePanel] = useState<RulesPanel>('none');
+  const [showFilters, setShowFilters] = useState(false);
+  const [tierOpen, setTierOpen] = useState(false);
+  const [isConfirmingActivate, setIsConfirmingActivate] = useState(false);
   const [restoreAttempted, setRestoreAttempted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [focusRuleId, setFocusRuleId] = useState<string | null>(null);
   const activeRuleId = selectedRuleId ?? focusRuleId;
 
   const handleError = useCallback((message: string) => setError(message || null), []);
-
-  const reducedMotion = useReducedMotion();
 
   const handleResult = useCallback(({ message, type }: OperationResult) => {
     if (type === 'error') setError(message || null);
@@ -232,6 +248,12 @@ const RulesTab: React.FC<RulesTabProps> = ({
     if (ruleId) void lifecycle.deactivateRule(ruleId);
   };
 
+  const handleConfirmActivate = () => {
+    const ruleId = openRule?.id;
+    setIsConfirmingActivate(false);
+    if (ruleId) void lifecycle.activateRule(ruleId);
+  };
+
   const scopedRules = React.useMemo(
     () =>
       rules.map((r) => {
@@ -262,55 +284,139 @@ const RulesTab: React.FC<RulesTabProps> = ({
     return sortRules(result, sortMode);
   }, [scopedRules, searchQuery, activeFilter, sortMode, currentGroupId]);
 
+  const currentGroupRelationCount = React.useMemo(
+    () => countCurrentGroupRuleRelations(rules, currentGroupId),
+    [rules, currentGroupId],
+  );
+
+  const ruleViewRef = useRef<HTMLDivElement>(null);
+  const nav = useViewStack<FormattedRule>({
+    rootLabel: 'Group Rules',
+    getLabel: (entry) => entry.name,
+    getKey: (entry) => entry.id,
+    viewRef: ruleViewRef,
+  });
+  const { push: pushRule, pop: popRule, currentEntry } = nav;
+
+  const captureListScroll = useScrollPreservation(scrollRootRef ?? ruleViewRef, nav.isRoot);
+
+  const openRule = currentEntry
+    ? (rules.find((r) => r.id === currentEntry.id) ?? currentEntry)
+    : null;
+
+  const identity = openRule ? ruleIdentity(openRule) : null;
+
+  const [tierRung, setTierRung] = useState<string | null>(null);
+  const openRuleKey = openRule?.id ?? null;
+  if (tierRung !== openRuleKey) {
+    setTierRung(openRuleKey);
+    setTierOpen(false);
+    setIsConfirmingActivate(false);
+  }
+
+  const handleOpenRule = useCallback(
+    (ruleToOpen: FormattedRule) => {
+      captureListScroll();
+      pushRule(ruleToOpen);
+    },
+    [captureListScroll, pushRule],
+  );
+
+  const togglePanel = useCallback(
+    (panel: RulesPanel) => setActivePanel((prev) => (prev === panel ? 'none' : panel)),
+    [],
+  );
+
   useEffect(() => {
-    if (!activeRuleId || rules.length === 0) return;
-    if (!rules.some((r) => r.id === activeRuleId)) return; // not loaded yet; loader effect handles it
-    if (!filteredRules.some((r) => r.id === activeRuleId)) {
-      setSearchQuery('');
-      setActiveFilter('all');
-      return;
-    }
-    log.debug('Navigating to rule:', activeRuleId);
-    const ruleElement = document.querySelector(`[data-rule-id="${activeRuleId}"]`);
-    if (ruleElement) {
-      ruleElement.scrollIntoView?.({
-        behavior: reducedMotion ? 'auto' : 'smooth',
-        block: 'center',
-      });
-      const t = setTimeout(() => {
-        onRuleSelected?.();
-        setFocusRuleId(null);
-      }, 2000);
-      return () => clearTimeout(t);
-    } else {
-      log.warn('Rule not found in DOM:', activeRuleId);
-    }
-  }, [activeRuleId, rules, filteredRules, onRuleSelected, reducedMotion]);
+    if (!activeRuleId) return;
+    const target = rules.find((r) => r.id === activeRuleId);
+    if (!target) return; // not loaded yet; the loader effect above handles it
+    if (currentEntry?.id === activeRuleId) return; // already showing it
+    log.debug('Opening rule rung:', activeRuleId);
+    captureListScroll();
+    pushRule(target);
+    onRuleSelected?.();
+    setFocusRuleId(null);
+  }, [activeRuleId, rules, currentEntry, captureListScroll, pushRule, onRuleSelected]);
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
       <PageHeader
-        title="Group Rules"
-        subtitle="Analyze group rules and detect potential conflicts"
+        title={identity ? identity.name : 'Group Rules'}
+        subtitle={identity ? undefined : 'Analyze group rules and detect potential conflicts'}
+        onBack={identity ? popRule : undefined}
+        backLabel="Back to rules"
+        breadcrumbs={identity ? <Breadcrumbs items={nav.trail} /> : undefined}
+        sticky={isActive}
+        identityKey={identity?.key}
+        identity={identity ? <EntityIdentity rows={identity.rows} /> : undefined}
         badge={
-          stats.conflicts > 0
-            ? { text: `${stats.conflicts} Conflicts`, variant: 'warning' }
-            : undefined
-        }
-        actions={
-          <Button
-            variant={rules.length > 0 ? 'secondary' : 'primary'}
-            icon="refresh"
-            onClick={() => loadRules(rules.length > 0)}
-            disabled={data.isLoading}
-            loading={data.isLoading}
-          >
-            {rules.length > 0 ? 'Refresh' : 'Load Rules'}
-          </Button>
+          identity
+            ? identity.badge
+            : stats.conflicts > 0
+              ? { text: `${stats.conflicts} Conflicts`, variant: 'warning' }
+              : undefined
         }
       />
 
-      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
+      <div
+        hidden={!nav.isRoot}
+        className={`max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung) ${
+          nav.transition === 'pop' ? 'animate-pop-in' : ''
+        }`}
+      >
+        <RulesListActionBar
+          search={
+            rules.length > 0 ? (
+              <RulesSearchRow
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                filtersOpen={showFilters}
+                onToggleFilters={() => setShowFilters((prev) => !prev)}
+                activeFilterCount={countActiveRuleFilters(activeFilter, sortMode)}
+              />
+            ) : undefined
+          }
+          hasRules={rules.length > 0}
+          isLoading={data.isLoading}
+          onLoad={() => loadRules(rules.length > 0)}
+          duplicateClusterCount={mergeableClusters.length}
+          hasCurrentGroup={Boolean(currentGroupId)}
+          currentGroupRelationCount={currentGroupRelationCount}
+          activePanel={activePanel}
+          onTogglePanel={togglePanel}
+          onExportRules={onExportRules}
+        />
+
+        {rules.length > 0 && showFilters && (
+          <RulesFilterPanel
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            conflictsCount={stats.conflicts}
+            showCurrentGroup={Boolean(currentGroupId)}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+          />
+        )}
+
+        {activePanel === 'stats' && rules.length > 0 && <RulesStatsGrid stats={stats} />}
+
+        {activePanel === 'duplicates' && mergeableClusters.length > 0 && (
+          <RulesDuplicatesPanel
+            clusters={mergeableClusters}
+            onMerge={handleMergeCluster}
+            onFocusRule={setFocusRuleId}
+          />
+        )}
+
+        {activePanel === 'currentGroup' && (
+          <CurrentGroupRuleRelations
+            rules={rules}
+            currentGroupId={currentGroupId}
+            onFocusRule={setFocusRuleId}
+          />
+        )}
+
         <RulesMetaRow
           apiCost={data.apiCost}
           lastFetchTime={data.lastFetchTime}
@@ -328,50 +434,40 @@ const RulesTab: React.FC<RulesTabProps> = ({
           <AlertMessage message={lifecycle.actorNotice} onDismiss={lifecycle.dismissActorNotice} />
         )}
 
-        {rules.length > 0 && <RulesStatsGrid stats={stats} />}
-
-        {rules.length > 0 && (
-          <RulesMergeBanner
-            clusters={mergeableClusters}
-            onMerge={handleMergeCluster}
-            onFocusRule={setFocusRuleId}
-          />
-        )}
-
-        {rules.length > 0 && (
-          <CurrentGroupRuleRelations
-            rules={rules}
-            currentGroupId={currentGroupId}
-            onFocusRule={setFocusRuleId}
-          />
-        )}
-
-        {rules.length > 0 && (
-          <RulesToolbar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            activeFilter={activeFilter}
-            onFilterChange={setActiveFilter}
-            conflictsCount={stats.conflicts}
-            showCurrentGroup={Boolean(currentGroupId)}
-            sortMode={sortMode}
-            onSortChange={setSortMode}
-          />
-        )}
-
         <RulesListPanel
           isLoading={data.isLoading}
           hasRules={rules.length > 0}
           filteredRules={filteredRules}
           onLoad={() => loadRules(false)}
-          onActivate={lifecycle.activateRule}
-          onDeactivate={handleRequestDeactivate}
-          onPreviewImpact={handlePreviewImpact}
-          onAddTargetGroup={consolidation.openAddTarget}
-          oktaOrigin={oktaOrigin}
+          onOpenRule={handleOpenRule}
           selectedRuleId={activeRuleId}
         />
       </div>
+
+      {openRule && (
+        <div
+          ref={ruleViewRef}
+          tabIndex={-1}
+          className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) animate-push-in"
+        >
+          <RuleDetailView
+            rule={openRule}
+            oktaOrigin={oktaOrigin}
+            onPreviewImpact={
+              openRule.groupIds.length > 0 ? () => handlePreviewImpact(openRule) : undefined
+            }
+            tierOpen={tierOpen}
+            onTierOpenChange={setTierOpen}
+            isConfirmingActivate={isConfirmingActivate}
+            onRequestActivate={() => setIsConfirmingActivate(true)}
+            onCancelActivate={() => setIsConfirmingActivate(false)}
+            onConfirmActivate={handleConfirmActivate}
+            onRequestDeactivate={() => handleRequestDeactivate(openRule.id)}
+            onAddTargetGroup={() => consolidation.openAddTarget(openRule)}
+            sticky={isActive}
+          />
+        </div>
+      )}
 
       <RuleImpactModal
         isOpen={impact.rule !== null}

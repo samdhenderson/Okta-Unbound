@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import RulesMergeBanner from './RulesMergeBanner';
+import RulesDuplicatesPanel from './RulesDuplicatesPanel';
 import type { MergeableRuleGroup } from '../../../shared/rules/consolidation';
 import type { OktaGroupRule } from '../../../shared/types';
 
@@ -24,28 +24,24 @@ const cluster: MergeableRuleGroup = {
   unionGroupIds: ['g1', 'g2'],
 };
 
-describe('RulesMergeBanner', () => {
+describe('RulesDuplicatesPanel', () => {
   it('renders nothing when there are no clusters', () => {
-    const { container } = render(<RulesMergeBanner clusters={[]} onMerge={vi.fn()} />);
+    const { container } = render(<RulesDuplicatesPanel clusters={[]} onMerge={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('starts collapsed and reveals the sets once expanded', async () => {
-    const uev = userEvent.setup();
-    render(<RulesMergeBanner clusters={[cluster]} onMerge={vi.fn()} />);
+  it('heads the panel with the set count, with member rules still behind each set', () => {
+    render(<RulesDuplicatesPanel clusters={[cluster]} onMerge={vi.fn()} />);
 
     expect(screen.getByText('1 set of duplicate-condition rules')).toBeInTheDocument();
-    expect(screen.queryByText('Eng West')).not.toBeInTheDocument();
-
-    await uev.click(screen.getByRole('button', { name: /duplicate-condition rules/ }));
     expect(screen.getByText('2 rules → 2 target groups')).toBeInTheDocument();
+    expect(screen.queryByText('Eng West')).not.toBeInTheDocument();
   });
 
   it('expands a set to show its shared condition, member rules, and status', async () => {
     const uev = userEvent.setup();
-    render(<RulesMergeBanner clusters={[cluster]} onMerge={vi.fn()} />);
+    render(<RulesDuplicatesPanel clusters={[cluster]} onMerge={vi.fn()} />);
 
-    await uev.click(screen.getByRole('button', { name: /duplicate-condition rules/ }));
     await uev.click(screen.getByRole('button', { name: /2 rules → 2 target groups/ }));
 
     expect(screen.getByText("user.department == 'eng'")).toBeInTheDocument();
@@ -57,9 +53,10 @@ describe('RulesMergeBanner', () => {
   it('links to a member rule via onFocusRule', async () => {
     const uev = userEvent.setup();
     const onFocusRule = vi.fn();
-    render(<RulesMergeBanner clusters={[cluster]} onMerge={vi.fn()} onFocusRule={onFocusRule} />);
+    render(
+      <RulesDuplicatesPanel clusters={[cluster]} onMerge={vi.fn()} onFocusRule={onFocusRule} />,
+    );
 
-    await uev.click(screen.getByRole('button', { name: /duplicate-condition rules/ }));
     await uev.click(screen.getByRole('button', { name: /2 rules → 2 target groups/ }));
     await uev.click(screen.getAllByRole('button', { name: 'View' })[0]);
 
@@ -69,9 +66,8 @@ describe('RulesMergeBanner', () => {
   it('starts the merge (preview) for a set', async () => {
     const uev = userEvent.setup();
     const onMerge = vi.fn();
-    render(<RulesMergeBanner clusters={[cluster]} onMerge={onMerge} />);
+    render(<RulesDuplicatesPanel clusters={[cluster]} onMerge={onMerge} />);
 
-    await uev.click(screen.getByRole('button', { name: /duplicate-condition rules/ }));
     await uev.click(screen.getByRole('button', { name: /Review & merge/ }));
 
     expect(onMerge).toHaveBeenCalledWith(cluster);
