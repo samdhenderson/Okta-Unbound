@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useOktaApi } from './useOktaApi';
 import { useEntityQuery } from '../cache/useEntityQuery';
 import { getOrFetch } from '../cache/entityCache';
+import { readAppGroupsFromSnapshot } from '../cache/appGroupSnapshot';
 import { cacheKeys, TTL_LONG } from '../cache/keys';
 import { createLogger } from '../../shared/utils/logger';
 import { summarizeAppSources, indexAppsByGroup } from '../components/users/appSourceSummary';
@@ -14,6 +15,7 @@ const log = createLogger('useUserApps');
 export interface UseUserAppsOptions {
   targetTabId: number | null;
   memberships: GroupMembership[];
+  oktaOrigin?: string | null;
   enabled?: boolean;
 }
 
@@ -31,9 +33,103 @@ function unresolvedGroupApps(apps: UserAppAssignment[]): UserAppAssignment[] {
   return apps.filter((app) => app.grantGroupId === undefined && app.scope === 'GROUP');
 }
 
+function nameGrantor(
+  appId: string,
+  groupIds: string[] | null,
+  memberGroupIds: Set<string>,
+): [string, string] | null {
+  if (!groupIds) return null;
+  const candidates = groupIds.filter((id) => memberGroupIds.has(id));
+  return candidates.length === 1 ? [appId, candidates[0]] : null;
+}
+
+interface ResolveGrantingGroupsOptions {
+  appIds: string[];
+  memberGroupIds: Set<string>;
+  oktaOrigin?: string | null;
+  api: {
+    getAppGroupAssignments: (appId: string) => Promise<string[] | null>;
+    runOperation: ReturnType<typeof useOktaApi>['runOperation'];
+  };
+  onResolved: (named: Record<string, string>) => void;
+}
+
+async function resolveGrantingGroups({
+  appIds,
+  memberGroupIds,
+  oktaOrigin,
+  api,
+  onResolved,
+}: ResolveGrantingGroupsOptions): Promise<void> {
+  let fromSnapshot = new Map<string, string[]>();
+  try {
+    fromSnapshot = await readAppGroupsFromSnapshot(oktaOrigin);
+  } catch {
+    log.warn('Snapshot app-group read failed; walking every app instead', {
+      code: 'user_apps_snapshot_read_failed',
+    });
+  }
+
+  const servedLocally: Record<string, string> = {};
+  const toWalk: string[] = [];
+  for (const appId of appIds) {
+    const groupIds = fromSnapshot.get(appId);
+    if (groupIds === undefined) {
+      toWalk.push(appId);
+      continue;
+    }
+    const named = nameGrantor(appId, groupIds, memberGroupIds);
+    if (named) servedLocally[named[0]] = named[1];
+  }
+  onResolved(servedLocally);
+
+  if (toWalk.length === 0) {
+    log.info('granting-group fallback served entirely from the snapshot', {
+      code: 'user_apps_grant_group_fallback',
+      attempted: appIds.length,
+      fromSnapshot: appIds.length,
+      resolved: Object.keys(servedLocally).length,
+    });
+    return;
+  }
+
+  const outcome = await api.runOperation<string, [string, string] | null>(
+    'Name the groups granting these apps',
+    toWalk,
+    async (appId) =>
+      nameGrantor(
+        appId,
+        await getOrFetch<string[] | null>(
+          cacheKeys.appGroups(appId),
+          () => api.getAppGroupAssignments(appId),
+          { ttl: TTL_LONG },
+        ),
+        memberGroupIds,
+      ),
+    { message: ({ completed, total }) => `Naming granting groups (${completed}/${total})` },
+  );
+
+  const named: Record<string, string> = {};
+  for (const result of outcome.results) {
+    if (result.status === 'fulfilled' && result.value) {
+      named[result.value[0]] = result.value[1];
+    }
+  }
+  onResolved(named);
+
+  log.info('granting-group fallback finished', {
+    code: 'user_apps_grant_group_fallback',
+    attempted: appIds.length,
+    fromSnapshot: appIds.length - toWalk.length,
+    resolved: Object.keys(named).length + Object.keys(servedLocally).length,
+    failed: outcome.failed,
+    cancelled: outcome.cancelled,
+  });
+}
+
 export function useUserApps(
   userId: string | null,
-  { targetTabId, memberships, enabled = true }: UseUserAppsOptions,
+  { targetTabId, memberships, oktaOrigin, enabled = true }: UseUserAppsOptions,
 ): UseUserAppsResult {
   const { getUserApps, getAppGroupAssignments, runOperation } = useOktaApi({ targetTabId });
 
@@ -68,58 +164,31 @@ export function useUserApps(
   useEffect(() => {
     if (!enabled || !userId || pendingKey === '') return;
 
-    const latch = `${userId}:${pendingKey}`;
+    const latch = `${userId}:${oktaOrigin ?? ''}:${pendingKey}`;
     if (attemptedRef.current === latch) return;
     attemptedRef.current = latch;
 
-    const appIds = pendingKey.split(',');
-    const memberGroupIds = new Set(membershipIdsRef.current);
     let cancelled = false;
-
     setIsResolvingSources(true);
 
-    apiRef.current
-      .runOperation<string, [string, string] | null>(
-        'Name the groups granting these apps',
-        appIds,
-        async (appId) => {
-          const groupIds = await getOrFetch<string[] | null>(
-            cacheKeys.appGroups(appId),
-            () => apiRef.current.getAppGroupAssignments(appId),
-            { ttl: TTL_LONG },
-          );
-          if (!groupIds) return null;
-
-          const candidates = groupIds.filter((id) => memberGroupIds.has(id));
-          return candidates.length === 1 ? [appId, candidates[0]] : null;
-        },
-        { message: ({ completed, total }) => `Naming granting groups (${completed}/${total})` },
-      )
-      .then((outcome) => {
-        if (cancelled) return;
-        const named: Record<string, string> = {};
-        for (const result of outcome.results) {
-          if (result.status === 'fulfilled' && result.value) {
-            named[result.value[0]] = result.value[1];
-          }
+    resolveGrantingGroups({
+      appIds: pendingKey.split(','),
+      memberGroupIds: new Set(membershipIdsRef.current),
+      oktaOrigin,
+      api: apiRef.current,
+      onResolved: (named) => {
+        if (!cancelled && Object.keys(named).length > 0) {
+          setResolved((prev) => ({ ...prev, ...named }));
         }
-        setResolved((prev) => ({ ...prev, ...named }));
-        log.info('granting-group fallback finished', {
-          code: 'user_apps_grant_group_fallback',
-          attempted: outcome.total,
-          resolved: Object.keys(named).length,
-          failed: outcome.failed,
-          cancelled: outcome.cancelled,
-        });
-      })
-      .finally(() => {
-        if (!cancelled) setIsResolvingSources(false);
-      });
+      },
+    }).finally(() => {
+      if (!cancelled) setIsResolvingSources(false);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [enabled, userId, pendingKey]);
+  }, [enabled, userId, oktaOrigin, pendingKey]);
 
   const apps = useMemo(() => {
     if (!data) return [];

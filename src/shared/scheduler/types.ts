@@ -21,6 +21,7 @@ export interface RateLimitInfo {
   remaining: number; // X-Rate-Limit-Remaining
   reset: number; // X-Rate-Limit-Reset (Unix timestamp in seconds)
   endpoint: string;
+  bucket: string;
   timestamp: number;
 }
 

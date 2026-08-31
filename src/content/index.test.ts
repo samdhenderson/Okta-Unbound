@@ -332,6 +332,7 @@ describe('makeApiRequest response shapes', () => {
       error: 'Nope',
       status: 404,
       data: { errorSummary: 'Nope' },
+      headers: expect.any(Object),
     });
   });
 
@@ -345,6 +346,7 @@ describe('makeApiRequest response shapes', () => {
       error: 'Not found',
       status: 404,
       data: { errorSummary: 'Not found', message: 'ignored' },
+      headers: expect.any(Object),
     });
   });
 
@@ -366,18 +368,19 @@ describe('makeApiRequest response shapes', () => {
       error: 'Request failed with status 429',
       status: 429,
       data: {},
+      headers: expect.any(Object),
     });
   });
 
-  it('non-ok response omits headers entirely — the scheduler cannot read rate-limit headers on 429', async () => {
+  it('non-ok response carries its headers, so the scheduler can read rate-limit headers on 429', async () => {
     fetchMock.mockResolvedValue(
       res({}, { status: 429, headers: { 'x-rate-limit-reset': '1700000000' } }),
     );
 
     const result = await call();
 
-    expect(result).not.toHaveProperty('headers');
     expect(result.status).toBe(429);
+    expect(result.headers).toMatchObject({ 'x-rate-limit-reset': '1700000000' });
   });
 
   it('fetch rejects → success:false with the message and the no-HTTP-status sentinel', async () => {

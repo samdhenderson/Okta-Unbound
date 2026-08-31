@@ -230,6 +230,81 @@ describe('getAppAssignmentCounts', () => {
 
     expect(await getAppAssignmentCounts('0oaFAKE1')).toBeNull();
   });
+
+  describe('x-total-count probe', () => {
+    const probing = (users: Record<string, string>, groups: Record<string, string>) =>
+      vi.fn().mockImplementation((url: string) => {
+        if (url === '/api/v1/apps/0oaFAKE1/users?limit=1') {
+          return Promise.resolve({ success: true, data: [{ id: '00uFAKE1' }], headers: users });
+        }
+        if (url === '/api/v1/apps/0oaFAKE1/groups?limit=1') {
+          return Promise.resolve({ success: true, data: [{ id: '00gFAKE1' }], headers: groups });
+        }
+        return Promise.resolve({ success: true, data: [{ id: '00uWALKED' }], headers: {} });
+      });
+
+    it('reads both totals from the header and issues exactly one request each', async () => {
+      const makeApiRequest = probing({ 'x-total-count': '9814' }, { 'x-total-count': '12' });
+      const { getAppAssignmentCounts } = createAppOperations(makeCore({ makeApiRequest }));
+
+      expect(await getAppAssignmentCounts('0oaFAKE1')).toEqual({ users: 9814, groups: 12 });
+      expect(makeApiRequest).toHaveBeenCalledTimes(2);
+      expect(makeApiRequest.mock.calls.map((call) => call[0])).toEqual([
+        '/api/v1/apps/0oaFAKE1/users?limit=1',
+        '/api/v1/apps/0oaFAKE1/groups?limit=1',
+      ]);
+      for (const call of makeApiRequest.mock.calls) {
+        expect(call[1]).toMatchObject({ priority: 'low', reason: 'Count app assignments' });
+      }
+    });
+
+    it('reads a header casing Okta did not promise', async () => {
+      const makeApiRequest = probing({ 'X-Total-Count': '7' }, { 'x-total-count': '0' });
+      const { getAppAssignmentCounts } = createAppOperations(makeCore({ makeApiRequest }));
+
+      expect(await getAppAssignmentCounts('0oaFAKE1')).toEqual({ users: 7, groups: 0 });
+      expect(makeApiRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back per collection, so one may probe while the other walks', async () => {
+      const makeApiRequest = probing({ 'x-total-count': '9814' }, {});
+      const { getAppAssignmentCounts } = createAppOperations(makeCore({ makeApiRequest }));
+
+      expect(await getAppAssignmentCounts('0oaFAKE1')).toEqual({ users: 9814, groups: 1 });
+      expect(makeApiRequest.mock.calls.map((call) => call[0])).toContain(
+        '/api/v1/apps/0oaFAKE1/groups?limit=200',
+      );
+      expect(makeApiRequest.mock.calls.map((call) => call[0])).not.toContain(
+        '/api/v1/apps/0oaFAKE1/users?limit=200',
+      );
+    });
+
+    it.each([[''], ['   '], ['12.5'], ['-1'], ['many']])(
+      'treats %j as unknown and walks instead',
+      async (header) => {
+        const makeApiRequest = probing({ 'x-total-count': header }, { 'x-total-count': '12' });
+        const { getAppAssignmentCounts } = createAppOperations(makeCore({ makeApiRequest }));
+
+        expect(await getAppAssignmentCounts('0oaFAKE1')).toEqual({ users: 1, groups: 12 });
+        expect(makeApiRequest.mock.calls.map((call) => call[0])).toContain(
+          '/api/v1/apps/0oaFAKE1/users?limit=200',
+        );
+      },
+    );
+
+    it('falls back when the probe itself fails, so a blip is not a count', async () => {
+      const makeApiRequest = vi
+        .fn()
+        .mockImplementation((url: string) =>
+          url.endsWith('limit=1')
+            ? Promise.resolve({ success: false, error: 'blip', status: 500 })
+            : Promise.resolve({ success: true, data: [{ id: '00uFAKE1' }], headers: {} }),
+        );
+      const { getAppAssignmentCounts } = createAppOperations(makeCore({ makeApiRequest }));
+
+      expect(await getAppAssignmentCounts('0oaFAKE1')).toEqual({ users: 1, groups: 1 });
+    });
+  });
 });
 
 describe('getAppGroupAssignments', () => {
