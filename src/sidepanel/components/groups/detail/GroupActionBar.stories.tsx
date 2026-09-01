@@ -33,8 +33,19 @@ const meta = {
           "the row at `priority: 'flex'`, mirroring `UserActionBar`'s treatment of *Add group*. " +
           '**Compare** sits beside it for the same reason that strip puts its own *Compare* in the ' +
           'row: it reads two rosters and writes nothing.\n\n' +
-          '**Create feeding rule** is the strip’s first — and so far only — tier action, and the ' +
-          'first group-side consumer of `ActionBar`’s `expansion` slot. It is behind **More** for ' +
+          'The strip has a disclosure tier holding two verbs, one of each shape `ActionBar` ' +
+          'offers. First, as a descriptor: **Remove deprovisioned**, ' +
+          'the bulk cleanup that empties a group of every member Okta has already deprovisioned. ' +
+          'It changes group state with no symmetric undo press, so per ADR-0039 it is ' +
+          "`priority: 'tier'` (behind **More** from the start) behind a confirm `Modal` that names " +
+          'the count and the group.\n\n' +
+          'It is **absent, not disabled**, whenever it cannot honestly run: no `onRemoveDeprovisioned` ' +
+          'wire, an `APP_GROUP` (the operation refuses those), or a `deprovisionedCount` of `0` or ' +
+          '`undefined` — `undefined` being the pre-analysis state, which is deliberately not shown ' +
+          'as zero (ADR-0032 §2a, absent is not zero).\n\n' +
+          'Second, in `ActionBar`’s `expansion` slot — where it goes because it ships a line of ' +
+          'prose beside it and a descriptor can carry no JSX: **Create feeding rule**. It is ' +
+          'behind **More** for ' +
           'its consequence, not its importance (ADR-0039 §2): a rule *grants* memberships as it ' +
           'matches, and deleting it afterwards leaves every one of them in place. The consequence ' +
           'is written beside the control, the way `UserLifecycleActions` writes “Blocks sign-in ' +
@@ -48,6 +59,8 @@ const meta = {
     onExportGroup: fn(),
     onAddMember: fn(),
     onCompare: fn(),
+    onRemoveDeprovisioned: fn(),
+    deprovisionedCount: 3,
     onCreateFeedingRule: fn(),
     sticky: false,
   },
@@ -65,6 +78,21 @@ const meta = {
     },
     onAddMember: { description: 'Opens the Add-member modal.' },
     onCompare: { description: 'Opens the picker for the second group in a comparison.' },
+    deprovisionedCount: {
+      description:
+        'How many loaded members are `DEPROVISIONED`. `undefined` (not yet analyzed) and `0` both ' +
+        'omit the action rather than rendering a count the page cannot vouch for.',
+    },
+    onRemoveDeprovisioned: {
+      description:
+        'Runs the bulk removal once the confirm modal is accepted. Omitted \u2192 no action.',
+    },
+    isRemoving: {
+      description: 'Holds the confirm button in its loading state while the run is in flight.',
+    },
+    removeError: {
+      description: 'The last error the run reported, shown inside the confirm modal.',
+    },
     onCreateFeedingRule: {
       description:
         'Opens the create-feeding-rule confirm dialog. Lives in the disclosure tier because a ' +
@@ -97,6 +125,67 @@ export const NoConnectedTab: Story = {
     await expect(canvas.getByRole('button', { name: 'Add' })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: 'Compare' })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: /Export members/ })).toBeEnabled();
+  },
+};
+
+export const RemoveDeprovisioned: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+
+    const more = canvas.getByRole('button', { name: 'More' });
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(more);
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(canvas.getByRole('button', { name: /Remove 3 deprovisioned/ }));
+
+    const dialog = body.getByRole('dialog', { name: 'Remove deprovisioned members' });
+    await expect(dialog).toHaveTextContent(/3 deprovisioned members from Engineering/);
+    await expect(args.onRemoveDeprovisioned).not.toHaveBeenCalled();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remove 3' }));
+    await expect(args.onRemoveDeprovisioned).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const RemoveFailed: Story = {
+  args: { removeError: '403 Forbidden: you lack permission to modify this group' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'More' }));
+    await userEvent.click(canvas.getByRole('button', { name: /Remove 3 deprovisioned/ }));
+
+    await expect(body.getByRole('dialog')).toHaveTextContent(/403 Forbidden/);
+  },
+};
+
+export const NoDeprovisionedMembers: Story = {
+  args: { deprovisionedCount: 0 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /deprovisioned/i })).not.toBeInTheDocument();
+  },
+};
+
+export const RosterNotLoaded: Story = {
+  args: { deprovisionedCount: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /deprovisioned/i })).not.toBeInTheDocument();
+  },
+};
+
+export const AppGroupHasNoRemove: Story = {
+  args: {
+    group: { ...group, type: 'APP_GROUP', name: 'Salesforce Users' },
+    deprovisionedCount: 12,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /deprovisioned/i })).not.toBeInTheDocument();
   },
 };
 
