@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupActionBar from './GroupActionBar';
 import type { GroupSummary } from '../../../../shared/types';
 
@@ -33,9 +33,12 @@ const meta = {
           "the row at `priority: 'flex'`, mirroring `UserActionBar`'s treatment of *Add group*. " +
           '**Compare** sits beside it for the same reason that strip puts its own *Compare* in the ' +
           'row: it reads two rosters and writes nothing.\n\n' +
-          'Unlike `UserActionBar`, this strip ships with **no disclosure tier** — there is no ' +
-          "group-level verb today that changes the group's state with no symmetric undo, so there is " +
-          'nothing to put behind **More**.',
+          '**Create feeding rule** is the strip’s first — and so far only — tier action, and the ' +
+          'first group-side consumer of `ActionBar`’s `expansion` slot. It is behind **More** for ' +
+          'its consequence, not its importance (ADR-0039 §2): a rule *grants* memberships as it ' +
+          'matches, and deleting it afterwards leaves every one of them in place. The consequence ' +
+          'is written beside the control, the way `UserLifecycleActions` writes “Blocks sign-in ' +
+          'until reversed”; the confirm dialog itself belongs to `CreateFeedingRuleModal`.',
       },
     },
   },
@@ -45,6 +48,7 @@ const meta = {
     onExportGroup: fn(),
     onAddMember: fn(),
     onCompare: fn(),
+    onCreateFeedingRule: fn(),
     sticky: false,
   },
   argTypes: {
@@ -61,6 +65,11 @@ const meta = {
     },
     onAddMember: { description: 'Opens the Add-member modal.' },
     onCompare: { description: 'Opens the picker for the second group in a comparison.' },
+    onCreateFeedingRule: {
+      description:
+        'Opens the create-feeding-rule confirm dialog. Lives in the disclosure tier because a ' +
+        'rule’s grants outlive the rule (ADR-0039 §2).',
+    },
     sticky: {
       description: 'Pin the strip below the header. `false` in stories — nothing scrolls.',
     },
@@ -88,5 +97,35 @@ export const NoConnectedTab: Story = {
     await expect(canvas.getByRole('button', { name: 'Add' })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: 'Compare' })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: /Export members/ })).toBeEnabled();
+  },
+};
+
+export const TierOpen: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const more = canvas.getByRole('button', { name: 'More' });
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(more);
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+
+    await expect(canvas.getByText('Memberships a rule grants outlive the rule')).toBeVisible();
+    const create = canvas.getByRole('button', { name: 'Create feeding rule' });
+    await expect(create).toBeVisible();
+
+    await userEvent.click(create);
+    await expect(args.onCreateFeedingRule).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const TierWithoutConnectedTab: Story = {
+  args: { targetTabId: null },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'More' }));
+
+    const create = canvas.getByRole('button', { name: 'Create feeding rule' });
+    await expect(create).toBeDisabled();
+    await expect(create).toHaveAttribute('title', 'Connect an Okta tab to create a rule');
   },
 };

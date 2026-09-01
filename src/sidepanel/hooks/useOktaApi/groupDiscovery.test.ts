@@ -25,6 +25,13 @@ const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
     ...overrides,
   });
 
+const rule = (id: string, overrides: Record<string, unknown> = {}) => ({
+  id,
+  name: `rule ${id}`,
+  status: 'ACTIVE',
+  ...overrides,
+});
+
 const NEXT_LINK =
   '<https://fake.okta.example.com/api/v1/groups?after=CURSOR2&limit=200&expand=stats>; rel="next"';
 
@@ -178,9 +185,9 @@ describe('getGroupRulesForGroup', () => {
       makeApiRequest: vi.fn().mockResolvedValue({
         success: true,
         data: [
-          { id: 'r1', actions: { assignUserToGroups: { groupIds: ['g1', 'g9'] } } },
-          { id: 'r2', actions: { assignUserToGroups: { groupIds: ['g2'] } } },
-          { id: 'r3' }, // no actions at all -> filtered out
+          rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1', 'g9'] } } }),
+          rule('r2', { actions: { assignUserToGroups: { groupIds: ['g2'] } } }),
+          rule('r3'), // no actions at all -> filtered out
         ],
       }),
     });
@@ -314,15 +321,18 @@ describe('getGroupRulesForGroup pagination + cache write-back', () => {
       .mockResolvedValueOnce({
         success: true,
         data: [
-          { id: 'r1', status: 'ACTIVE', actions: { assignUserToGroups: { groupIds: ['g1'] } } },
-          { id: 'r2', status: 'ACTIVE', actions: { assignUserToGroups: { groupIds: ['g2'] } } },
+          rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+          rule('r2', { actions: { assignUserToGroups: { groupIds: ['g2'] } } }),
         ],
         headers: { link: RULES_NEXT_LINK },
       })
       .mockResolvedValueOnce({
         success: true,
         data: [
-          { id: 'r3', status: 'INACTIVE', actions: { assignUserToGroups: { groupIds: ['g1'] } } },
+          rule('r3', {
+            status: 'INACTIVE',
+            actions: { assignUserToGroups: { groupIds: ['g1'] } },
+          }),
         ],
         headers: {},
       });
@@ -346,8 +356,8 @@ describe('getGroupRulesForGroup pagination + cache write-back', () => {
       makeApiRequest: vi.fn().mockResolvedValue({
         success: true,
         data: [
-          { id: 'r1', status: 'ACTIVE', actions: { assignUserToGroups: { groupIds: ['g1'] } } },
-          { id: 'r2', status: 'INACTIVE', actions: { assignUserToGroups: { groupIds: ['g2'] } } },
+          rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+          rule('r2', { status: 'INACTIVE', actions: { assignUserToGroups: { groupIds: ['g2'] } } }),
         ],
       }),
     });
@@ -371,7 +381,7 @@ describe('getGroupRulesForGroup pagination + cache write-back', () => {
     });
     const makeApiRequest = vi.fn().mockResolvedValue({
       success: true,
-      data: [{ id: 'r1', status: 'ACTIVE', actions: { assignUserToGroups: { groupIds: ['g1'] } } }],
+      data: [rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } })],
     });
     const ops = createGroupDiscoveryOperations(makeCore({ makeApiRequest }));
 
@@ -382,6 +392,115 @@ describe('getGroupRulesForGroup pagination + cache write-back', () => {
     const second = await ops.getGroupRulesForGroup('g1');
     expect(second.map((r) => (r as { id: string }).id)).toEqual(['r1']);
     expect(makeApiRequest).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fetchAndCacheAllGroupRules boundary validation (D-065)', () => {
+  const malformedGroupIds = {
+    id: 'rBAD',
+    name: 'Malformed targets',
+    status: 'ACTIVE',
+    actions: { assignUserToGroups: { groupIds: ['g1', { $ne: 1 }] } },
+  };
+
+  it('drops a rule with malformed groupIds while keeping the valid rule beside it', async () => {
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          malformedGroupIds,
+          rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+        ],
+      }),
+    });
+
+    const rules = await createGroupDiscoveryOperations(core).getGroupRulesForGroup('g1');
+
+    expect(rules.map((r) => r.id)).toEqual(['r1']);
+  });
+
+  it('never writes the malformed rule to RulesCache, and counts it out of the stats', async () => {
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          malformedGroupIds,
+          rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+        ],
+      }),
+    });
+
+    await createGroupDiscoveryOperations(core).getGroupRulesForGroup('g1');
+
+    expect(setMock).toHaveBeenCalledTimes(1);
+    const [formattedRules, rawRules, stats] = setMock.mock.calls[0];
+    expect(formattedRules.map((r) => r.id)).toEqual(['r1']);
+    expect(rawRules.map((r) => r.id)).toEqual(['r1']);
+    expect(stats).toEqual({ total: 1, active: 1, inactive: 0, conflicts: 0 });
+  });
+
+  it('drops a rule whose status is outside the ACTIVE/INACTIVE vocabulary', async () => {
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          { id: 'rWEIRD', name: 'Unknown status', status: 'PENDING' },
+          rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+        ],
+      }),
+    });
+
+    await createGroupDiscoveryOperations(core).ensureGroupRulesLoaded();
+
+    const [, rawRules] = setMock.mock.calls[0];
+    expect(rawRules.map((r) => r.id)).toEqual(['r1']);
+  });
+
+  it('reports the drop with counts only — never the row, its expression, or its ids', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const core = makeCore({
+        makeApiRequest: vi.fn().mockResolvedValue({
+          success: true,
+          data: [
+            malformedGroupIds,
+            rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+          ],
+        }),
+      });
+
+      await createGroupDiscoveryOperations(core).getGroupRulesForGroup('g1');
+
+      const walkWarning = warn.mock.calls.find(
+        ([, message]) => message === 'Dropped malformed group rules before caching',
+      );
+      expect(walkWarning).toBeDefined();
+      expect(walkWarning?.[2]).toEqual({
+        context: 'GET /api/v1/groups/rules',
+        dropped: 1,
+        returned: 2,
+      });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('stays silent when every row validates', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const core = makeCore({
+        makeApiRequest: vi.fn().mockResolvedValue({
+          success: true,
+          data: [rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } })],
+        }),
+      });
+
+      await createGroupDiscoveryOperations(core).getGroupRulesForGroup('g1');
+
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 
@@ -413,15 +532,13 @@ describe('ensureGroupRulesLoaded', () => {
       .fn()
       .mockResolvedValueOnce({
         success: true,
-        data: [
-          { id: 'r1', status: 'ACTIVE', actions: { assignUserToGroups: { groupIds: ['g1'] } } },
-        ],
+        data: [rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } })],
         headers: { link: RULES_NEXT_LINK },
       })
       .mockResolvedValueOnce({
         success: true,
         data: [
-          { id: 'r2', status: 'INACTIVE', actions: { assignUserToGroups: { groupIds: ['g2'] } } },
+          rule('r2', { status: 'INACTIVE', actions: { assignUserToGroups: { groupIds: ['g2'] } } }),
         ],
         headers: {},
       });

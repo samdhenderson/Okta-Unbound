@@ -64,6 +64,14 @@ describe('GroupRulesSection', () => {
     expect(screen.getByText(/No rule condition references this group by id/)).toBeInTheDocument();
   });
 
+  it('states the empty fact without growing a create control of its own', () => {
+    render(<GroupRulesSection {...base} assigningRules={[]} referencingRules={[]} />);
+
+    expect(screen.getByText(/Members are added manually or by app push/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Create/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /rule/i })).not.toBeInTheDocument();
+  });
+
   it('does not overclaim: says name-based references are not detected', () => {
     render(<GroupRulesSection {...base} />);
     expect(screen.getByText(/matching on group name is not listed/)).toBeInTheDocument();
