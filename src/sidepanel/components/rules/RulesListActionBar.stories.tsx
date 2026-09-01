@@ -88,6 +88,7 @@ export const NothingLoaded: Story = {
   args: {
     hasRules: false,
     duplicateClusterCount: 0,
+    hasCurrentGroup: false,
     currentGroupRelationCount: 0,
     search: undefined,
   },
@@ -97,6 +98,22 @@ export const NothingLoaded: Story = {
     await expect(canvas.queryByRole('button', { name: 'More' })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Duplicates/ })).not.toBeInTheDocument();
+  },
+};
+
+export const NothingLoadedWithGroupInContext: Story = {
+  args: {
+    hasRules: false,
+    duplicateClusterCount: 0,
+    currentGroupRelationCount: 0,
+    search: undefined,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'Load rules' })).toBeInTheDocument();
+    await openTier(canvas);
+    await expect(canvas.getByRole('button', { name: 'This group' })).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /^Stats/ })).not.toBeInTheDocument();
   },
 };
 
