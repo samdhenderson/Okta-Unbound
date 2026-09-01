@@ -61,6 +61,9 @@ const Tabs: React.FC<TabsProps> = ({
     reducedMotion,
   });
 
+  const activeIndex = tabs.findIndex((tab) => tab.key === activeKey);
+  const anchorIndex = activeIndex === -1 ? 0 : activeIndex;
+
   const focusTab = (index: number) => {
     const clamped = (index + tabs.length) % tabs.length;
     const tab = tabs[clamped];
@@ -143,7 +146,7 @@ const Tabs: React.FC<TabsProps> = ({
             role="tab"
             aria-selected={active}
             aria-label={isRail ? tab.label : undefined}
-            tabIndex={active ? 0 : -1}
+            tabIndex={index === anchorIndex ? 0 : -1}
             onClick={() => onChange(tab.key)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={tabClasses}

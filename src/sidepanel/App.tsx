@@ -4,7 +4,7 @@ import PageHeader from './components/shared/PageHeader';
 import { MODAL_LAYER_ID } from './components/shared/Modal';
 import TabNavigation from './components/TabNavigation';
 import TabPanel from './components/TabPanel';
-import TabJumpPalette from './components/TabJumpPalette';
+import CommandPalette from './components/CommandPalette';
 import { useCommandPalette } from './hooks/useCommandPalette';
 import { migrateLegacyTabId, type TabType } from './tabs';
 import HomeTab from './components/HomeTab';
@@ -34,6 +34,8 @@ const App: React.FC = () => {
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
   const [listViewRequest, setListViewRequest] = useState<ListViewRequest | null>(null);
   const [pinned, setPinned] = useState<PinnedContext | null>(null);
@@ -189,13 +191,33 @@ const App: React.FC = () => {
     chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'users' });
   }, []);
 
+  const handleNavigateToApp = useCallback((appId: string) => {
+    setSelectedAppId(appId);
+    setActiveTab('apps');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'apps' });
+  }, []);
+
+  const handleNavigateToPolicy = useCallback((policyId: string) => {
+    setSelectedPolicyId(policyId);
+    setActiveTab('policies');
+    chrome.storage.local.set({ [SELECTED_TAB_KEY]: 'policies' });
+  }, []);
+
   const navigationHandlers = useMemo(
     () => ({
       rule: handleNavigateToRule,
       group: handleNavigateToGroup,
       user: handleNavigateToUser,
+      app: handleNavigateToApp,
+      policy: handleNavigateToPolicy,
     }),
-    [handleNavigateToRule, handleNavigateToGroup, handleNavigateToUser],
+    [
+      handleNavigateToRule,
+      handleNavigateToGroup,
+      handleNavigateToUser,
+      handleNavigateToApp,
+      handleNavigateToPolicy,
+    ],
   );
 
   const handleNavigateToExport = (request: ExportRequest) => {
@@ -316,6 +338,8 @@ const App: React.FC = () => {
                 oktaOrigin={tabContext.oktaOrigin ?? undefined}
                 listView={viewFor(listViewRequest, 'apps')}
                 onListViewConsumed={clearListViewRequest}
+                selectedAppId={selectedAppId}
+                onAppSelected={() => setSelectedAppId(null)}
               />
             ))}
             {renderTabPanel('policies', (isActive) => (
@@ -323,6 +347,8 @@ const App: React.FC = () => {
                 isActive={isActive}
                 targetTabId={tabContext.targetTabId ?? undefined}
                 oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                selectedPolicyId={selectedPolicyId}
+                onPolicySelected={() => setSelectedPolicyId(null)}
               />
             ))}
             {renderTabPanel('export', (isActive) => (
@@ -359,11 +385,13 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <TabJumpPalette
+        <CommandPalette
           isOpen={jumpPalette.isOpen}
           onClose={jumpPalette.close}
           activeTab={activeTab}
           onSelect={handleTabChange}
+          targetTabId={tabContext.targetTabId ?? null}
+          oktaOrigin={tabContext.oktaOrigin}
         />
 
         <div id={MODAL_LAYER_ID} />

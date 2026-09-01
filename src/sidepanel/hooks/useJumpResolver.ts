@@ -10,10 +10,12 @@ export const JUMP_SEARCH_MIN_CHARS = 3;
 
 export const JUMP_SEARCH_DEBOUNCE_MS = 600;
 
+export type JumpKind = OktaIdKind | 'policy';
+
 export type JumpMode = 'idle' | 'searching' | 'resolving' | 'results' | 'error';
 
 export interface JumpResult {
-  kind: OktaIdKind;
+  kind: JumpKind;
   id: string;
   name: string;
   secondary?: string;
@@ -37,7 +39,7 @@ export interface UseJumpResolverResult {
 
 export interface UseJumpResolverOptions {
   index: OrgEntityIndex;
-  searchers: Partial<Record<OktaIdKind, (query: string) => Promise<JumpResult[]>>>;
+  searchers: Partial<Record<JumpKind, (query: string) => Promise<JumpResult[]>>>;
   fetchers: Partial<Record<OktaIdKind, (id: string) => Promise<JumpResult | null>>>;
   enabled?: boolean;
 }
@@ -69,7 +71,7 @@ export function useJumpResolver({
       setError(null);
       setResolution(null);
 
-      const kinds = Object.keys(searchers) as OktaIdKind[];
+      const kinds = Object.keys(searchers) as JumpKind[];
       const settled = await Promise.allSettled(
         kinds.map((kind) => searchers[kind]?.(needle) ?? Promise.resolve([])),
       );

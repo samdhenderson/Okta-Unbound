@@ -170,6 +170,59 @@ describe('AuthPoliciesTab', () => {
     expect(api.listPolicies).not.toHaveBeenCalled();
   });
 
+  it('arrives at a deep-linked policy with the list filtered to it, once', async () => {
+    const onPolicySelected = vi.fn();
+    const { rerender } = render(
+      <AuthPoliciesTab
+        targetTabId={1}
+        selectedPolicyId="rstFAKE000000000002"
+        onPolicySelected={onPolicySelected}
+      />,
+    );
+
+    expect(await screen.findByText('Default Policy')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Any two factors')).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue('Default Policy')).toBeInTheDocument();
+    await waitFor(() => expect(onPolicySelected).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <AuthPoliciesTab
+        targetTabId={1}
+        selectedPolicyId="rstFAKE000000000002"
+        onPolicySelected={onPolicySelected}
+      />,
+    );
+    expect(onPolicySelected).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for the policy list before consuming a deep link into a cold tab', async () => {
+    const onPolicySelected = vi.fn();
+    const { rerender } = render(
+      <AuthPoliciesTab
+        targetTabId={1}
+        isActive={false}
+        selectedPolicyId="rstFAKE000000000002"
+        onPolicySelected={onPolicySelected}
+      />,
+    );
+
+    await waitFor(() => expect(api.listPolicies).not.toHaveBeenCalled());
+    expect(onPolicySelected).not.toHaveBeenCalled();
+
+    rerender(
+      <AuthPoliciesTab
+        targetTabId={1}
+        isActive
+        selectedPolicyId="rstFAKE000000000002"
+        onPolicySelected={onPolicySelected}
+      />,
+    );
+
+    expect(await screen.findByText('Default Policy')).toBeInTheDocument();
+    await waitFor(() => expect(onPolicySelected).toHaveBeenCalledTimes(1));
+    expect(screen.getByDisplayValue('Default Policy')).toBeInTheDocument();
+  });
+
   it('defers the arrival load while the tab is mounted but not the visible one', async () => {
     const { rerender } = render(<AuthPoliciesTab targetTabId={1} isActive={false} />);
 

@@ -23,6 +23,17 @@ describe('Tabs', () => {
     expect(screen.getByRole('tab', { name: 'Org' })).toHaveAttribute('tabindex', '-1');
   });
 
+  it('keeps one tab stop when activeKey matches no tab, without claiming a selection', () => {
+    render(<Tabs tabs={TABS} activeKey="not-a-tab" onChange={vi.fn()} />);
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.filter((tab) => tab.getAttribute('tabindex') === '0')).toHaveLength(1);
+    expect(tabs[0]).toHaveAttribute('tabindex', '0');
+    for (const tab of tabs) {
+      expect(tab).toHaveAttribute('aria-selected', 'false');
+    }
+  });
+
   it('fires onChange with the tab key when clicked', async () => {
     const onChange = vi.fn();
     render(<Tabs tabs={TABS} activeKey="account" onChange={onChange} />);

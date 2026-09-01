@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from './shared/PageHeader';
 import Button from './shared/Button';
 import Input from './shared/Input';
@@ -16,9 +16,16 @@ interface AuthPoliciesTabProps {
   targetTabId?: number;
   oktaOrigin?: string | null;
   isActive?: boolean;
+  selectedPolicyId?: string | null;
+  onPolicySelected?: () => void;
 }
 
-const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive = true }) => {
+const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
+  targetTabId,
+  isActive = true,
+  selectedPolicyId,
+  onPolicySelected,
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +49,20 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({ targetTabId, isActive
     () => filterPolicies(policies, searchQuery),
     [policies, searchQuery],
   );
+
+  const selectedPolicyHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedPolicyId) {
+      selectedPolicyHandledRef.current = null;
+      return;
+    }
+    if (selectedPolicyHandledRef.current === selectedPolicyId) return;
+    if (policies.length === 0) return;
+    selectedPolicyHandledRef.current = selectedPolicyId;
+    const match = policies.find((policy) => policy.id === selectedPolicyId);
+    if (match?.name) setSearchQuery(match.name);
+    onPolicySelected?.();
+  }, [selectedPolicyId, policies, onPolicySelected]);
 
   const hasPolicies = policies.length > 0;
   const lastUpdatedLabel = lastFetchTime ? getRelativeTime(lastFetchTime) : null;

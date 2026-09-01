@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs, type TabItem } from './shared';
-import { TAB_DEFS, type TabType } from '../tabs';
+import { RAIL_TAB_DEFS, type TabType } from '../tabs';
 
 export type { TabType } from '../tabs';
 
@@ -9,7 +9,11 @@ interface TabNavigationProps {
   onTabChange: (tab: TabType) => void;
 }
 
-const TAB_ITEMS: TabItem[] = TAB_DEFS.map(({ id, label, icon }) => ({ key: id, label, icon }));
+const TAB_ITEMS: TabItem[] = RAIL_TAB_DEFS.map(({ id, label, icon }) => ({
+  key: id,
+  label,
+  icon,
+}));
 
 const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => (
   <nav className="shrink-0 bg-white border-b border-neutral-200">

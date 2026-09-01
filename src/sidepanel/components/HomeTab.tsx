@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import JumpBar from './home/JumpBar';
 import WorkingSet from './home/WorkingSet';
 import OrgSnapshotCard from './home/OrgSnapshotCard';
@@ -9,10 +9,10 @@ import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useOrgFigures } from '../hooks/useOrgFigures';
 import { useHomeReports } from '../hooks/useHomeReports';
 import { useJumpResolver, type JumpResult } from '../hooks/useJumpResolver';
+import { useEntitySearchSources } from '../hooks/useEntitySearchSources';
 import { useStaggerReveal } from '../hooks/useStaggerReveal';
 import { useEntityNavigation } from '../contexts/NavigationContext';
 import { navigationTarget } from './home/jumpDestinations';
-import type { OktaIdKind } from '../../shared/utils/oktaId';
 import type { WorkingSetRef } from '../../shared/storage/workingSetStore';
 import type { ListViewRequest, ListViewTab } from '../listViewRequest';
 
@@ -23,6 +23,8 @@ export interface HomeTabProps {
   onOpenListView: (request: ListViewRequest) => void;
   onOpenTab: (tab: ListViewTab) => void;
 }
+
+const HOME_JUMP_KINDS = ['group', 'user'] as const;
 
 const HomeTab: React.FC<HomeTabProps> = ({
   isActive,
@@ -45,83 +47,7 @@ const HomeTab: React.FC<HomeTabProps> = ({
 
   const [autoFocus] = useState(() => isActive && document.visibilityState === 'visible');
 
-  const { searchUsers, searchGroups, getUserById, getGroupById, getAppById, getRawGroupRule } = api;
-
-  const searchers = useMemo(() => {
-    const built: Partial<Record<OktaIdKind, (query: string) => Promise<JumpResult[]>>> = {};
-    if (nav.canNavigateTo('group')) {
-      built.group = async (query) =>
-        (await searchGroups(query)).map((group) => ({
-          kind: 'group' as const,
-          id: group.id,
-          name: group.name,
-          secondary: group.description || undefined,
-        }));
-    }
-    if (nav.canNavigateTo('user')) {
-      built.user = async (query) =>
-        (await searchUsers(query)).map((user) => ({
-          kind: 'user' as const,
-          id: user.id,
-          name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.login,
-          secondary: user.email || user.login,
-        }));
-    }
-    return built;
-  }, [nav, searchGroups, searchUsers]);
-
-  const fetchers: Partial<Record<OktaIdKind, (id: string) => Promise<JumpResult | null>>> = {
-    group: async (id) => {
-      const group = await getGroupById(id);
-      return group
-        ? {
-            kind: 'group',
-            id: group.id,
-            name: group.name,
-            secondary: group.description || undefined,
-          }
-        : null;
-    },
-    user: async (id) => {
-      const user = await getUserById(id);
-      return user
-        ? {
-            kind: 'user',
-            id: user.id,
-            name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.login,
-            secondary: user.email || user.login,
-          }
-        : null;
-    },
-    app: async (id) => {
-      const lookup = await getAppById(id);
-      switch (lookup.kind) {
-        case 'found':
-          return {
-            kind: 'app',
-            id: lookup.app.id,
-            name: lookup.app.label || lookup.app.name || lookup.app.id,
-          };
-        case 'missing':
-          return null;
-        case 'session-expired':
-          throw new Error('Your Okta session has expired. Sign in again on the Okta tab.');
-        case 'failed':
-          throw new Error('Could not look that app up. Try again.');
-      }
-    },
-    rule: async (id) => {
-      const rule = await getRawGroupRule(id);
-      return rule
-        ? {
-            kind: 'rule',
-            id: rule.id,
-            name: rule.name || rule.id,
-            secondary: rule.status === 'INACTIVE' ? 'Paused' : 'Active',
-          }
-        : null;
-    },
-  };
+  const { searchers, fetchers } = useEntitySearchSources({ api, index, kinds: HOME_JUMP_KINDS });
 
   const jump = useJumpResolver({ index, searchers, fetchers, enabled: isActive });
 

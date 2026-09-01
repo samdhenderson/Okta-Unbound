@@ -23,6 +23,8 @@ export interface AppsTabProps {
   isActive?: boolean;
   listView?: AppsListView | null;
   onListViewConsumed?: () => void;
+  selectedAppId?: string | null;
+  onAppSelected?: () => void;
 }
 
 const AppsTab: React.FC<AppsTabProps> = ({
@@ -31,6 +33,8 @@ const AppsTab: React.FC<AppsTabProps> = ({
   isActive = true,
   listView,
   onListViewConsumed,
+  selectedAppId,
+  onAppSelected,
 }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,6 +104,27 @@ const AppsTab: React.FC<AppsTabProps> = ({
     setGroupsFilter(listView === 'pushes-nothing' ? 'no-groups' : '');
     onListViewConsumed?.();
   }, [listView, onListViewConsumed]);
+
+  const selectedAppHandledRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedAppId) {
+      selectedAppHandledRef.current = null;
+      return;
+    }
+    if (selectedAppHandledRef.current === selectedAppId) return;
+    const match = apps.find((app) => app.id === selectedAppId);
+    if (!match) {
+      if (apps.length === 0) return;
+      selectedAppHandledRef.current = selectedAppId;
+      onAppSelected?.();
+      return;
+    }
+    selectedAppHandledRef.current = selectedAppId;
+    setSearchQuery(match.label || match.name || match.id);
+    setStatusFilter('');
+    setGroupsFilter('');
+    onAppSelected?.();
+  }, [selectedAppId, apps, onAppSelected]);
 
   const handleToggleSort = useCallback((field: AppSortField) => {
     setSortBy((prev) => {
