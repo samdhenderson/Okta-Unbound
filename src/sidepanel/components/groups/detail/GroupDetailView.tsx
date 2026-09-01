@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import GroupOverviewPane from './GroupOverviewPane';
 import GroupMembersSection from './GroupMembersSection';
 import GroupAccessSection from './GroupAccessSection';
@@ -19,9 +19,12 @@ import { useGroupAccessGrants } from '../../../hooks/useGroupAccessGrants';
 import { useGroupComparison } from '../../../hooks/useGroupComparison';
 import { useMemberMfaScan } from '../../../hooks/useMemberMfaScan';
 import { useGroupMembersSection } from './useGroupMembersSection';
+import { useRemoveDeprovisioned } from './useRemoveDeprovisioned';
 import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
 import { useCreateFeedingRule } from '../../../hooks/useCreateFeedingRule';
 import { useWorkingSetEntry } from '../../../hooks/useWorkingSetEntry';
+import { invalidate } from '../../../cache/entityCache';
+import { cacheKeys } from '../../../cache/keys';
 import { OKTA_PAGE_SIZE } from '../../../../shared/utils/oktaPagination';
 import type { GroupSummary } from '../../../../shared/types';
 
@@ -83,6 +86,16 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
     targetTabId: targetTabId ?? undefined,
   });
 
+  const deprovisionedCount = useMemo(
+    () => membersSection.members?.filter((user) => user.status === 'DEPROVISIONED').length,
+    [membersSection.members],
+  );
+  const onCleanupDone = useCallback(() => {
+    invalidate(cacheKeys.mfaScan(group.id));
+    source.analyzeMembers();
+  }, [group.id, source]);
+  const removeDeprovisioned = useRemoveDeprovisioned(group.id, targetTabId, onCleanupDone);
+
   const { getMembershipRuleProof, compareGroups } = useOktaApi({
     targetTabId: targetTabId ?? null,
   });
@@ -136,6 +149,10 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
           onExportGroup={onExportGroup}
           onAddMember={openAddMemberModal}
           onCompare={comparison.openPicker}
+          deprovisionedCount={deprovisionedCount}
+          onRemoveDeprovisioned={removeDeprovisioned.run}
+          isRemoving={removeDeprovisioned.isRemoving}
+          removeError={removeDeprovisioned.error}
           onCreateFeedingRule={createFeedingRule.open}
         />
 
