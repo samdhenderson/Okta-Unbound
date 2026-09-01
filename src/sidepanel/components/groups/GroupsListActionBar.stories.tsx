@@ -28,9 +28,20 @@ const meta = {
           'disabled: *Compare* appears for 2–5 selected, *Export (N)* / *Merge* / *Bulk actions* ' +
           'above 0. *Export list* is the one deliberate disabled state — it acts on the filter, ' +
           'not the selection, so at zero filtered rows it is a live verb with an empty result.\n\n' +
-          'The counts moved into the verbs that need them. The open inline panel is marked with ' +
-          "`variant: 'primary'`, which `ActionBar` also treats as `priority: 'pinned'` — so the " +
-          'control that closes an open panel can never overflow behind **More**.',
+          'The counts moved into the verbs that need them.\n\n' +
+          '**The blue button is *Export list*, and that is a decision (ADR-0061, I-030).** With ' +
+          'no panel open — the state this rung rests in — every control here was `secondary`, so ' +
+          'six identically-weighted buttons sat above the list with nothing saying where to ' +
+          'start. `primary` names a rung’s *page-level verb*, and *Export list* is the only ' +
+          'candidate: every other verb is scoped to a selection and absent until one exists, ' +
+          'while this one acts on the whole filtered rung and is present in every state. The ' +
+          'Rules strip’s answer — a *Load* / *Refresh* verb — is not available here, because the ' +
+          'Groups list loads on arrival.\n\n' +
+          '**The open panel says so in words.** It used to be marked with ' +
+          "`variant: 'primary'`, which is colour-only state a screen reader is told nothing " +
+          'about. The trigger now swaps its label (*Cross-search (5)* → *Hide cross-search*) and ' +
+          "keeps `priority: 'pinned'` explicitly — the half that matters for safety, since the " +
+          'control that closes a panel must never be the one hiding behind **More**.',
       },
     },
   },
@@ -50,7 +61,10 @@ const meta = {
   argTypes: {
     selectedCount: { description: 'Number of currently selected groups.' },
     filteredCount: { description: 'Number of groups after filtering.' },
-    activePanel: { description: 'Which inline panel is open; its trigger renders primary+pinned.' },
+    activePanel: {
+      description:
+        'Which inline panel is open; its trigger names the way back and is pinned into the row.',
+    },
     crossSearchBadge: {
       description: 'Cached-members count — appended to the Cross-search label when above zero.',
     },
@@ -113,7 +127,27 @@ export const BulkPanelOpen: Story = {
   args: { selectedCount: 4, activePanel: 'bulk' },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('button', { name: 'Bulk actions' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Hide bulk actions' })).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Bulk actions' })).not.toBeInTheDocument();
+  },
+};
+
+export const TheOpenPanelSaysSo: Story = {
+  args: { activePanel: 'crossSearch', crossSearchBadge: 5 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'Hide cross-search' })).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /^Cross-search/ })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Export list' })).toBeInTheDocument();
+  },
+};
+
+export const ExportListIsThePageVerb: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const exportList = canvas.getByRole('button', { name: 'Export list' });
+    await expect(exportList).toBeInTheDocument();
+    await expect(exportList).toBeEnabled();
   },
 };
 

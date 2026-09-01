@@ -34,18 +34,18 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
 }) => {
   const panelAction = (
     panel: Exclude<ActivePanel, 'none'>,
-    label: string,
+    closedLabel: string,
+    openLabel: string,
     icon: ActionDescriptor['icon'],
     restingPriority: ActionDescriptor['priority'] = 'flex',
   ): ActionDescriptor => {
     const open = activePanel === panel;
     return {
       id: panel,
-      label,
+      label: open ? openLabel : closedLabel,
       icon,
       onClick: () => onTogglePanel(panel),
       priority: open ? 'pinned' : restingPriority,
-      ...(open ? { variant: 'primary' as const } : {}),
     };
   };
 
@@ -91,13 +91,15 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
     panelAction(
       'crossSearch',
       crossSearchBadge > 0 ? `Cross-search (${crossSearchBadge})` : 'Cross-search',
+      'Hide cross-search',
       'search',
     ),
-    panelAction('collections', 'Collections', 'clipboard'),
+    panelAction('collections', 'Collections', 'Hide collections', 'clipboard'),
     {
       id: 'export-list',
       label: 'Export list',
       icon: 'download',
+      variant: 'primary',
       onClick: onExportGroupsList,
       disabled: filteredCount === 0,
       title: 'Export the current groups list as CSV',
@@ -115,8 +117,10 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
           },
         ]
       : []),
-    ...(selectedCount > 0 ? [panelAction('bulk', 'Bulk actions', 'list', 'tier')] : []),
-    panelAction('cleanup', 'Cleanup', 'sparkles', 'tier'),
+    ...(selectedCount > 0
+      ? [panelAction('bulk', 'Bulk actions', 'Hide bulk actions', 'list', 'tier')]
+      : []),
+    panelAction('cleanup', 'Cleanup', 'Hide cleanup', 'sparkles', 'tier'),
   ];
 
   return (
