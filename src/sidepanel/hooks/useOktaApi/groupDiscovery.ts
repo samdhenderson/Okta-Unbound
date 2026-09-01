@@ -3,6 +3,7 @@ import type { OktaGroup, OktaGroupRule, FormattedRule } from '../../../shared/ty
 import { RulesCache } from '../../../shared/rulesCache';
 import { detectConflicts, formatRuleForDisplay } from '../../../shared/ruleUtils';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { oktaGroupRuleSchema } from '../../../shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
@@ -41,10 +42,27 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
     rules: FormattedRule[];
     rawRules: OktaGroupRule[];
   }> => {
-    const rawRules = await fetchAllPages<OktaGroupRule>(
-      (url) => coreApi.makeApiRequest(url, { reason: 'Load org-wide group rules' }),
+    let rowsReturned = 0;
+    const validated = await fetchAllPages(
+      async (url) => {
+        const response = await coreApi.makeApiRequest(url, {
+          reason: 'Load org-wide group rules',
+        });
+        if (Array.isArray(response.data)) rowsReturned += response.data.length;
+        return response;
+      },
       `/api/v1/groups/rules?limit=${OKTA_PAGE_SIZE}`,
+      { schema: oktaGroupRuleSchema, context: 'GET /api/v1/groups/rules' },
     );
+    const rawRules = validated as unknown as OktaGroupRule[];
+
+    if (rawRules.length < rowsReturned) {
+      log.warn('Dropped malformed group rules before caching', {
+        context: 'GET /api/v1/groups/rules',
+        dropped: rowsReturned - rawRules.length,
+        returned: rowsReturned,
+      });
+    }
 
     const conflicts = detectConflicts(rawRules);
     const rules = rawRules.map((rule) => formatRuleForDisplay(rule, undefined, conflicts));

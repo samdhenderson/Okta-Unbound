@@ -94,6 +94,28 @@ vi.mock('../../../hooks/useAddGroupMember', () => ({
   useAddGroupMember: () => addMember,
 }));
 
+const createFeedingRule = vi.hoisted(() => ({
+  isOpen: false,
+  open: vi.fn(),
+  close: vi.fn(),
+  name: '',
+  setName: vi.fn(),
+  nameError: null as string | null,
+  expression: '',
+  setExpression: vi.fn(),
+  expressionNotice: null as string | null,
+  canSubmit: false,
+  isCreating: false,
+  error: null as string | null,
+  createdRuleName: null as string | null,
+  createdRuleId: null as string | null,
+  confirm: vi.fn(),
+}));
+
+vi.mock('../../../hooks/useCreateFeedingRule', () => ({
+  useCreateFeedingRule: () => createFeedingRule,
+}));
+
 vi.mock('./GroupOverviewPane', () => ({
   default: () => <div data-testid="stub-overview" />,
 }));
@@ -114,6 +136,9 @@ vi.mock('./GroupInsightsPane', () => ({
 }));
 vi.mock('./AddGroupMemberModal', () => ({
   default: () => <div data-testid="stub-add-modal" />,
+}));
+vi.mock('./CreateFeedingRuleModal', () => ({
+  default: () => <div data-testid="stub-create-rule-modal" />,
 }));
 
 function makeGroup(over: Partial<GroupSummary> = {}): GroupSummary {
@@ -240,6 +265,30 @@ describe('GroupDetailView', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add' }));
     expect(addMember.openModal).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Create feeding rule in the disclosure tier, not the action row', () => {
+    render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+
+    const more = screen.getByRole('button', { name: /More/ });
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+
+    const tierId = more.getAttribute('aria-controls');
+    const tier = tierId ? document.getElementById(tierId) : null;
+    if (!tier) throw new Error('the More control names no region');
+
+    expect(within(tier).getByRole('button', { name: 'Create feeding rule' })).toBeInTheDocument();
+    expect(
+      within(tier).getByText(/Memberships a rule grants outlive the rule/),
+    ).toBeInTheDocument();
+  });
+
+  it("wires the tier's Create feeding rule to the confirm dialog", async () => {
+    const user = userEvent.setup();
+    render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+
+    await user.click(screen.getByRole('button', { name: 'Create feeding rule' }));
+    expect(createFeedingRule.open).toHaveBeenCalledTimes(1);
   });
 
   it("wires the action bar's Compare button to the group picker", async () => {

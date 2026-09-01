@@ -8,6 +8,7 @@ import GroupInsightsPane from './GroupInsightsPane';
 import GroupActionBar from './GroupActionBar';
 import AddGroupMemberModal from './AddGroupMemberModal';
 import CompareGroupModal from './CompareGroupModal';
+import CreateFeedingRuleModal from './CreateFeedingRuleModal';
 import GroupComparisonModal from '../GroupComparisonModal';
 import { Tabs, type TabItem } from '../../shared';
 import { useGroupSource } from '../../../hooks/useGroupSource';
@@ -19,6 +20,7 @@ import { useGroupComparison } from '../../../hooks/useGroupComparison';
 import { useMemberMfaScan } from '../../../hooks/useMemberMfaScan';
 import { useGroupMembersSection } from './useGroupMembersSection';
 import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
+import { useCreateFeedingRule } from '../../../hooks/useCreateFeedingRule';
 import { useWorkingSetEntry } from '../../../hooks/useWorkingSetEntry';
 import { OKTA_PAGE_SIZE } from '../../../../shared/utils/oktaPagination';
 import type { GroupSummary } from '../../../../shared/types';
@@ -110,6 +112,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
     addMember.closeModal();
   };
 
+  const createFeedingRule = useCreateFeedingRule({ targetTabId, group });
+
   const comparison = useGroupComparison({ group, targetTabId, enabled: isActive });
 
   const { open, analyzeMembers } = source;
@@ -132,6 +136,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
           onExportGroup={onExportGroup}
           onAddMember={openAddMemberModal}
           onCompare={comparison.openPicker}
+          onCreateFeedingRule={createFeedingRule.open}
         />
 
         <div>
@@ -280,6 +285,25 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
         canSearch={targetTabId !== null}
         onClose={comparison.closePicker}
         onConfirm={comparison.confirm}
+      />
+
+      <CreateFeedingRuleModal
+        isOpen={createFeedingRule.isOpen}
+        groupName={group.name}
+        name={createFeedingRule.name}
+        onNameChange={createFeedingRule.setName}
+        nameError={createFeedingRule.nameError}
+        expression={createFeedingRule.expression}
+        onExpressionChange={createFeedingRule.setExpression}
+        expressionNotice={createFeedingRule.expressionNotice}
+        canSubmit={createFeedingRule.canSubmit}
+        isCreating={createFeedingRule.isCreating}
+        error={createFeedingRule.error}
+        createdRuleName={createFeedingRule.createdRuleName}
+        createdRuleId={createFeedingRule.createdRuleId}
+        onClose={createFeedingRule.close}
+        onConfirm={createFeedingRule.confirm}
+        onNavigateToRule={onNavigateToRule}
       />
 
       <GroupComparisonModal
