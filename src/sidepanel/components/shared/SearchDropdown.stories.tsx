@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import SearchDropdown from './SearchDropdown';
+import Modal from './Modal';
 import type { OktaUser } from '../../../shared/types';
 import { mockUsers } from '../../../test/mocks/fixtures';
 
@@ -44,6 +45,8 @@ const meta = {
     disabled: { description: 'Disables the input.' },
     label: { description: 'Optional field label.' },
     hint: { description: 'Optional helper text below the field.' },
+    getKey: { description: 'Stable React key for a result; defaults to the array index.' },
+    error: { description: 'Inline danger alert for a failed search, shown under the field.' },
   },
   args: {
     placeholder: 'Search users...',
@@ -93,6 +96,37 @@ export const WithResults: Story = {
     showDropdown: true,
     results: mockUsers.slice(0, 5),
   },
+};
+
+export const ManyResults: Story = {
+  args: {
+    query: 'a',
+    showDropdown: true,
+    results: mockUsers,
+  },
+};
+
+export const SearchError: Story = {
+  args: {
+    query: 'john',
+    error: 'Search failed: the Okta tab is no longer signed in.',
+  },
+};
+
+export const InsideModal: Story = {
+  args: {
+    label: 'Search for a user',
+    query: 'john',
+    showDropdown: true,
+    results: mockUsers.slice(0, 6),
+  },
+  render: (args) => (
+    <div className="w-[400px]">
+      <Modal isOpen onClose={fn()} title="Add member to Engineering">
+        <SearchDropdown {...args} />
+      </Modal>
+    </div>
+  ),
 };
 
 export const WithQuery: Story = {
