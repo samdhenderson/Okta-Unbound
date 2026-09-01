@@ -1564,12 +1564,13 @@ describe('inline panels', () => {
     await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
     expect(screen.getByTestId('cross-group-search')).toBeInTheDocument();
 
-    await uev.click(screen.getByRole('button', { name: /Collections/ }));
+    await uev.click(screen.getByRole('button', { name: 'Collections' }));
     expect(screen.queryByTestId('cross-group-search')).not.toBeInTheDocument();
     expect(screen.getByTestId('collections-panel')).toBeInTheDocument();
 
-    await uev.click(screen.getByRole('button', { name: /Collections/ }));
+    await uev.click(screen.getByRole('button', { name: 'Hide collections' }));
     expect(screen.queryByTestId('collections-panel')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Collections' })).toBeInTheDocument();
   });
 
   it('closes via the child onClose callback', async () => {
