@@ -4,7 +4,10 @@ import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import type { RequestResult } from '../../shared/scheduler/types';
 
 vi.mock('../../shared/snapshot/orgSnapshotStore', () => ({
-  orgSnapshotStore: { getCollection: vi.fn(async () => []) },
+  orgSnapshotStore: {
+    getCollection: vi.fn(async () => []),
+    getMeta: vi.fn(async () => ({ complete: false })),
+  },
 }));
 
 const ORIGIN = 'https://x.okta.com';
@@ -13,6 +16,12 @@ function stubGroupsCache(groups: Array<{ id: string; name: string }>) {
   vi.mocked(orgSnapshotStore.getCollection).mockResolvedValue(
     groups.map((g) => ({ id: g.id, type: 'OKTA_GROUP', profile: { name: g.name } })),
   );
+}
+
+function stubGroupWalk(complete: boolean) {
+  vi.mocked(orgSnapshotStore.getMeta).mockResolvedValue({
+    complete,
+  } as unknown as Awaited<ReturnType<typeof orgSnapshotStore.getMeta>>);
 }
 
 const ok = (data: unknown, headers?: Record<string, string>): RequestResult => ({
@@ -46,6 +55,7 @@ function router(handlers: Array<[RegExp, () => RequestResult]>) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(orgSnapshotStore.getCollection).mockResolvedValue([]);
+  stubGroupWalk(false);
 });
 
 describe('fetchGroupRulesRequest', () => {
@@ -241,5 +251,58 @@ describe('fetchGroupRulesRequest', () => {
       expect(makeApiRequest).toHaveBeenCalledTimes(2);
       expect(result.rules?.map((r) => r.id)).toEqual(['rOK']);
     });
+  });
+});
+
+describe('fetchGroupRulesRequest · missing target groups (D-061)', () => {
+  it('names a target id the completed group walk has no group for', async () => {
+    stubGroupsCache([{ id: 'gX', name: 'Group X' }]);
+    stubGroupWalk(true);
+    const makeApiRequest = router([
+      [
+        /^\/api\/v1\/groups\/rules/,
+        () => ok([rawRule({ actions: { assignUserToGroups: { groupIds: ['gX', 'gGONE'] } } })]),
+      ],
+    ]);
+
+    const result = await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
+
+    expect(result.rules?.[0].missingGroupIds).toEqual(['gGONE']);
+  });
+
+  it('distinguishes "asked and clean" from "not asked"', async () => {
+    stubGroupsCache([{ id: 'gX', name: 'Group X' }]);
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([rawRule()])]]);
+
+    stubGroupWalk(true);
+    const asked = await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
+    expect(asked.rules?.[0].missingGroupIds).toEqual([]);
+
+    stubGroupWalk(false);
+    const notAsked = await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
+    expect(notAsked.rules?.[0].missingGroupIds).toBeUndefined();
+  });
+
+  it('claims nothing when the group walk is unfinished, however many ids are absent', async () => {
+    vi.mocked(orgSnapshotStore.getCollection).mockResolvedValue([]);
+    stubGroupWalk(false);
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([rawRule()])]]);
+
+    const result = await fetchGroupRulesRequest(makeApiRequest, undefined, { origin: ORIGIN });
+
+    expect(result.rules?.[0].missingGroupIds).toBeUndefined();
+  });
+
+  it('asks nothing at all when names were not being resolved', async () => {
+    stubGroupWalk(true);
+    const makeApiRequest = router([[/^\/api\/v1\/groups\/rules/, () => ok([rawRule()])]]);
+
+    const result = await fetchGroupRulesRequest(makeApiRequest, undefined, {
+      origin: ORIGIN,
+      resolveGroupNames: false,
+    });
+
+    expect(orgSnapshotStore.getMeta).not.toHaveBeenCalled();
+    expect(result.rules?.[0].missingGroupIds).toBeUndefined();
   });
 });

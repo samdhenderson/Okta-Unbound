@@ -3,12 +3,15 @@ import type { Preview, Decorator } from '@storybook/react-vite';
 
 import '../src/sidepanel/tailwind.css';
 
+import { configure } from 'storybook/test';
 import { installChromeFake } from './mocks/chrome';
 import ErrorBoundary from '../src/sidepanel/components/ErrorBoundary';
 import { ProgressProvider } from '../src/sidepanel/contexts/ProgressContext';
 import { SchedulerProvider } from '../src/sidepanel/contexts/SchedulerContext';
 
 installChromeFake();
+
+configure({ defaultIgnore: 'script, style, [data-reserve-width], [data-reserve-width] *' });
 
 const withProviders: Decorator = (Story) => (
   <ErrorBoundary>

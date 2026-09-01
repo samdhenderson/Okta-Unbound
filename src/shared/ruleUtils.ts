@@ -5,6 +5,11 @@ function expressionText(rule: OktaGroupRule): string {
   return typeof value === 'string' ? value : '';
 }
 
+function excludedUserIdsOf(rule: OktaGroupRule): string[] {
+  const value: unknown = rule.conditions?.people?.users?.exclude;
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+}
+
 export function extractUserAttributes(rule: OktaGroupRule): string[] {
   const attributes = new Set<string>();
   const expression = expressionText(rule);
@@ -100,6 +105,7 @@ export function formatRuleForDisplay(
     conditionExpression: expression,
     groupIds,
     userAttributes,
+    excludedUserIds: excludedUserIdsOf(rule),
     created: rule.created,
     lastUpdated: rule.lastUpdated,
     affectsCurrentGroup,

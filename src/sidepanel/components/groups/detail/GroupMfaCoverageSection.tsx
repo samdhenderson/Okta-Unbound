@@ -35,7 +35,7 @@ const GroupMfaCoverageSection: React.FC<GroupMfaCoverageSectionProps> = ({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-neutral-600">
+        <p className="min-w-0 flex-1 text-sm text-neutral-600">
           {mfaResults && scanStatus === 'complete' && noFactorsRow
             ? `${noFactorsRow.count.toLocaleString()} of ${members.length.toLocaleString()} members (${Math.round(
                 noFactorsRow.pct,

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { MemberMfaResult, MfaScanStatus } from '../../../shared/types';
 import Button from '../shared/Button';
+import StableWidth from '../shared/StableWidth';
 
 interface MfaScanButtonProps {
   mfaResults: Map<string, MemberMfaResult> | null;
@@ -27,7 +28,9 @@ const MfaScanButton: React.FC<MfaScanButtonProps> = ({
       disabled={scanning || memberCount === 0}
       onClick={onScanClick}
     >
-      {scanning ? 'Scanning…' : mfaResults ? 'Rescan' : 'Run MFA scan'}
+      <StableWidth reserve="Run MFA scan" align="center">
+        {scanning ? 'Scanning…' : mfaResults ? 'Rescan' : 'Run MFA scan'}
+      </StableWidth>
     </Button>
   );
 };

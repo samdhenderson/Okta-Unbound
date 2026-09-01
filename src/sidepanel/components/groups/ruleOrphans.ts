@@ -23,6 +23,17 @@ export interface RuleAssignment {
   groupIds: readonly string[];
 }
 
+export interface RuleTargets extends RuleAssignment {
+  id: string;
+  name: string;
+}
+
+export interface MissingTargetFinding {
+  id: string;
+  name: string;
+  missingGroupIds: string[];
+}
+
 export interface GroupFinding {
   id: string;
   name: string;
@@ -51,6 +62,22 @@ export function appNamesByGroup(
     else byGroup.set(split.entityId, [name]);
   }
   return byGroup;
+}
+
+export function findRulesWithMissingTargets(
+  rules: readonly RuleTargets[],
+  knownGroupIds: ReadonlySet<string>,
+  groupWalkComplete: boolean,
+): MissingTargetFinding[] {
+  if (!groupWalkComplete) return [];
+  const findings: MissingTargetFinding[] = [];
+  for (const rule of rules) {
+    const missingGroupIds = rule.groupIds.filter((id) => !knownGroupIds.has(id));
+    if (missingGroupIds.length > 0) {
+      findings.push({ id: rule.id, name: rule.name, missingGroupIds });
+    }
+  }
+  return findings;
 }
 
 function byName(a: GroupFinding, b: GroupFinding): number {

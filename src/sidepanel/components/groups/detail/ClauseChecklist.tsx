@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import Icon, { type IconType } from '../../shared/Icon';
-import { AlertMessage } from '../../shared';
+import { AlertMessage, StableWidth } from '../../shared';
 import RuleExpressionText, { type GroupNameResolver } from './RuleExpressionText';
 import {
   explainRuleExpression,
@@ -58,6 +58,25 @@ const resultPresentation = {
   unevaluable: { label: 'Cannot be determined', chipClass: 'bg-neutral-100 text-neutral-700' },
 } as const;
 
+const WIDEST_CLAUSE_STATUS = Object.values(statusPresentation).reduce((a, b) =>
+  b.label.length > a.label.length ? b : a,
+);
+
+const WIDEST_RESULT = Object.values(resultPresentation).reduce((a, b) =>
+  b.label.length > a.label.length ? b : a,
+);
+
+const ClauseStatusChip: React.FC<{ presentation: StatusPresentation }> = ({ presentation }) => (
+  <span
+    className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-nowrap ${presentation.chipClass}`}
+  >
+    <span aria-hidden="true" className="inline-flex">
+      <Icon type={presentation.icon} size="sm" className={presentation.iconClass} />
+    </span>
+    {presentation.label}
+  </span>
+);
+
 function formatResolvedValue(value: RuleExprValue): string {
   if (value === null) return 'null';
   return typeof value === 'string' ? JSON.stringify(value) : String(value);
@@ -82,20 +101,15 @@ const ClauseRow: React.FC<ClauseRowProps> = ({ clause, resolveGroupName }) => {
 
   return (
     <li className="rounded-md border border-neutral-200 bg-white p-(--sp-card)">
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <RuleExpressionText
           text={clause.expressionText}
           resolveGroupName={resolveGroupName}
-          className="min-w-0 flex-1 font-mono text-xs break-words whitespace-pre-wrap text-neutral-900"
+          className="min-w-0 font-mono text-xs break-words whitespace-pre-wrap text-neutral-900"
         />
-        <span
-          className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${presentation.chipClass}`}
-        >
-          <span aria-hidden="true" className="inline-flex">
-            <Icon type={presentation.icon} size="sm" className={presentation.iconClass} />
-          </span>
-          {presentation.label}
-        </span>
+        <StableWidth reserve={<ClauseStatusChip presentation={WIDEST_CLAUSE_STATUS} />} align="end">
+          <ClauseStatusChip presentation={presentation} />
+        </StableWidth>
       </div>
 
       <ResolvedValue value={clause.resolvedValue} />
@@ -137,15 +151,25 @@ const ChecklistSummary: React.FC<{ summary: RuleExplanationSummary }> = ({ summa
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-xs text-neutral-600">
+      <p className="min-w-0 flex-1 text-xs text-neutral-600">
         {summary.evaluatedClauses} of {summary.totalClauses} clause
         {summary.totalClauses === 1 ? '' : 's'} evaluated
         {summary.notEvaluatedClauses > 0 && <> · {summary.notEvaluatedClauses} not evaluated</>}
         {summary.needsGroupContext > 0 && <> ({summary.needsGroupContext} needs group context)</>}
       </p>
-      <span className={`rounded-md px-2 py-0.5 text-xs font-medium ${result.chipClass}`}>
-        {result.label}
-      </span>
+      <StableWidth
+        reserve={
+          <span className="rounded-md px-2 py-0.5 text-xs font-medium">{WIDEST_RESULT.label}</span>
+        }
+        align="end"
+        className="shrink-0"
+      >
+        <span
+          className={`rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap ${result.chipClass}`}
+        >
+          {result.label}
+        </span>
+      </StableWidth>
     </div>
   );
 };

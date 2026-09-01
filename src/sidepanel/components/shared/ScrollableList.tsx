@@ -34,11 +34,17 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   const boxClasses = (leading: string) =>
     [leading, fillAvailable ? 'flex-1 min-h-0' : '', className].filter(Boolean).join(' ');
 
+  const gutter = scrolls ? 'scrollable-list' : '';
+
   const containerStyle: React.CSSProperties | undefined = maxHeight ? { maxHeight } : undefined;
 
   if (loading) {
     return (
-      <div className={boxClasses('overflow-hidden')} style={containerStyle} data-testid={testId}>
+      <div
+        className={boxClasses(`overflow-hidden ${gutter}`.trim())}
+        style={containerStyle}
+        data-testid={testId}
+      >
         {skeleton ?? (
           <div className="flex items-center justify-center py-12">
             <LoadingSpinner size="2xl" message={loadingMessage} centered />
@@ -50,7 +56,11 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
 
   if (isEmpty && emptyState) {
     return (
-      <div className={boxClasses('overflow-hidden')} style={containerStyle} data-testid={testId}>
+      <div
+        className={boxClasses(`overflow-hidden ${gutter}`.trim())}
+        style={containerStyle}
+        data-testid={testId}
+      >
         {emptyState}
       </div>
     );
@@ -63,7 +73,7 @@ const ScrollableList: React.FC<ScrollableListProps> = ({
   return (
     <div
       ref={scrollRef}
-      className={boxClasses(scrolls ? 'overflow-y-auto scrollable-list' : '')}
+      className={boxClasses(scrolls ? `overflow-y-auto ${gutter}` : '')}
       style={containerStyle}
       data-testid={testId}
     >
