@@ -41,6 +41,7 @@ interface IconProps {
   type: IconType;
   className?: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  label?: string;
 }
 
 const sizeClasses = {
@@ -51,7 +52,7 @@ const sizeClasses = {
   xl: 'w-8 h-8',
 };
 
-const Icon: React.FC<IconProps> = ({ type, className = '', size = 'md' }) => {
+const Icon: React.FC<IconProps> = ({ type, className = '', size = 'md', label }) => {
   const baseClasses = `${sizeClasses[size]} ${className}`;
 
   const icons: Record<IconType, React.ReactElement> = {
@@ -383,7 +384,14 @@ const Icon: React.FC<IconProps> = ({ type, className = '', size = 'md' }) => {
     ),
   };
 
-  return icons[type] || null;
+  const glyph = icons[type];
+  if (!glyph) return null;
+
+  const a11y: React.SVGProps<SVGSVGElement> = label
+    ? { role: 'img', 'aria-label': label }
+    : { 'aria-hidden': true, focusable: 'false' };
+
+  return React.cloneElement(glyph, a11y);
 };
 
 export default Icon;

@@ -34,8 +34,10 @@ export function attributionNamesRules(attribution: MembershipAttribution): boole
 }
 
 function isUserExcludedFromRule(rule: MembershipRule, userId: string): boolean {
-  const excludedUsers = rule.conditions?.people?.users?.exclude || [];
-  return excludedUsers.includes(userId);
+  return (
+    (rule.excludedUserIds?.includes(userId) ?? false) ||
+    (rule.conditions?.people?.users?.exclude?.includes(userId) ?? false)
+  );
 }
 
 function conditionExpressionOf(rule: MembershipRule): string {

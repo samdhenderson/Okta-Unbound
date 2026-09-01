@@ -1,6 +1,7 @@
 import React from 'react';
 import { initialsOf, hueFromId } from '../../../../shared/utils/userDisplay';
 import { similarityColor } from './comparisonAnalytics';
+import { StableWidth } from '../../shared';
 import type { OktaUser } from '../../../../shared/types';
 
 interface ComparisonHeroProps {
@@ -35,12 +36,14 @@ const ComparisonHero: React.FC<ComparisonHeroProps> = ({
       <span className="min-w-0 truncate text-xs font-semibold text-neutral-500 uppercase tracking-wide">
         {isLoading ? '· ·' : scopeNote ? `Match · ${scopeNote}` : 'Match'}
       </span>
-      <span
-        className="font-mono text-sm leading-none font-bold"
-        style={{ color: similarityColor(similarity) }}
-      >
-        {isLoading ? '··' : `${similarity}%`}
-      </span>
+      <StableWidth reserve="100%" align="end" className="shrink-0">
+        <span
+          className="font-mono text-sm leading-none font-bold tabular-nums"
+          style={{ color: similarityColor(similarity) }}
+        >
+          {isLoading ? '··' : `${similarity}%`}
+        </span>
+      </StableWidth>
     </div>
 
     <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-neutral-100" aria-hidden>

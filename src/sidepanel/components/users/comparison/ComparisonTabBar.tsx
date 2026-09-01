@@ -1,5 +1,6 @@
 import React from 'react';
 import Icon from '../../shared/Icon';
+import { StableWidth } from '../../shared';
 import type { IconType } from '../../shared/Icon';
 import type { TabKey } from './comparisonAnalytics';
 
@@ -54,14 +55,24 @@ const ComparisonTabBar: React.FC<ComparisonTabBarProps> = ({
           >
             <Icon type={t.icon} size="sm" />
             <span>{t.label}</span>
-            {t.badge !== undefined && t.badge > 0 && (
-              <span
-                className={`ml-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 text-xs font-medium leading-none ${
-                  active ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700'
-                }`}
+            {t.badge !== undefined && (
+              <StableWidth
+                reserve={
+                  <span className="inline-flex min-w-[18px] px-1.5 text-xs leading-none">00</span>
+                }
+                align="center"
+                className="ml-0.5 shrink-0"
               >
-                {t.badge}
-              </span>
+                {t.badge > 0 && (
+                  <span
+                    className={`inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums leading-none ${
+                      active ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-700'
+                    }`}
+                  >
+                    {t.badge}
+                  </span>
+                )}
+              </StableWidth>
             )}
           </button>
         );

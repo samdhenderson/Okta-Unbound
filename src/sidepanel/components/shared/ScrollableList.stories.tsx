@@ -111,6 +111,32 @@ export const BoxParityLoading: Story = {
   },
 };
 
+export const GutterParityLoading: Story = {
+  args: {
+    loading: true,
+    maxHeight: '160px',
+    fillAvailable: false,
+    skeleton: <Skeleton variant="row" count={3} label="Loading groups" />,
+    children: null,
+  },
+};
+
+export const GutterParityLoaded: Story = {
+  args: {
+    maxHeight: '160px',
+    fillAvailable: false,
+    children: (
+      <>
+        {Array.from({ length: 12 }, (_, i) => (
+          <div key={i} className="p-3 bg-white border border-neutral-200 rounded-md">
+            Item {i + 1}
+          </div>
+        ))}
+      </>
+    ),
+  },
+};
+
 export const BoxParityLoaded: Story = {
   args: {
     className: 'mt-4',

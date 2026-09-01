@@ -48,6 +48,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
     const canOpen = Boolean(onOpenRule || onOpenInRulesTab);
     const opensInRulesTab = !onOpenRule && Boolean(onOpenInRulesTab);
     const hasConflicts = Boolean(rule.conflicts && rule.conflicts.length > 0);
+    const missingTargets = rule.missingGroupIds?.length ?? 0;
 
     return (
       <ListRow
@@ -78,6 +79,11 @@ const RuleCard: React.FC<RuleCardProps> = memo(
             {rule.affectsCurrentGroup && (
               <Badge variant="primary" solid>
                 Current Group
+              </Badge>
+            )}
+            {missingTargets > 0 && (
+              <Badge variant="warning">
+                {missingTargets === 1 ? 'Target missing' : `${missingTargets} targets missing`}
               </Badge>
             )}
             {hasConflicts && (

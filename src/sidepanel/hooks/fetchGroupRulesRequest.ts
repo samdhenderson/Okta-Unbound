@@ -4,6 +4,7 @@ import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
 import { nextPageUrl } from './useOktaApi/utilities';
 import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import type { RawOktaGroup } from '../components/groups/groupSummary';
+import { findRulesWithMissingTargets } from '../components/groups/ruleOrphans';
 import { createLogger } from '../../shared/utils/logger';
 import { oktaGroupRuleSchema, parseOktaList } from '../../shared/schemas/okta';
 
@@ -32,14 +33,30 @@ function groupIdsReferencedBy(rule: OktaGroupRule): string[] {
 export async function loadCachedGroupNames(
   origin: string | null | undefined,
 ): Promise<Map<string, string>> {
+  return (await loadCachedGroupIndex(origin)).nameById;
+}
+
+export interface CachedGroupIndex {
+  nameById: Map<string, string>;
+  idsHeld: Set<string>;
+  complete: boolean;
+}
+
+export async function loadCachedGroupIndex(
+  origin: string | null | undefined,
+): Promise<CachedGroupIndex> {
   const nameById = new Map<string, string>();
-  if (!origin) return nameById;
+  const idsHeld = new Set<string>();
+  if (!origin) return { nameById, idsHeld, complete: false };
   const groups = await orgSnapshotStore.getCollection<RawOktaGroup>('groups', origin);
   for (const group of groups) {
+    if (!group.id) continue;
+    idsHeld.add(group.id);
     const name = group.profile?.name;
-    if (group.id && name) nameById.set(group.id, name);
+    if (name) nameById.set(group.id, name);
   }
-  return nameById;
+  const meta = await orgSnapshotStore.getMeta('groups', origin);
+  return { nameById, idsHeld, complete: meta.complete };
 }
 
 export async function fetchGroupRulesRequest(
@@ -65,15 +82,31 @@ export async function fetchGroupRulesRequest(
 
     log.debug('Fetched rules (total across all pages)', { count: rules.length });
 
-    const groupNameMap = resolveGroupNames
-      ? await loadCachedGroupNames(origin)
-      : new Map<string, string>();
+    const groupIndex = resolveGroupNames
+      ? await loadCachedGroupIndex(origin)
+      : { nameById: new Map<string, string>(), idsHeld: new Set<string>(), complete: false };
+    const groupNameMap = groupIndex.nameById;
 
     const conflicts = detectConflicts(rules);
+
+    const missingTargetsByRule = new Map<string, string[]>(
+      findRulesWithMissingTargets(
+        rules.map((rule) => ({
+          id: rule.id,
+          name: rule.name,
+          groupIds: rule.actions?.assignUserToGroups?.groupIds ?? [],
+        })),
+        groupIndex.idsHeld,
+        groupIndex.complete,
+      ).map((finding) => [finding.id, finding.missingGroupIds]),
+    );
 
     const formattedRules: FormattedRule[] = rules.map((rule) => {
       const base = formatRuleForDisplay(rule, currentGroupId, conflicts);
       const groupNames = base.groupIds.map((id) => groupNameMap.get(id) || id);
+      const missingGroupIds = groupIndex.complete
+        ? (missingTargetsByRule.get(rule.id) ?? [])
+        : undefined;
 
       const allGroupNamesMap: Record<string, string> = {};
       new Set(groupIdsReferencedBy(rule)).forEach((id) => {
@@ -81,7 +114,9 @@ export async function fetchGroupRulesRequest(
         if (name) allGroupNamesMap[id] = name;
       });
 
-      return { ...base, groupNames, allGroupNamesMap };
+      return missingGroupIds
+        ? { ...base, groupNames, allGroupNamesMap, missingGroupIds }
+        : { ...base, groupNames, allGroupNamesMap };
     });
 
     const activeCount = rules.filter((r) => r.status === 'ACTIVE').length;

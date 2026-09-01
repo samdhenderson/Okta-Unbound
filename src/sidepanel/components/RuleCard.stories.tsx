@@ -110,6 +110,22 @@ export const WithConflicts: Story = {
   },
 };
 
+export const MissingTargetGroup: Story = {
+  args: { rule: { ...baseRule, missingGroupIds: ['00g9z8y7x6w5v4u3t2s1'] } },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText('Target missing')).toBeInTheDocument();
+  },
+};
+
+export const SeveralMissingTargetGroups: Story = {
+  args: {
+    rule: { ...baseRule, missingGroupIds: ['00g9z8y7x6w5v4u3t2s1', '00g1122334455667788a'] },
+  },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText('2 targets missing')).toBeInTheDocument();
+  },
+};
+
 export const OpensInTheRulesTab: Story = {
   args: { onOpenRule: undefined, onOpenInRulesTab: fn() },
   play: async ({ args, canvasElement }) => {

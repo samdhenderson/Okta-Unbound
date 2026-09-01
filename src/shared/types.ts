@@ -141,6 +141,8 @@ export interface FormattedRule {
   groupNames?: string[];
   allGroupNamesMap?: Record<string, string>;
   userAttributes: string[];
+  excludedUserIds?: string[];
+  missingGroupIds?: string[];
   created: string;
   lastUpdated: string;
   affectsCurrentGroup?: boolean;
@@ -196,6 +198,7 @@ export interface MembershipRule {
   groupIds?: string[];
   conditionExpression?: string;
   userAttributes?: string[];
+  excludedUserIds?: string[];
 }
 
 export type MembershipAttribution = 'exact' | 'inferred' | 'ambiguous';

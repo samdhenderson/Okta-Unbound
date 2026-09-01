@@ -1,8 +1,10 @@
 import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { resetEntityCache } from '../sidepanel/cache/entityCache';
 import { resetCurrentUserCache } from '../sidepanel/hooks/useOktaApi/currentUserCache';
+
+configure({ defaultIgnore: 'script, style, [data-reserve-width], [data-reserve-width] *' });
 
 afterEach(() => {
   cleanup();

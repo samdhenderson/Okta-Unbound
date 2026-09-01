@@ -404,7 +404,7 @@ describe('membership classification (in-file heuristic)', () => {
     expect(screen.getByText('Added directly')).toBeInTheDocument();
   });
 
-  it('CHARACTERIZED (defect): over-attributes an excluded user to the rule that excludes them', async () => {
+  it('classifies an excluded user as Direct even when an active rule targets the group', async () => {
     route(USER_GROUPS, () => ({ success: true, data: [rawGroup()] }));
     route(GROUP_RULES, () => ({
       success: true,
@@ -416,8 +416,8 @@ describe('membership classification (in-file heuristic)', () => {
     fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
 
     const engineering = await membershipRow('Engineering');
-    expect(within(engineering).getByText('Rule?')).toBeInTheDocument();
-    expect(within(engineering).queryByText('Direct')).not.toBeInTheDocument();
+    expect(within(engineering).getByText('Direct')).toBeInTheDocument();
+    expect(within(engineering).queryByText('Rule?')).not.toBeInTheDocument();
   });
 
   it('reports memberships as UNKNOWN, not a confident DIRECT, when rules cannot be fetched', async () => {

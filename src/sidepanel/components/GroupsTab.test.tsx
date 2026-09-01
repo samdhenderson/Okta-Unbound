@@ -972,20 +972,20 @@ describe('filter pipeline (cached mode)', () => {
         ],
       }),
     ]);
-    const badge = () => screen.getByRole('button', { name: /^Filters/ }).textContent;
+    const badge = () => screen.getByRole('button', { name: /^Filters/ }).getAttribute('aria-label');
     await openFilters(uev);
 
     expect(badge()).toBe('Filters');
 
     await uev.click(section('Group Type').getByRole('button', { name: 'App' }));
-    expect(badge()).toBe('Filters1');
+    expect(badge()).toBe('Filters, 1 applied');
 
     await uev.click(section('Push Status').getByRole('button', { name: 'Pushed' }));
-    expect(badge()).toBe('Filters2');
+    expect(badge()).toBe('Filters, 2 applied');
 
     await uev.click(section('Push Target App').getByRole('button', { name: 'Slack' }));
     await uev.click(section('Push Target App').getByRole('button', { name: 'Zoom' }));
-    expect(badge()).toBe('Filters3');
+    expect(badge()).toBe('Filters, 3 applied');
   });
 
   it('a text query alone does not raise the Filters badge, but Clear all still wipes it', async () => {
@@ -994,14 +994,14 @@ describe('filter pipeline (cached mode)', () => {
     const input = screen.getByPlaceholderText('Search by name, description, ID — or /regex/');
 
     await uev.type(input, 'alph');
-    expect(screen.getByRole('button', { name: /^Filters/ }).textContent).toBe('Filters');
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveAccessibleName('Filters');
 
     await openFilters(uev);
     await uev.click(section('Group Type').getByRole('button', { name: 'App' }));
     await uev.click(screen.getByRole('button', { name: 'Clear all' }));
 
     expect(input).toHaveValue('');
-    expect(screen.getByRole('button', { name: /^Filters/ }).textContent).toBe('Filters');
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveAccessibleName('Filters');
   });
 
   it('an individual filter chip removes only its own axis', async () => {
@@ -1764,7 +1764,9 @@ describe('a filtered view requested from Home', () => {
     );
 
     await waitFor(() => expect(renderedGroupNames()).toEqual(['Empty one']));
-    expect(screen.getByRole('button', { name: /^Filters/ }).textContent).toBe('Filters1');
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveAccessibleName(
+      'Filters, 1 applied',
+    );
     expect(screen.queryByText('Sort by')).not.toBeInTheDocument();
     expect(onListViewConsumed).toHaveBeenCalledTimes(1);
   });

@@ -20,6 +20,17 @@ export interface RuleDetailViewProps {
   sticky?: boolean;
 }
 
+const MissingGroupChip: React.FC<{ groupId: string }> = ({ groupId }) => (
+  <span
+    className="inline-flex max-w-full items-center gap-1 rounded-md border border-warning bg-warning-light px-2 py-0.5 text-xs"
+    title="No group in this org has this id. The rule still lists it, and adds nobody to it."
+  >
+    <Icon type="alert" size="xs" className="shrink-0 text-warning-text" />
+    <span className="shrink-0 text-warning-text">Group no longer exists</span>
+    <CopyableId value={groupId} label={`Copy group id ${groupId}`} />
+  </span>
+);
+
 const UnnamedGroupChip: React.FC<{ groupId: string }> = ({ groupId }) => (
   <span
     className="inline-flex max-w-full items-center gap-1 rounded-md border border-dashed border-neutral-300 px-2 py-0.5 text-xs"
@@ -88,6 +99,7 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
   sticky = true,
 }) => {
   const hasConflicts = Boolean(rule.conflicts && rule.conflicts.length > 0);
+  const missingTargetCount = rule.missingGroupIds?.length ?? 0;
 
   return (
     <div className="space-y-(--sp-rung)">
@@ -140,7 +152,9 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
         title="Then add to groups"
         description={
           rule.groupIds.length > 0
-            ? 'Everyone the condition matches is added to each of these.'
+            ? missingTargetCount > 0
+              ? `Everyone the condition matches is added to each of these. ${missingTargetCount === 1 ? 'One target no longer exists' : `${missingTargetCount} targets no longer exist`}, so that part of the rule does nothing.`
+              : 'Everyone the condition matches is added to each of these.'
             : undefined
         }
       >
@@ -149,6 +163,9 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
             {rule.groupIds.map((groupId, index) => {
               const groupName = rule.groupNames?.[index];
               const resolvedName = groupName !== groupId ? groupName : undefined;
+              const isMissing = rule.missingGroupIds?.includes(groupId) ?? false;
+
+              if (isMissing) return <MissingGroupChip key={groupId} groupId={groupId} />;
 
               return resolvedName ? (
                 <EntityLink
@@ -181,14 +198,14 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
             {rule.conflicts!.map((conflict, idx) => (
               <div
                 key={idx}
-                className="rounded-md border border-warning-light bg-warning-light p-(--sp-card)"
+                className="rounded-md border border-warning bg-warning-light p-(--sp-card)"
               >
                 <div className="flex items-start gap-3">
                   <span
                     className={`rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
                       conflict.severity === 'high'
                         ? 'border border-danger-light bg-danger-light text-danger-text'
-                        : 'border border-warning-light bg-warning-light text-warning-text'
+                        : 'border border-warning bg-warning-light text-warning-text'
                     }`}
                   >
                     {conflict.severity}

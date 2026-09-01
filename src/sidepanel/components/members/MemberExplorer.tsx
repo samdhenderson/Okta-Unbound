@@ -286,9 +286,8 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-900">
             Members
-            <span className="ml-2 text-xs font-normal text-neutral-500">
-              {sorted.length.toLocaleString()}
-              {sorted.length !== members.length && ` of ${members.length.toLocaleString()}`}
+            <span className="ml-2 text-xs font-normal tabular-nums text-neutral-500">
+              {sorted.length.toLocaleString()} of {members.length.toLocaleString()}
             </span>
           </h3>
           <Button

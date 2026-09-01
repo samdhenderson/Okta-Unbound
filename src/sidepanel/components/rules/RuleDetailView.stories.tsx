@@ -123,6 +123,24 @@ export const UnresolvedTargetGroups: Story = {
   },
 };
 
+export const MissingTargetGroup: Story = {
+  args: {
+    rule: rule({
+      groupNames: ['Engineering – All', GROUP_B],
+      allGroupNamesMap: { [GROUP_A]: 'Engineering – All' },
+      missingGroupIds: [GROUP_B],
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Group no longer exists')).toBeInTheDocument();
+    await expect(canvas.getByText(/One target no longer exists/)).toBeInTheDocument();
+    await expect(
+      canvas.getByRole('button', { name: 'Open group Engineering – All' }),
+    ).toBeInTheDocument();
+  },
+};
+
 export const ConditionNamesAGroup: Story = {
   args: {
     rule: rule({
