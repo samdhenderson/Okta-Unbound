@@ -7,6 +7,7 @@ export interface TabDef {
   id: TabType;
   label: string;
   icon: IconType;
+  railHidden?: true;
 }
 
 export const TAB_DEFS: ReadonlyArray<TabDef> = [
@@ -17,9 +18,11 @@ export const TAB_DEFS: ReadonlyArray<TabDef> = [
   { id: 'rules', label: 'Rules', icon: 'bolt' },
   { id: 'policies', label: 'Policies', icon: 'shield' },
   { id: 'export', label: 'Export', icon: 'download' },
-  { id: 'explorer', label: 'Explorer', icon: 'terminal' },
-  { id: 'history', label: 'History', icon: 'clipboard' },
+  { id: 'explorer', label: 'Explorer', icon: 'terminal', railHidden: true },
+  { id: 'history', label: 'History', icon: 'clipboard', railHidden: true },
 ];
+
+export const RAIL_TAB_DEFS: ReadonlyArray<TabDef> = TAB_DEFS.filter((def) => !def.railHidden);
 
 const LEGACY_TAB_MAP: Readonly<Record<string, TabType>> = {
   overview: 'home',

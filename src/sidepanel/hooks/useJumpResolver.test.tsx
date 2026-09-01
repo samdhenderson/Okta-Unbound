@@ -10,6 +10,7 @@ const RULE_ID = '0prFAKE0000000000001';
 function makeIndex(answers: Partial<Record<string, LocalLookup>> = {}): OrgEntityIndex {
   return {
     lookup: (kind) => answers[kind] ?? { status: 'unknown' },
+    searchByName: () => [],
     isAuthoritative: () => true,
     groups: {} as OrgEntityIndex['groups'],
     rules: {} as OrgEntityIndex['rules'],
@@ -260,6 +261,29 @@ describe('useJumpResolver', () => {
       await settleDebounce();
 
       await waitFor(() => expect(result.current.mode).toBe('results'));
+      expect(result.current.results).toHaveLength(1);
+      expect(result.current.error).toBeNull();
+    });
+
+    it('runs a policy leg alongside the id-classified kinds, and survives it failing', async () => {
+      const searchPolicies = vi.fn<Searcher>(async () => {
+        throw new Error('boom');
+      });
+      const searchGroups = vi.fn<Searcher>(async () => [
+        { kind: 'group' as const, id: GROUP_ID, name: 'Engineering' },
+      ]);
+      const searchers = { group: searchGroups, policy: searchPolicies };
+      const { result } = renderHook(() =>
+        useJumpResolver({ index: makeIndex(), searchers, fetchers: {}, enabled: true }),
+      );
+
+      act(() => result.current.setQuery('eng'));
+      await act(async () => {
+        vi.advanceTimersByTime(JUMP_SEARCH_DEBOUNCE_MS);
+      });
+
+      await waitFor(() => expect(result.current.mode).toBe('results'));
+      expect(searchPolicies).toHaveBeenCalledWith('eng');
       expect(result.current.results).toHaveLength(1);
       expect(result.current.error).toBeNull();
     });

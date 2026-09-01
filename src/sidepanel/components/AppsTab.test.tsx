@@ -208,6 +208,49 @@ describe('AppsTab', () => {
     expect(screen.getByRole('button', { name: /Refresh/ })).toBeDisabled();
   });
 
+  it('arrives at a deep-linked app with the list filtered to it, once', async () => {
+    const onAppSelected = vi.fn();
+    const { rerender } = render(
+      <AppsTab
+        targetTabId={1}
+        oktaOrigin={ORIGIN}
+        selectedAppId="0oaFAKE0002"
+        onAppSelected={onAppSelected}
+      />,
+    );
+
+    expect(await screen.findByText('Workday HR')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Salesforce')).not.toBeInTheDocument());
+    expect(screen.getByDisplayValue('Workday HR')).toBeInTheDocument();
+    await waitFor(() => expect(onAppSelected).toHaveBeenCalledTimes(1));
+
+    rerender(
+      <AppsTab
+        targetTabId={1}
+        oktaOrigin={ORIGIN}
+        selectedAppId="0oaFAKE0002"
+        onAppSelected={onAppSelected}
+      />,
+    );
+    expect(onAppSelected).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the list alone when the deep-linked app is not in the inventory', async () => {
+    const onAppSelected = vi.fn();
+    render(
+      <AppsTab
+        targetTabId={1}
+        oktaOrigin={ORIGIN}
+        selectedAppId="0oaFAKENOSUCH"
+        onAppSelected={onAppSelected}
+      />,
+    );
+
+    expect(await screen.findByText('Salesforce')).toBeInTheDocument();
+    expect(screen.getByText('Workday HR')).toBeInTheDocument();
+    await waitFor(() => expect(onAppSelected).toHaveBeenCalledTimes(1));
+  });
+
   it('defers the auto-load while the tab is mounted but not the visible one', async () => {
     const { rerender } = render(<AppsTab targetTabId={1} oktaOrigin={ORIGIN} isActive={false} />);
 

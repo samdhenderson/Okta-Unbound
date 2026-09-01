@@ -19,6 +19,7 @@ export type LocalLookup =
 
 export interface OrgEntityIndex {
   lookup: (kind: OktaIdKind, id: string) => LocalLookup;
+  searchByName: (kind: IndexedKind, query: string, limit?: number) => IndexedEntity[];
   isAuthoritative: (kind: IndexedKind) => boolean;
   groups: UseOrgSnapshotResult<RawOktaGroup>;
   rules: UseOrgSnapshotResult<OktaGroupRule>;
@@ -31,6 +32,8 @@ export interface UseOrgEntityIndexOptions {
   targetTabId: number | null;
   enabled?: boolean;
 }
+
+const DEFAULT_NAME_SEARCH_LIMIT = 20;
 
 function groupName(group: RawOktaGroup): string {
   return group.profile?.name || group.id;
@@ -96,6 +99,22 @@ export function useOrgEntityIndex({
     [groups.complete, rules.complete, apps.complete],
   );
 
+  const searchByName = useCallback(
+    (kind: IndexedKind, query: string, limit: number = DEFAULT_NAME_SEARCH_LIMIT) => {
+      const needle = query.trim().toLowerCase();
+      if (!needle) return [];
+      const byId = kind === 'group' ? groupsById : kind === 'rule' ? rulesById : appsById;
+      const found: IndexedEntity[] = [];
+      for (const entity of byId.values()) {
+        if (!entity.name.toLowerCase().includes(needle)) continue;
+        found.push(entity);
+        if (found.length >= limit) break;
+      }
+      return found;
+    },
+    [groupsById, rulesById, appsById],
+  );
+
   const lookup = useCallback(
     (kind: OktaIdKind, id: string): LocalLookup => {
       if (kind === 'user') return { status: 'unknown' };
@@ -108,5 +127,5 @@ export function useOrgEntityIndex({
     [groupsById, rulesById, appsById, isAuthoritative],
   );
 
-  return { lookup, isAuthoritative, groups, rules, apps, appGroups };
+  return { lookup, searchByName, isAuthoritative, groups, rules, apps, appGroups };
 }
