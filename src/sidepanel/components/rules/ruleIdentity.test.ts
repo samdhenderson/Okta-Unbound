@@ -57,6 +57,13 @@ describe('ruleIdentity status', () => {
     expect(identity.badge).toEqual({ text: 'Paused', variant: 'warning' });
     expect(identity.rows.flat().filter((f) => f.kind === 'status')).toHaveLength(0);
   });
+
+  it('marks an INVALID rule Broken, never Paused (D-085)', () => {
+    const identity = ruleIdentity(rule({ status: 'INVALID' }));
+
+    expect(identity.badge).toEqual({ text: 'Broken', variant: 'danger' });
+    expect(identity.rows.flat().filter((f) => f.kind === 'status')).toHaveLength(0);
+  });
 });
 
 describe('ruleIdentity counts', () => {

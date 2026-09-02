@@ -1,6 +1,6 @@
 import type { AppInfo, MessageRequest, MessageResponse, PolicyInfo } from '../shared/types';
 import { createLogger } from '../shared/utils/logger';
-import { oktaPolicyListItemSchema, parseOkta } from '../shared/schemas/okta';
+import { oktaAppListItemSchema, oktaPolicyListItemSchema, parseOkta } from '../shared/schemas/okta';
 import {
   extractAppIdFromUrl,
   extractAppNameFromPage,
@@ -119,8 +119,9 @@ async function handleGetAppInfo(): Promise<MessageResponse<AppInfo>> {
       try {
         const response = await handleMakeApiRequest(`/api/v1/apps/${appId}`, 'GET');
         if (response.success && response.data) {
-          appName = response.data.name || response.data.label || 'Unknown';
-          appLabel = response.data.label;
+          const app = parseOkta(oktaAppListItemSchema, response.data, 'GET /api/v1/apps/{id}');
+          appName = app.name || app.label || 'Unknown';
+          appLabel = app.label;
           log.debug('Fetched app details from API', {
             hasName: Boolean(appName),
             hasLabel: Boolean(appLabel),

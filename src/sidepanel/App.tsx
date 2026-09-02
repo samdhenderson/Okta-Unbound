@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy } from 'react';
 import ContextBar from './components/ContextBar';
+import AlertMessage from './components/shared/AlertMessage';
 import PageHeader from './components/shared/PageHeader';
 import { MODAL_LAYER_ID } from './components/shared/Modal';
 import TabNavigation from './components/TabNavigation';
@@ -22,12 +23,46 @@ const ApiExplorerTab = lazy(() => import('./components/ApiExplorerTab'));
 const AuditLogViewer = lazy(() => import('./components/AuditLogViewer'));
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
+import { useSessionExpiry } from './hooks/useSessionExpiry';
 import { SchedulerProvider } from './contexts/SchedulerContext';
 import { NavigationProvider } from './contexts/NavigationContext';
-import { deriveTabContext, revalidatePinnedContext, type PinnedContext } from './pinContext';
+import {
+  deriveTabContext,
+  revalidatePinnedContext,
+  type PinnablePageType,
+  type PinnedContext,
+} from './pinContext';
+import type { OktaPageContext } from './hooks/useOktaPageContext';
 
 const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
 const PINNED_CONTEXT_KEY = 'okta_unbound_pinned_context';
+
+interface LiveIdentity {
+  pageType: PinnablePageType;
+  id: string;
+  name: string;
+}
+
+function liveIdentityOf(page: OktaPageContext): LiveIdentity | null {
+  if (page.connectionStatus !== 'connected') return null;
+  if (page.pageType === 'group' && page.groupInfo) {
+    return { pageType: 'group', id: page.groupInfo.groupId, name: page.groupInfo.groupName };
+  }
+  if (page.pageType === 'user' && page.userInfo) {
+    return { pageType: 'user', id: page.userInfo.userId, name: page.userInfo.userName };
+  }
+  return null;
+}
+
+function pinnedEntityId(pinned: PinnedContext): string | undefined {
+  return pinned.pageType === 'group' ? pinned.groupInfo?.groupId : pinned.userInfo?.userId;
+}
+
+function hasLiveContextMoved(pinned: PinnedContext | null, live: LiveIdentity | null): boolean {
+  if (!pinned) return false;
+  if (live === null) return false;
+  return live.pageType !== pinned.pageType || live.id !== pinnedEntityId(pinned);
+}
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -51,16 +86,9 @@ const App: React.FC = () => {
 
   const jumpPalette = useCommandPalette();
 
-  const {
-    groupInfo,
-    connectionStatus,
-    targetTabId,
-    error,
-    isLoading,
-    oktaOrigin,
-    refetch: refetchGroupContext,
-  } = useGroupContext();
-  const page = useOktaPageContext(!isPinned);
+  const page = useOktaPageContext();
+  const { groupInfo, connectionStatus, targetTabId, error, isLoading, oktaOrigin } =
+    useGroupContext(page);
 
   useEffect(() => {
     chrome.storage.local.get([PINNED_CONTEXT_KEY], (result) => {
@@ -114,6 +142,10 @@ const App: React.FC = () => {
           : effective.pageType === 'policy'
             ? (page.policyInfo?.policyName ?? undefined)
             : undefined;
+
+  const liveIdentity = liveIdentityOf(page);
+  const liveContextChanged = hasLiveContextMoved(pinned, liveIdentity);
+
   const handleTogglePin = () => {
     if (pinned) {
       setPinned(null);
@@ -135,9 +167,8 @@ const App: React.FC = () => {
 
   const refetchPageContext = page.refetch;
   const handleRefreshAll = useCallback(() => {
-    void refetchGroupContext();
     void refetchPageContext();
-  }, [refetchGroupContext, refetchPageContext]);
+  }, [refetchPageContext]);
 
   const handleReconnect = () => {
     if (targetTabId != null) {
@@ -271,11 +302,14 @@ const App: React.FC = () => {
             error={error}
             isPinned={isPinned}
             canPin={isLivePinnable}
-            liveContextChanged={isPinned && page.resyncPending}
+            liveContextChanged={liveContextChanged}
+            liveEntityName={liveIdentity?.name}
             onTogglePin={handleTogglePin}
             onRefresh={handleRefreshAll}
             onReconnect={handleReconnect}
           />
+
+          <SessionExpiryNotice targetTabId={tabContext.targetTabId ?? null} />
 
           <TabNavigation
             activeTab={activeTab}
@@ -401,6 +435,22 @@ const App: React.FC = () => {
         <div id={MODAL_LAYER_ID} />
       </NavigationProvider>
     </SchedulerProvider>
+  );
+};
+
+const SessionExpiryNotice: React.FC<{ targetTabId: number | null }> = ({ targetTabId }) => {
+  const expired = useSessionExpiry(targetTabId);
+  if (!expired) return null;
+
+  return (
+    <div className="px-(--sp-gutter) pt-(--sp-card)">
+      <AlertMessage
+        message={{
+          type: 'danger',
+          text: 'Your Okta session has expired. Sign in again in the Okta tab — the panel has stopped sending requests and picks up again on its own once Okta answers.',
+        }}
+      />
+    </div>
   );
 };
 

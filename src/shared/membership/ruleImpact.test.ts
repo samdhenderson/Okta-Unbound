@@ -12,7 +12,12 @@ function member(id: string): OktaUser {
   return {
     id,
     status: 'ACTIVE',
-    profile: { login: `${id}@x.io`, email: `${id}@x.io`, firstName: id, lastName: 'U' },
+    profile: {
+      login: `${id}@example.com`,
+      email: `${id}@example.com`,
+      firstName: id,
+      lastName: 'U',
+    },
   };
 }
 
@@ -210,5 +215,25 @@ describe('summarizeRuleImpact', () => {
     const summary = summarizeRuleImpact('r1', 'Rule One', targets, rules);
     expect(summary.totalHeldSolely).toBe(0);
     expect(summary.targetGroups[0].heldSolelyCount).toBe(0);
+    expect(summary.emptyRuleInventory).toBe(false);
+  });
+
+  it('flags an empty rule inventory (nothing to check the rule against) distinctly from an evaluated-and-empty result', () => {
+    const targets: TargetGroupMembers[] = [
+      { groupId: 'g1', groupName: 'G1', members: [member('u1')] },
+    ];
+
+    const nothingToCompare = summarizeRuleImpact('r1', 'Rule One', targets, []);
+    expect(nothingToCompare.totalHeldSolely).toBe(0);
+    expect(nothingToCompare.emptyRuleInventory).toBe(true);
+
+    const evaluatedAndEmpty = summarizeRuleImpact('r1', 'Rule One', targets, [
+      rule('r1', ['g2']),
+      rule('r2', ['g2']),
+    ]);
+    expect(evaluatedAndEmpty.totalHeldSolely).toBe(0);
+    expect(evaluatedAndEmpty.emptyRuleInventory).toBe(false);
+
+    expect(nothingToCompare.emptyRuleInventory).not.toBe(evaluatedAndEmpty.emptyRuleInventory);
   });
 });

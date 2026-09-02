@@ -39,6 +39,8 @@ function mockOktaTab(responder: (action: string) => SendResponse, tabs?: unknown
   chrome.tabs.get = vi.fn();
 }
 
+const useGroupContextEngine = () => useGroupContext(useOktaPageContext());
+
 const origin = (action: string): SendResponse =>
   action === 'getOktaOrigin'
     ? { success: true, data: 'https://acme.okta.com' }
@@ -56,7 +58,7 @@ describe('useOktaTabContext (via context hooks)', () => {
       return origin(action);
     });
 
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.connectionStatus).toBe('connected');
@@ -69,7 +71,7 @@ describe('useOktaTabContext (via context hooks)', () => {
   it('reports connected-with-null when on Okta admin but not a group page', async () => {
     mockOktaTab(origin); // getGroupInfo → { success: false }
 
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.connectionStatus).toBe('connected');
@@ -118,7 +120,7 @@ describe('useOktaTabContext (via context hooks)', () => {
           new Error('Could not establish connection. Receiving end does not exist.'),
         ) as unknown as typeof chrome.tabs.sendMessage;
 
-      const { result } = renderHook(() => useGroupContext());
+      const { result } = renderHook(() => useGroupContextEngine());
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(20000);
@@ -141,6 +143,50 @@ describe('useOktaTabContext (via context hooks)', () => {
     expect(result.current.pageType).toBe('admin');
     expect(result.current.connectionStatus).toBe('connected');
   });
+
+  it('reports pageType "unknown" — never "admin" — when the probe never landed', async () => {
+    vi.useFakeTimers();
+    try {
+      (chrome as unknown as { windows: unknown }).windows = {
+        getCurrent: vi.fn().mockResolvedValue({ id: 1 }),
+      };
+      chrome.tabs.query = vi
+        .fn()
+        .mockResolvedValue([{ id: 42, url: 'https://acme.okta.com/admin/groups', active: true }]);
+      chrome.tabs.get = vi.fn();
+      chrome.tabs.sendMessage = vi
+        .fn()
+        .mockRejectedValue(
+          new Error('Could not establish connection. Receiving end does not exist.'),
+        ) as unknown as typeof chrome.tabs.sendMessage;
+
+      const { result } = renderHook(() => useOktaPageContext());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20000);
+      });
+
+      expect(result.current.connectionStatus).toBe('error');
+      expect(result.current.pageType).toBe('unknown');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('narrows the one engine to null on a non-group page, keeping tab + origin', async () => {
+    mockOktaTab((action) => {
+      if (action === 'getUserInfo')
+        return { success: true, data: { userId: '00u1', userName: 'Jane Doe' } };
+      return origin(action);
+    });
+
+    const { result } = renderHook(() => useGroupContextEngine());
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.groupInfo).toBeNull();
+    expect(result.current.connectionStatus).toBe('connected');
+    expect(result.current.targetTabId).toBe(42);
+    expect(result.current.oktaOrigin).toBe('https://acme.okta.com');
+  });
 });
 
 describe('useOktaTabContext detection hygiene', () => {
@@ -160,7 +206,7 @@ describe('useOktaTabContext detection hygiene', () => {
 
   it('does not refetch on a hash-only URL change', async () => {
     mockOktaTab(groupResponder); // initial tab url: .../admin/groups
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const before = sendCount();
@@ -177,7 +223,7 @@ describe('useOktaTabContext detection hygiene', () => {
 
   it('refetches when navigating to a different entity URL', async () => {
     mockOktaTab(groupResponder);
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const before = sendCount();
@@ -193,7 +239,7 @@ describe('useOktaTabContext detection hygiene', () => {
 
   it('defers refetch while the panel is hidden and catches up when shown', async () => {
     mockOktaTab(groupResponder);
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     const before = sendCount();
@@ -256,7 +302,7 @@ describe('useOktaTabContext reload recovery', () => {
     vi.useFakeTimers();
     const sendMessage = mockUnreachableTab();
 
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20000);
@@ -280,7 +326,7 @@ describe('useOktaTabContext reload recovery', () => {
 
   it('re-probes on a same-URL document reload while already connected', async () => {
     mockOktaTab(groupResponder);
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.connectionStatus).toBe('connected');
 
@@ -296,7 +342,7 @@ describe('useOktaTabContext reload recovery', () => {
     vi.useFakeTimers();
     mockUnreachableTab();
 
-    const { result } = renderHook(() => useGroupContext());
+    const { result } = renderHook(() => useGroupContextEngine());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20000);
     });
@@ -318,7 +364,7 @@ describe('useOktaTabContext reload recovery', () => {
     mockUnreachableTab();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    const { unmount } = renderHook(() => useGroupContext());
+    const { unmount } = renderHook(() => useGroupContextEngine());
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);
@@ -334,9 +380,7 @@ describe('useOktaTabContext reload recovery', () => {
 
     expect(sendCount()).toBe(afterFirstAttempt);
     expect(
-      consoleError.mock.calls.filter(([first]) =>
-        /not wrapped in act|unmounted component/i.test(String(first)),
-      ),
+      consoleError.mock.calls.filter(([first]) => /not wrapped in act/i.test(String(first))),
     ).toEqual([]);
     consoleError.mockRestore();
   });
@@ -374,7 +418,7 @@ describe('useOktaPageContext enablement', () => {
     await waitFor(() => expect(sendCount()).toBeGreaterThan(before));
   });
 
-  it('stays inert once pinned', async () => {
+  it('stays inert once disabled', async () => {
     mockOktaTab(groupResponder);
     const { result, rerender } = renderHook(
       ({ enabled }: { enabled: boolean }) => useOktaPageContext(enabled),

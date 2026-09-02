@@ -2,6 +2,7 @@ import React from 'react';
 import { Badge, ListRow, type BadgeVariant } from '../shared';
 import Icon, { type IconType } from '../shared/Icon';
 import { unevaluableReasonText } from '../../../shared/rules/unevaluableReasonText';
+import { ruleStatusBadge } from '../../../shared/ruleUtils';
 import type { RuleEffect, RuleTransition } from '../../../shared/membership/blastRadiusTypes';
 
 export interface BlastRadiusRuleRowProps {
@@ -61,6 +62,7 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect }) => {
     effect.transition === 'undetermined'
       ? unevaluableReasonText(effect.afterReason ?? effect.beforeReason)
       : null;
+  const broken = effect.status === 'INVALID' ? ruleStatusBadge('INVALID') : null;
 
   return (
     <ListRow as="li" density="compact">
@@ -77,10 +79,19 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect }) => {
             {effect.ruleName}
           </span>
           <Badge variant={presentation.variant}>{presentation.label}</Badge>
-          {!effect.active && (
-            <Badge variant="neutral" title="This rule is INACTIVE in Okta, so it places nobody.">
-              Inactive
+          {broken ? (
+            <Badge variant={broken.variant} title={broken.title}>
+              {broken.text}
             </Badge>
+          ) : (
+            !effect.active && (
+              <Badge
+                variant="neutral"
+                title="Okta is not applying this rule — it is deactivated — so it places nobody."
+              >
+                Not in force
+              </Badge>
+            )
           )}
         </div>
 

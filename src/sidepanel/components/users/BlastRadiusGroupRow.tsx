@@ -52,7 +52,7 @@ function withheldReasonText(effect: GroupEffect): string {
     case 'rule-unevaluable-after':
       return 'Another rule targeting this group could not be evaluated here, so we cannot say the membership ends.';
     case 'rule-inactive':
-      return 'The rule is inactive, so it grants nothing either way.';
+      return 'Okta is not applying this rule — it is deactivated or no longer evaluable — so it grants nothing either way.';
     case 'app-mastered-group':
       return 'This group is managed by its application, not by group rules.';
     default:

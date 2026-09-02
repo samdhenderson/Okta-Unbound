@@ -5,6 +5,7 @@ import {
 } from '../ruleEvaluator';
 import { explainRuleExpression, type ClauseGroupReference } from '../rules/explainExpression';
 import { groupContextOf } from './groupContext';
+import { conditionExpressionOf } from './ruleExpression';
 import {
   membershipBucket,
   membershipVerdict,
@@ -20,10 +21,6 @@ import type {
   RuleTransition,
   WithheldReason,
 } from './blastRadiusTypes';
-
-function conditionExpressionOf(rule: MembershipRule): string {
-  return rule.conditionExpression || rule.conditions?.expression?.value || '';
-}
 
 function targetGroupIdsOf(rule: MembershipRule): readonly string[] {
   return rule.groupIds || rule.actions?.assignUserToGroups?.groupIds || [];
@@ -86,6 +83,7 @@ function evaluateRule(
       targetGroupNames: targetGroupIds.map((id) => groupNames.get(id) ?? id),
       touchedAttributes: touchedAttributesOf(rule, expression, draftKeys),
       active: rule.status === 'ACTIVE',
+      status: rule.status,
     },
   };
 }

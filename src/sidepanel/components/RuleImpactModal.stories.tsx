@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import RuleImpactModal from './RuleImpactModal';
 import type { RuleImpactSummary, TargetGroupImpact } from '../../shared/membership/ruleImpact';
 import { mockUsers } from '../../test/mocks/fixtures';
@@ -53,6 +53,32 @@ const mockEmptySummary: RuleImpactSummary = {
   targetGroups: [],
   distinctMemberCount: 0,
   totalHeldSolely: 0,
+};
+
+const targetNoOverlap: TargetGroupImpact = {
+  groupId: 'grp4',
+  groupName: 'Engineering',
+  memberCount: 12,
+  heldSolelyCount: 0,
+  heldSolelyByRule: [],
+};
+
+const mockNoRuleInventorySummary: RuleImpactSummary = {
+  ruleId: 'rule4',
+  ruleName: 'Only Rule',
+  targetGroups: [targetNoOverlap],
+  distinctMemberCount: 12,
+  totalHeldSolely: 0,
+  emptyRuleInventory: true,
+};
+
+const mockEvaluatedNoOverlapSummary: RuleImpactSummary = {
+  ruleId: 'rule5',
+  ruleName: 'Engineering - US',
+  targetGroups: [targetNoOverlap],
+  distinctMemberCount: 12,
+  totalHeldSolely: 0,
+  emptyRuleInventory: false,
 };
 
 const meta = {
@@ -128,4 +154,32 @@ export const NoTargetGroups: Story = {
 
 export const LargeSoleHoldList: Story = {
   args: { ruleName: 'Engineering - EU', summary: mockLargeSummary },
+};
+
+export const NoOtherRulesInOrg: Story = {
+  args: { ruleName: 'Only Rule', summary: mockNoRuleInventorySummary },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(
+      canvas.getByText(
+        'This org has no other group rules, so there was nothing to check this rule against.',
+      ),
+    ).toBeVisible();
+    await expect(
+      canvas.queryByText(/Checked against every other group rule in the org/),
+    ).not.toBeInTheDocument();
+  },
+};
+
+export const EvaluatedNoOverlap: Story = {
+  args: { summary: mockEvaluatedNoOverlapSummary },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(
+      canvas.getByText(
+        'Checked against every other group rule in the org — none collide with this one.',
+      ),
+    ).toBeVisible();
+    await expect(canvas.queryByText(/no other group rules/)).not.toBeInTheDocument();
+  },
 };

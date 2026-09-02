@@ -7,7 +7,12 @@ import {
   oktaGroupRuleSchema,
   type OktaAppListItem,
 } from '../schemas/okta';
-import { fetchAllPages, OKTA_PAGE_SIZE, type PaginatedPageResult } from '../utils/oktaPagination';
+import {
+  fetchAllPages,
+  OKTA_PAGE_SIZE,
+  PaginatedFetchError,
+  type PaginatedPageResult,
+} from '../utils/oktaPagination';
 import { createLogger } from '../utils/logger';
 import { orgSnapshotStore } from './orgSnapshotStore';
 import {
@@ -49,6 +54,7 @@ export interface WalkOutcome {
   written: number;
   swept: number;
   error?: string;
+  status?: number;
   mode?: SyncMode;
 }
 
@@ -135,9 +141,10 @@ export async function runFullWalk<T>(
   } catch (error) {
     await drained.catch(() => undefined);
     const message = error instanceof Error ? error.message : 'Walk failed';
-    log.error('Full walk did not complete', { code: 'snapshot_walk_failed', collection });
+    const status = error instanceof PaginatedFetchError ? error.status : undefined;
+    log.error('Full walk did not complete', { code: 'snapshot_walk_failed', collection, status });
     await orgSnapshotStore.patchMeta(collection, origin, { watermark });
-    return { collection, complete: false, written, swept: 0, error: message };
+    return { collection, complete: false, written, swept: 0, error: message, status };
   }
 
   const swept = await orgSnapshotStore.sweepStale(collection, origin, mark);
@@ -248,13 +255,19 @@ async function runDelta<T>(
   } catch (error) {
     await drained.catch(() => undefined);
     const message = error instanceof Error ? error.message : 'Delta failed';
-    log.error('Delta sync did not complete', { code: 'snapshot_delta_failed', collection });
+    const status = error instanceof PaginatedFetchError ? error.status : undefined;
+    log.error('Delta sync did not complete', {
+      code: 'snapshot_delta_failed',
+      collection,
+      status,
+    });
     return {
       collection,
       complete: meta.complete,
       written,
       swept: 0,
       error: message,
+      status,
       mode: 'delta',
     };
   }

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { GroupInfo, UserInfo, PolicyInfo } from '../../shared/types';
+import type { AppInfo, GroupInfo, UserInfo, PolicyInfo } from '../../shared/types';
 import {
   useOktaTabContext,
   type ConnectionStatus,
@@ -7,12 +7,6 @@ import {
 } from './useOktaTabContext';
 
 export type PageType = 'group' | 'user' | 'app' | 'policy' | 'admin' | 'unknown';
-
-export interface AppInfo {
-  appId: string;
-  appName: string;
-  appLabel?: string;
-}
 
 interface PageDetection {
   pageType: PageType;
@@ -67,7 +61,7 @@ export function useOktaPageContext(enabled = true): OktaPageContext {
   const { data, ...rest } = useOktaTabContext<PageDetection>({
     scope: 'useOktaPageContext',
     initialData: UNKNOWN,
-    commsFailedData: ADMIN,
+    commsFailedData: UNKNOWN,
     loadEntity,
     enabled,
   });

@@ -15,6 +15,7 @@ export function emptySyncMeta(origin: string, collection: SnapshotCollection): S
     deltaSupported: null,
     complete: false,
     completedShards: [],
+    status: null,
   };
 }
 

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Button } from '../shared';
+import { Badge, Button } from '../shared';
 import { splitCurrentGroupRuleRelations } from '../../../shared/rules/currentGroupRelations';
-import type { FormattedRule } from '../../../shared/types';
+import { ruleStatusBadge } from '../../../shared/ruleUtils';
+import type { FormattedRule, GroupRuleStatus } from '../../../shared/types';
 
 interface CurrentGroupRuleRelationsProps {
   rules: FormattedRule[];
@@ -9,17 +10,14 @@ interface CurrentGroupRuleRelationsProps {
   onFocusRule?: (ruleId: string) => void;
 }
 
-const RuleStatusPill: React.FC<{ status: string }> = ({ status }) => (
-  <span
-    className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${
-      status === 'ACTIVE'
-        ? 'bg-success-light text-success-text border-success-light'
-        : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-    }`}
-  >
-    {status === 'ACTIVE' ? 'Active' : 'Inactive'}
-  </span>
-);
+const RuleStatusPill: React.FC<{ status: GroupRuleStatus }> = ({ status }) => {
+  const { text, variant, title } = ruleStatusBadge(status);
+  return (
+    <Badge variant={variant} title={title}>
+      {text}
+    </Badge>
+  );
+};
 
 const RuleRow: React.FC<{
   rule: FormattedRule;

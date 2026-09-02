@@ -11,6 +11,7 @@ const { useOrgEntityIndex } = await import('./useOrgEntityIndex');
 
 const GROUP_ID = '00gFAKE0000000000001';
 const RULE_ID = '0prFAKE0000000000001';
+const BROKEN_RULE_ID = '0prFAKE0000000000002';
 const APP_ID = '0oaFAKE0000000000001';
 const USER_ID = '00uFAKE0000000000001';
 const ABSENT_ID = '00gFAKE0000000000009';
@@ -45,7 +46,10 @@ function stage({
       groupsComplete,
     ),
     rules: snapshot(
-      [{ id: RULE_ID, name: 'Eng — All ICs', status: 'INACTIVE', type: 'group_rule' }],
+      [
+        { id: RULE_ID, name: 'Eng — All ICs', status: 'INACTIVE', type: 'group_rule' },
+        { id: BROKEN_RULE_ID, name: 'Eng — Contractors', status: 'INVALID', type: 'group_rule' },
+      ],
       rulesComplete,
     ),
     apps: snapshot([{ id: APP_ID, name: 'datadog', label: 'Datadog' }], appsComplete),
@@ -70,6 +74,18 @@ describe('useOrgEntityIndex', () => {
       expect(stage().current.lookup('rule', RULE_ID)).toEqual({
         status: 'hit',
         entity: { kind: 'rule', id: RULE_ID, name: 'Eng — All ICs', secondary: 'Paused' },
+      });
+    });
+
+    it('marks an INVALID rule broken, never active and never paused', () => {
+      expect(stage().current.lookup('rule', BROKEN_RULE_ID)).toEqual({
+        status: 'hit',
+        entity: {
+          kind: 'rule',
+          id: BROKEN_RULE_ID,
+          name: 'Eng — Contractors',
+          secondary: 'Broken',
+        },
       });
     });
 

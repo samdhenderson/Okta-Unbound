@@ -199,7 +199,8 @@ export const NotPredictedRuleInactive: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/inactive, so it grants nothing/i)).toBeInTheDocument();
+    await expect(canvas.getByText(/deactivated or no longer evaluable/i)).toBeInTheDocument();
+    await expect(canvas.queryByText(/rule is inactive/i)).not.toBeInTheDocument();
   },
 };
 

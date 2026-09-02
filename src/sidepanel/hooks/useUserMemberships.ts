@@ -9,7 +9,7 @@ import type {
 import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
 import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import { getOrFetch, peek, setEntry, invalidate } from '../cache/entityCache';
-import { cacheKeys } from '../cache/keys';
+import { cacheKeys, RULE_INVENTORY_KEY } from '../cache/keys';
 import { analyzeMemberships, unclassifiedMemberships } from '../../shared/utils/membershipAnalysis';
 import { createLogger } from '../../shared/utils/logger';
 import { useOktaApi } from './useOktaApi';
@@ -17,8 +17,6 @@ import { getUserGroupsRequest } from './getUserGroupsRequest';
 import { fetchGroupRulesRequest } from './fetchGroupRulesRequest';
 
 const log = createLogger('useUserMemberships');
-
-const RULE_INVENTORY_KEY = 'groupRuleInventory';
 
 export type RuleInventoryState =
   | { readonly status: 'unresolved' }
@@ -178,9 +176,10 @@ export function useUserMemberships({
         setMemberships(analyzedMemberships);
         log.debug('Loaded memberships:', { count: analyzedMemberships.length, degraded });
       } catch (err) {
-        reportError(err instanceof Error ? err.message : 'Failed to load user memberships');
+        const message = err instanceof Error ? err.message : 'Failed to load user memberships';
+        reportError(message);
         setMemberships([]);
-        log.error('Membership loading error:', err);
+        log.error('Membership loading error:', message);
       } finally {
         reportLoading(false);
       }

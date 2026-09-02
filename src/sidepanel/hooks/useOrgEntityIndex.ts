@@ -1,11 +1,23 @@
 import { useCallback, useMemo } from 'react';
 import { useOrgSnapshot, type UseOrgSnapshotResult } from '../cache/useOrgSnapshot';
 import type { OktaIdKind } from '../../shared/utils/oktaId';
-import type { OktaGroupRule } from '../../shared/types';
+import type { GroupRuleStatus, OktaGroupRule } from '../../shared/types';
+import { ruleStatusBadge } from '../../shared/ruleUtils';
 import type { OktaAppGroupAssignment, OktaAppListItem } from '../../shared/schemas/okta';
 import type { RawOktaGroup } from '../components/groups/groupSummary';
 
 export type IndexedKind = Extract<OktaIdKind, 'group' | 'rule' | 'app'>;
+
+export function ruleSearchSecondary(status: GroupRuleStatus): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'Active';
+    case 'INACTIVE':
+      return 'Paused';
+    case 'INVALID':
+      return ruleStatusBadge('INVALID').text;
+  }
+}
 
 export interface IndexedEntity {
   kind: IndexedKind;
@@ -71,7 +83,7 @@ export function useOrgEntityIndex({
         kind: 'rule',
         id: rule.id,
         name: rule.name || rule.id,
-        secondary: rule.status === 'INACTIVE' ? 'Paused' : 'Active',
+        secondary: ruleSearchSecondary(rule.status),
       });
     }
     return byId;

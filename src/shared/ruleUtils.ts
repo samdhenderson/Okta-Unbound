@@ -1,6 +1,6 @@
-import type { OktaGroupRule, RuleConflict, FormattedRule } from '../shared/types';
+import type { OktaGroupRule, RuleConflict, FormattedRule, GroupRuleStatus } from '../shared/types';
 
-function expressionText(rule: OktaGroupRule): string {
+export function expressionText(rule: OktaGroupRule): string {
   const value: unknown = rule.conditions?.expression?.value;
   return typeof value === 'string' ? value : '';
 }
@@ -149,4 +149,31 @@ export function filterRules(rules: FormattedRule[], query: string): FormattedRul
       rule.userAttributes.some((attr) => attr.toLowerCase().includes(lowerQuery))
     );
   });
+}
+
+export interface RuleStatusBadge {
+  text: string;
+  variant: 'success' | 'neutral' | 'danger';
+  title: string;
+}
+
+export function ruleStatusBadge(status: GroupRuleStatus): RuleStatusBadge {
+  switch (status) {
+    case 'ACTIVE':
+      return { text: 'ACTIVE', variant: 'success', title: 'This rule is in force.' };
+    case 'INACTIVE':
+      return {
+        text: 'INACTIVE',
+        variant: 'neutral',
+        title:
+          'This rule is deactivated, so it places nobody. Members it placed before remain in the group.',
+      };
+    case 'INVALID':
+      return {
+        text: 'Broken',
+        variant: 'danger',
+        title:
+          'Okta reports this rule as INVALID: it can no longer be evaluated — usually because a group it references was deleted — so it places nobody.',
+      };
+  }
 }

@@ -304,6 +304,44 @@ describe('a walk that did not finish', () => {
     expect(meta.walkStartedAt).toBe(NOW);
   });
 
+  it("carries the failing page's HTTP status, so a 403 is distinguishable from a 429 (D-068)", async () => {
+    const page2 = '/api/v1/groups?limit=200&after=cur1';
+    const { request: forbidden } = scriptedRequest({
+      [GROUPS_SPEC.firstUrl]: {
+        success: true,
+        data: [group('00g1', 'Eng')],
+        headers: linkTo(page2),
+      },
+      [`${page2}&expand=stats&expand=app`]: { success: false, error: 'Forbidden', status: 403 },
+    });
+    const forbiddenOutcome = await runFullWalk(GROUPS_SPEC, {
+      origin: ORIGIN,
+      request: forbidden,
+      now: NOW,
+    });
+    expect(forbiddenOutcome.status).toBe(403);
+
+    const { request: rateLimited } = scriptedRequest({
+      [GROUPS_SPEC.firstUrl]: {
+        success: true,
+        data: [group('00g1', 'Eng')],
+        headers: linkTo(page2),
+      },
+      [`${page2}&expand=stats&expand=app`]: {
+        success: false,
+        error: 'rate limited',
+        status: 429,
+      },
+    });
+    const rateLimitedOutcome = await runFullWalk(GROUPS_SPEC, {
+      origin: ORIGIN,
+      request: rateLimited,
+      now: NOW,
+    });
+    expect(rateLimitedOutcome.status).toBe(429);
+    expect(rateLimitedOutcome.status).not.toBe(forbiddenOutcome.status);
+  });
+
   it('resumes from the cursor and still sweeps what the interrupted pages had returned', async () => {
     await orgSnapshotStore.upsertMany(
       'groups',

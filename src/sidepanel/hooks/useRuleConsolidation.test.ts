@@ -25,12 +25,6 @@ vi.mock('./useOktaApi', () => ({
   useOktaApi: () => api,
 }));
 
-const rulesCache = vi.hoisted(() => ({ clear: vi.fn() }));
-
-vi.mock('../../shared/rulesCache', () => ({
-  RulesCache: rulesCache,
-}));
-
 const mockedAuditStore = vi.mocked(auditStore);
 
 const rawRule: OktaGroupRule = {
@@ -67,7 +61,6 @@ async function runMerge() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  rulesCache.clear.mockResolvedValue(undefined);
   api.getRawGroupRule.mockResolvedValue(rawRule);
   api.createGroupRule.mockResolvedValue({
     success: true,
@@ -107,14 +100,17 @@ describe('useRuleConsolidation audit attribution', () => {
   });
 });
 
-describe('useRuleConsolidation rules-cache invalidation', () => {
-  it('drops the org-wide rules cache once the consolidation lands', async () => {
+describe('useRuleConsolidation write ordering', () => {
+  it('creates the replacement rule before any source is retired', async () => {
     await runMerge();
 
-    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
+    expect(api.createGroupRule).toHaveBeenCalledTimes(1);
+    expect(api.createGroupRule.mock.invocationCallOrder[0]).toBeLessThan(
+      api.deleteGroupRule.mock.invocationCallOrder[0],
+    );
   });
 
-  it('drops the cache even when the run aborts after the replacement rule exists', async () => {
+  it('has already created the rule when the run aborts at the activate step', async () => {
     api.activateGroupRule.mockResolvedValue({ success: false, error: 'Activation failed' });
 
     const { result } = renderHook(() =>
@@ -133,11 +129,11 @@ describe('useRuleConsolidation rules-cache invalidation', () => {
     });
 
     expect(result.current.phase).toBe('error');
+    expect(api.createGroupRule).toHaveBeenCalledTimes(1);
     expect(api.deleteGroupRule).not.toHaveBeenCalled();
-    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves the cache alone when nothing was written', async () => {
+  it('writes nothing at all when the create is rejected', async () => {
     api.createGroupRule.mockResolvedValue({ success: false, error: 'Rule name already in use' });
 
     const { result } = renderHook(() =>
@@ -156,7 +152,9 @@ describe('useRuleConsolidation rules-cache invalidation', () => {
     });
 
     expect(result.current.phase).toBe('error');
-    expect(rulesCache.clear).not.toHaveBeenCalled();
+    expect(api.activateGroupRule).not.toHaveBeenCalled();
+    expect(api.deactivateGroupRule).not.toHaveBeenCalled();
+    expect(api.deleteGroupRule).not.toHaveBeenCalled();
   });
 });
 

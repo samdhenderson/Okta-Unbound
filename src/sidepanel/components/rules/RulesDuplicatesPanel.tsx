@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import Button from '../shared/Button';
+import { Badge, Button } from '../shared';
+import { ruleStatusBadge } from '../../../shared/ruleUtils';
 import type { MergeableRuleGroup } from '../../../shared/rules/consolidation';
+import type { OktaGroupRule } from '../../../shared/types';
 
 interface RulesDuplicatesPanelProps {
   clusters: MergeableRuleGroup[];
@@ -8,18 +10,12 @@ interface RulesDuplicatesPanelProps {
   onFocusRule?: (ruleId: string) => void;
 }
 
-const StatusPill: React.FC<{ status: string }> = ({ status }) => {
-  const active = status === 'ACTIVE';
+const RuleStatusMark: React.FC<{ status: OktaGroupRule['status'] }> = ({ status }) => {
+  const { text, variant, title } = ruleStatusBadge(status);
   return (
-    <span
-      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border ${
-        active
-          ? 'bg-success-light text-success-text border-success-light'
-          : 'bg-neutral-100 text-neutral-500 border-neutral-200'
-      }`}
-    >
-      {active ? 'Active' : 'Inactive'}
-    </span>
+    <Badge variant={variant} title={title}>
+      {text}
+    </Badge>
   );
 };
 
@@ -78,7 +74,7 @@ const MergeClusterRow: React.FC<{
                   className="flex items-center justify-between gap-2 rounded border border-neutral-100 px-2 py-1.5"
                 >
                   <div className="flex min-w-0 items-center gap-(--sp-inline)">
-                    <StatusPill status={rule.status} />
+                    <RuleStatusMark status={rule.status} />
                     <span className="truncate text-sm text-neutral-800">{rule.name}</span>
                     <span className="shrink-0 text-xs text-neutral-400">
                       {targetCount} group{targetCount === 1 ? '' : 's'}

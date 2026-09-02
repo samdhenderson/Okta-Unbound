@@ -89,10 +89,12 @@ export interface OktaGroup {
 
 export type GroupType = 'OKTA_GROUP' | 'APP_GROUP' | 'BUILT_IN';
 
+export type GroupRuleStatus = 'ACTIVE' | 'INACTIVE' | 'INVALID';
+
 export interface OktaGroupRule {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: GroupRuleStatus;
   type: string;
   created: string;
   lastUpdated: string;
@@ -134,7 +136,7 @@ export interface RuleConflict {
 export interface FormattedRule {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: GroupRuleStatus;
   condition: string;
   conditionExpression?: string;
   groupIds: string[];
@@ -192,7 +194,7 @@ export interface UserMembershipTrace {
 export interface MembershipRule {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: GroupRuleStatus;
   conditions?: RuleConditions;
   actions?: RuleActions;
   groupIds?: string[];

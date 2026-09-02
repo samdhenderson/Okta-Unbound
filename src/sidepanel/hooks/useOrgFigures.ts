@@ -34,6 +34,7 @@ function toSource(snapshot: {
   lastFullWalkAt: number | null;
   rows: unknown[];
   error: string | null;
+  status?: number | null;
 }): FigureSource {
   return {
     isReading: snapshot.isReading,
@@ -41,6 +42,7 @@ function toSource(snapshot: {
     lastFullWalkAt: snapshot.lastFullWalkAt,
     count: snapshot.rows.length,
     error: snapshot.error,
+    status: snapshot.status,
   };
 }
 
@@ -147,21 +149,25 @@ export function useOrgFigures({
       groupSource.lastFullWalkAt,
       groupSource.count,
       groupSource.error,
+      groupSource.status,
       appSource.isReading,
       appSource.complete,
       appSource.lastFullWalkAt,
       appSource.count,
       appSource.error,
+      appSource.status,
       ruleSource.isReading,
       ruleSource.complete,
       ruleSource.lastFullWalkAt,
       ruleSource.count,
       ruleSource.error,
+      ruleSource.status,
       appGroupSource.isReading,
       appGroupSource.complete,
       appGroupSource.lastFullWalkAt,
       appGroupSource.count,
       appGroupSource.error,
+      appGroupSource.status,
       emptyGroups,
       unruledGroups,
       inactiveApps,

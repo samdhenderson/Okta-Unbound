@@ -73,11 +73,13 @@ export const oktaGroupSchema = z
   })
   .passthrough();
 
+export const groupRuleStatusSchema = z.enum(['ACTIVE', 'INACTIVE', 'INVALID']);
+
 export const oktaGroupRuleSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    status: z.enum(['ACTIVE', 'INACTIVE']),
+    status: groupRuleStatusSchema,
     type: z.string().optional(),
     conditions: z
       .object({
@@ -402,3 +404,12 @@ export const oktaUserProfileSchemaSchema = z
   .passthrough();
 
 export type OktaUserProfileSchema = z.infer<typeof oktaUserProfileSchemaSchema>;
+
+export const currentUserSchema = z
+  .object({
+    id: z.string().optional(),
+    profile: z.object({ email: z.string().optional() }).passthrough().optional(),
+  })
+  .passthrough();
+
+export type CurrentUserResponse = z.infer<typeof currentUserSchema>;

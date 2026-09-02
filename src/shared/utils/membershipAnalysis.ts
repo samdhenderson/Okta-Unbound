@@ -6,6 +6,7 @@ import type {
   MembershipAttribution,
 } from '../types';
 import { tryEvaluateRuleExpression, type RuleMatchOutcome } from '../ruleEvaluator';
+import { conditionExpressionOf } from '../membership/ruleExpression';
 import { createLogger } from './logger';
 
 const log = createLogger('membershipAnalysis');
@@ -38,10 +39,6 @@ function isUserExcludedFromRule(rule: MembershipRule, userId: string): boolean {
     (rule.excludedUserIds?.includes(userId) ?? false) ||
     (rule.conditions?.people?.users?.exclude?.includes(userId) ?? false)
   );
-}
-
-function conditionExpressionOf(rule: MembershipRule): string {
-  return rule.conditionExpression || rule.conditions?.expression?.value || '';
 }
 
 function scoreCandidateRules(rules: MembershipRule[], user: OktaUser): MembershipRule[] {

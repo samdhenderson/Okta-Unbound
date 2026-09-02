@@ -1,8 +1,7 @@
 import React from 'react';
 import Icon, { type IconType } from '../shared/Icon';
-import IconButton from './IconButton';
+import CopyIconButton from './CopyIconButton';
 import { useEntityNavigation, type EntityType } from '../../contexts/NavigationContext';
-import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 
 const typeIcon: Record<EntityType, IconType> = {
   rule: 'bolt',
@@ -44,7 +43,6 @@ const EntityLink: React.FC<EntityLinkProps> = ({
   testId,
 }) => {
   const { navigateTo, canNavigateTo } = useEntityNavigation();
-  const { copied, copy } = useCopyToClipboard();
   const linkable = Boolean(id) && canNavigateTo(type);
 
   const chip = linkable ? (
@@ -88,19 +86,10 @@ const EntityLink: React.FC<EntityLinkProps> = ({
   return (
     <span className="inline-flex min-w-0 max-w-full items-center gap-1">
       {chip}
-      <IconButton
-        label={copied ? 'Copied!' : (copyIdLabel ?? `Copy ${typeNoun[type]} id for ${name}`)}
-        onClick={() => copy(id)}
-        variant="ghost"
-        size="sm"
-        className="shrink-0"
-      >
-        <Icon
-          type={copied ? 'clipboard-check' : 'clipboard'}
-          size="sm"
-          className={copied ? 'text-success-text' : ''}
-        />
-      </IconButton>
+      <CopyIconButton
+        value={id}
+        label={copyIdLabel ?? `Copy ${typeNoun[type]} id for ${name} (${id})`}
+      />
     </span>
   );
 };

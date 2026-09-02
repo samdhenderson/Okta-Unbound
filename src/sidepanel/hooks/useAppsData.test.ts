@@ -2,26 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
 
-const { fakeDB, idbTables } = vi.hoisted(() => {
-  const idbTables = new Map<string, Map<string, unknown>>();
-  const keyOf = (key: unknown) => (Array.isArray(key) ? key.join('::') : String(key));
-  const table = (name: string) => {
-    if (!idbTables.has(name)) idbTables.set(name, new Map());
-    return idbTables.get(name) as Map<string, unknown>;
-  };
-  const fakeDB = {
-    get: async (name: string, key: unknown) => table(name).get(keyOf(key)),
-    put: async () => {},
-    delete: async () => {},
-    getAllFromIndex: async (name: string, _i: string, origin: string) =>
-      [...table(name).values()].filter((v) => (v as { origin: string }).origin === origin),
-    getAllKeysFromIndex: async () => [],
-    transaction: () => ({
-      store: { put: async () => {}, delete: async () => {} },
-      done: Promise.resolve(),
-    }),
-  };
-  return { fakeDB, idbTables };
+const { fakeDB, idbTables } = await vi.hoisted(async () => {
+  const { createFakeIdb } = await import('@/test/factories/idb');
+  const { fakeDB, tables } = createFakeIdb();
+  return { fakeDB, idbTables: tables };
 });
 
 vi.mock('idb', () => ({ openDB: vi.fn(async () => fakeDB) }));

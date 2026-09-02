@@ -1,10 +1,26 @@
 import type { FormattedRule } from '../../../shared/types';
+import { ruleStatusBadge } from '../../../shared/ruleUtils';
 import type {
   EntityIdentityDescriptor,
   IdentityFact,
   IdentityRow,
 } from '../shared/identityDescriptor';
 import { getRelativeTime } from '../../../shared/utils/dateFormat';
+
+function statusBadge(
+  status: FormattedRule['status'],
+): NonNullable<EntityIdentityDescriptor['badge']> | undefined {
+  switch (status) {
+    case 'ACTIVE':
+      return undefined;
+    case 'INACTIVE':
+      return { text: 'Paused', variant: 'warning' };
+    case 'INVALID': {
+      const { text, variant } = ruleStatusBadge('INVALID');
+      return { text, variant };
+    }
+  }
+}
 
 const metric = (
   icon: Extract<IdentityFact, { kind: 'metric' }>['icon'],
@@ -20,10 +36,10 @@ const metric = (
 });
 
 export function ruleIdentity(rule: FormattedRule): EntityIdentityDescriptor {
-  const isPaused = rule.status !== 'ACTIVE';
+  const badge = statusBadge(rule.status);
 
   const identityRow: IdentityRow = [];
-  if (!isPaused) {
+  if (!badge) {
     identityRow.push({ kind: 'status', variant: 'success', text: 'Active' });
   }
   identityRow.push({ kind: 'id', value: rule.id, copyLabel: `Copy rule id ${rule.id}` });
@@ -64,7 +80,7 @@ export function ruleIdentity(rule: FormattedRule): EntityIdentityDescriptor {
   return {
     key: rule.id,
     name: rule.name,
-    badge: isPaused ? { text: 'Paused', variant: 'warning' } : undefined,
+    badge,
     rows: [identityRow, counts, timestamps],
   };
 }

@@ -1,12 +1,16 @@
 import { useCallback, useState } from 'react';
-import type { FormattedRule, OktaGroupRule, AuditLogEntry } from '../../shared/types';
+import type {
+  FormattedRule,
+  OktaGroupRule,
+  AuditLogEntry,
+  GroupRuleStatus,
+} from '../../shared/types';
 import type { RetiredRuleSnapshot } from '../../shared/undoTypes';
 import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { useOktaApi } from './useOktaApi';
 import { useActorNotice } from './useActorNotice';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
-import { RulesCache } from '../../shared/rulesCache';
 import {
   buildConsolidatedRulePayload,
   consolidatedRuleName,
@@ -24,7 +28,7 @@ export type ConsolidationMode = 'add-target' | 'merge';
 export interface RetireRuleRef {
   id: string;
   name: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: GroupRuleStatus;
 }
 
 export interface ConsolidationPreview {
@@ -186,8 +190,6 @@ export function useRuleConsolidation({
         setPhase('error');
         return;
       }
-
-      await RulesCache.clear();
 
       if (preview.willActivate) {
         const activated = await activateGroupRule(created.rule.id);

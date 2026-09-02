@@ -176,7 +176,7 @@ beforeEach(() => {
 
 async function expandRow(uev: ReturnType<typeof userEvent.setup>, name: string) {
   const row = screen.getByLabelText(`Select ${name}`).closest('[data-group-id]') as HTMLElement;
-  await uev.click(within(row).getByRole('button', { name: 'Expand' }));
+  await uev.click(within(row).getByRole('button', { name: `Expand ${name}` }));
 }
 
 async function drillInto(uev: ReturnType<typeof userEvent.setup>, name: string) {

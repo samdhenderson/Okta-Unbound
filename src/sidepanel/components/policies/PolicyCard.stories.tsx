@@ -90,7 +90,9 @@ export const Expanded: Story = {
     await userEvent.click(canvas.getByRole('button', { name: 'Show rules for Any two factors' }));
     await waitFor(() => expect(canvas.getByText('Trusted device, no prompt')).toBeInTheDocument());
     await expect(
-      canvas.getByRole('button', { name: 'Copy policy id for Any two factors' }),
+      canvas.getByRole('button', {
+        name: `Copy policy id for Any two factors (${samplePolicy.id})`,
+      }),
     ).toBeInTheDocument();
   },
 };
@@ -105,5 +107,32 @@ export const RulesLoadFailure: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Show rules for Any two factors' }));
     await waitFor(() => expect(canvas.getByText(/Could not load rules/)).toBeInTheDocument());
+  },
+};
+
+export const DuplicateNamesStayDistinguishable: Story = {
+  render: (args) => (
+    <div className="space-y-2">
+      <PolicyCard {...args} policy={{ ...samplePolicy, id: 'rstFAKE000000000001' }} />
+      <PolicyCard {...args} policy={{ ...samplePolicy, id: 'rstFAKE000000000004' }} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggles = canvas.getAllByRole('button', { name: 'Show rules for Any two factors' });
+    expect(toggles).toHaveLength(2);
+    await userEvent.click(toggles[0]);
+    await userEvent.click(toggles[1]);
+
+    await expect(
+      canvas.getByRole('button', {
+        name: 'Copy policy id for Any two factors (rstFAKE000000000001)',
+      }),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByRole('button', {
+        name: 'Copy policy id for Any two factors (rstFAKE000000000004)',
+      }),
+    ).toBeInTheDocument();
   },
 };

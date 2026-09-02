@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useOktaApi } from './useOktaApi';
-import { RulesCache } from '../../shared/rulesCache';
 import { parseRuleExpression } from '../../shared/ruleEvaluator';
 import { unevaluableReasonText } from '../../shared/rules/unevaluableReasonText';
+import { MAX_RULE_NAME_LENGTH } from '../../shared/rules/consolidation';
 import { createLogger } from '../../shared/utils/logger';
 import type { GroupSummary } from '../../shared/types';
 
@@ -11,8 +11,6 @@ const log = createLogger('useCreateFeedingRule');
 const OKTA_EXPRESSION_TYPE = 'urn:okta:expression:1.0';
 
 const OKTA_GROUP_RULE_TYPE = 'group_rule';
-
-export const MAX_RULE_NAME_LENGTH = 50;
 
 export interface UseCreateFeedingRuleOptions {
   targetTabId: number | null;
@@ -111,7 +109,6 @@ export function useCreateFeedingRule({
         return;
       }
 
-      await RulesCache.clear();
       log.info('Created group rule', { ruleId: created.rule.id, groupId: group.id });
       setCreatedRuleName(created.rule.name);
       setCreatedRuleId(created.rule.id);

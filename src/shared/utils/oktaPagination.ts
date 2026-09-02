@@ -62,6 +62,17 @@ export interface PaginatedPageResult {
   data?: unknown;
   headers?: Record<string, string>;
   error?: string;
+  status?: number;
+}
+
+export class PaginatedFetchError extends Error {
+  readonly status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'PaginatedFetchError';
+    this.status = status;
+  }
 }
 
 export interface FetchAllPagesOptions<T> {
@@ -95,7 +106,10 @@ export async function fetchAllPages<T = unknown>(
 
     const response = await request(url);
     if (!response.success) {
-      throw new Error(response.error || errorMessage || `Paginated fetch failed (${context})`);
+      throw new PaginatedFetchError(
+        response.error || errorMessage || `Paginated fetch failed (${context})`,
+        response.status,
+      );
     }
 
     const rawPageSize = Array.isArray(response.data) ? response.data.length : 0;

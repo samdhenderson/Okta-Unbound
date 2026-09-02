@@ -1,9 +1,9 @@
 import { createLogger } from '../utils/logger';
 import { flushAllPending, recordRequest } from '../requestLog';
 import { OperationCancelledError } from './cancellation';
-import { RateLimitDetector, bucketOf } from './rateLimitDetector';
+import { RateLimitDetector, bucketOf, percentRemaining } from './rateLimitDetector';
 import { PlanRegistry, type PlanDeclaration, type PlanEstimate } from './plan';
-import { normalizeRequestResult } from './requestResult';
+import { isSessionExpired, normalizeRequestResult } from './requestResult';
 import type {
   QueuedRequest,
   RequestPriority,
@@ -11,6 +11,7 @@ import type {
   SchedulerConfig,
   SchedulerState,
   SchedulerMetrics,
+  RequestFailure,
   RequestResult,
   RateLimitInfo,
   BucketState,
@@ -30,6 +31,8 @@ const DEFAULT_CONFIG: SchedulerConfig = {
 const GLOBAL_GATE = '*';
 
 const MAX_CANCELLED_PLANS = 64;
+
+const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429]);
 
 export class ApiScheduler {
   private queue: QueuedRequest[] = [];
@@ -53,6 +56,8 @@ export class ApiScheduler {
   private cancelGeneration: number = 0;
 
   private cancelledPlans: string[] = [];
+
+  private expiredSessions: Map<number, RequestFailure> = new Map();
 
   private metrics: SchedulerMetrics = {
     totalRequests: 0,
@@ -91,6 +96,11 @@ export class ApiScheduler {
   ): Promise<RequestResult> {
     if (planId && this.cancelledPlans.includes(planId)) {
       throw new OperationCancelledError();
+    }
+
+    const expired = this.expiredSessions.get(tabId);
+    if (expired && !this.canProbe(tabId)) {
+      return this.sessionExpiredFailure(expired);
     }
 
     const dedupKey = this.getGetDedupKey(method, endpoint, tabId);
@@ -325,13 +335,34 @@ export class ApiScheduler {
         }
       }
 
+      this.observeSessionHealth(request, result);
+
+      if (
+        !result.success &&
+        RETRYABLE_STATUSES.has(result.status) &&
+        request.retryCount < request.maxRetries
+      ) {
+        log.warn('Retryable failure; backing off:', {
+          id: request.id,
+          status: result.status,
+          attempt: request.retryCount + 1,
+        });
+        await this.retryRequest(request, new Error(`HTTP ${result.status}`));
+        return;
+      }
+
       const executionTime = Date.now() - startTime;
       this.updateAverageExecutionTime(executionTime);
 
-      this.metrics.successfulRequests++;
+      if (result.success) {
+        this.metrics.successfulRequests++;
+      } else {
+        this.metrics.failedRequests++;
+        this.lastError = `HTTP ${result.status}`;
+      }
       this.activeRequests.delete(request.id);
       request.resolve(result);
-      this.recordSettledRequest(request, true);
+      this.recordSettledRequest(request, result.success);
 
       log.debug('Request completed:', {
         id: request.id,
@@ -358,6 +389,54 @@ export class ApiScheduler {
       this.notifyStateChange();
       this.processQueue();
     }
+  }
+
+  private observeSessionHealth(request: QueuedRequest, result: RequestResult): void {
+    if (isSessionExpired(result)) {
+      this.suspendSession(request.tabId, result as RequestFailure);
+    } else if (result.success) {
+      this.resumeSession(request.tabId);
+    }
+  }
+
+  private suspendSession(tabId: number, failure: RequestFailure): void {
+    if (this.expiredSessions.has(tabId)) return;
+    this.expiredSessions.set(tabId, failure);
+
+    const stranded = this.queue.filter((queued) => queued.tabId === tabId);
+    if (stranded.length > 0) {
+      this.queue = this.queue.filter((queued) => queued.tabId !== tabId);
+    }
+
+    log.warn('Okta session expired; holding requests for this tab', {
+      tabId,
+      dropped: stranded.length,
+    });
+
+    for (const queued of stranded) {
+      queued.resolve(this.sessionExpiredFailure(failure));
+    }
+
+    this.notifyStateChange();
+  }
+
+  private resumeSession(tabId: number): void {
+    if (!this.expiredSessions.delete(tabId)) return;
+    log.info('Okta session is answering again; resuming', { tabId });
+    this.notifyStateChange();
+    this.startProcessing();
+    this.processQueue();
+  }
+
+  private sessionExpiredFailure(observed: RequestFailure): RequestFailure {
+    return { success: false, status: observed.status, error: 'Okta session expired' };
+  }
+
+  private canProbe(tabId: number): boolean {
+    for (const active of this.activeRequests.values()) {
+      if (active.tabId === tabId) return false;
+    }
+    return !this.queue.some((queued) => queued.tabId === tabId);
   }
 
   private recordSettledRequest(request: QueuedRequest, success: boolean): void {
@@ -427,9 +506,14 @@ export class ApiScheduler {
   }
 
   private shouldEnterCooldown(info: RateLimitInfo): boolean {
-    const effectiveRemaining = Math.max(0, info.remaining - this.activeRequests.size);
-    const percentRemaining = (effectiveRemaining / info.limit) * 100;
-    return percentRemaining <= this.config.minRemainingThreshold;
+    const percent = percentRemaining(info, this.activeRequests.size);
+    if (percent === null) {
+      return this.rateLimitDetector.isApproachingLimit(
+        this.config.minRemainingThreshold,
+        this.activeRequests.size,
+      );
+    }
+    return percent <= this.config.minRemainingThreshold;
   }
 
   private enterCooldown(gate: string = GLOBAL_GATE): void {
@@ -518,6 +602,7 @@ export class ApiScheduler {
       buckets: this.buildBucketStates(),
       plans: this.plans.summarize(),
       minRemainingThresholdPercent: this.config.minRemainingThreshold,
+      expiredSessionTabIds: [...this.expiredSessions.keys()],
     };
   }
 

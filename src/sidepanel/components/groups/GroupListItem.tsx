@@ -156,7 +156,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
               )}
 
               <IconButton
-                label={expanded ? 'Collapse' : 'Expand'}
+                label={expanded ? `Collapse ${group.name}` : `Expand ${group.name}`}
                 onClick={toggleExpanded}
                 expanded={expanded}
                 controls={detailsId}
@@ -185,25 +185,6 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
       </ListRow>
     );
   },
-  (prev, next) =>
-    prev.group.id === next.group.id &&
-    prev.group.name === next.group.name &&
-    prev.group.description === next.group.description &&
-    prev.group.type === next.group.type &&
-    prev.group.memberCount === next.group.memberCount &&
-    prev.group.ruleCount === next.group.ruleCount &&
-    prev.group.usedInRuleCount === next.group.usedInRuleCount &&
-    prev.group.sourceAppName === next.group.sourceAppName &&
-    prev.group.created === next.group.created &&
-    prev.group.lastUpdated === next.group.lastUpdated &&
-    prev.group.lastMembershipUpdated === next.group.lastMembershipUpdated &&
-    prev.group.pushMappings === next.group.pushMappings &&
-    prev.selected === next.selected &&
-    prev.oktaOrigin === next.oktaOrigin &&
-    prev.isHighlighted === next.isHighlighted &&
-    prev.onToggleSelect === next.onToggleSelect &&
-    prev.onOpenDetail === next.onOpenDetail &&
-    prev.onAnalyzeSource === next.onAnalyzeSource,
 );
 
 GroupListItem.displayName = 'GroupListItem';

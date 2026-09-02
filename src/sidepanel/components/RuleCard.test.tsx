@@ -63,6 +63,27 @@ describe('RuleCard', () => {
     expect(screen.queryByText('ACTIVE')).not.toBeInTheDocument();
   });
 
+  describe('a broken (INVALID) rule (D-085)', () => {
+    it('is marked Broken, not as a second flavour of INACTIVE', () => {
+      renderCard({ rule: { ...initial, status: 'INVALID' } });
+
+      expect(screen.getByText('Broken')).toBeInTheDocument();
+      expect(screen.queryByText('INACTIVE')).not.toBeInTheDocument();
+      expect(screen.queryByText('INVALID')).not.toBeInTheDocument();
+    });
+
+    it('says what being broken means, where INACTIVE says something else', () => {
+      const { rerender } = render(<RuleCard rule={{ ...initial, status: 'INVALID' }} />);
+      const brokenTitle = screen.getByText('Broken').getAttribute('title');
+      expect(brokenTitle).toContain('INVALID');
+
+      rerender(<RuleCard rule={{ ...initial, status: 'INACTIVE' }} />);
+      const pausedTitle = screen.getByText('INACTIVE').getAttribute('title');
+      expect(pausedTitle).toContain('deactivated');
+      expect(pausedTitle).not.toBe(brokenTitle);
+    });
+  });
+
   it('shows the way in once its handler is wired up after first paint', () => {
     const { rerender } = renderCard();
     expect(screen.queryByRole('button')).not.toBeInTheDocument();

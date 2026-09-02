@@ -10,6 +10,7 @@ interface StubOptions {
   isReading?: boolean;
   complete?: boolean;
   ruleStatuses?: Array<'ACTIVE' | 'INACTIVE'>;
+  status?: number | null;
   rulesOver?: Partial<StubOptions>;
 }
 
@@ -21,7 +22,7 @@ function stub(
   options: StubOptions,
   records: { id: string }[] = [],
 ) {
-  const { lastFullWalkAt = NOW, isReading = false, complete = true } = options;
+  const { lastFullWalkAt = NOW, isReading = false, complete = true, status = null } = options;
   return {
     rows,
     records,
@@ -30,6 +31,7 @@ function stub(
     lastFullWalkAt,
     isSyncing: false,
     error: null,
+    status,
     sync: vi.fn(async (force = false) => {
       syncs.push({ collection, force });
       return null;
@@ -137,6 +139,40 @@ describe('useOrgFigures', () => {
     expect(sub(result.current.boxes, 'groups-unruled')?.note).toBe(
       'Needs group rules, which have not been read.',
     );
+  });
+
+  function unwalkedGroupsIndex(status: number | null): OrgEntityIndex {
+    const index = makeIndex();
+    return {
+      ...index,
+      groups: stub('groups', [], { lastFullWalkAt: null, complete: false, status }),
+    } as unknown as OrgEntityIndex;
+  }
+
+  it('names the permission problem when a collection’s last walk stopped on a 403 (D-068)', () => {
+    const { result } = render(unwalkedGroupsIndex(403));
+    const groupsBox = result.current.boxes.find((box) => box.key === 'groups');
+    expect(groupsBox?.note).toBe('You are not allowed to read groups.');
+  });
+
+  it('keeps the generic copy for a non-permission failure (429, a dropped connection)', () => {
+    const { result } = render(unwalkedGroupsIndex(429));
+    const groupsBox = result.current.boxes.find((box) => box.key === 'groups');
+    expect(groupsBox?.note).toBe('Groups have not been read yet.');
+  });
+
+  it('drops the permission note once a later walk succeeds', () => {
+    const { result, rerender } = render(unwalkedGroupsIndex(403));
+    expect(result.current.boxes.find((box) => box.key === 'groups')?.note).toBe(
+      'You are not allowed to read groups.',
+    );
+
+    const recovered = makeIndex({ lastFullWalkAt: NOW, complete: true, status: null });
+    rerender({ index: recovered });
+
+    const groupsBox = result.current.boxes.find((box) => box.key === 'groups');
+    expect(groupsBox?.note).toBeUndefined();
+    expect(groupsBox?.value).toBe(2);
   });
 
   it('spends nothing when the figures are fresh', async () => {

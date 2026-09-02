@@ -3,10 +3,8 @@ import type jsep from 'jsep';
 import { Badge, EntityLink, Eyebrow } from '../shared';
 import ClauseChecklist from '../groups/detail/ClauseChecklist';
 import { parseRuleExpression, type RuleGroupContext } from '../../../shared/ruleEvaluator';
+import { conditionExpressionOf } from '../../../shared/membership/ruleExpression';
 import type { MembershipRule, OktaUser } from '../../../shared/types';
-
-const conditionExpressionOf = (rule: MembershipRule): string =>
-  rule.conditionExpression || rule.conditions?.expression?.value || '';
 
 const MAX_WALK_DEPTH = 64;
 

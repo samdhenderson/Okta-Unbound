@@ -9,6 +9,7 @@ export interface FigureSource {
   lastFullWalkAt: number | null;
   count: number;
   error?: string | null;
+  status?: number | null;
 }
 
 export interface OrgFigure {
@@ -26,7 +27,18 @@ export function figureStatus(source: FigureSource): OrgFigureStatus {
   return source.count > 0 ? 'partial' : 'unavailable';
 }
 
-function unavailableNote(label: string, error: string | null | undefined): string {
+function isPermissionDenied(status: number | null | undefined): boolean {
+  return status === 401 || status === 403;
+}
+
+function unavailableNote(
+  label: string,
+  error: string | null | undefined,
+  status?: number | null,
+): string {
+  if (isPermissionDenied(status)) {
+    return `You are not allowed to read ${label.toLowerCase()}.`;
+  }
   return error
     ? `The last read of ${label.toLowerCase()} did not finish.`
     : `${label} have not been read yet.`;
@@ -50,7 +62,7 @@ export function buildFigure(
       status === 'partial'
         ? 'At least — the last read did not finish.'
         : status === 'unavailable'
-          ? unavailableNote(label, source.error)
+          ? unavailableNote(label, source.error, source.status)
           : undefined,
   };
 }

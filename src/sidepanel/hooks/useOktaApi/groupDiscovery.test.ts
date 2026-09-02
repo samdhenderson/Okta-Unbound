@@ -439,7 +439,42 @@ describe('fetchAndCacheAllGroupRules boundary validation (D-065)', () => {
     expect(stats).toEqual({ total: 1, active: 1, inactive: 0, conflicts: 0 });
   });
 
-  it('drops a rule whose status is outside the ACTIVE/INACTIVE vocabulary', async () => {
+  it('caches an INVALID rule rather than dropping it (D-085)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const core = makeCore({
+        makeApiRequest: vi.fn().mockResolvedValue({
+          success: true,
+          data: [
+            rule('r1', { actions: { assignUserToGroups: { groupIds: ['g1'] } } }),
+            rule('rBROKEN', {
+              status: 'INVALID',
+              actions: { assignUserToGroups: { groupIds: ['gGONE'] } },
+            }),
+          ],
+        }),
+      });
+
+      await createGroupDiscoveryOperations(core).ensureGroupRulesLoaded();
+
+      const [formattedRules, rawRules, stats] = setMock.mock.calls[0];
+      expect(rawRules.map((r) => r.id)).toEqual(['r1', 'rBROKEN']);
+      expect(formattedRules.map((r) => [r.id, r.status])).toEqual([
+        ['r1', 'ACTIVE'],
+        ['rBROKEN', 'INVALID'],
+      ]);
+      expect(stats).toEqual({ total: 2, active: 1, inactive: 0, conflicts: 0 });
+      expect(
+        warn.mock.calls.find(
+          ([, message]) => message === 'Dropped malformed group rules before caching',
+        ),
+      ).toBeUndefined();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('drops a rule whose status is outside Okta’s GroupRuleStatus vocabulary', async () => {
     const core = makeCore({
       makeApiRequest: vi.fn().mockResolvedValue({
         success: true,

@@ -13,6 +13,7 @@ export interface UseOrgSnapshotResult<T> {
   lastFullWalkAt: number | null;
   isSyncing: boolean;
   error: string | null;
+  status: number | null;
   sync: (force?: boolean) => Promise<string | null>;
 }
 
@@ -40,6 +41,7 @@ export function useOrgSnapshot<T>(
   const [lastFullWalkAt, setLastFullWalkAt] = useState<number | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<number | null>(null);
 
   const originRef = useRef(origin);
   originRef.current = origin;
@@ -49,6 +51,7 @@ export function useOrgSnapshot<T>(
       setRecords([]);
       setComplete(false);
       setLastFullWalkAt(null);
+      setStatus(null);
       return;
     }
     const [stored, meta] = await Promise.all([
@@ -59,6 +62,7 @@ export function useOrgSnapshot<T>(
     setRecords(stored);
     setComplete(meta.complete);
     setLastFullWalkAt(meta.lastFullWalkAt);
+    setStatus(meta.status);
   }, [collection, origin]);
 
   useEffect(() => {
@@ -97,9 +101,24 @@ export function useOrgSnapshot<T>(
           origin,
           tabId,
           force,
-        })) as { success?: boolean; error?: string } | undefined;
+        })) as
+          | {
+              success?: boolean;
+              error?: string;
+              outcomes?: Array<{ collection: SnapshotCollection; status?: number | null }>;
+            }
+          | undefined;
         if (!response?.success) {
           failure = response?.error || 'Failed to load from Okta';
+        }
+        if (response?.outcomes && originRef.current === origin) {
+          await Promise.all(
+            response.outcomes.map((outcome) =>
+              orgSnapshotStore.patchMeta(outcome.collection, origin, {
+                status: outcome.status ?? null,
+              }),
+            ),
+          );
         }
         await readSnapshot();
       } catch (err) {
@@ -116,5 +135,5 @@ export function useOrgSnapshot<T>(
 
   const rows = useMemo(() => records.map((record) => record.entity), [records]);
 
-  return { rows, records, isReading, complete, lastFullWalkAt, isSyncing, error, sync };
+  return { rows, records, isReading, complete, lastFullWalkAt, isSyncing, error, status, sync };
 }

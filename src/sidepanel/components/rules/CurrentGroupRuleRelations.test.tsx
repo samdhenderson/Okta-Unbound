@@ -153,6 +153,17 @@ describe('CurrentGroupRuleRelations', () => {
     expect(screen.queryByText('Reads Other Group')).not.toBeInTheDocument();
   });
 
+  it('marks an INVALID rule Broken, never Inactive (D-085)', () => {
+    renderPanel({
+      rules: [
+        rule({ id: 'r-broken', name: 'Broken Rule', status: 'INVALID', groupIds: [CURRENT_GROUP] }),
+      ],
+    });
+
+    expect(within(listUnder(ASSIGNS)).getByText('Broken')).toBeInTheDocument();
+    expect(within(listUnder(ASSIGNS)).queryByText(/^Inactive$/)).not.toBeInTheDocument();
+  });
+
   it('jumps to a rule card from either list', async () => {
     const uev = userEvent.setup();
     const { props } = renderPanel({ rules: [assigningRule, referencingRule] });
