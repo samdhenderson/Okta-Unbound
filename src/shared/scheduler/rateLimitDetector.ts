@@ -5,6 +5,11 @@ const log = createLogger('RateLimitDetector');
 
 const API_V1_RESOURCE = /^\/api\/v1\/([^/]+)/;
 
+function parseCount(value: string): number | null {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function bucketOf(endpoint: string): string {
   const path = endpoint.split('?')[0];
   const match = API_V1_RESOURCE.exec(path);
@@ -25,11 +30,27 @@ export class RateLimitDetector {
       return null;
     }
 
+    const parsed = {
+      limit: parseCount(limit),
+      remaining: parseCount(remaining),
+      reset: parseCount(reset),
+    };
+
+    if (parsed.limit === null || parsed.remaining === null || parsed.reset === null) {
+      log.warn('Unreadable rate limit headers; leaving the bucket unobserved:', {
+        endpoint: endpoint.split('?')[0],
+        fields: (Object.keys(parsed) as Array<keyof typeof parsed>).filter(
+          (field) => parsed[field] === null,
+        ),
+      });
+      return null;
+    }
+
     const bucket = bucketOf(endpoint);
     const info: RateLimitInfo = {
-      limit: parseInt(limit, 10),
-      remaining: parseInt(remaining, 10),
-      reset: parseInt(reset, 10),
+      limit: parsed.limit,
+      remaining: parsed.remaining,
+      reset: parsed.reset,
       endpoint,
       bucket,
       timestamp: Date.now(),
