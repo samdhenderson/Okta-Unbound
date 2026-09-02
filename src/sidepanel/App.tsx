@@ -277,7 +277,11 @@ const App: React.FC = () => {
             onReconnect={handleReconnect}
           />
 
-          <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
+          <TabNavigation
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            onOpenCommandPalette={jumpPalette.open}
+          />
 
           <div
             ref={scrollRootRef}

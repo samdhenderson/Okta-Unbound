@@ -25,6 +25,12 @@ vi.mock('./useOktaApi', () => ({
   useOktaApi: () => api,
 }));
 
+const rulesCache = vi.hoisted(() => ({ clear: vi.fn() }));
+
+vi.mock('../../shared/rulesCache', () => ({
+  RulesCache: rulesCache,
+}));
+
 const mockedAuditStore = vi.mocked(auditStore);
 
 const rawRule: OktaGroupRule = {
@@ -61,6 +67,7 @@ async function runMerge() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  rulesCache.clear.mockResolvedValue(undefined);
   api.getRawGroupRule.mockResolvedValue(rawRule);
   api.createGroupRule.mockResolvedValue({
     success: true,
@@ -97,6 +104,59 @@ describe('useRuleConsolidation audit attribution', () => {
     expect(entry.performedBy).toBeNull();
     expect(entry.actorResolution).toBe('unavailable');
     expect(result.current.phase).toBe('done');
+  });
+});
+
+describe('useRuleConsolidation rules-cache invalidation', () => {
+  it('drops the org-wide rules cache once the consolidation lands', async () => {
+    await runMerge();
+
+    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops the cache even when the run aborts after the replacement rule exists', async () => {
+    api.activateGroupRule.mockResolvedValue({ success: false, error: 'Activation failed' });
+
+    const { result } = renderHook(() =>
+      useRuleConsolidation({
+        targetTabId: 1,
+        reload: vi.fn().mockResolvedValue(undefined),
+        onError: vi.fn(),
+      }),
+    );
+    act(() => {
+      result.current.openMerge('r1', cluster, ['g1', 'g2']);
+    });
+    await waitFor(() => expect(result.current.phase).toBe('preview'));
+    await act(async () => {
+      await result.current.execute();
+    });
+
+    expect(result.current.phase).toBe('error');
+    expect(api.deleteGroupRule).not.toHaveBeenCalled();
+    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the cache alone when nothing was written', async () => {
+    api.createGroupRule.mockResolvedValue({ success: false, error: 'Rule name already in use' });
+
+    const { result } = renderHook(() =>
+      useRuleConsolidation({
+        targetTabId: 1,
+        reload: vi.fn().mockResolvedValue(undefined),
+        onError: vi.fn(),
+      }),
+    );
+    act(() => {
+      result.current.openMerge('r1', cluster, ['g1', 'g2']);
+    });
+    await waitFor(() => expect(result.current.phase).toBe('preview'));
+    await act(async () => {
+      await result.current.execute();
+    });
+
+    expect(result.current.phase).toBe('error');
+    expect(rulesCache.clear).not.toHaveBeenCalled();
   });
 });
 

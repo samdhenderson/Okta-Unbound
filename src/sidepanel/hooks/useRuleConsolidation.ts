@@ -6,6 +6,7 @@ import { useOktaApi } from './useOktaApi';
 import { useActorNotice } from './useActorNotice';
 import { logAction } from '../../shared/undoManager';
 import { auditStore } from '../../shared/storage/auditStore';
+import { RulesCache } from '../../shared/rulesCache';
 import {
   buildConsolidatedRulePayload,
   consolidatedRuleName,
@@ -185,6 +186,8 @@ export function useRuleConsolidation({
         setPhase('error');
         return;
       }
+
+      await RulesCache.clear();
 
       if (preview.willActivate) {
         const activated = await activateGroupRule(created.rule.id);

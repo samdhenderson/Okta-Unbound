@@ -78,13 +78,50 @@ describe('RateLimitDetector', () => {
       expect(d.parseHeaders(headers('100', '', String(NOW_SECONDS + 60)), '/x')).toBeNull();
     });
 
-    it('yields NaN fields for malformed numeric headers but still stores them', () => {
+    it('treats malformed numeric headers as unknown and records nothing', () => {
       const d = new RateLimitDetector();
-      const info = d.parseHeaders(headers('abc', 'xyz', 'nope'), '/api/v1/malformed');
-      expect(info).not.toBeNull();
-      expect(Number.isNaN(info!.limit)).toBe(true);
-      expect(Number.isNaN(info!.remaining)).toBe(true);
-      expect(Number.isNaN(info!.reset)).toBe(true);
+      expect(d.parseHeaders(headers('abc', 'xyz', 'nope'), '/api/v1/malformed')).toBeNull();
+
+      expect(d.getForBucket('/api/v1/malformed')).toBeNull();
+      expect(d.getMostRestrictive()).toBeNull();
+      expect(d.getState().bucketLimits).toHaveLength(0);
+      expect(d.isLimitExceeded('/api/v1/malformed')).toBe(false);
+      expect(d.getRecommendedWaitTime()).toBe(0);
+    });
+
+    it('rejects the whole observation when a single field is unreadable', () => {
+      const d = new RateLimitDetector();
+      expect(d.parseHeaders(headers('100', '5', 'nope'), '/api/v1/apps')).toBeNull();
+      expect(
+        d.parseHeaders(headers('abc', '5', String(NOW_SECONDS + 60)), '/api/v1/apps'),
+      ).toBeNull();
+      expect(
+        d.parseHeaders(headers('100', 'xyz', String(NOW_SECONDS + 60)), '/api/v1/apps'),
+      ).toBeNull();
+      expect(d.getState().bucketLimits).toHaveLength(0);
+    });
+
+    it('does not let an unreadable observation mask real pressure in the global backstop', () => {
+      const d = new RateLimitDetector();
+      d.parseHeaders(headers('abc', 'xyz', 'nope'), '/api/v1/malformed');
+      d.parseHeaders(headers('100', '5', String(NOW_SECONDS + 60)), '/api/v1/apps');
+
+      expect(d.getMostRestrictive()?.bucket).toBe('/api/v1/apps');
+      expect(d.isApproachingLimit(10)).toBe(true);
+    });
+
+    it('keeps the last good observation when a later response for the bucket is unreadable', () => {
+      const d = new RateLimitDetector();
+      d.parseHeaders(headers('100', '5', String(NOW_SECONDS + 60)), '/api/v1/apps?limit=200');
+      expect(
+        d.parseHeaders(
+          headers('100', 'xyz', String(NOW_SECONDS + 60)),
+          '/api/v1/apps/0oaFAKE1/groups',
+        ),
+      ).toBeNull();
+
+      expect(d.getForBucket('/api/v1/apps')?.remaining).toBe(5);
+      expect(d.isApproachingLimit(10, 0, '/api/v1/apps')).toBe(true);
     });
 
     it('tracks the most restrictive endpoint across multiple endpoints', () => {
