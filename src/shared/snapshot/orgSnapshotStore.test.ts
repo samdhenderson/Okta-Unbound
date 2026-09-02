@@ -1,64 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { SnapshotRecord, SyncMeta } from './types';
+import type { SyncMeta } from './types';
 
-const { fakeDB, tables, control } = vi.hoisted(() => {
-  const tables = new Map<string, Map<string, unknown>>();
-  const control = { failAll: false };
-
-  const keyOf = (key: unknown): string => (Array.isArray(key) ? key.join('::') : String(key));
-  const table = (name: string): Map<string, unknown> => {
-    if (!tables.has(name)) tables.set(name, new Map());
-    return tables.get(name) as Map<string, unknown>;
-  };
-  const guard = (): void => {
-    if (control.failAll) throw new Error('IndexedDB unavailable');
-  };
-  const primaryKey = (name: string, value: unknown): unknown[] => {
+const { fakeDB, tables, control } = await vi.hoisted(async () => {
+  const { createFakeIdb } = await import('@/test/factories/idb');
+  const primaryKeyOf = (name: string, value: unknown): unknown[] => {
     const row = value as Record<string, string>;
     return name === 'syncMeta' ? [row.origin, row.collection] : [row.origin, row.id];
   };
-
-  const fakeDB = {
-    get: vi.fn(async (name: string, key: unknown) => {
-      guard();
-      return table(name).get(keyOf(key));
-    }),
-    put: vi.fn(async (name: string, value: unknown) => {
-      guard();
-      table(name).set(keyOf(primaryKey(name, value)), value);
-    }),
-    delete: vi.fn(async (name: string, key: unknown) => {
-      guard();
-      table(name).delete(keyOf(key));
-    }),
-    getAllFromIndex: vi.fn(async (name: string, _index: string, origin: string) => {
-      guard();
-      return [...table(name).values()].filter((v) => (v as SnapshotRecord).origin === origin);
-    }),
-    getAllKeysFromIndex: vi.fn(async (name: string, _index: string, origin: string) => {
-      guard();
-      return [...table(name).values()]
-        .filter((v) => (v as SnapshotRecord).origin === origin)
-        .map((v) => primaryKey(name, v));
-    }),
-    transaction: vi.fn((name: string) => {
-      guard();
-      return {
-        store: {
-          put: async (value: unknown) => {
-            guard();
-            table(name).set(keyOf(primaryKey(name, value)), value);
-          },
-          delete: async (key: unknown) => {
-            guard();
-            table(name).delete(keyOf(key));
-          },
-        },
-        done: Promise.resolve(),
-      };
-    }),
-  };
-
+  const { fakeDB: baseDB, tables, control } = createFakeIdb({ primaryKeyOf });
+  const fakeDB = { ...baseDB, transaction: vi.fn(baseDB.transaction) };
   return { fakeDB, tables, control };
 });
 
@@ -221,6 +171,20 @@ describe('sync meta', () => {
     const meta = await orgSnapshotStore.getMeta('groups', ORIGIN);
     expect(meta.cursor).toBe('/api/v1/groups?limit=200&after=abc');
     expect(meta.complete).toBe(false);
+  });
+
+  it('overwrites a failing walk’s status rather than leaving it stale (D-068)', async () => {
+    await orgSnapshotStore.patchMeta('groups', ORIGIN, { complete: false, status: 403 });
+    expect((await orgSnapshotStore.getMeta('groups', ORIGIN)).status).toBe(403);
+
+    await orgSnapshotStore.patchMeta('groups', ORIGIN, {
+      complete: true,
+      lastFullWalkAt: NOW,
+      status: null,
+    });
+    const meta = await orgSnapshotStore.getMeta('groups', ORIGIN);
+    expect(meta.status).toBeNull();
+    expect(meta.complete).toBe(true);
   });
 
   it('scopes meta per (origin, collection)', async () => {

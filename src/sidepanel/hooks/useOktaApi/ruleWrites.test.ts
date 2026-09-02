@@ -1,8 +1,19 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createRuleWriteOperations } from './ruleWrites';
 import type { CoreApi } from './core';
 import type { CreateRulePayload } from '../../../shared/rules/consolidation';
 import { makeFakeCore } from '@/test/factories/coreApi';
+
+const rulesCache = vi.hoisted(() => ({ clear: vi.fn() }));
+
+vi.mock('../../../shared/rulesCache', () => ({
+  RulesCache: rulesCache,
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  rulesCache.clear.mockResolvedValue(undefined);
+});
 
 const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
   makeFakeCore({
@@ -212,5 +223,84 @@ describe('deactivateGroupRule', () => {
     const { deactivateGroupRule } = createRuleWriteOperations(core);
 
     expect(await deactivateGroupRule('0prFAKERULE')).toEqual({ success: false, error: 'boom' });
+  });
+});
+
+describe('rule-write cache invalidation', () => {
+  const coreReturning = (response: unknown) =>
+    makeCore({ makeApiRequest: vi.fn().mockResolvedValue(response) });
+
+  it('drops the org-wide snapshot when a rule is created', async () => {
+    const ops = createRuleWriteOperations(coreReturning({ success: true, data: validRule() }));
+
+    await ops.createGroupRule(createPayload());
+
+    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the snapshot alone when the create is rejected', async () => {
+    const ops = createRuleWriteOperations(
+      coreReturning({ success: false, error: 'Rule name already in use' }),
+    );
+
+    await ops.createGroupRule(createPayload());
+
+    expect(rulesCache.clear).not.toHaveBeenCalled();
+  });
+
+  it('drops the snapshot for a created rule whose response failed validation', async () => {
+    const ops = createRuleWriteOperations(
+      coreReturning({ success: true, data: { id: 'x', name: 'y' } }),
+    );
+
+    const result = await ops.createGroupRule(createPayload());
+
+    expect(result.success).toBe(false);
+    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['deleteGroupRule', (o: ReturnType<typeof createRuleWriteOperations>) => o.deleteGroupRule],
+    ['activateGroupRule', (o: ReturnType<typeof createRuleWriteOperations>) => o.activateGroupRule],
+    [
+      'deactivateGroupRule',
+      (o: ReturnType<typeof createRuleWriteOperations>) => o.deactivateGroupRule,
+    ],
+  ] as const)('drops the org-wide snapshot when %s succeeds', async (_name, pick) => {
+    const ops = createRuleWriteOperations(coreReturning({ success: true }));
+
+    await pick(ops)('0prFAKERULE');
+
+    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['deleteGroupRule', (o: ReturnType<typeof createRuleWriteOperations>) => o.deleteGroupRule],
+    ['activateGroupRule', (o: ReturnType<typeof createRuleWriteOperations>) => o.activateGroupRule],
+    [
+      'deactivateGroupRule',
+      (o: ReturnType<typeof createRuleWriteOperations>) => o.deactivateGroupRule,
+    ],
+  ] as const)('leaves the snapshot alone when %s fails', async (_name, pick) => {
+    const ops = createRuleWriteOperations(coreReturning({ success: false, error: 'boom' }));
+
+    await pick(ops)('0prFAKERULE');
+
+    expect(rulesCache.clear).not.toHaveBeenCalled();
+  });
+
+  it('never invalidates on a read', async () => {
+    const ops = createRuleWriteOperations(coreReturning({ success: true, data: validRule() }));
+
+    await ops.getRawGroupRule('0prFAKERULE');
+
+    expect(rulesCache.clear).not.toHaveBeenCalled();
+  });
+
+  it('still reports a successful write when invalidation itself fails', async () => {
+    rulesCache.clear.mockRejectedValue(new Error('storage unavailable'));
+    const ops = createRuleWriteOperations(coreReturning({ success: true }));
+
+    await expect(ops.activateGroupRule('0prFAKERULE')).resolves.toEqual({ success: true });
   });
 });

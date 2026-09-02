@@ -47,7 +47,21 @@ describe('RulesDuplicatesPanel', () => {
     expect(screen.getByText("user.department == 'eng'")).toBeInTheDocument();
     expect(screen.getByText('Eng West')).toBeInTheDocument();
     expect(screen.getByText('Eng East')).toBeInTheDocument();
-    expect(screen.getByText('Inactive')).toBeInTheDocument();
+    expect(screen.getByText('INACTIVE')).toBeInTheDocument();
+  });
+
+  it('marks a broken rule Broken, not Inactive (D-085)', async () => {
+    const uev = userEvent.setup();
+    const broken: MergeableRuleGroup = {
+      ...cluster,
+      rules: [rawRule('r1', 'Eng West', ['g1']), rawRule('r3', 'Eng Broken', ['g3'], 'INVALID')],
+    };
+    render(<RulesDuplicatesPanel clusters={[broken]} onMerge={vi.fn()} />);
+
+    await uev.click(screen.getByRole('button', { name: /2 rules → 2 target groups/ }));
+
+    expect(screen.getByText('Broken')).toBeInTheDocument();
+    expect(screen.queryByText('INACTIVE')).not.toBeInTheDocument();
   });
 
   it('links to a member rule via onFocusRule', async () => {

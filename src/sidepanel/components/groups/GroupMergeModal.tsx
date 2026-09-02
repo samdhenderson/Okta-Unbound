@@ -3,6 +3,7 @@ import Modal from '../shared/Modal';
 import Button from '../shared/Button';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import AlertMessage, { type AlertMessageData } from '../shared/AlertMessage';
+import Eyebrow from '../shared/Eyebrow';
 import StatCard from '../shared/StatCard';
 import type { GroupSummary } from '../../../shared/types';
 import type { MergePhase, MergeResults } from '../../hooks/useGroupMerge';
@@ -88,9 +89,7 @@ const GroupMergeModal: React.FC<GroupMergeModalProps> = ({
             Members of the other groups are copied into the <strong>survivor</strong>, then those
             groups are emptied. Nothing is deleted — delete the emptied groups in Okta afterward.
           </p>
-          <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
-            Survivor
-          </div>
+          <Eyebrow as="div">Survivor</Eyebrow>
           <div
             className="space-y-(--sp-inline)"
             role="radiogroup"

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { GroupSummary, AuditLogEntry, OktaUser } from '../../shared/types';
+import type { BatchOutcome } from '../../shared/scheduler/runBatch';
 import type { AlertMessageData } from '../components/shared/AlertMessage';
 import { useOktaApi } from './useOktaApi';
 import { useActorNotice } from './useActorNotice';
@@ -44,6 +45,29 @@ function toBulkUserInfo(u: OktaUser) {
   };
 }
 
+class MergeWriteRejectedError extends Error {
+  constructor(message = 'Membership write rejected') {
+    super(message);
+    this.name = 'MergeWriteRejectedError';
+    Object.setPrototypeOf(this, MergeWriteRejectedError.prototype);
+  }
+}
+
+function settledUsers(outcome: BatchOutcome<OktaUser, OktaUser>): OktaUser[] {
+  return outcome.results.filter((r) => r.status === 'fulfilled').map((r) => r.item);
+}
+
+function rejectedByOkta(outcome: BatchOutcome<OktaUser, OktaUser>): number {
+  return outcome.results.filter((r) => r.error instanceof MergeWriteRejectedError).length;
+}
+
+function rethrowFatal(outcome: BatchOutcome<OktaUser, OktaUser>): void {
+  const fatal = outcome.results.find(
+    (r) => r.status === 'rejected' && !(r.error instanceof MergeWriteRejectedError),
+  );
+  if (fatal) throw fatal.error;
+}
+
 export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
   const api = useOktaApi({ targetTabId: targetTabId ?? null });
   const {
@@ -52,8 +76,9 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     getCurrentUser,
     makeApiRequest,
     removeUserFromGroup,
+    runOperation,
   } = api;
-  const { startProgress, updateProgress, completeProgress } = useProgress();
+  const { completeProgress } = useProgress();
   const { actorNotice, noteActor, dismissActorNotice } = useActorNotice();
 
   const [phase, setPhase] = useState<MergePhase>('idle');
@@ -105,74 +130,12 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     setError(null);
 
     const startTime = Date.now();
-    const total = plan.totalCopies + plan.totalRemovals;
-    let done = 0;
     const res: MergeResults = { copied: 0, copyFailed: 0, removed: 0, removeFailed: 0 };
 
     const actor = await getCurrentUser();
     noteActor(actor);
 
-    startProgress('Merging groups', `Copying members into ${plan.survivor.name}…`, total, false);
-
-    try {
-      const copiedUsers: OktaUser[] = [];
-      for (const user of plan.toCopy) {
-        const result = await makeApiRequest(`/api/v1/groups/${plan.survivor.id}/users/${user.id}`, {
-          method: 'PUT',
-          reason: 'Merge groups: copy member into survivor',
-        });
-        if (result.success) {
-          res.copied++;
-          copiedUsers.push(user);
-        } else {
-          res.copyFailed++;
-        }
-        updateProgress(
-          ++done,
-          total,
-          `Copied ${res.copied}/${plan.totalCopies} into ${plan.survivor.name}`,
-        );
-      }
-
-      if (copiedUsers.length > 0) {
-        await logAction(
-          `Merged ${copiedUsers.length} member${copiedUsers.length === 1 ? '' : 's'} into ${plan.survivor.name}`,
-          {
-            type: 'BULK_ADD_USERS_TO_GROUP',
-            users: copiedUsers.map(toBulkUserInfo),
-            groupId: plan.survivor.id,
-            groupName: plan.survivor.name,
-          },
-        );
-      }
-
-      for (const source of plan.sources) {
-        const removedUsers: OktaUser[] = [];
-        for (const user of source.membersToRemove) {
-          const result = await removeUserFromGroup(source.id, source.name, user, true);
-          if (result.success) {
-            res.removed++;
-            removedUsers.push(user);
-          } else {
-            res.removeFailed++;
-          }
-          updateProgress(++done, total, `Emptying ${source.name}…`);
-        }
-
-        if (removedUsers.length > 0) {
-          await logAction(
-            `Emptied ${removedUsers.length} member${removedUsers.length === 1 ? '' : 's'} from ${source.name} (merge into ${plan.survivor.name})`,
-            {
-              type: 'BULK_REMOVE_USERS_FROM_GROUP',
-              users: removedUsers.map(toBulkUserInfo),
-              groupId: source.id,
-              groupName: source.name,
-              operationType: 'custom_status',
-            },
-          );
-        }
-      }
-
+    const finish = (cancelledMessage?: string) => {
       const auditBase = {
         performedBy: actor.kind === 'resolved' ? actor.email : null,
         actorResolution:
@@ -213,7 +176,100 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
       auditStore.logOperation(removeEntry).catch((e) => log.error('audit remove failed', e));
 
       setResults(res);
+      if (cancelledMessage) {
+        setError(cancelledMessage);
+        setPhase('error');
+        return;
+      }
       setPhase('done');
+    };
+
+    try {
+      const copyOutcome = await runOperation<OktaUser, OktaUser>(
+        'Merging groups',
+        plan.toCopy,
+        async (user, _index, planId) => {
+          const result = await makeApiRequest(
+            `/api/v1/groups/${plan.survivor.id}/users/${user.id}`,
+            {
+              method: 'PUT',
+              reason: 'Merge groups: copy member into survivor',
+              planId,
+            },
+          );
+          if (!result.success) throw new MergeWriteRejectedError(result.error);
+          return user;
+        },
+        {
+          stopOnError: (error) => !(error instanceof MergeWriteRejectedError),
+          message: (p) => `Copied ${p.completed}/${p.total} into ${plan.survivor.name}`,
+          plan: { endpoint: '/api/v1/groups', method: 'PUT' },
+        },
+      );
+      const copiedUsers = settledUsers(copyOutcome);
+      res.copied = copiedUsers.length;
+      res.copyFailed = rejectedByOkta(copyOutcome);
+      rethrowFatal(copyOutcome);
+
+      if (copiedUsers.length > 0) {
+        await logAction(
+          `Merged ${copiedUsers.length} member${copiedUsers.length === 1 ? '' : 's'} into ${plan.survivor.name}`,
+          {
+            type: 'BULK_ADD_USERS_TO_GROUP',
+            users: copiedUsers.map(toBulkUserInfo),
+            groupId: plan.survivor.id,
+            groupName: plan.survivor.name,
+          },
+        );
+      }
+
+      if (copyOutcome.cancelled) {
+        finish('Merge cancelled. The source groups were not emptied.');
+        return;
+      }
+
+      for (const source of plan.sources) {
+        const removeOutcome = await runOperation<OktaUser, OktaUser>(
+          'Merging groups',
+          source.membersToRemove,
+          async (user, _index, planId) => {
+            const result = await removeUserFromGroup(source.id, source.name, user, true, planId);
+            if (!result.success) throw new MergeWriteRejectedError(result.error);
+            return user;
+          },
+          {
+            stopOnError: (error) => !(error instanceof MergeWriteRejectedError),
+            message: () => `Emptying ${source.name}…`,
+            plan: { endpoint: '/api/v1/groups', method: 'DELETE' },
+          },
+        );
+        const removedUsers = settledUsers(removeOutcome);
+        res.removed += removedUsers.length;
+        res.removeFailed += rejectedByOkta(removeOutcome);
+        rethrowFatal(removeOutcome);
+
+        if (removedUsers.length > 0) {
+          await logAction(
+            `Emptied ${removedUsers.length} member${removedUsers.length === 1 ? '' : 's'} from ${source.name} (merge into ${plan.survivor.name})`,
+            {
+              type: 'BULK_REMOVE_USERS_FROM_GROUP',
+              users: removedUsers.map(toBulkUserInfo),
+              groupId: source.id,
+              groupName: source.name,
+              operationType: 'custom_status',
+            },
+          );
+        }
+
+        if (removeOutcome.cancelled) {
+          finish(
+            `Merge cancelled. ${source.name} was not fully emptied, and any later source group was left untouched.`,
+          );
+          return;
+        }
+      }
+
+      finish();
     } catch (err) {
       log.error('Merge execution failed:', err);
       setError(err instanceof Error ? err.message : 'Merge failed');
@@ -228,8 +284,7 @@ export function useGroupMerge(targetTabId?: number): UseGroupMergeReturn {
     noteActor,
     makeApiRequest,
     removeUserFromGroup,
-    startProgress,
-    updateProgress,
+    runOperation,
     completeProgress,
   ]);
 

@@ -4,6 +4,14 @@ import { useUserMemberships } from './useUserMemberships';
 import { setEntry, resetEntityCache } from '../cache/entityCache';
 import type { OktaUser } from '../../shared/types';
 
+vi.mock('./getUserGroupsRequest', () => ({
+  getUserGroupsRequest: vi.fn().mockRejectedValue(new Error('boundary validation failed')),
+}));
+const { logError } = vi.hoisted(() => ({ logError: vi.fn() }));
+vi.mock('../../shared/utils/logger', () => ({
+  createLogger: () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: logError }),
+}));
+
 const tabsSendMessage = vi.fn();
 globalThis.chrome = {
   tabs: { sendMessage: tabsSendMessage },
@@ -29,5 +37,25 @@ describe('useUserMemberships cache-hit loading lifecycle', () => {
 
     expect(onLoadingChange).toHaveBeenCalledWith(false);
     expect(tabsSendMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('useUserMemberships load failure logging (D-051)', () => {
+  it('logs a narrowed message, never the raw caught error object', async () => {
+    const { result } = renderHook(() => useUserMemberships({ targetTabId: 1 }));
+
+    await act(async () => {
+      await result.current.loadMemberships(user);
+    });
+
+    expect(logError).toHaveBeenCalledWith(
+      'Membership loading error:',
+      'boundary validation failed',
+    );
+    for (const call of logError.mock.calls) {
+      for (const arg of call) {
+        expect(arg).not.toBeInstanceOf(Error);
+      }
+    }
   });
 });

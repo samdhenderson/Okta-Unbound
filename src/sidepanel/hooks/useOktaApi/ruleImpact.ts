@@ -87,7 +87,8 @@ export function createRuleImpactOperations(
         };
       }
     } catch (error) {
-      log.warn('Failed to fetch group meta for impact preview', { groupId }, error);
+      const message = error instanceof Error ? error.message : 'unknown';
+      log.warn('Failed to fetch group meta for impact preview', { groupId, message });
     }
     return { name: fallbackName };
   };

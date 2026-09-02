@@ -201,6 +201,35 @@ describe('RateLimitDetector', () => {
       expect(d.isApproachingLimit(50)).toBe(true);
       expect(d.isApproachingLimit(30)).toBe(false);
     });
+
+    describe('a non-positive budget is unknown, not spare capacity (D-094)', () => {
+      it('does not report calm for a bucket whose limit is zero', () => {
+        const d = new RateLimitDetector();
+        d.parseHeaders(headers('100', '5', String(NOW_SECONDS + 60)), '/a');
+        d.parseHeaders(headers('0', '0', String(NOW_SECONDS + 60)), '/b');
+        expect(d.isApproachingLimit(10, 0, '/b')).toBe(true);
+      });
+
+      it('does not report calm when the most-restrictive observation has a zero limit', () => {
+        const d = new RateLimitDetector();
+        d.parseHeaders(headers('100', '5', String(NOW_SECONDS + 60)), '/a');
+        d.parseHeaders(headers('0', '0', String(NOW_SECONDS + 60)), '/b');
+        expect(d.isApproachingLimit(10)).toBe(true);
+      });
+
+      it('does not report calm for a positive remaining over a zero limit', () => {
+        const d = new RateLimitDetector();
+        d.parseHeaders(headers('100', '5', String(NOW_SECONDS + 60)), '/a');
+        d.parseHeaders(headers('0', '7', String(NOW_SECONDS + 60)), '/b');
+        expect(d.isApproachingLimit(10, 0, '/b')).toBe(true);
+      });
+
+      it('still declines to judge when no usable observation exists anywhere', () => {
+        const d = new RateLimitDetector();
+        d.parseHeaders(headers('0', '0', String(NOW_SECONDS + 60)), '/b');
+        expect(d.isApproachingLimit(10, 0, '/b')).toBe(false);
+      });
+    });
   });
 
   describe('isLimitExceeded', () => {

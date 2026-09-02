@@ -261,7 +261,7 @@ describe('makeApiRequest response shapes', () => {
     return response;
   }
 
-  it('200 JSON → success with data, lowercase headers and status', async () => {
+  it('200 JSON → success with data, lowercase allow-listed headers and status', async () => {
     fetchMock.mockResolvedValue(
       res({ hello: 'world' }, { headers: { 'X-Rate-Limit-Remaining': '99' } }),
     );
@@ -271,10 +271,7 @@ describe('makeApiRequest response shapes', () => {
     expect(result).toEqual({
       success: true,
       data: { hello: 'world' },
-      headers: expect.objectContaining({
-        'content-type': 'application/json',
-        'x-rate-limit-remaining': '99',
-      }),
+      headers: { 'x-rate-limit-remaining': '99' },
       status: 200,
     });
     expect(Object.keys(result.headers!)).toEqual(
@@ -292,7 +289,7 @@ describe('makeApiRequest response shapes', () => {
     expect(result).toEqual({
       success: true,
       data: null,
-      headers: expect.objectContaining({ 'content-type': 'text/html' }),
+      headers: {},
       status: 200,
     });
     expect(jsonSpy).not.toHaveBeenCalled();
@@ -767,9 +764,9 @@ describe('getAppInfo', () => {
     expect(fetchedEndpoints()).toEqual([]);
   });
 
-  it('falls back to the API name, then label, then "Unknown" (no zod validation here)', async () => {
+  it('falls back to the API name, then label, then "Unknown" (payload zod-validated)', async () => {
     setPageUrl(`/admin/app/${APP_ID}`);
-    routeFetch([[`/api/v1/apps/${APP_ID}`, () => res({ label: 'Only Label' })]]);
+    routeFetch([[`/api/v1/apps/${APP_ID}`, () => res({ id: APP_ID, label: 'Only Label' })]]);
 
     await expect(send({ action: 'getAppInfo' }).response).resolves.toEqual({
       success: true,
@@ -778,13 +775,35 @@ describe('getAppInfo', () => {
     expect(fetchedEndpoints()).toEqual([`/api/v1/apps/${APP_ID}`]);
   });
 
-  it('API success with an empty payload → appName "Unknown"', async () => {
+  it('API success with a valid but nameless payload → appName "Unknown"', async () => {
     setPageUrl(`/admin/app/${APP_ID}`);
-    routeFetch([[`/api/v1/apps/${APP_ID}`, () => res({ unrelated: 1 })]]);
+    routeFetch([[`/api/v1/apps/${APP_ID}`, () => res({ id: APP_ID, unrelated: 1 })]]);
 
     await expect(send({ action: 'getAppInfo' }).response).resolves.toEqual({
       success: true,
       data: { appId: APP_ID, appName: 'Unknown', appLabel: undefined },
+    });
+  });
+
+  it('a payload that fails validation degrades to "Unknown" instead of being read raw (D-062)', async () => {
+    setPageUrl(`/admin/app/${APP_ID}`);
+    routeFetch([[`/api/v1/apps/${APP_ID}`, () => res({ label: 'Only Label' })]]);
+
+    await expect(send({ action: 'getAppInfo' }).response).resolves.toEqual({
+      success: true,
+      data: { appId: APP_ID, appName: 'Unknown', appLabel: undefined },
+    });
+  });
+
+  it('degrades one unexpected identity field without losing the rest of the payload', async () => {
+    setPageUrl(`/admin/app/${APP_ID}`);
+    routeFetch([
+      [`/api/v1/apps/${APP_ID}`, () => res({ id: APP_ID, name: 123, label: 'Real Label' })],
+    ]);
+
+    await expect(send({ action: 'getAppInfo' }).response).resolves.toEqual({
+      success: true,
+      data: { appId: APP_ID, appName: 'Real Label', appLabel: 'Real Label' },
     });
   });
 
@@ -808,7 +827,7 @@ describe('getAppInfo', () => {
   it('accepts any segment >= 18 chars even without the 0oa prefix', async () => {
     const loose = 'abcdefghijklmnopqrstuv';
     setPageUrl(`/admin/apps/${loose}`);
-    routeFetch([[`/api/v1/apps/${loose}`, () => res({ name: 'Loose' })]]);
+    routeFetch([[`/api/v1/apps/${loose}`, () => res({ id: loose, name: 'Loose' })]]);
 
     await expect(send({ action: 'getAppInfo' }).response).resolves.toMatchObject({
       data: { appId: loose, appName: 'Loose' },

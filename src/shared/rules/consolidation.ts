@@ -9,10 +9,10 @@ export interface CreateRulePayload {
 
 export const CONSOLIDATED_SUFFIX = ' (consolidated)';
 
-const MAX_RULE_NAME = 50;
+export const MAX_RULE_NAME_LENGTH = 50;
 
 export function consolidatedRuleName(baseName: string): string {
-  const room = MAX_RULE_NAME - CONSOLIDATED_SUFFIX.length;
+  const room = MAX_RULE_NAME_LENGTH - CONSOLIDATED_SUFFIX.length;
   const base = baseName.length > room ? baseName.slice(0, room) : baseName;
   return `${base}${CONSOLIDATED_SUFFIX}`;
 }

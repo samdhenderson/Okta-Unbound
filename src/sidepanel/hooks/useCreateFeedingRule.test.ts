@@ -10,13 +10,8 @@ vi.mock('./useOktaApi', () => ({
   useOktaApi: () => api,
 }));
 
-const rulesCache = vi.hoisted(() => ({ clear: vi.fn() }));
-
-vi.mock('../../shared/rulesCache', () => ({
-  RulesCache: rulesCache,
-}));
-
-import { useCreateFeedingRule, MAX_RULE_NAME_LENGTH } from './useCreateFeedingRule';
+import { useCreateFeedingRule } from './useCreateFeedingRule';
+import { MAX_RULE_NAME_LENGTH } from '../../shared/rules/consolidation';
 
 const group: GroupSummary = {
   id: '00gFAKEGROUP',
@@ -47,7 +42,6 @@ function draft(
 describe('useCreateFeedingRule', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    rulesCache.clear.mockResolvedValue(undefined);
     api.createGroupRule.mockResolvedValue({
       success: true,
       rule: { id: '0prFAKE1', name: 'Engineering intake', status: 'INACTIVE' },
@@ -88,17 +82,6 @@ describe('useCreateFeedingRule', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('drops the org-wide rules cache once the write lands', async () => {
-    const { result } = renderCreateRule();
-    draft(result);
-
-    await act(async () => {
-      await result.current.confirm();
-    });
-
-    expect(rulesCache.clear).toHaveBeenCalledTimes(1);
-  });
-
   it('keeps the draft and reports the message when Okta rejects the create', async () => {
     api.createGroupRule.mockResolvedValue({ success: false, error: 'Rule name already in use' });
     const { result } = renderCreateRule();
@@ -111,7 +94,6 @@ describe('useCreateFeedingRule', () => {
     expect(result.current.error).toBe('Rule name already in use');
     expect(result.current.createdRuleName).toBeNull();
     expect(result.current.name).toBe('Engineering intake');
-    expect(rulesCache.clear).not.toHaveBeenCalled();
   });
 
   it('reports a thrown transport failure rather than leaving the confirm spinning', async () => {

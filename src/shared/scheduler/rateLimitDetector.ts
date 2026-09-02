@@ -10,6 +10,12 @@ function parseCount(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function percentRemaining(info: RateLimitInfo, inFlightCount: number = 0): number | null {
+  if (!Number.isFinite(info.limit) || info.limit <= 0) return null;
+  const effectiveRemaining = Math.max(0, info.remaining - inFlightCount);
+  return (effectiveRemaining / info.limit) * 100;
+}
+
 export function bucketOf(endpoint: string): string {
   const path = endpoint.split('?')[0];
   const match = API_V1_RESOURCE.exec(path);
@@ -101,21 +107,41 @@ export class RateLimitDetector {
     const info = bucket === undefined ? this.getMostRestrictive() : this.getForBucket(bucket);
     if (!info) return false;
 
-    const effectiveRemaining = Math.max(0, info.remaining - inFlightCount);
-    const percentRemaining = (effectiveRemaining / info.limit) * 100;
-    const approaching = percentRemaining <= thresholdPercent;
+    let judged = info;
+    let percent = percentRemaining(info, inFlightCount);
+    if (percent === null) {
+      const fallback = this.mostRestrictiveUsable(info.bucket);
+      if (!fallback) return false;
+      judged = fallback;
+      percent = percentRemaining(fallback, inFlightCount);
+      if (percent === null) return false;
+    }
+
+    const approaching = percent <= thresholdPercent;
 
     if (approaching) {
       log.warn('Approaching rate limit:', {
-        bucket: info.bucket,
-        remaining: info.remaining,
-        limit: info.limit,
-        percentRemaining: percentRemaining.toFixed(1) + '%',
-        resetIn: this.getSecondsUntilReset(info),
+        bucket: judged.bucket,
+        askedAbout: info.bucket,
+        remaining: judged.remaining,
+        limit: judged.limit,
+        percentRemaining: percent.toFixed(1) + '%',
+        resetIn: this.getSecondsUntilReset(judged),
       });
     }
 
     return approaching;
+  }
+
+  private mostRestrictiveUsable(exceptBucket: string): RateLimitInfo | null {
+    let best: RateLimitInfo | null = null;
+    for (const bucket of [...this.limits.keys()]) {
+      if (bucket === exceptBucket) continue;
+      const info = this.getForBucket(bucket);
+      if (!info || percentRemaining(info) === null) continue;
+      if (!best || info.remaining < best.remaining) best = info;
+    }
+    return best;
   }
 
   isLimitExceeded(bucket?: string): boolean {

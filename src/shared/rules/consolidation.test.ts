@@ -6,6 +6,7 @@ import {
   normalizeExpression,
   findMergeableRuleGroups,
   CONSOLIDATED_SUFFIX,
+  MAX_RULE_NAME_LENGTH,
 } from './consolidation';
 import type { OktaGroupRule } from '../types';
 
@@ -23,6 +24,12 @@ function rule(over: Partial<OktaGroupRule> = {}): OktaGroupRule {
   };
 }
 
+describe('MAX_RULE_NAME_LENGTH', () => {
+  it("is Okta's 50-character group-rule name cap", () => {
+    expect(MAX_RULE_NAME_LENGTH).toBe(50);
+  });
+});
+
 describe('consolidatedRuleName', () => {
   it('appends the suffix', () => {
     expect(consolidatedRuleName('Eng')).toBe(`Eng${CONSOLIDATED_SUFFIX}`);
@@ -32,6 +39,7 @@ describe('consolidatedRuleName', () => {
     const long = 'x'.repeat(60);
     const name = consolidatedRuleName(long);
     expect(name.length).toBeLessThanOrEqual(50);
+    expect(name.length).toBeLessThanOrEqual(MAX_RULE_NAME_LENGTH);
     expect(name.endsWith(CONSOLIDATED_SUFFIX)).toBe(true);
   });
 });

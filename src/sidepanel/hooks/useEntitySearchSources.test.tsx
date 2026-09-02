@@ -149,6 +149,20 @@ describe('useEntitySearchSources', () => {
       api.getAppById.mockResolvedValueOnce({ kind: 'session-expired' } as never);
       await expect(result.current.fetchers.app!('0oaFAKE1')).rejects.toThrow(/session has expired/);
     });
+    it('reports an INVALID rule as broken, not as active (D-085)', async () => {
+      const { result } = renderSources({});
+
+      api.getRawGroupRule.mockResolvedValueOnce({
+        id: '0prFAKE7',
+        name: 'Feeds Contractors',
+        status: 'INVALID',
+      } as never);
+
+      await expect(result.current.fetchers.rule!('0prFAKE7')).resolves.toMatchObject({
+        kind: 'rule',
+        secondary: 'Broken',
+      });
+    });
   });
 
   describe('mapping', () => {

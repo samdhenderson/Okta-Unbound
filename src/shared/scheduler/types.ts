@@ -60,6 +60,7 @@ export interface SchedulerState {
   buckets: BucketState[];
   plans: PlanSummary[];
   minRemainingThresholdPercent: number;
+  expiredSessionTabIds?: number[];
 }
 
 export interface RequestSuccess {
@@ -68,7 +69,6 @@ export interface RequestSuccess {
   data?: any;
   headers?: Record<string, string>;
   status?: number;
-  fromCache?: boolean;
 }
 
 export interface RequestFailure {

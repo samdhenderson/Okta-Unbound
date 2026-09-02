@@ -59,13 +59,40 @@ export const Default: Story = {};
 export const Expanded: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Expand' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Expand Salesforce' }));
     await waitFor(() =>
       expect(
-        canvas.getByRole('button', { name: 'Copy application id for Salesforce' }),
+        canvas.getByRole('button', {
+          name: `Copy application id for Salesforce (${salesforce.id})`,
+        }),
       ).toBeInTheDocument(),
     );
     await waitFor(() => expect(canvas.getByText('128 users')).toBeInTheDocument());
+  },
+};
+
+export const DuplicateLabelsStayDistinguishable: Story = {
+  render: (args) => (
+    <div className="space-y-2">
+      <AppListItem {...args} app={{ ...salesforce, id: '0oaFAKE0001' }} />
+      <AppListItem {...args} app={{ ...salesforce, id: '0oaFAKE0099' }} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggles = canvas.getAllByRole('button', { name: 'Expand Salesforce' });
+    expect(toggles).toHaveLength(2);
+    await userEvent.click(toggles[0]);
+    await userEvent.click(toggles[1]);
+
+    await waitFor(() =>
+      expect(
+        canvas.getByRole('button', { name: 'Copy application id for Salesforce (0oaFAKE0001)' }),
+      ).toBeInTheDocument(),
+    );
+    await expect(
+      canvas.getByRole('button', { name: 'Copy application id for Salesforce (0oaFAKE0099)' }),
+    ).toBeInTheDocument();
   },
 };
 

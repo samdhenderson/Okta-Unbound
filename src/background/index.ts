@@ -282,6 +282,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               mode: outcome.mode,
               complete: outcome.complete,
               written: outcome.written,
+              status: outcome.status ?? null,
             })),
           });
         })

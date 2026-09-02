@@ -29,3 +29,5 @@ export const cacheKeys = {
 
   mfaScan: (groupId: string): EntityKey => ['mfaScan', groupId],
 } as const;
+
+export const RULE_INVENTORY_KEY = 'groupRuleInventory';

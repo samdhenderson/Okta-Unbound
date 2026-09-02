@@ -1,8 +1,8 @@
-import type { OktaGroupRule, OktaUser, GroupType } from '../types';
+import type { OktaGroupRule, OktaUser, GroupType, GroupRuleStatus } from '../types';
 
 export interface ImpactRule {
   id: string;
-  status: 'ACTIVE' | 'INACTIVE';
+  status: GroupRuleStatus;
   targetGroupIds: string[];
   excludedUserIds: string[];
 }
@@ -73,6 +73,7 @@ export interface RuleImpactSummary {
   targetGroups: TargetGroupImpact[];
   distinctMemberCount: number;
   totalHeldSolely: number;
+  emptyRuleInventory?: boolean;
 }
 
 export function summarizeRuleImpact(
@@ -105,5 +106,6 @@ export function summarizeRuleImpact(
     targetGroups,
     distinctMemberCount: distinctMembers.size,
     totalHeldSolely: distinctHeldSolely.size,
+    emptyRuleInventory: rules.length === 0,
   };
 }

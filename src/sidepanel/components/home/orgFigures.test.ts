@@ -96,6 +96,38 @@ describe('buildFigure', () => {
     expect(figure.note).not.toMatch(/403|permission|admin/i);
   });
 
+  it('names the permission problem when the failure status says so (D-068)', () => {
+    const figure = buildFigure(
+      'rules',
+      'Rules',
+      'bolt',
+      source({
+        complete: false,
+        lastFullWalkAt: null,
+        count: 0,
+        error: 'Forbidden',
+        status: 403,
+      }),
+    );
+    expect(figure.note).toBe('You are not allowed to read rules.');
+  });
+
+  it('does not claim a permission problem for a non-403/401 status', () => {
+    const figure = buildFigure(
+      'rules',
+      'Rules',
+      'bolt',
+      source({
+        complete: false,
+        lastFullWalkAt: null,
+        count: 0,
+        error: 'Too Many Requests',
+        status: 429,
+      }),
+    );
+    expect(figure.note).toBe('The last read of rules did not finish.');
+  });
+
   it('counts a subset when one is passed, keeping the source collection’s status', () => {
     const figure = buildFigure('paused', 'Rules paused', 'pause', source({ count: 40 }), 3);
     expect(figure).toMatchObject({ status: 'ok', value: 3 });

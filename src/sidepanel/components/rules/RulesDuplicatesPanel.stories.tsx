@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import RulesDuplicatesPanel from './RulesDuplicatesPanel';
 import type { MergeableRuleGroup } from '../../../shared/rules/consolidation';
 
@@ -94,6 +94,30 @@ export const SingleCluster: Story = {
 
 export const WithoutFocusLink: Story = {
   args: { onFocusRule: undefined },
+};
+
+export const BrokenMemberRule: Story = {
+  args: {
+    clusters: [
+      {
+        ...clusters[0],
+        rules: [
+          clusters[0].rules[0],
+          {
+            ...clusters[0].rules[1],
+            id: 'rul5',
+            name: 'Engineering Contractors',
+            status: 'INVALID',
+          },
+        ],
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /2 rules/ }));
+    await expect(canvas.getByText('Broken')).toBeInTheDocument();
+  },
 };
 
 export const Empty: Story = {

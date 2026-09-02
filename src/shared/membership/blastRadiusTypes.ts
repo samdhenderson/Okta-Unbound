@@ -1,5 +1,5 @@
 import type { RuleUnevaluableReason } from '../ruleEvaluator';
-import type { GroupMembership, MembershipRule, OktaUser } from '../types';
+import type { GroupMembership, GroupRuleStatus, MembershipRule, OktaUser } from '../types';
 import type { MembershipBucket } from '../../sidepanel/components/users/membershipVerdict';
 
 export type RuleInventoryState =
@@ -29,6 +29,7 @@ export interface RuleEffect {
   readonly targetGroupNames: readonly string[];
   readonly touchedAttributes: readonly string[];
   readonly active: boolean;
+  readonly status?: GroupRuleStatus;
 }
 
 export type GroupEffectKind = 'likely-added' | 'likely-removed' | 'not-predicted';

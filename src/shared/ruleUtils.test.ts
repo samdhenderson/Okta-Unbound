@@ -7,6 +7,8 @@ import {
   formatRuleForDisplay,
   timeAgo,
   filterRules,
+  expressionText,
+  ruleStatusBadge,
 } from './ruleUtils';
 import type { OktaGroupRule, FormattedRule } from './types';
 
@@ -964,5 +966,62 @@ describe('ruleUtils', () => {
       const filtered = filterRules(sampleRules, 'depart');
       expect(filtered.length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('expressionText (D-055 / D-066)', () => {
+  const withExpression = (value: unknown): OktaGroupRule =>
+    ({
+      id: '0prFAKE000000000001',
+      name: 'Rule',
+      status: 'ACTIVE',
+      type: 'group_rule',
+      created: '2024-01-01T00:00:00Z',
+      lastUpdated: '2024-01-01T00:00:00Z',
+      conditions: { expression: { value, type: 'urn:okta:expression:1.0' } },
+    }) as unknown as OktaGroupRule;
+
+  it('returns the expression when it is a string', () => {
+    expect(expressionText(withExpression('user.department == "Eng"'))).toBe(
+      'user.department == "Eng"',
+    );
+  });
+
+  it.each([[42], [null], [{ value: 'x' }], [['a']], [true]])(
+    'degrades a non-string expression (%s) to "" instead of throwing',
+    (value) => {
+      expect(expressionText(withExpression(value))).toBe('');
+    },
+  );
+
+  it('returns "" when the rule has no conditions at all', () => {
+    expect(
+      expressionText({
+        id: '0prFAKE000000000002',
+        name: 'Rule',
+        status: 'ACTIVE',
+      } as unknown as OktaGroupRule),
+    ).toBe('');
+  });
+});
+
+describe('ruleStatusBadge (D-085)', () => {
+  it('marks an ACTIVE rule as in force', () => {
+    expect(ruleStatusBadge('ACTIVE')).toMatchObject({ text: 'ACTIVE', variant: 'success' });
+  });
+
+  it('marks an INACTIVE rule neutrally — a pause is not a failure', () => {
+    expect(ruleStatusBadge('INACTIVE')).toMatchObject({ text: 'INACTIVE', variant: 'neutral' });
+  });
+
+  it('marks an INVALID rule as Broken, in danger', () => {
+    expect(ruleStatusBadge('INVALID')).toMatchObject({ text: 'Broken', variant: 'danger' });
+  });
+
+  it('gives every status a distinct label, treatment and explanation', () => {
+    const marks = (['ACTIVE', 'INACTIVE', 'INVALID'] as const).map(ruleStatusBadge);
+    expect(new Set(marks.map((m) => m.text)).size).toBe(3);
+    expect(new Set(marks.map((m) => m.variant)).size).toBe(3);
+    expect(new Set(marks.map((m) => m.title)).size).toBe(3);
   });
 });

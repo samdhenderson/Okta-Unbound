@@ -9,7 +9,12 @@ function member(id: string, first: string): OktaUser {
   return {
     id,
     status: 'ACTIVE',
-    profile: { login: `${id}@x.io`, email: `${id}@x.io`, firstName: first, lastName: 'U' },
+    profile: {
+      login: `${id}@example.com`,
+      email: `${id}@example.com`,
+      firstName: first,
+      lastName: 'U',
+    },
   };
 }
 
@@ -109,6 +114,7 @@ describe('RuleImpactModal', () => {
       />,
     );
     expect(screen.getByText('Failed to fetch group rules')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to fetch group rules');
   });
 
   it('deep-links a target group to the Groups tab when navigation is wired (B → A2)', async () => {

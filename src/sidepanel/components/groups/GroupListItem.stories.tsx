@@ -217,11 +217,12 @@ export const Selected: Story = {
 
 export const Expanded: Story = {
   args: { group: appGroup },
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Expand' }));
+    const { name } = args.group;
+    await userEvent.click(canvas.getByRole('button', { name: `Expand ${name}` }));
     await waitFor(() =>
-      expect(canvas.getByRole('button', { name: 'Collapse' })).toHaveAttribute(
+      expect(canvas.getByRole('button', { name: `Collapse ${name}` })).toHaveAttribute(
         'aria-expanded',
         'true',
       ),

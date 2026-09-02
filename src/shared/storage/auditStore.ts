@@ -1,6 +1,7 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { createLogger } from '../utils/logger';
 import { escapeCSV } from '../utils/csvUtils';
+import { parsePersistedAuditRows } from './auditSchema';
 import type {
   AuditLogEntry,
   PersistedAuditLogEntry,
@@ -112,6 +113,8 @@ class AuditStore {
           : await db.getAll(STORE_NAME);
       }
 
+      results = parsePersistedAuditRows(results, 'getHistory');
+
       results = results.filter((entry) => {
         if (filters.groupId && entry.groupId !== filters.groupId) return false;
         if (filters.action && entry.action !== filters.action) return false;
@@ -201,7 +204,7 @@ class AuditStore {
   async getStats(): Promise<AuditStats> {
     try {
       const db = await this.getDB();
-      const allEntries = await db.getAll(STORE_NAME);
+      const allEntries = parsePersistedAuditRows(await db.getAll(STORE_NAME), 'getStats');
 
       const totalOperations = allEntries.length;
       const operationsByType: Record<string, number> = {};

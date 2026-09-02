@@ -86,6 +86,15 @@ export const Inactive: Story = {
   },
 };
 
+export const Broken: Story = {
+  args: { rule: { ...baseRule, status: 'INVALID' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Broken')).toBeInTheDocument();
+    await expect(canvas.queryByText('INACTIVE')).not.toBeInTheDocument();
+  },
+};
+
 export const AffectsCurrentGroup: Story = {
   args: { rule: { ...baseRule, affectsCurrentGroup: true } },
 };

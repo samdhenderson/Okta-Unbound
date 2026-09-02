@@ -25,6 +25,7 @@ export interface SyncMeta {
   walkStartedAt: number | null;
   deltaSupported: boolean | null;
   complete: boolean;
+  status: number | null;
   completedShards: string[];
 }
 

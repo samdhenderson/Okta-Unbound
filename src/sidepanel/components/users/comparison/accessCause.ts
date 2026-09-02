@@ -6,6 +6,7 @@ import {
 } from '../../../../shared/rules/explainExpression';
 import type { RuleGroupContext } from '../../../../shared/ruleEvaluator';
 import { groupContextOf } from '../../../../shared/membership/groupContext';
+import { conditionExpressionOf } from '../../../../shared/membership/ruleExpression';
 import { isDeducedAttribution } from '../../../../shared/utils/membershipAnalysis';
 import type { GroupMembership, MembershipRule, OktaUser } from '../../../../shared/types';
 
@@ -50,10 +51,6 @@ export function classifyAccessCauses(input: AccessCauseInput): AccessCause[] {
   return onlyCompared.map((membership) =>
     classifyOne(membership, contextUser, rules, groupContext),
   );
-}
-
-function conditionExpressionOf(rule: MembershipRule): string {
-  return rule.conditionExpression || rule.conditions?.expression?.value || '';
 }
 
 function rulesTargeting(rules: readonly MembershipRule[], groupId: string): MembershipRule[] {

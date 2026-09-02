@@ -36,8 +36,14 @@ export function createSchedulerPageRequest(scheduler: ApiScheduler, tabId: numbe
     try {
       const result = await scheduler.scheduleRequest(url, 'GET', undefined, tabId, 'low', reason);
       return result.success
-        ? { success: true, data: result.data, headers: result.headers }
-        : { success: false, data: result.data, headers: result.headers, error: result.error };
+        ? { success: true, data: result.data, headers: result.headers, status: result.status }
+        : {
+            success: false,
+            data: result.data,
+            headers: result.headers,
+            error: result.error,
+            status: result.status,
+          };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Request failed' };
     }

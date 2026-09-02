@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useId, useRef, memo } from 'react';
 import type { FormattedRule } from '../../shared/types';
+import { ruleStatusBadge } from '../../shared/ruleUtils';
 import { Badge, ListRow, StretchedButton } from './shared';
 import Icon from './shared/Icon';
 
@@ -49,6 +50,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
     const opensInRulesTab = !onOpenRule && Boolean(onOpenInRulesTab);
     const hasConflicts = Boolean(rule.conflicts && rule.conflicts.length > 0);
     const missingTargets = rule.missingGroupIds?.length ?? 0;
+    const statusBadge = ruleStatusBadge(rule.status);
 
     return (
       <ListRow
@@ -75,7 +77,9 @@ const RuleCard: React.FC<RuleCardProps> = memo(
             <h3 id={nameId} className="text-sm font-semibold text-neutral-900">
               {rule.name}
             </h3>
-            <Badge variant={rule.status === 'ACTIVE' ? 'success' : 'neutral'}>{rule.status}</Badge>
+            <Badge variant={statusBadge.variant} title={statusBadge.title}>
+              {statusBadge.text}
+            </Badge>
             {rule.affectsCurrentGroup && (
               <Badge variant="primary" solid>
                 Current Group

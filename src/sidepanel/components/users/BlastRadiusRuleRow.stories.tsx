@@ -118,13 +118,14 @@ export const Undetermined: Story = {
   },
 };
 
-export const InactiveRule: Story = {
+export const NotInForceRule: Story = {
   args: {
     effect: effect({
       ruleId: '0prFAKErule00004',
       ruleName: 'Legacy intern auto-add',
       transition: 'stops-matching',
       active: false,
+      status: 'INACTIVE',
       expression: 'user.title == "Intern"',
       targetGroupIds: ['00gFAKE00000000000004'],
       targetGroupNames: ['Legacy-Interns'],
@@ -133,7 +134,31 @@ export const InactiveRule: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('Inactive')).toBeInTheDocument();
+    await expect(canvas.getByText('Not in force')).toBeInTheDocument();
+    await expect(canvas.queryByText(/INACTIVE|Inactive/)).toBeNull();
+    await expect(canvas.queryByText('Broken')).toBeNull();
+  },
+};
+
+export const BrokenRule: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00009',
+      ruleName: 'Contractors — deleted group reference',
+      transition: 'stops-matching',
+      active: false,
+      status: 'INVALID',
+      expression: 'isMemberOfGroup("00gDELETEDFAKE00001")',
+      targetGroupIds: ['00gFAKE00000000000004'],
+      targetGroupNames: ['Legacy-Interns'],
+      touchedAttributes: [],
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Broken')).toBeInTheDocument();
+    await expect(canvas.queryByText('Not in force')).toBeNull();
+    await expect(canvas.queryByText(/INACTIVE|Inactive/)).toBeNull();
   },
 };
 

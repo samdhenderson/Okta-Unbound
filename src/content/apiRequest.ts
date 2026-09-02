@@ -6,6 +6,23 @@ const log = createLogger('Content');
 
 const ALLOWED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
+const FORWARDED_RESPONSE_HEADERS = [
+  'x-rate-limit-limit',
+  'x-rate-limit-remaining',
+  'x-rate-limit-reset',
+  'link',
+  'x-total-count',
+] as const;
+
+function collectForwardedHeaders(source: Response['headers']): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const name of FORWARDED_RESPONSE_HEADERS) {
+    const value = source.get(name);
+    if (value !== null) headers[name] = value;
+  }
+  return headers;
+}
+
 function failure(error: string, status: number): ApiResponse {
   return { success: false, error, status };
 }
@@ -83,10 +100,7 @@ export async function handleMakeApiRequest(
       ok: response.ok,
     });
 
-    const headers: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      headers[key] = value;
-    });
+    const headers = collectForwardedHeaders(response.headers);
 
     if (normalizedMethod === 'DELETE' && response.ok) {
       return {

@@ -5,7 +5,8 @@ import { getOrFetch } from '../cache/entityCache';
 import { AUTH_POLICY_TYPE, POLICIES_CACHE_KEY } from './usePoliciesData';
 import { filterPolicies } from '../components/policies/policyFilters';
 import type { JumpKind, JumpResult } from './useJumpResolver';
-import type { OrgEntityIndex } from './useOrgEntityIndex';
+import { ruleSearchSecondary, type OrgEntityIndex } from './useOrgEntityIndex';
+import type { GroupRuleStatus } from '../../shared/types';
 import type { OktaIdKind } from '../../shared/utils/oktaId';
 import type { OktaPolicyListItem } from '../../shared/schemas/okta';
 import type { OktaPolicyType } from './useOktaApi/policyOperations';
@@ -41,7 +42,9 @@ export interface EntitySearchApi {
     | { kind: 'session-expired' }
     | { kind: 'failed'; status: number }
   >;
-  getRawGroupRule: (id: string) => Promise<{ id: string; name?: string; status?: string } | null>;
+  getRawGroupRule: (
+    id: string,
+  ) => Promise<{ id: string; name?: string; status: GroupRuleStatus } | null>;
 }
 
 export interface UseEntitySearchSourcesOptions {
@@ -183,7 +186,7 @@ export function useEntitySearchSources({
             kind: 'rule',
             id: rule.id,
             name: rule.name || rule.id,
-            secondary: rule.status === 'INACTIVE' ? 'Paused' : 'Active',
+            secondary: ruleSearchSecondary(rule.status),
           }
         : null;
     },

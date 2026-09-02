@@ -19,7 +19,7 @@ import RulesListPanel from './rules/RulesListPanel';
 import RulesDuplicatesPanel from './rules/RulesDuplicatesPanel';
 import CurrentGroupRuleRelations from './rules/CurrentGroupRuleRelations';
 import RuleConsolidationModal from './RuleConsolidationModal';
-import type { FormattedRule, OktaGroupRule } from '../../shared/types';
+import type { FormattedRule, GroupRuleStatus, OktaGroupRule } from '../../shared/types';
 import { filterRules } from '../../shared/ruleUtils';
 import { findMergeableRuleGroups, type MergeableRuleGroup } from '../../shared/rules/consolidation';
 import { sortRules, type RuleSortMode } from '../../shared/rules/similarity';
@@ -55,6 +55,12 @@ interface RulesTabProps {
   isActive?: boolean;
   scrollRootRef?: React.RefObject<HTMLElement | null>;
 }
+
+const IN_FORCE: Record<GroupRuleStatus, boolean> = {
+  ACTIVE: true,
+  INACTIVE: false,
+  INVALID: false,
+};
 
 const RulesTab: React.FC<RulesTabProps> = ({
   targetTabId,
@@ -234,13 +240,20 @@ const RulesTab: React.FC<RulesTabProps> = ({
     groupNames: rule.groupNames,
   });
 
-  const handlePreviewImpact = (rule: FormattedRule) =>
-    impact.open(toRuleImpactInput(rule), 'preview');
+  const handlePreviewImpact = useCallback(
+    (rule: FormattedRule) => impact.open(toRuleImpactInput(rule), 'preview'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see the note above.
+    [impact.open],
+  );
 
-  const handleRequestDeactivate = (ruleId: string) => {
-    const rule = rules.find((r) => r.id === ruleId);
-    if (rule) impact.open(toRuleImpactInput(rule), 'deactivate');
-  };
+  const handleRequestDeactivate = useCallback(
+    (ruleId: string) => {
+      const rule = rules.find((r) => r.id === ruleId);
+      if (rule) impact.open(toRuleImpactInput(rule), 'deactivate');
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rules, impact.open],
+  );
 
   const handleConfirmDeactivate = () => {
     const ruleId = impact.rule?.id;
@@ -269,10 +282,10 @@ const RulesTab: React.FC<RulesTabProps> = ({
     let result = filterRules(scopedRules, searchQuery);
     switch (activeFilter) {
       case 'active':
-        result = result.filter((r) => r.status === 'ACTIVE');
+        result = result.filter((r) => IN_FORCE[r.status]);
         break;
       case 'paused':
-        result = result.filter((r) => r.status === 'INACTIVE');
+        result = result.filter((r) => !IN_FORCE[r.status]);
         break;
       case 'conflicts':
         result = result.filter((r) => r.conflicts && r.conflicts.length > 0);
@@ -327,6 +340,14 @@ const RulesTab: React.FC<RulesTabProps> = ({
     [],
   );
 
+  const handleLoadOrRefresh = useCallback(() => {
+    loadRules(rules.length > 0);
+  }, [loadRules, rules.length]);
+
+  const handleLoadFromEmptyState = useCallback(() => {
+    loadRules(false);
+  }, [loadRules]);
+
   useEffect(() => {
     if (!activeRuleId) return;
     const target = rules.find((r) => r.id === activeRuleId);
@@ -379,7 +400,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           }
           hasRules={rules.length > 0}
           isLoading={data.isLoading}
-          onLoad={() => loadRules(rules.length > 0)}
+          onLoad={handleLoadOrRefresh}
           duplicateClusterCount={mergeableClusters.length}
           hasCurrentGroup={Boolean(currentGroupId)}
           currentGroupRelationCount={currentGroupRelationCount}
@@ -438,7 +459,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           isLoading={data.isLoading}
           hasRules={rules.length > 0}
           filteredRules={filteredRules}
-          onLoad={() => loadRules(false)}
+          onLoad={handleLoadFromEmptyState}
           onOpenRule={handleOpenRule}
           selectedRuleId={activeRuleId}
         />

@@ -315,6 +315,24 @@ describe('RulesTab characterization', () => {
     expect(screen.queryByTestId('rule-r2')).not.toBeInTheDocument();
   });
 
+  it('keeps a broken rule reachable — it is neither active nor hidden (D-085)', async () => {
+    rulesFetchResponse = () => ({
+      success: true,
+      data: [...DEFAULT_RAW_RULES, rawRule({ id: 'r3', name: 'Broken Rule', status: 'INVALID' })],
+    });
+    renderTab();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await waitFor(() => expect(screen.getByTestId('rule-r3')).toBeInTheDocument());
+
+    await openFilters();
+    await userEvent.click(screen.getByRole('button', { name: 'Active Only' }));
+    expect(screen.queryByTestId('rule-r3')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Paused' }));
+    expect(screen.getByTestId('rule-r3')).toBeInTheDocument();
+    expect(screen.queryByTestId('rule-r1')).not.toBeInTheDocument();
+  });
+
   it('surfaces a load failure in the error banner', async () => {
     rulesFetchResponse = () => ({ success: false, error: 'Okta said no' });
     renderTab();

@@ -86,7 +86,7 @@ const AppListItem: React.FC<AppListItemProps> = memo(
                     </div>
                     <CopyableId
                       value={app.id}
-                      label={`Copy application id for ${label}`}
+                      label={`Copy application id for ${label} (${app.id})`}
                       className="w-full"
                     />
                   </div>
@@ -149,7 +149,7 @@ const AppListItem: React.FC<AppListItemProps> = memo(
 
               <div className="flex items-center gap-1 shrink-0">
                 <IconButton
-                  label={expanded ? 'Collapse' : 'Expand'}
+                  label={expanded ? `Collapse ${label}` : `Expand ${label}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleExpanded();

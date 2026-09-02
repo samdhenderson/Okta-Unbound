@@ -502,6 +502,67 @@ describe('AuditStore', () => {
     });
   });
 
+  describe('malformed rows read back from storage (D-043)', () => {
+    const goodRow = (): PersistedAuditLogEntry => ({
+      id: 'good-1',
+      timestamp: new Date('2025-06-01T00:00:00.000Z'),
+      action: 'remove_users',
+      groupId: 'group1',
+      groupName: 'Group 1',
+      performedBy: 'admin@example.com',
+      actorResolution: 'resolved',
+      affectedUsers: ['user1'],
+      result: 'success',
+      details: { usersSucceeded: 1, usersFailed: 0, apiRequestCount: 1, durationMs: 500 },
+    });
+
+    const rowWithGarbageActorResolution = (): PersistedAuditLogEntry => ({
+      ...goodRow(),
+      id: 'garbage-actor-resolution',
+      actorResolution: 'totally-made-up' as unknown as ActorResolution,
+    });
+
+    const unusableRow = (): unknown => ({
+      ...goodRow(),
+      id: 'unusable-1',
+      details: { usersSucceeded: 1, usersFailed: 0, apiRequestCount: 'lots', durationMs: 500 },
+    });
+
+    it('getHistory degrades a garbled actorResolution to undefined, and drops an unusable row (logging only a count)', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockDB.getAll.mockResolvedValueOnce([
+        goodRow(),
+        rowWithGarbageActorResolution(),
+        unusableRow(),
+      ]);
+
+      const result = await auditStore.getHistory();
+
+      expect(result.map((r) => r.id).sort()).toEqual(['garbage-actor-resolution', 'good-1']);
+
+      const degraded = result.find((r) => r.id === 'garbage-actor-resolution');
+      expect(degraded?.actorResolution).toBeUndefined();
+      expect(degraded?.performedBy).toBe('admin@example.com');
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const logged = JSON.stringify(warn.mock.calls[0]);
+      expect(logged).toContain('"dropped":1');
+      expect(logged).toContain('"total":3');
+      expect(logged).not.toContain('admin@example.com');
+      expect(logged).not.toContain('lots');
+    });
+
+    it('getStats never sums a field out of a row that failed validation', async () => {
+      mockDB.getAll.mockResolvedValueOnce([goodRow(), unusableRow()]);
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const stats = await auditStore.getStats();
+
+      expect(stats.totalOperations).toBe(1);
+      expect(stats.totalApiRequests).toBe(1);
+    });
+  });
+
   describe('settings cache', () => {
     it('logOperation skips the per-write settings read once updateSettings primed the cache', async () => {
       mockDB.put.mockResolvedValueOnce(undefined);

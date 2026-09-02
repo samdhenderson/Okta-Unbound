@@ -30,6 +30,7 @@ describe('emptySyncMeta', () => {
     expect(meta.watermark).toBeNull();
     expect(meta.cursor).toBeNull();
     expect(meta.complete).toBe(false);
+    expect(meta.status).toBeNull();
   });
 });
 

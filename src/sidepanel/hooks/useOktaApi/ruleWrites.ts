@@ -2,6 +2,7 @@ import type { CoreApi } from './core';
 import type { OktaGroupRule } from '../../../shared/types';
 import { oktaGroupRuleSchema, parseOkta } from '../../../shared/schemas/okta';
 import type { CreateRulePayload } from '../../../shared/rules/consolidation';
+import { RulesCache } from '../../../shared/rulesCache';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
@@ -21,6 +22,14 @@ export interface RuleWriteOperations {
   deleteGroupRule: (ruleId: string) => Promise<RuleWriteResult>;
   activateGroupRule: (ruleId: string) => Promise<RuleWriteResult>;
   deactivateGroupRule: (ruleId: string) => Promise<RuleWriteResult>;
+}
+
+async function invalidateRuleSnapshot(): Promise<void> {
+  try {
+    await RulesCache.clear();
+  } catch (err) {
+    log.error('Failed to invalidate the rules cache after a write', err);
+  }
 }
 
 export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations {
@@ -50,6 +59,7 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
     if (!response.success) {
       return { success: false, error: response.error || 'Failed to create rule' };
     }
+    await invalidateRuleSnapshot();
     try {
       const rule = parseOkta(
         oktaGroupRuleSchema,
@@ -68,7 +78,9 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
       method: 'DELETE',
       reason: 'Delete group rule',
     });
-    return response.success ? { success: true } : { success: false, error: response.error };
+    if (!response.success) return { success: false, error: response.error };
+    await invalidateRuleSnapshot();
+    return { success: true };
   };
 
   const activateGroupRule = async (ruleId: string): Promise<RuleWriteResult> => {
@@ -76,7 +88,9 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
       `/api/v1/groups/rules/${ruleId}/lifecycle/activate`,
       { method: 'POST', reason: 'Activate group rule' },
     );
-    return response.success ? { success: true } : { success: false, error: response.error };
+    if (!response.success) return { success: false, error: response.error };
+    await invalidateRuleSnapshot();
+    return { success: true };
   };
 
   const deactivateGroupRule = async (ruleId: string): Promise<RuleWriteResult> => {
@@ -84,7 +98,9 @@ export function createRuleWriteOperations(coreApi: CoreApi): RuleWriteOperations
       `/api/v1/groups/rules/${ruleId}/lifecycle/deactivate`,
       { method: 'POST', reason: 'Deactivate group rule' },
     );
-    return response.success ? { success: true } : { success: false, error: response.error };
+    if (!response.success) return { success: false, error: response.error };
+    await invalidateRuleSnapshot();
+    return { success: true };
   };
 
   return {

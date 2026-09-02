@@ -1,6 +1,6 @@
 import type { OktaGroupRule, FormattedRule, RuleConflict, RuleStats } from '../../shared/types';
 import type { CoreApi } from './useOktaApi/core';
-import { detectConflicts, formatRuleForDisplay } from '../../shared/ruleUtils';
+import { detectConflicts, expressionText, formatRuleForDisplay } from '../../shared/ruleUtils';
 import { nextPageUrl } from './useOktaApi/utilities';
 import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import type { RawOktaGroup } from '../components/groups/groupSummary';
@@ -25,8 +25,7 @@ const GROUP_ID_IN_EXPRESSION = /\b00g[a-zA-Z0-9]{17}\b/g;
 
 function groupIdsReferencedBy(rule: OktaGroupRule): string[] {
   const ids = rule.actions?.assignUserToGroups?.groupIds || [];
-  const expression = rule.conditions?.expression?.value || '';
-  const inExpression = expression.match(GROUP_ID_IN_EXPRESSION) || [];
+  const inExpression = expressionText(rule).match(GROUP_ID_IN_EXPRESSION) || [];
   return [...ids, ...inExpression];
 }
 
