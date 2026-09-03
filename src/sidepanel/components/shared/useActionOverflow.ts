@@ -59,6 +59,19 @@ function gapAboveBand(band: HTMLElement, host: HTMLElement): number {
   return Math.max(0, Math.round(margin + rowGap));
 }
 
+function untransformedLeft(el: HTMLElement): number | undefined {
+  let left = 0;
+  let node: HTMLElement | null = el;
+  let hasChain = false;
+  while (node) {
+    left += node.offsetLeft;
+    const parent: Element | null = node.offsetParent;
+    node = parent instanceof HTMLElement ? parent : null;
+    if (node) hasChain = true;
+  }
+  return hasChain ? left : undefined;
+}
+
 export function useActionOverflow(
   actions: readonly MeasurableAction[],
   options: ActionOverflowOptions,
@@ -169,9 +182,8 @@ export function useActionOverflow(
     if (!band) return;
     if (band.clientWidth <= 0) return;
 
-    const bandRect = band.getBoundingClientRect();
-
-    band.style.setProperty('--bar-bleed', `${Math.round(bandRect.left)}px`);
+    const bleed = untransformedLeft(band) ?? band.getBoundingClientRect().left;
+    band.style.setProperty('--bar-bleed', `${Math.round(bleed)}px`);
 
     const sentinel = refs.sentinel.current;
     const host = band.parentElement;

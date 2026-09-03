@@ -2,11 +2,9 @@ import React from 'react';
 import type { MemberMfaResult, MfaScanStatus } from '../../../shared/types';
 import FilterPill from '../shared/FilterPill';
 import SortPill from '../shared/SortPill';
-import ActiveFilterChips from './ActiveFilterChips';
 import MfaScanButton from './MfaScanButton';
+import type { FactorMode } from '../../hooks/useMemberFilters';
 import { type BreakdownRow, type MemberFilter, type SortField } from './memberAnalytics';
-
-type FactorMode = 'off' | 'has' | 'missing';
 
 interface MemberFilterPanelProps {
   filters: MemberFilter[];
@@ -23,8 +21,6 @@ interface MemberFilterPanelProps {
   onToggleMfaValue: (value: string, label: string) => void;
   onSetFactorMode: (label: string, mode: FactorMode) => void;
   onToggleSort: (field: SortField) => void;
-  onRemoveFilter: (filter: MemberFilter) => void;
-  onClearAll: () => void;
 }
 
 const MemberFilterPanel: React.FC<MemberFilterPanelProps> = ({
@@ -42,8 +38,6 @@ const MemberFilterPanel: React.FC<MemberFilterPanelProps> = ({
   onToggleMfaValue,
   onSetFactorMode,
   onToggleSort,
-  onRemoveFilter,
-  onClearAll,
 }) => {
   const statusActive = new Set(filters.filter((f) => f.dimension === 'status').map((f) => f.value));
   const mfaActive = new Set(filters.filter((f) => f.dimension === 'mfa').map((f) => f.value));
@@ -57,9 +51,7 @@ const MemberFilterPanel: React.FC<MemberFilterPanelProps> = ({
   const realStatusRows = statusRows.filter((r) => r.count > 0);
 
   return (
-    <div className="p-(--sp-card) bg-white rounded-md border border-neutral-200 space-y-(--sp-rung) animate-rise-in">
-      <ActiveFilterChips filters={filters} onRemove={onRemoveFilter} onClearAll={onClearAll} />
-
+    <div className="space-y-(--sp-rung)">
       {realStatusRows.length > 0 && (
         <div>
           <label className="block text-xs font-medium text-neutral-600 mb-1.5">Status</label>

@@ -7,7 +7,6 @@ const log = createLogger('useDetectedUser');
 
 interface UseDetectedUserOptions {
   targetTabId: number | undefined;
-  detectedUserId: string | undefined;
   loadMemberships: (user: OktaUser) => Promise<void>;
   onSelectUser: (user: OktaUser | null) => void;
   onError: (message: string | null) => void;
@@ -16,13 +15,11 @@ interface UseDetectedUserOptions {
 }
 
 interface UseDetectedUserReturn {
-  loadDetectedUser: () => Promise<void>;
   loadUserById: (userId: string) => Promise<void>;
 }
 
 export function useDetectedUser({
   targetTabId,
-  detectedUserId,
   loadMemberships,
   onSelectUser,
   onError,
@@ -89,10 +86,5 @@ export function useDetectedUser({
     [targetTabId],
   );
 
-  const loadDetectedUser = useCallback(async () => {
-    if (!detectedUserId) return;
-    await loadUserById(detectedUserId);
-  }, [detectedUserId, loadUserById]);
-
-  return { loadDetectedUser, loadUserById };
+  return { loadUserById };
 }

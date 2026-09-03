@@ -65,7 +65,7 @@ function makeIndex(options: StubOptions = {}): OrgEntityIndex {
 }
 
 const sub = (
-  boxes: { subCounts: { key: string; value: number | null; note?: string }[] }[],
+  boxes: { subCounts: { key: string; value: number | null; note?: string; icon: string }[] }[],
   key: string,
 ) => boxes.flatMap((box) => box.subCounts).find((s) => s.key === key);
 
@@ -90,41 +90,66 @@ describe('useOrgFigures', () => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
   });
 
-  it('derives one entry per collection from what is already mounted', () => {
+  it('derives one entry per collection the card speaks about — two, not four', () => {
     const { result } = render(makeIndex());
-    expect(result.current.boxes.map((b) => b.key)).toEqual(['groups', 'apps', 'rules']);
-    expect(result.current.boxes.map((b) => b.value)).toEqual([2, 3, 3]);
-    expect(result.current.boxes.map((b) => b.tab)).toEqual(['groups', 'apps', 'rules']);
-    expect(result.current.boxes.map((b) => b.noun)).toEqual([
-      'groups',
-      'applications',
-      'group rules',
-    ]);
+    expect(result.current.boxes.map((b) => b.key)).toEqual(['rules', 'groups']);
+    expect(result.current.boxes.map((b) => b.value)).toEqual([3, 2]);
+    expect(result.current.boxes.map((b) => b.tab)).toEqual(['rules', 'groups']);
+    expect(result.current.boxes.map((b) => b.noun)).toEqual(['group rules', 'groups']);
   });
 
   it('derives every finding from rows already held — no extra read', () => {
     const { result } = render(makeIndex());
     const { boxes } = result.current;
-    expect(sub(boxes, 'groups-empty')?.value).toBe(1);
-    expect(sub(boxes, 'groups-unruled')?.value).toBe(1);
-    expect(sub(boxes, 'apps-inactive')?.value).toBe(1);
-    expect(sub(boxes, 'apps-idle-push')?.value).toBe(1);
+    expect(boxes.flatMap((box) => box.subCounts).map((s) => s.key)).toEqual([
+      'rules-paused',
+      'groups-empty-unfilled',
+    ]);
     expect(sub(boxes, 'rules-paused')?.value).toBe(2);
+    expect(sub(boxes, 'groups-empty-unfilled')?.value).toBe(1);
     expect(syncs).toEqual([]);
+  });
+
+  it('counts the INTERSECTION, not either half of it', () => {
+    const base = makeIndex();
+    const index = {
+      ...base,
+      groups: stub(
+        'groups',
+        [
+          { id: 'g1', _embedded: { stats: { usersCount: 7 } } },
+          { id: 'g2', _embedded: { stats: { usersCount: 0 } } },
+          { id: 'g3', _embedded: { stats: { usersCount: 0 } } },
+        ],
+        {},
+      ),
+      rules: stub(
+        'rules',
+        [{ id: 'r1', status: 'ACTIVE', actions: { assignUserToGroups: { groupIds: ['g3'] } } }],
+        {},
+      ),
+    } as unknown as OrgEntityIndex;
+    const { result } = render(index);
+    expect(sub(result.current.boxes, 'groups-empty-unfilled')?.value).toBe(1);
+  });
+
+  it('leads with each finding’s glyph, so the rows read as one column', () => {
+    const { result } = render(makeIndex());
+    expect(sub(result.current.boxes, 'rules-paused')?.icon).toBe('pause');
+    expect(sub(result.current.boxes, 'groups-empty-unfilled')?.icon).toBe('users');
   });
 
   it('agrees with a denominator of one — the nouns are declared plural (I-024)', () => {
     const base = makeIndex();
     const index = {
       ...base,
-      apps: stub('apps', [{ id: 'a1', status: 'INACTIVE' }], {}),
+      groups: stub('groups', [{ id: 'g9', _embedded: { stats: { usersCount: 0 } } }], {}),
     } as unknown as OrgEntityIndex;
     const { result } = render(index);
-    expect(sub(result.current.boxes, 'apps-inactive')).toMatchObject({
+    expect(sub(result.current.boxes, 'groups-empty-unfilled')).toMatchObject({
       value: 1,
-      note: 'of 1 application',
+      note: 'of 1 group',
     });
-    expect(sub(result.current.boxes, 'groups-empty')?.note).toBe('of 2 groups');
     expect(sub(result.current.boxes, 'rules-paused')?.note).toBe('of 3 group rules');
   });
 
@@ -139,19 +164,15 @@ describe('useOrgFigures', () => {
       box.subCounts.map((subCount) => subCount.request),
     );
     expect(requests).toEqual([
-      { tab: 'groups', view: 'empty' },
-      { tab: 'groups', view: 'no-rules' },
-      { tab: 'apps', view: 'inactive' },
-      { tab: 'apps', view: 'pushes-nothing' },
       { tab: 'rules', view: 'paused' },
+      { tab: 'groups', view: 'empty-no-rules' },
     ]);
   });
 
   it('suppresses a subtracting finding when the collection it subtracts was never walked', () => {
     const { result } = render(makeIndex({ rulesOver: { lastFullWalkAt: null, complete: false } }));
-    expect(sub(result.current.boxes, 'groups-empty')?.value).toBe(1);
-    expect(sub(result.current.boxes, 'groups-unruled')?.value).toBeNull();
-    expect(sub(result.current.boxes, 'groups-unruled')?.note).toBe(
+    expect(sub(result.current.boxes, 'groups-empty-unfilled')?.value).toBeNull();
+    expect(sub(result.current.boxes, 'groups-empty-unfilled')?.note).toBe(
       'Needs group rules, which have not been read.',
     );
   });
@@ -264,9 +285,16 @@ describe('useOrgFigures', () => {
 
   it('quotes the oldest walk behind the card', () => {
     const index = makeIndex();
-    (index.apps as { lastFullWalkAt: number | null }).lastFullWalkAt = NOW - 9000;
+    (index.rules as { lastFullWalkAt: number | null }).lastFullWalkAt = NOW - 9000;
     const { result } = render(index);
     expect(result.current.readAt).toBe(NOW - 9000);
+  });
+
+  it('does not let a collection the card never shows date it', () => {
+    const index = makeIndex();
+    (index.apps as { lastFullWalkAt: number | null }).lastFullWalkAt = NOW - 9_000_000;
+    const { result } = render(index);
+    expect(result.current.readAt).toBe(NOW);
   });
 
   it('states no age at all when a collection has never been walked', () => {

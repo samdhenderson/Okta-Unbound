@@ -5,6 +5,7 @@ import GroupAccessSection from './GroupAccessSection';
 import GroupRulesSection from './GroupRulesSection';
 import GroupPushSection from './GroupPushSection';
 import GroupInsightsPane from './GroupInsightsPane';
+import type { MemberFilter } from '../../members/memberAnalytics';
 import GroupActionBar from './GroupActionBar';
 import AddGroupMemberModal from './AddGroupMemberModal';
 import CompareGroupModal from './CompareGroupModal';
@@ -23,8 +24,10 @@ import { useRemoveDeprovisioned } from './useRemoveDeprovisioned';
 import { useAddGroupMember } from '../../../hooks/useAddGroupMember';
 import { useCreateFeedingRule } from '../../../hooks/useCreateFeedingRule';
 import { useWorkingSetEntry } from '../../../hooks/useWorkingSetEntry';
+import { useRefreshSubject } from '../../../hooks/useRefreshSubject';
 import { invalidate } from '../../../cache/entityCache';
 import { cacheKeys } from '../../../cache/keys';
+import { invalidateGroupDetail } from '../../../cache/rungInvalidation';
 import { OKTA_PAGE_SIZE } from '../../../../shared/utils/oktaPagination';
 import type { GroupSummary } from '../../../../shared/types';
 
@@ -61,6 +64,15 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<GroupDetailTab>(initialPane ?? 'overview');
 
+  const [pendingMemberFilter, setPendingMemberFilter] = useState<MemberFilter | null>(null);
+
+  const filterMembersBy = useCallback((filter: MemberFilter) => {
+    setPendingMemberFilter(filter);
+    setActiveTab('members');
+  }, []);
+
+  const openInsights = useCallback(() => setActiveTab('insights'), []);
+
   useWorkingSetEntry({
     origin: oktaOrigin,
     kind: 'group',
@@ -94,6 +106,17 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
     invalidate(cacheKeys.mfaScan(group.id));
     source.analyzeMembers();
   }, [group.id, source]);
+
+  const membersLoaded = source.memberStatus !== 'idle';
+  const refreshRung = useCallback(() => {
+    invalidateGroupDetail(group.id);
+    source.refreshRules();
+    references.reload();
+    accessGrants.reload();
+    if (membersLoaded) source.analyzeMembers();
+  }, [group.id, source, references, accessGrants, membersLoaded]);
+
+  useRefreshSubject(group.name, refreshRung, isActive);
   const removeDeprovisioned = useRemoveDeprovisioned(group.id, targetTabId, onCleanupDone);
 
   const { getMembershipRuleProof, compareGroups } = useOktaApi({
@@ -211,6 +234,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
                   onConfirmRemove={membersSection.confirmRemove}
                   removeStatus={membersSection.removeStatus}
                   removeError={membersSection.removeError}
+                  onOpenInsights={openInsights}
+                  pendingFilter={pendingMemberFilter}
                 />
               </div>
             )}
@@ -248,6 +273,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
             {activeTab === 'insights' && (
               <div role="tabpanel" aria-label="Insights">
                 <GroupInsightsPane
+                  onFilterMembers={filterMembersBy}
                   groupId={group.id}
                   memberCount={group.memberCount}
                   members={membersSection.members}

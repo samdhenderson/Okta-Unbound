@@ -10,6 +10,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import type { ReactElement, ReactNode } from 'react';
 import GroupsTab from './GroupsTab';
+import { useCurrentRefreshSubject } from '../hooks/useRefreshSubject';
 import { ProgressProvider } from '../contexts/ProgressContext';
 import { syncSnapshot } from '../../background/snapshotBridge';
 
@@ -253,10 +254,25 @@ function seedSnapshot(
   );
 }
 
+function RefreshHarness() {
+  const subject = useCurrentRefreshSubject();
+  if (!subject) return null;
+  return (
+    <button type="button" onClick={subject.run}>
+      {`Refresh ${subject.name}`}
+    </button>
+  );
+}
+
 async function renderCached(groups: Record<string, any>[], props: Record<string, any> = {}) {
   seedSnapshot('groups', groups.map(summaryToRaw));
   seedPushEnrichment(groups);
-  const result = render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} {...props} />);
+  const result = render(
+    <>
+      <GroupsTab targetTabId={1} oktaOrigin={ORIGIN} {...props} />
+      <RefreshHarness />
+    </>,
+  );
   await act(async () => {});
   return result;
 }
@@ -652,7 +668,12 @@ describe('loadAllGroups', () => {
       ],
     }));
 
-    render(<GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />);
+    render(
+      <>
+        <GroupsTab targetTabId={1} oktaOrigin={ORIGIN} />
+        <RefreshHarness />
+      </>,
+    );
     await uev.click(screen.getByRole('button', { name: 'Load All Groups' }));
 
     await waitFor(() => expect(renderedGroupNames()).toEqual(['Engineering', 'Slack Users']));
@@ -661,7 +682,7 @@ describe('loadAllGroups', () => {
       screen.getByPlaceholderText('Search by name, description, ID — or /regex/'),
     ).toBeInTheDocument();
     expect(screen.getByText('2 Cached')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Refresh/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Refresh the groups list' })).toBeInTheDocument();
 
     expect(screen.getByText('OKTA')).toBeInTheDocument();
     expect(screen.getByText('APP')).toBeInTheDocument();
@@ -1138,14 +1159,14 @@ describe('selection', () => {
       await uev.click(screen.getByRole('checkbox', { name: `Select ${name}` }));
     }
     expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeInTheDocument();
-    expect(screen.getByText('3 Selected')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 3 · 3 selected/)).toBeInTheDocument();
 
     await uev.click(screen.getByRole('button', { name: /^Filters/ }));
     await uev.click(section('Group Type').getByRole('button', { name: 'App' }));
 
     expect(renderedGroupNames()).toEqual(['AppOne']);
     expect(screen.getByRole('button', { name: 'Select all (1)' })).toBeInTheDocument();
-    expect(screen.getByText('3 Selected')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 1 of 1 · 3 selected/)).toBeInTheDocument();
 
     await uev.click(screen.getByRole('button', { name: /Export \(3\)/ }));
     expect(
@@ -1173,14 +1194,14 @@ describe('selection', () => {
     ]);
 
     await uev.click(screen.getByRole('checkbox', { name: 'Select AppOne' }));
-    expect(screen.getByText('1 Selected')).toBeInTheDocument();
+    expect(screen.getByText(/· 1 selected/)).toBeInTheDocument();
 
     await uev.click(screen.getByRole('button', { name: /Refresh/ }));
 
     await waitFor(() =>
       expect(idbTables.get('syncMeta')!.get(`${ORIGIN}::groups`).lastFullWalkAt).toBeGreaterThan(1),
     );
-    expect(screen.getByText('1 Selected')).toBeInTheDocument();
+    expect(screen.getByText(/· 1 selected/)).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Select AppOne' })).toBeChecked();
   });
 
@@ -1191,15 +1212,16 @@ describe('selection', () => {
     await uev.click(section('Group Type').getByRole('button', { name: 'Okta' }));
 
     await uev.click(screen.getByRole('button', { name: 'Select all (2)' }));
-    expect(screen.getByText('2 Selected')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 2 of 2 · 2 selected/)).toBeInTheDocument();
 
     await uev.click(section('Group Type').getByRole('button', { name: 'All' }));
     expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeInTheDocument();
-    expect(screen.getByText('2 Selected')).toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 3 · 2 selected/)).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Select AppOne' })).not.toBeChecked();
 
     await uev.click(screen.getByRole('button', { name: 'Deselect all' }));
-    expect(screen.queryByText(/\d+ Selected/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Showing 3 of 3/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeEnabled();
   });
 
@@ -1669,15 +1691,16 @@ describe('empty states', () => {
 });
 
 describe('page header', () => {
-  it('prefers the selection badge over the cached-count badge', async () => {
+  it('keeps the cached-count badge when rows are selected, and states the selection on the list', async () => {
     const uev = userEvent.setup();
     await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
     expect(screen.getByText('1 Cached')).toBeInTheDocument();
 
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
 
-    expect(screen.getByText('1 Selected')).toBeInTheDocument();
-    expect(screen.queryByText('1 Cached')).not.toBeInTheDocument();
+    expect(screen.getByText('1 Cached')).toBeInTheDocument();
+    expect(screen.queryByText('1 Selected')).not.toBeInTheDocument();
+    expect(screen.getByText(/Showing 1 of 1 · 1 selected/)).toBeInTheDocument();
   });
 
   it('shows the Live badge in live mode', () => {

@@ -142,8 +142,6 @@ async function flush() {
 const userSearchInput = () => screen.getByPlaceholderText('Search by email, name, or login...');
 const groupSearchInput = () => screen.getByPlaceholderText('Type to search by group name...');
 
-const DETECTED_BANNER = 'Open in admin';
-
 const MEMBERSHIP_ROW_TIMEOUT_MS = 5000;
 
 async function membershipRow(groupName: string): Promise<HTMLElement> {
@@ -294,24 +292,21 @@ describe('user search: 600ms debounce contract', () => {
   });
 });
 
-describe('detected user: manual-load banner', () => {
+describe('admin navigation never hijacks the tab', () => {
   const detected = {
     userInfo: { userId: 'u1', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
     isLoading: false,
     oktaOrigin: null,
   };
 
-  it('does NOT auto-fetch; shows a banner and loads only when Load is clicked', async () => {
+  it('does NOT auto-fetch on detection, and loads only when asked', async () => {
     userContext.current = { ...detected };
     route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
-    render(<UsersTab targetTabId={1} />);
+    const { rerender } = render(<UsersTab targetTabId={1} />);
 
     expect(userDetailCalls()).toHaveLength(0);
-    expect(screen.getByText(DETECTED_BANNER)).toBeInTheDocument();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Load' }));
-    });
+    rerender(<UsersTab targetTabId={1} selectedUserId="u1" />);
 
     expect(await screen.findByRole('heading', { name: 'Ada Lovelace' })).toBeInTheDocument();
     expect(userDetailCalls()).toEqual(['/api/v1/users/u1']);
@@ -328,35 +323,18 @@ describe('detected user: manual-load banner', () => {
     }
 
     expect(userDetailCalls()).toHaveLength(0);
-    expect(screen.getByText(DETECTED_BANNER)).toBeInTheDocument();
   });
 
-  it('surfaces an error when a manual Load fails', async () => {
+  it('surfaces an error when the requested load fails', async () => {
     userContext.current = {
       userInfo: { userId: 'u1', userName: 'Ada Lovelace' },
       isLoading: false,
       oktaOrigin: null,
     };
     route(/^\/api\/v1\/users\/u1$/, () => ({ success: false, error: 'boom' }));
-    render(<UsersTab targetTabId={1} />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Load' }));
-    });
+    render(<UsersTab targetTabId={1} selectedUserId="u1" />);
 
     expect(await screen.findByText('boom')).toBeInTheDocument();
-  });
-
-  it('Dismiss hides the banner without any fetch', async () => {
-    userContext.current = { ...detected };
-    render(<UsersTab targetTabId={1} />);
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
-    });
-
-    expect(screen.queryByText(DETECTED_BANNER)).not.toBeInTheDocument();
-    expect(userDetailCalls()).toHaveLength(0);
   });
 });
 
@@ -445,10 +423,7 @@ describe('compare entry point', () => {
     };
     route(USER_GROUPS, () => ({ success: true, data: [] }));
     route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
-    render(<UsersTab targetTabId={1} />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Load' }));
-    });
+    render(<UsersTab targetTabId={1} selectedUserId="u1" />);
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
   }
 
@@ -477,10 +452,7 @@ describe('lifecycle actions', () => {
     };
     route(USER_GROUPS, () => ({ success: true, data: [] }));
     route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
-    render(<UsersTab targetTabId={1} />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Load' }));
-    });
+    render(<UsersTab targetTabId={1} selectedUserId="u1" />);
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
     fireEvent.click(screen.getByRole('button', { name: 'More' }));
     runtimeSendMessage.mockClear();
@@ -548,10 +520,7 @@ describe('add-to-group: 300ms group search (memoized searchGroups)', () => {
     };
     route(USER_GROUPS, () => ({ success: true, data: [] }));
     route(/^\/api\/v1\/users\/u1$/, () => ({ success: true, data: oktaUser() }));
-    render(<UsersTab targetTabId={1} />);
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Load' }));
-    });
+    render(<UsersTab targetTabId={1} selectedUserId="u1" />);
     await screen.findByRole('heading', { name: 'Ada Lovelace' });
     runtimeSendMessage.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Add group' }));

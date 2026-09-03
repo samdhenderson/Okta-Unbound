@@ -27,6 +27,8 @@ import { countCurrentGroupRuleRelations } from '../../shared/rules/currentGroupR
 import { useOktaApi } from '../hooks/useOktaApi';
 import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useRuleImpact } from '../hooks/useRuleImpact';
+import { useOwedLoad } from '../hooks/useOwedLoad';
+import { useRefreshSubject } from '../hooks/useRefreshSubject';
 import { useRulesData } from '../hooks/useRulesData';
 import { useRuleLifecycle } from '../hooks/useRuleLifecycle';
 import { useRuleConsolidation } from '../hooks/useRuleConsolidation';
@@ -184,42 +186,6 @@ const RulesTab: React.FC<RulesTabProps> = ({
     onListViewConsumed?.();
   }, [listView, restoreAttempted, onListViewConsumed]);
 
-  const listViewLoadRef = useRef<RulesListView | null>(null);
-  useEffect(() => {
-    if (!listView) {
-      listViewLoadRef.current = null;
-      return;
-    }
-    if (
-      restoreAttempted &&
-      rules.length === 0 &&
-      !data.isLoading &&
-      targetTabId != null &&
-      listViewLoadRef.current !== listView
-    ) {
-      listViewLoadRef.current = listView;
-      void loadRules(false);
-    }
-  }, [listView, restoreAttempted, rules.length, data.isLoading, targetTabId, loadRules]);
-
-  const deepLinkLoadRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!activeRuleId) {
-      deepLinkLoadRef.current = null;
-      return;
-    }
-    if (
-      restoreAttempted &&
-      rules.length === 0 &&
-      !data.isLoading &&
-      targetTabId != null &&
-      deepLinkLoadRef.current !== activeRuleId
-    ) {
-      deepLinkLoadRef.current = activeRuleId;
-      void loadRules(false);
-    }
-  }, [activeRuleId, restoreAttempted, rules.length, data.isLoading, targetTabId, loadRules]);
-
   useEffect(() => {
     if (rules.length > 0) {
       saveRulesTabState({
@@ -340,13 +306,22 @@ const RulesTab: React.FC<RulesTabProps> = ({
     [],
   );
 
-  const handleLoadOrRefresh = useCallback(() => {
-    loadRules(rules.length > 0);
-  }, [loadRules, rules.length]);
-
   const handleLoadFromEmptyState = useCallback(() => {
     loadRules(false);
   }, [loadRules]);
+
+  useOwedLoad(
+    targetTabId == null ? null : `rules:${targetTabId}`,
+    isActive && restoreAttempted && rules.length === 0 && !data.isLoading,
+    () => {
+      void loadRules(false);
+    },
+  );
+
+  const reloadRules = useCallback(() => {
+    void loadRules(true);
+  }, [loadRules]);
+  useRefreshSubject('the rules list', reloadRules, isActive);
 
   useEffect(() => {
     if (!activeRuleId) return;
@@ -399,8 +374,6 @@ const RulesTab: React.FC<RulesTabProps> = ({
             ) : undefined
           }
           hasRules={rules.length > 0}
-          isLoading={data.isLoading}
-          onLoad={handleLoadOrRefresh}
           duplicateClusterCount={mergeableClusters.length}
           hasCurrentGroup={Boolean(currentGroupId)}
           currentGroupRelationCount={currentGroupRelationCount}

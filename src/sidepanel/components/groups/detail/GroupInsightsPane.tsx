@@ -1,20 +1,19 @@
-import React, { useMemo } from 'react';
-import {
-  AlertMessage,
-  Button,
-  CollapsibleSection,
-  DetailSection,
-  LoadingSpinner,
-} from '../../shared';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Button, CollapsibleSection, DetailSection } from '../../shared';
 import GroupMetadataSection from './GroupMetadataSection';
-import AttributeHealthCard from './AttributeHealthCard';
+import AttributeSpreadSection from './AttributeSpreadSection';
 import GroupMfaCoverageSection from './GroupMfaCoverageSection';
-import { discoverAttributeBreakdowns, type AttributeSummary } from '../../members/memberAnalytics';
+import BreakdownDetailsModal from '../../members/BreakdownDetailsModal';
+import CompositionReports from '../../members/CompositionReports';
+import { mfaScanNeedsConfirm } from '../../../hooks/useMemberMfaScan';
 import {
-  indexRulesByAttribute,
-  type AttributeReferencingRule,
-  type AttributeRuleRef,
-} from '../../../../shared/rules/groupAttributeIndex';
+  computeDimensionBreakdown,
+  computeMfaBreakdown,
+  dimensionTitle,
+  discoverAttributeBreakdowns,
+  type MemberFilter,
+} from '../../members/memberAnalytics';
+import type { AttributeReferencingRule } from '../../../../shared/rules/groupAttributeIndex';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../../shared/types';
 
@@ -28,6 +27,7 @@ interface GroupInsightsPaneProps {
   canAnalyze?: boolean;
   feedingRules: readonly AttributeReferencingRule[];
   onNavigateToRule?: (ruleId: string) => void;
+  onFilterMembers?: (filter: MemberFilter) => void;
 
   mfaResults: Map<string, MemberMfaResult> | null;
   scanStatus: MfaScanStatus;
@@ -41,6 +41,10 @@ interface GroupInsightsPaneProps {
   lastMembershipUpdated?: Date;
 }
 
+const EMPTY_ACTIVE_VALUES: Set<string> = new Set();
+
+const NO_ACTIVE_FILTERS: MemberFilter[] = [];
+
 const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
   groupId,
   memberCount,
@@ -51,6 +55,7 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
   canAnalyze = true,
   feedingRules,
   onNavigateToRule,
+  onFilterMembers,
   mfaResults,
   scanStatus,
   onRunScan,
@@ -63,73 +68,46 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
 }) => {
   const rosterReady = memberStatus === 'done' && members !== null;
 
-  const summaries = useMemo(() => (members ? discoverAttributeBreakdowns(members) : []), [members]);
-  const ruleIndex = useMemo(() => indexRulesByAttribute(feedingRules), [feedingRules]);
+  const [detailKey, setDetailKey] = useState<string | null>(null);
+  const detailRows = useMemo(
+    () => (detailKey && members ? computeDimensionBreakdown(members, detailKey) : []),
+    [detailKey, members],
+  );
 
-  const cards = useMemo(() => {
-    const withRules: Array<{ summary: AttributeSummary; rules: AttributeRuleRef[] }> = [];
-    const withoutRules: Array<{ summary: AttributeSummary; rules: AttributeRuleRef[] }> = [];
-    for (const summary of summaries) {
-      const rules = ruleIndex.get(summary.key) ?? [];
-      (rules.length > 0 ? withRules : withoutRules).push({ summary, rules });
-    }
-    return [...withRules, ...withoutRules];
-  }, [summaries, ruleIndex]);
+  const attributes = useMemo(
+    () => (members ? discoverAttributeBreakdowns(members) : []),
+    [members],
+  );
+  const mfaRows = useMemo(
+    () => computeMfaBreakdown(members ?? [], mfaResults),
+    [members, mfaResults],
+  );
+
+  const jumpToMembers = useCallback(
+    (dimension: string, value: string, label: string) => {
+      onFilterMembers?.({ dimension, value, label });
+    },
+    [onFilterMembers],
+  );
+
+  const handleScanClick = useCallback(() => {
+    if (mfaScanNeedsConfirm(memberCount)) onRequestConfirm();
+    else onRunScan();
+  }, [memberCount, onRequestConfirm, onRunScan]);
 
   return (
     <div className="space-y-(--sp-rung)">
-      <DetailSection
-        title="Attribute spread"
-        description="Blank rate and value spread for every profile attribute across this group's members. The ones a feeding rule depends on come first."
-        actions={
-          memberStatus === 'idle' && memberCount > 0 ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              icon="chart"
-              onClick={onAnalyzeMembers}
-              disabled={!canAnalyze}
-            >
-              Analyze
-            </Button>
-          ) : undefined
-        }
-      >
-        {memberCount === 0 ? (
-          <p className="text-sm text-neutral-500">
-            This group has no members, so there is nothing to profile.
-          </p>
-        ) : memberStatus === 'idle' ? (
-          <p className="text-sm text-neutral-500">
-            Not analyzed yet. Reads all {memberCount.toLocaleString()} member
-            {memberCount === 1 ? '' : 's'} once to compute every profile attribute&apos;s blank rate
-            and value spread.
-          </p>
-        ) : memberStatus === 'loading' ? (
-          <LoadingSpinner size="sm" message="Analyzing members…" centered />
-        ) : memberStatus === 'error' ? (
-          <AlertMessage
-            message={{ text: error || 'Failed to analyze members.', type: 'danger' }}
-            action={{ label: 'Retry', onClick: onAnalyzeMembers }}
-          />
-        ) : cards.length === 0 ? (
-          <p className="text-sm text-neutral-500">
-            No profile attribute in this group has a meaningful spread — every one is either blank
-            or unique per member.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-(--sp-rung) sm:grid-cols-2">
-            {cards.map(({ summary, rules }) => (
-              <AttributeHealthCard
-                key={summary.key}
-                summary={summary}
-                rules={rules}
-                onNavigateToRule={onNavigateToRule}
-              />
-            ))}
-          </div>
-        )}
-      </DetailSection>
+      <AttributeSpreadSection
+        memberCount={memberCount}
+        members={members}
+        memberStatus={memberStatus}
+        error={error}
+        onAnalyzeMembers={onAnalyzeMembers}
+        canAnalyze={canAnalyze}
+        feedingRules={feedingRules}
+        onNavigateToRule={onNavigateToRule}
+        onShowAll={setDetailKey}
+      />
 
       <DetailSection
         title="MFA coverage"
@@ -161,6 +139,44 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
           />
         )}
       </DetailSection>
+
+      {rosterReady && onFilterMembers && (
+        <CompositionReports
+          attributes={attributes}
+          filters={NO_ACTIVE_FILTERS}
+          onToggle={(dimension, row) =>
+            jumpToMembers(dimension, row.value, `${dimensionTitle(dimension)}: ${row.label}`)
+          }
+          onExpand={setDetailKey}
+          mfaRows={mfaRows}
+          mfaResults={mfaResults}
+          scanStatus={scanStatus}
+          memberCount={memberCount}
+          onToggleMfa={(row) => jumpToMembers('mfa', row.value, row.label)}
+          onRunScanClick={handleScanClick}
+        />
+      )}
+
+      <BreakdownDetailsModal
+        isOpen={detailKey !== null}
+        onClose={() => setDetailKey(null)}
+        title={detailKey ? dimensionTitle(detailKey) : ''}
+        rows={detailRows}
+        activeValues={EMPTY_ACTIVE_VALUES}
+        rowIntent="navigate"
+        onRowClick={
+          onFilterMembers && detailKey
+            ? (row) => {
+                onFilterMembers({
+                  dimension: detailKey,
+                  value: row.value,
+                  label: `${dimensionTitle(detailKey)}: ${row.label}`,
+                });
+                setDetailKey(null);
+              }
+            : undefined
+        }
+      />
 
       <CollapsibleSection title="About this group" defaultOpen={false}>
         <GroupMetadataSection

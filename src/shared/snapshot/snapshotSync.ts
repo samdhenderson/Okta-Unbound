@@ -48,7 +48,7 @@ export interface CollectionSpec<T = unknown> {
   refreshIntervalMs?: number;
 }
 
-const SHARD_CONCURRENCY = 5;
+const SHARD_CONCURRENCY = 4;
 
 export interface WalkOutcome {
   collection: SnapshotCollection;

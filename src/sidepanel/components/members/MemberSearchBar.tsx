@@ -15,26 +15,21 @@ const MemberSearchBar: React.FC<MemberSearchBarProps> = ({
   placeholder = 'Search members by name, email, or login…',
 }) => {
   return (
-    <div className="relative">
-      <Input
-        value={value}
-        onChange={onChange}
-        type="search"
-        placeholder={placeholder}
-        icon={<Icon type="search" size="sm" />}
-      />
-      {value && (
-        <IconButton
-          label="Clear search"
-          onClick={() => onChange('')}
-          variant="ghost"
-          size="sm"
-          className="absolute right-3 top-1/2 -translate-y-1/2"
-        >
-          <Icon type="close" size="sm" />
-        </IconButton>
-      )}
-    </div>
+    <Input
+      value={value}
+      onChange={onChange}
+      type="search"
+      placeholder={placeholder}
+      icon={<Icon type="search" size="sm" />}
+      trailingInteractive={Boolean(value)}
+      trailing={
+        value ? (
+          <IconButton label="Clear search" onClick={() => onChange('')} variant="ghost" size="sm">
+            <Icon type="close" size="sm" />
+          </IconButton>
+        ) : undefined
+      }
+    />
   );
 };
 

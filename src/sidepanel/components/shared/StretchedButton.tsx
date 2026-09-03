@@ -4,6 +4,8 @@ interface StretchedButtonProps {
   label: string;
   onClick: () => void;
   describedBy?: string;
+  expanded?: boolean;
+  controls?: string;
   title?: string;
   disabled?: boolean;
   className?: string;
@@ -13,6 +15,8 @@ const StretchedButton: React.FC<StretchedButtonProps> = ({
   label,
   onClick,
   describedBy,
+  expanded,
+  controls,
   title,
   disabled = false,
   className = '',
@@ -21,6 +25,8 @@ const StretchedButton: React.FC<StretchedButtonProps> = ({
     type="button"
     aria-label={label}
     aria-describedby={describedBy}
+    aria-expanded={expanded}
+    aria-controls={controls}
     title={title ?? label}
     onClick={onClick}
     disabled={disabled}

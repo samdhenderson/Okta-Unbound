@@ -323,6 +323,24 @@ describe('useActionOverflow', () => {
       expect(parent.getPropertyValue('--bar-bleed')).toBe('');
     });
 
+    it('publishes the untransformed offset when an ancestor is mid-transform (D-044)', () => {
+      const fixture = makeFixture({ width: 500 });
+
+      Object.defineProperty(fixture.band, 'offsetLeft', { value: 24, configurable: true });
+      Object.defineProperty(fixture.band, 'offsetParent', {
+        value: fixture.parent,
+        configurable: true,
+      });
+      Object.defineProperty(fixture.parent, 'offsetLeft', { value: 0, configurable: true });
+      Object.defineProperty(fixture.parent, 'offsetParent', { value: null, configurable: true });
+
+      setRect(fixture.band, { left: 24 + 0.16 * 500, top: 100, width: 500, height: 48 });
+
+      mount(fixture);
+
+      expect(fixture.band.style.getPropertyValue('--bar-bleed')).toBe('24px');
+    });
+
     it('keeps --dock-offset a layout gap once the band has stuck', () => {
       const fixture = makeFixture({ width: 500 });
       mount(fixture);

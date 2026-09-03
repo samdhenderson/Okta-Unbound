@@ -66,8 +66,6 @@ const meta = {
     onToggleMfaValue: { description: "Toggle a count-based MFA value (e.g. 'none', 'multiple')." },
     onSetFactorMode: { description: 'Set a per-factor has/missing/off mode.' },
     onToggleSort: { description: 'Toggle the sort field (or flip direction if already selected).' },
-    onRemoveFilter: { description: 'Remove a single active filter.' },
-    onClearAll: { description: 'Clear every active filter.' },
   },
   args: {
     filters: [],
@@ -84,8 +82,6 @@ const meta = {
     onToggleMfaValue: fn(),
     onSetFactorMode: fn(),
     onToggleSort: fn(),
-    onRemoveFilter: fn(),
-    onClearAll: fn(),
   },
 } satisfies Meta<typeof MemberFilterPanel>;
 

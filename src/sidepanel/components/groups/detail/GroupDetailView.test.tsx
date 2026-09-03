@@ -120,7 +120,11 @@ vi.mock('./GroupOverviewPane', () => ({
   default: () => <div data-testid="stub-overview" />,
 }));
 vi.mock('./GroupMembersSection', () => ({
-  default: () => <div data-testid="stub-members" />,
+  default: ({ pendingFilter }: { pendingFilter?: { label: string } | null }) => (
+    <div data-testid="stub-members">
+      {pendingFilter ? `filtered by ${pendingFilter.label}` : ''}
+    </div>
+  ),
 }));
 vi.mock('./GroupAccessSection', () => ({
   default: () => <div data-testid="stub-access" />,
@@ -132,7 +136,22 @@ vi.mock('./GroupPushSection', () => ({
   default: () => <div data-testid="stub-push" />,
 }));
 vi.mock('./GroupInsightsPane', () => ({
-  default: () => <div data-testid="stub-insights" />,
+  default: ({
+    onFilterMembers,
+  }: {
+    onFilterMembers?: (f: { dimension: string; value: string; label: string }) => void;
+  }) => (
+    <div data-testid="stub-insights">
+      <button
+        type="button"
+        onClick={() =>
+          onFilterMembers?.({ dimension: 'department', value: '', label: 'department is blank' })
+        }
+      >
+        Filter Members
+      </button>
+    </div>
+  ),
 }));
 vi.mock('./AddGroupMemberModal', () => ({
   default: () => <div data-testid="stub-add-modal" />,
@@ -170,6 +189,18 @@ describe('GroupDetailView', () => {
     expect(screen.queryByTestId('stub-access')).not.toBeInTheDocument();
     expect(screen.queryByTestId('stub-push')).not.toBeInTheDocument();
     expect(screen.queryByTestId('stub-rules')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('stub-insights')).not.toBeInTheDocument();
+  });
+
+  it('carries an Insights row click to the Members pane with its filter applied', async () => {
+    const user = userEvent.setup();
+    render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+
+    await user.click(screen.getByRole('tab', { name: 'Insights' }));
+    await user.click(screen.getByRole('button', { name: 'Filter Members' }));
+
+    expect(screen.getByRole('tab', { name: 'Members' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('stub-members')).toHaveTextContent('filtered by department is blank');
     expect(screen.queryByTestId('stub-insights')).not.toBeInTheDocument();
   });
 
@@ -257,6 +288,19 @@ describe('GroupDetailView', () => {
 
     await user.click(screen.getByRole('button', { name: /export members/i }));
     expect(onExportGroup).toHaveBeenCalledWith(group.id, group.name);
+  });
+
+  it('keeps Export members in the disclosure tier, not the action row', () => {
+    render(<GroupDetailView group={makeGroup()} targetTabId={1} onExportGroup={vi.fn()} />);
+
+    const more = screen.getByRole('button', { name: /More/ });
+    const tierId = more.getAttribute('aria-controls');
+    const tier = tierId ? document.getElementById(tierId) : null;
+    if (!tier) throw new Error('the More control names no region');
+
+    expect(within(tier).getByRole('button', { name: /export members/i })).toBeInTheDocument();
+    expect(within(tier).queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
   });
 
   it("wires the action bar's Add button to the Add-member modal", async () => {

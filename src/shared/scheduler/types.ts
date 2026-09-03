@@ -30,6 +30,7 @@ export interface RateLimitInfo {
 
 export interface SchedulerConfig {
   maxConcurrent: number; // Max parallel requests
+  maxConcurrentPerBucket: number;
   minRemainingThreshold: number; // Trigger cooldown when remaining < this (percentage)
   cooldownDuration: number; // How long to pause when threshold hit (ms)
   retryDelay: number; // Base retry delay for failed requests (ms)
@@ -46,6 +47,7 @@ export interface BucketState {
   active: number;
   planned: number;
   gatedUntil: number | null;
+  lastActiveAt: number | null;
 }
 
 export interface SchedulerState {

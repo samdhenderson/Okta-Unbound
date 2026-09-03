@@ -205,7 +205,9 @@ describe('AppsTab', () => {
 
     expect(await screen.findByText('No applications loaded')).toBeInTheDocument();
     expect(syncCalls()).toHaveLength(0);
-    expect(screen.getByRole('button', { name: /Refresh/ })).toBeDisabled();
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Load applications' }));
+    expect(syncCalls()).toHaveLength(0);
   });
 
   it('arrives at a deep-linked app with the list filtered to it, once', async () => {

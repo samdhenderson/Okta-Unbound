@@ -2,21 +2,11 @@ import { useMemo } from 'react';
 import { buildReport, type HomeReport } from '../components/home/homeReports';
 import {
   appNamesByGroup,
-  dormantAccessCaveat,
-  dormantAccessLabel,
-  dormantAnchorNote,
-  findCleanupCandidates,
-  findDormantAccess,
   findUnmaintainedAppAccess,
   groupIdsFilledByRules,
-  resolveDormantAnchor,
   APP_ACCESS_CAVEAT,
-  CLEANUP_CAVEAT,
-  DORMANT_ACCESS_CAVEAT_UNANCHORED,
   type OrphanCandidateGroup,
 } from '../components/groups/ruleOrphans';
-import { formatDateShort } from '../../shared/utils/dateFormat';
-import { splitShardedId } from '../../shared/snapshot/types';
 import { pluralize } from '../../shared/utils/plural';
 import {
   figureStatus,
@@ -90,15 +80,6 @@ export function useHomeReports({ index }: UseHomeReportsOptions): UseHomeReports
     [appGroups.records, appNames],
   );
 
-  const appLinked = useMemo(() => {
-    const ids = new Set<string>();
-    for (const record of appGroups.records) {
-      const split = splitShardedId(record.id);
-      if (split) ids.add(split.entityId);
-    }
-    return ids;
-  }, [appGroups.records]);
-
   const groupChoices = useMemo<EntityChoice[]>(
     () =>
       candidates.map((group) => ({
@@ -119,18 +100,8 @@ export function useHomeReports({ index }: UseHomeReportsOptions): UseHomeReports
   const appsNamed = { source: appSource, noun: 'applications' };
   const appGroupsNamed = { source: appGroupSource, noun: 'app group assignments' };
 
-  const anchor = resolveDormantAnchor(groups.lastFullWalkAt, Date.now());
-
   const reports = useMemo(
     () => [
-      buildReport({
-        key: 'group-cleanup',
-        label: 'Empty groups nothing fills',
-        counted: groupsNamed,
-        gates: [rulesNamed, appGroupsNamed],
-        findings: findCleanupCandidates(candidates, filled, appLinked),
-        caveat: CLEANUP_CAVEAT,
-      }),
       buildReport({
         key: 'unmaintained-app-access',
         label: 'App access no rule maintains',
@@ -140,29 +111,11 @@ export function useHomeReports({ index }: UseHomeReportsOptions): UseHomeReports
         findings: findUnmaintainedAppAccess(candidates, filled, byGroup),
         caveat: APP_ACCESS_CAVEAT,
       }),
-      buildReport({
-        key: 'dormant-app-access',
-        label: dormantAccessLabel(),
-        counted: groupsNamed,
-        floors: [appGroupsNamed, appsNamed],
-        gates: [rulesNamed],
-        findings: anchor.usable ? findDormantAccess(candidates, filled, byGroup, anchor.at) : [],
-        caveat: anchor.usable
-          ? dormantAccessCaveat(formatDateShort(anchor.at))
-          : DORMANT_ACCESS_CAVEAT_UNANCHORED,
-        suppressed: anchor.usable
-          ? undefined
-          : dormantAnchorNote(anchor.reason, formatDateShort(anchor.at)),
-      }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      anchor.usable,
-      anchor.at,
-      anchor.reason,
       candidates,
       filled,
-      appLinked,
       byGroup,
       groupSource.isReading,
       groupSource.complete,

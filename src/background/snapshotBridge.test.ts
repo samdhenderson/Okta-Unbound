@@ -1,6 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ApiScheduler } from '../shared/scheduler/apiScheduler';
-import { createSchedulerPageRequest } from './snapshotBridge';
+import { createSchedulerPageRequest, syncSnapshot } from './snapshotBridge';
+import { ensureRateLimitThreshold } from './rateLimitThreshold';
+import { syncOrg } from '../shared/snapshot/snapshotSync';
+
+vi.mock('./rateLimitThreshold', () => ({ ensureRateLimitThreshold: vi.fn() }));
+vi.mock('../shared/snapshot/snapshotSync', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../shared/snapshot/snapshotSync')>()),
+  syncOrg: vi.fn().mockResolvedValue([]),
+}));
 
 const TAB_ID = 7;
 const URL = '/api/v1/groups?limit=200';
@@ -65,5 +73,35 @@ describe('createSchedulerPageRequest', () => {
       success: false,
       error: 'port closed',
     });
+  });
+});
+
+describe('syncSnapshot arms the org threshold probe', () => {
+  const ORIGIN = 'https://example.okta.com';
+
+  beforeEach(() => {
+    vi.mocked(ensureRateLimitThreshold).mockClear();
+    vi.mocked(syncOrg).mockClear().mockResolvedValue([]);
+    (chrome.tabs.get as ReturnType<typeof vi.fn>) = vi
+      .fn()
+      .mockResolvedValue({ id: TAB_ID, url: `${ORIGIN}/admin/groups` });
+  });
+
+  it('arms the probe on the path every trigger route shares, not just the message one', async () => {
+    const scheduler = schedulerReturning({ success: true, data: [], headers: {} });
+
+    await syncSnapshot(scheduler, ORIGIN, TAB_ID, Date.now(), true);
+
+    expect(ensureRateLimitThreshold).toHaveBeenCalledWith(scheduler, TAB_ID);
+  });
+
+  it('does not arm it for a tab that has navigated off the org', async () => {
+    (chrome.tabs.get as ReturnType<typeof vi.fn>) = vi
+      .fn()
+      .mockResolvedValue({ id: TAB_ID, url: 'https://elsewhere.example.com/' });
+    const scheduler = schedulerReturning({ success: true, data: [], headers: {} });
+
+    await expect(syncSnapshot(scheduler, ORIGIN, TAB_ID, Date.now(), true)).rejects.toThrow();
+    expect(ensureRateLimitThreshold).not.toHaveBeenCalled();
   });
 });

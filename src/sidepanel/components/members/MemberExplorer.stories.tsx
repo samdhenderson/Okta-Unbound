@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
-import type { MemberMfaResult } from '../../../shared/types';
+import { expect, fn, userEvent, within } from 'storybook/test';
+import type { MemberMfaResult, OktaUser } from '../../../shared/types';
 import MemberExplorer from './MemberExplorer';
 import { mockUsers } from '../../../test/mocks/fixtures';
 
@@ -26,14 +26,17 @@ const meta = {
     docs: {
       description: {
         component:
-          'Orchestrator for in-group member search, faceting, composition, MFA, and listing.\n\n' +
-          "Owns the explorer's client-side state — debounced search, the active filter set, " +
-          'sort field/direction, and the paged visible window — and derives the ' +
-          'filtered/sorted list via the pure `memberAnalytics` helpers. Composes the search ' +
-          'bar, filter panel, MFA scan panel, composition reports, member list, and the ' +
-          'details/copy modals. MFA scan results are owned by the parent overview and passed ' +
-          'in, so the scan lifecycle (idle → confirming → scanning → complete) is driven by ' +
-          'props.\n\n' +
+          'Orchestrator for in-group member search, faceting, MFA, and listing.\n\n' +
+          '**One control line, one drawer.** The tab used to stack seven surfaces above its ' +
+          'first member row; now a single band carries search, the drawer trigger, the active ' +
+          'filters as chips, and how much of the roster survived them, and every remaining ' +
+          'control is in `MemberFilterDrawer`.\n\n' +
+          "Owns the explorer's client-side state — debounced search, sort field/direction, and " +
+          'the paged visible window — and derives the filtered/sorted list via the pure ' +
+          '`memberAnalytics` helpers. The facet filter set itself lives in `useMemberFilters`, ' +
+          'which also takes the one-shot `pendingFilter` request the Insights tab uses to hand ' +
+          'a value over. MFA scan results are owned by the caller, so the scan lifecycle ' +
+          '(idle → confirming → scanning → complete) is driven by props.\n\n' +
           '**Related internals:** [Types](?path=/docs/internals-types--docs)',
       },
     },
@@ -84,4 +87,73 @@ export const ScanComplete: Story = {
 
 export const Empty: Story = {
   args: { members: [] },
+};
+
+const spreadMembers: OktaUser[] = Array.from({ length: 30 }, (_, i) => ({
+  id: `spread${i + 1}`,
+  status: 'ACTIVE',
+  profile: {
+    login: `spread${i + 1}@example.com`,
+    email: `spread${i + 1}@example.com`,
+    firstName: `First${i + 1}`,
+    lastName: `Last${i + 1}`,
+    department: ['Engineering', 'Support', 'Finance'][i % 3],
+    title: i % 2 === 0 ? 'Manager' : 'Individual Contributor',
+  },
+}));
+
+export const PickAValueThroughTheDrawer: Story = {
+  args: { members: spreadMembers },
+  play: async ({ canvas, canvasElement }) => {
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(trigger);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Department: choose a value to filter by' }),
+    );
+
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole('dialog');
+    await userEvent.click(within(dialog).getByText('Support'));
+
+    await expect(canvas.getByText('Department: Support')).toBeVisible();
+    await expect(canvas.getByText('10 of 30')).toBeVisible();
+  },
+};
+
+export const ChipRemovesTheFilterWithoutTheDrawer: Story = {
+  args: { members: spreadMembers },
+  play: async ({ canvas, canvasElement }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Filters' }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Department: choose a value to filter by' }),
+    );
+    const dialog = await within(canvasElement.ownerDocument.body).findByRole('dialog');
+    await userEvent.click(within(dialog).getByText('Support'));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Filters, 1 applied' }));
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Remove Department: Support filter' }),
+    );
+    await expect(canvas.queryByText('Department: Support')).toBeNull();
+    await expect(canvas.getByText('30 of 30')).toBeVisible();
+  },
+};
+
+export const ClosedDrawerIsInert: Story = {
+  args: { members: spreadMembers },
+  play: async ({ canvas, canvasElement }) => {
+    const trigger = canvas.getByRole('button', { name: 'Filters' });
+    const region = canvasElement.ownerDocument.getElementById(
+      trigger.getAttribute('aria-controls') as string,
+    );
+    await expect(region).toHaveAttribute('inert');
+
+    await userEvent.click(trigger);
+    await expect(region).not.toHaveAttribute('inert');
+  },
 };

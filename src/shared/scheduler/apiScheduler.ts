@@ -19,8 +19,11 @@ import type {
 
 const log = createLogger('ApiScheduler');
 
+const PRE_BUCKET_CAP_CEILING = 5;
+
 const DEFAULT_CONFIG: SchedulerConfig = {
-  maxConcurrent: 5, // Max 5 parallel requests
+  maxConcurrent: 10,
+  maxConcurrentPerBucket: 4,
   minRemainingThreshold: 10, // Cooldown when <10% remaining
   cooldownDuration: 30000, // 30 seconds cooldown fallback
   retryDelay: 2000, // 2 second base retry delay
@@ -31,6 +34,10 @@ const DEFAULT_CONFIG: SchedulerConfig = {
 const GLOBAL_GATE = '*';
 
 const MAX_CANCELLED_PLANS = 64;
+
+const BUCKET_MEMORY_MS = 10 * 60 * 1000;
+
+const MAX_REMEMBERED_BUCKETS = 12;
 
 const RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429]);
 
@@ -49,6 +56,7 @@ export class ApiScheduler {
   private config: SchedulerConfig;
   private status: SchedulerStatus = 'idle';
   private cooldowns: Map<string, number> = new Map();
+  private rememberedBuckets: Map<string, { lastActiveAt: number }> = new Map();
   private isPaused: boolean = false;
   private processingInterval: ReturnType<typeof setInterval> | null = null;
   private isProcessing: boolean = false;
@@ -77,6 +85,22 @@ export class ApiScheduler {
 
   constructor(config: Partial<SchedulerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+
+    if (config.maxConcurrent !== undefined && config.maxConcurrentPerBucket === undefined) {
+      this.config.maxConcurrentPerBucket = Math.min(
+        PRE_BUCKET_CAP_CEILING,
+        this.config.maxConcurrent,
+      );
+    }
+
+    if (config.maxConcurrentPerBucket !== undefined) {
+      const { maxConcurrent, maxConcurrentPerBucket } = this.config;
+      if (maxConcurrentPerBucket <= 0 || maxConcurrentPerBucket >= maxConcurrent) {
+        throw new Error(
+          `maxConcurrentPerBucket must satisfy 0 < ${maxConcurrentPerBucket} < ${maxConcurrent}`,
+        );
+      }
+    }
     this.rateLimitDetector = new RateLimitDetector();
     this.plans = new PlanRegistry(bucketOf);
 
@@ -251,9 +275,21 @@ export class ApiScheduler {
     return { key: observed ? bucket : GLOBAL_GATE, observed };
   }
 
+  private activeInBucket(bucket: string): number {
+    let count = 0;
+    for (const active of this.activeRequests.values()) {
+      if (bucketOf(active.endpoint) === bucket) count++;
+    }
+    return count;
+  }
+
   private gateFor(request: QueuedRequest): 'go' | 'gated' | 'cooldown' {
     const { key, observed } = this.gateKeyFor(request);
     const bucket = observed ? key : undefined;
+    const ownBucket = bucketOf(request.endpoint);
+    const inFlightHere = this.activeInBucket(ownBucket);
+
+    if (inFlightHere >= this.config.maxConcurrentPerBucket) return 'gated';
 
     if (request.priority === 'interactive' && !this.rateLimitDetector.isLimitExceeded(bucket)) {
       return 'go';
@@ -261,10 +297,12 @@ export class ApiScheduler {
 
     if (this.isGated(key)) return 'gated';
 
+    const inFlightCharge = observed ? inFlightHere : this.activeRequests.size;
+
     if (
       this.rateLimitDetector.isApproachingLimit(
         this.config.minRemainingThreshold,
-        this.activeRequests.size,
+        inFlightCharge,
         bucket,
       )
     ) {
@@ -292,8 +330,11 @@ export class ApiScheduler {
       }
 
       if (index === -1) {
-        this.updateStatus('cooldown');
-        return;
+        if (this.anyGateArmed()) {
+          this.updateStatus('cooldown');
+          return;
+        }
+        break;
       }
 
       const [request] = this.queue.splice(index, 1);
@@ -443,6 +484,8 @@ export class ApiScheduler {
     if (request.planId) {
       this.plans.attribute(request.planId, request.endpoint);
     }
+
+    this.rememberBucket(bucketOf(request.endpoint));
 
     recordRequest({
       reason: request.reason,
@@ -606,12 +649,46 @@ export class ApiScheduler {
     };
   }
 
+  private isBucketQuiet(bucket: string): boolean {
+    if (this.queue.some((request) => bucketOf(request.endpoint) === bucket)) return false;
+    if (this.activeInBucket(bucket) > 0) return false;
+    if (this.plans.plannedForBucket(bucket) > 0) return false;
+    if (this.isGated(bucket)) return false;
+    return true;
+  }
+
+  private rememberBucket(bucket: string): void {
+    this.rememberedBuckets.delete(bucket);
+    this.rememberedBuckets.set(bucket, { lastActiveAt: Date.now() });
+    this.pruneRememberedBuckets();
+  }
+
+  private pruneRememberedBuckets(): void {
+    const now = Date.now();
+
+    for (const [bucket, { lastActiveAt }] of [...this.rememberedBuckets]) {
+      if (now - lastActiveAt >= BUCKET_MEMORY_MS && this.isBucketQuiet(bucket)) {
+        this.rememberedBuckets.delete(bucket);
+      }
+    }
+
+    if (this.rememberedBuckets.size <= MAX_REMEMBERED_BUCKETS) return;
+
+    for (const [bucket] of [...this.rememberedBuckets]) {
+      if (this.rememberedBuckets.size <= MAX_REMEMBERED_BUCKETS) break;
+      if (this.isBucketQuiet(bucket)) this.rememberedBuckets.delete(bucket);
+    }
+  }
+
   private buildBucketStates(): BucketState[] {
+    this.pruneRememberedBuckets();
+
     const buckets = new Set<string>();
     for (const { bucket } of this.rateLimitDetector.getState().bucketLimits) buckets.add(bucket);
     for (const request of this.queue) buckets.add(bucketOf(request.endpoint));
     for (const request of this.activeRequests.values()) buckets.add(bucketOf(request.endpoint));
     for (const bucket of this.plans.plannedBuckets()) buckets.add(bucket);
+    for (const bucket of this.rememberedBuckets.keys()) buckets.add(bucket);
 
     const globalGateEndsAt = this.isGated(GLOBAL_GATE)
       ? (this.cooldowns.get(GLOBAL_GATE) as number)
@@ -637,6 +714,7 @@ export class ApiScheduler {
         ).length,
         planned: this.plans.plannedForBucket(bucket),
         gatedUntil,
+        lastActiveAt: this.rememberedBuckets.get(bucket)?.lastActiveAt ?? null,
       };
     });
 

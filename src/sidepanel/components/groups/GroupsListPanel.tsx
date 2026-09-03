@@ -16,6 +16,7 @@ interface GroupsListPanelProps {
   activeFilterCount: number;
   filteredGroups: GroupSummary[];
   selectedGroupIds: Set<string>;
+  selectedCount: number;
   onToggleSelect: (groupId: string) => void;
   oktaOrigin?: string;
   onLoadAllGroups: () => void;
@@ -37,6 +38,7 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
   activeFilterCount,
   filteredGroups,
   selectedGroupIds,
+  selectedCount,
   onToggleSelect,
   oktaOrigin,
   onLoadAllGroups,
@@ -138,15 +140,18 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
         {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
       </ScrollableList>
 
-      {hasMore && (
-        <div className="shrink-0 flex items-center justify-between pt-(--sp-rung) text-xs text-neutral-500">
+      {visibleGroups.length > 0 && (
+        <div className="shrink-0 flex items-center justify-between gap-2 pt-(--sp-rung) text-xs text-neutral-500">
           <span>
             Showing {visibleGroups.length.toLocaleString()} of{' '}
             {filteredGroups.length.toLocaleString()}
+            {selectedCount > 0 && ` · ${selectedCount.toLocaleString()} selected`}
           </span>
-          <Button variant="secondary" size="sm" onClick={loadMore}>
-            Load more (+{Math.min(PAGE, filteredGroups.length - visibleCount)})
-          </Button>
+          {hasMore && (
+            <Button variant="secondary" size="sm" onClick={loadMore}>
+              Load more (+{Math.min(PAGE, filteredGroups.length - visibleCount)})
+            </Button>
+          )}
         </div>
       )}
     </>

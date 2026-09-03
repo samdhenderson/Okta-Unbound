@@ -3,6 +3,9 @@ import { useScheduler } from '../contexts/SchedulerContext';
 import { useProgress } from '../contexts/ProgressContext';
 import type { SchedulerStatus, BucketState } from '../../shared/scheduler/types';
 import type { PlanSummary } from '../../shared/scheduler/plan';
+import { clock, cooldownClock, estimateEta, longestArmedGateMs } from './activityEta';
+import type { EtaEstimate } from './activityEta';
+import { STATUS_COLOR, STATUS_LABEL } from './activityStatus';
 
 export interface ActivityView {
   statusLabel: string;
@@ -15,7 +18,7 @@ export interface ActivityView {
   total: number;
   percentage: number;
   elapsedLabel?: string;
-  etaLabel?: string;
+  eta: EtaEstimate | null;
   apiCalls?: number;
   opCompleted: number;
   opActive: number;
@@ -45,36 +48,6 @@ const DEFAULT_LOW_THRESHOLD_PERCENT = 10;
 const EMPTY_BUCKETS: BucketState[] = [];
 
 const EMPTY_PLANS: PlanSummary[] = [];
-
-const STATUS_COLOR: Record<SchedulerStatus, string> = {
-  idle: 'var(--color-success)',
-  processing: 'var(--color-info)',
-  throttled: 'var(--color-warning)',
-  cooldown: 'var(--color-danger)',
-  paused: 'var(--color-neutral-500)',
-};
-
-const STATUS_LABEL: Record<SchedulerStatus, string> = {
-  idle: 'Ready',
-  processing: 'Processing',
-  throttled: 'Throttled',
-  cooldown: 'Cooldown',
-  paused: 'Paused',
-};
-
-function clock(totalSeconds: number): string {
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-
-function cooldownClock(ms: number): string {
-  const seconds = Math.ceil(ms / 1000);
-  if (seconds >= 60) {
-    return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  }
-  return `${seconds}s`;
-}
 
 export function useActivityBar(): UseActivityBar {
   const { state, metrics, clearQueue, cancelPlan } = useScheduler();
@@ -118,10 +91,18 @@ export function useActivityBar(): UseActivityBar {
 
   const percentage = progress.total > 0 ? Math.min((done / progress.total) * 100, 100) : 0;
 
-  const estimatedTotal = done > 0 ? Math.round((elapsed / done) * progress.total) : 0;
-  const remaining = Math.max(0, estimatedTotal - elapsed);
-  const etaLabel =
-    operationActive && remaining > 0 && done > 2 ? `~${clock(remaining)} left` : undefined;
+  const eta = operationActive
+    ? estimateEta({
+        done,
+        total: progress.total,
+        elapsedMs: elapsed * 1000,
+        longestGateMs: longestArmedGateMs(
+          buckets.map((bucket) => bucket.gatedUntil),
+          cooldownRemaining,
+          now,
+        ),
+      })
+    : null;
 
   const lowThreshold = state?.minRemainingThresholdPercent ?? DEFAULT_LOW_THRESHOLD_PERCENT;
   const rl = state?.rateLimitInfo ?? null;
@@ -147,7 +128,7 @@ export function useActivityBar(): UseActivityBar {
     total: progress.total,
     percentage,
     elapsedLabel: operationActive ? clock(elapsed) : undefined,
-    etaLabel,
+    eta,
     apiCalls: progress.apiCalls,
     opCompleted: progress.completed ?? 0,
     opActive: progress.active ?? 0,

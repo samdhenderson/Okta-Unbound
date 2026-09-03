@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../shared/types';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { mfaScanNeedsConfirm } from '../../hooks/useMemberMfaScan';
@@ -6,38 +6,26 @@ import Button from '../shared/Button';
 import FilterToggle from '../shared/FilterToggle';
 import Modal from '../shared/Modal';
 import MemberSearchBar from './MemberSearchBar';
-import MemberFilterPanel from './MemberFilterPanel';
+import MemberFilterDrawer from './MemberFilterDrawer';
+import ActiveFilterChips from './ActiveFilterChips';
 import CopyMembersModal from './CopyMembersModal';
-import CompositionReports from './CompositionReports';
 import BreakdownDetailsModal from './BreakdownDetailsModal';
 import MemberList from './MemberList';
-import MemberSourceFilterBar from './MemberSourceFilterBar';
 import { useMembershipProofs } from '../users/GroupMembershipsListProof';
+import { useMemberFilters } from '../../hooks/useMemberFilters';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
 import type { GroupMembership } from '../../../shared/types';
-import type { MemberSourceIndex } from '../../../shared/membership/memberSourceIndex';
-import type { MemberSourceBucket } from '../groups/memberSourceBuckets';
+import type { MemberSourceContext } from './memberSourceContext';
 import {
-  type BreakdownRow,
-  type Dimension,
   type MemberFilter,
   type SortField,
   computeDimensionBreakdown,
-  computeMfaBreakdown,
   discoverAttributeBreakdowns,
   filterMembers,
   sortMembers,
   getObservedFactorLabels,
   dimensionTitle,
-  SOURCE_DIMENSION,
 } from './memberAnalytics';
-
-type FactorMode = 'off' | 'has' | 'missing';
-
-export interface MemberSourceContext {
-  index: MemberSourceIndex;
-  segments: MemberSourceBucket[];
-}
 
 interface MemberExplorerProps {
   members: OktaUser[];
@@ -55,6 +43,8 @@ interface MemberExplorerProps {
     membership: GroupMembership,
     userId: string,
   ) => Promise<MemberRuleAttribution>;
+  onOpenInsights?: () => void;
+  pendingFilter?: MemberFilter | null;
 }
 
 const PAGE = 50;
@@ -72,11 +62,15 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   sourceDetail,
   onRemoveMember,
   onProveMemberSource,
+  onOpenInsights,
+  pendingFilter,
 }) => {
+  const drawerId = useId();
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<MemberFilter[]>([]);
+  const memberFilters = useMemberFilters({ pendingFilter });
+  const { filters } = memberFilters;
   const [visibleCount, setVisibleCount] = useState(PAGE);
-  const [showFilters, setShowFilters] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [sortBy, setSortBy] = useState<SortField>('name');
   const [sortDesc, setSortDesc] = useState(false);
   const [detailKey, setDetailKey] = useState<string | null>(null);
@@ -87,7 +81,6 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   const attributes = useMemo(() => discoverAttributeBreakdowns(members), [members]);
   const statusRows = useMemo(() => computeDimensionBreakdown(members, 'status'), [members]);
   const factorLabels = useMemo(() => getObservedFactorLabels(mfaResults), [mfaResults]);
-  const mfaRows = useMemo(() => computeMfaBreakdown(members, mfaResults), [members, mfaResults]);
 
   const sourceBuckets = useMemo(() => {
     if (!memberSource) return null;
@@ -105,11 +98,6 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
 
   const proofs = useMembershipProofs(onProveMemberSource);
 
-  const activeSourceKeys = useMemo(
-    () => new Set(filters.filter((f) => f.dimension === SOURCE_DIMENSION).map((f) => f.value)),
-    [filters],
-  );
-
   const filtered = useMemo(
     () => filterMembers(members, debouncedQuery, filters, mfaResults, sourceBuckets),
     [members, debouncedQuery, filters, mfaResults, sourceBuckets],
@@ -119,76 +107,12 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
     [filtered, sortBy, sortDesc, mfaResults],
   );
 
-  const resetKey = `${debouncedQuery}__${filters
-    .map((f) => `${f.dimension}:${f.value}`)
-    .join('|')}__${members.length}__${sortBy}__${sortDesc}`;
+  const resetKey = `${debouncedQuery}__${memberFilters.key}__${members.length}__${sortBy}__${sortDesc}`;
   const [lastResetKey, setLastResetKey] = useState(resetKey);
   if (resetKey !== lastResetKey) {
     setLastResetKey(resetKey);
     setVisibleCount(PAGE);
   }
-
-  const toggleFilter = useCallback((dimension: Dimension, value: string, label: string) => {
-    setFilters((prev) => {
-      const existing = prev.find((f) => f.dimension === dimension && f.value === value);
-      if (existing) return prev.filter((f) => f !== existing);
-      return [...prev, { dimension, value, label }];
-    });
-  }, []);
-
-  const handleCompositionToggle = useCallback(
-    (dimension: Dimension, row: BreakdownRow) => {
-      toggleFilter(dimension, row.value, `${dimensionTitle(dimension)}: ${row.label}`);
-    },
-    [toggleFilter],
-  );
-
-  const handleStatusToggle = useCallback(
-    (row: BreakdownRow) => toggleFilter('status', row.value, `Status: ${row.label}`),
-    [toggleFilter],
-  );
-
-  const handleClearStatus = useCallback(
-    () => setFilters((prev) => prev.filter((f) => f.dimension !== 'status')),
-    [],
-  );
-
-  const handleMfaValueToggle = useCallback(
-    (value: string, label: string) => toggleFilter('mfa', value, label),
-    [toggleFilter],
-  );
-
-  const handleSetFactorMode = useCallback((label: string, mode: FactorMode) => {
-    setFilters((prev) => {
-      const without = prev.filter(
-        (f) =>
-          !(
-            f.dimension === 'mfa' &&
-            (f.value === `has:${label}` || f.value === `missing:${label}`)
-          ),
-      );
-      if (mode === 'off') return without;
-      const value = mode === 'has' ? `has:${label}` : `missing:${label}`;
-      const chip = `${mode === 'has' ? 'Has' : 'Missing'} ${label}`;
-      return [...without, { dimension: 'mfa', value, label: chip }];
-    });
-  }, []);
-
-  const handleSourceToggle = useCallback(
-    (key: string, label: string) => toggleFilter(SOURCE_DIMENSION, key, `Source: ${label}`),
-    [toggleFilter],
-  );
-
-  const clearSourceFilters = useCallback(
-    () => setFilters((prev) => prev.filter((f) => f.dimension !== SOURCE_DIMENSION)),
-    [],
-  );
-
-  const removeFilter = useCallback(
-    (filter: MemberFilter) => setFilters((prev) => prev.filter((f) => f !== filter)),
-    [],
-  );
-  const clearAll = useCallback(() => setFilters([]), []);
 
   const toggleSort = useCallback((field: SortField) => {
     setSortBy((prevField) => {
@@ -211,78 +135,39 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   }, [members.length, onRequestConfirm, onRunScan]);
 
   const mfaScanned = mfaResults !== null && scanStatus === 'complete';
-  const activeFilterCount = filters.length;
 
   const detailRows = useMemo(
     () => (detailKey ? computeDimensionBreakdown(members, detailKey) : []),
     [detailKey, members],
   );
-  const detailActiveValues = useMemo(
-    () => new Set(filters.filter((f) => f.dimension === detailKey).map((f) => f.value)),
-    [filters, detailKey],
+  const detailActiveValues = memberFilters.valuesFor(detailKey);
+
+  const filteredDimensions = useMemo(
+    () => new Set(filters.map((filter) => filter.dimension)),
+    [filters],
   );
 
   return (
     <div className="space-y-(--sp-rung)">
-      {memberSource && (
-        <div className="space-y-3">
-          <MemberSourceFilterBar
-            segments={memberSource.segments}
-            activeKeys={activeSourceKeys}
-            onToggle={handleSourceToggle}
-            onClearAll={clearSourceFilters}
-            total={memberSource.index.byUserId.size}
+      <div className="space-y-(--sp-field)">
+        <div className="flex gap-(--sp-field)">
+          <div className="flex-1">
+            <MemberSearchBar value={query} onChange={setQuery} />
+          </div>
+          <FilterToggle
+            open={drawerOpen}
+            activeCount={memberFilters.activeCount}
+            onToggle={() => setDrawerOpen((prev) => !prev)}
+            controls={drawerId}
           />
-          {sourceDetail}
         </div>
-      )}
 
-      <div className="flex gap-(--sp-field)">
-        <div className="flex-1">
-          <MemberSearchBar value={query} onChange={setQuery} />
-        </div>
-        <FilterToggle
-          open={showFilters}
-          activeCount={activeFilterCount}
-          onToggle={() => setShowFilters((prev) => !prev)}
-        />
-      </div>
-
-      {showFilters && (
-        <MemberFilterPanel
+        <ActiveFilterChips
           filters={filters}
-          statusRows={statusRows}
-          mfaResults={mfaResults}
-          factorLabels={factorLabels}
-          memberCount={members.length}
-          scanStatus={scanStatus}
-          onRunScanClick={handleScanClick}
-          sortBy={sortBy}
-          sortDesc={sortDesc}
-          onToggleStatus={handleStatusToggle}
-          onClearStatus={handleClearStatus}
-          onToggleMfaValue={handleMfaValueToggle}
-          onSetFactorMode={handleSetFactorMode}
-          onToggleSort={toggleSort}
-          onRemoveFilter={removeFilter}
-          onClearAll={clearAll}
+          onRemove={memberFilters.remove}
+          onClearAll={memberFilters.clearAll}
         />
-      )}
 
-      <CompositionReports
-        attributes={attributes}
-        filters={filters}
-        onToggle={handleCompositionToggle}
-        onExpand={setDetailKey}
-        mfaRows={mfaRows}
-        mfaResults={mfaResults}
-        scanStatus={scanStatus}
-        memberCount={members.length}
-        onToggleMfa={(row) => handleMfaValueToggle(row.value, row.label)}
-        onRunScanClick={handleScanClick}
-      />
-
-      <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-neutral-900">
             Members
@@ -301,19 +186,41 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
             Copy members
           </Button>
         </div>
-        <MemberList
-          members={sorted}
-          loading={isReloading}
-          mfaResults={mfaResults}
-          mfaScanned={mfaScanned}
-          visibleCount={visibleCount}
-          onLoadMore={loadMore}
-          oktaOrigin={oktaOrigin}
-          onRemoveMember={onRemoveMember}
-          memberSourceIndex={memberSource?.index}
-          proofs={proofs}
-        />
       </div>
+
+      <MemberFilterDrawer
+        id={drawerId}
+        open={drawerOpen}
+        memberFilters={memberFilters}
+        memberSource={memberSource}
+        sourceDetail={sourceDetail}
+        statusRows={statusRows}
+        mfaResults={mfaResults}
+        factorLabels={factorLabels}
+        memberCount={members.length}
+        scanStatus={scanStatus}
+        onRunScanClick={handleScanClick}
+        sortBy={sortBy}
+        sortDesc={sortDesc}
+        onToggleSort={toggleSort}
+        attributes={attributes}
+        filteredDimensions={filteredDimensions}
+        onSelectAttribute={setDetailKey}
+        onOpenInsights={onOpenInsights}
+      />
+
+      <MemberList
+        members={sorted}
+        loading={isReloading}
+        mfaResults={mfaResults}
+        mfaScanned={mfaScanned}
+        visibleCount={visibleCount}
+        onLoadMore={loadMore}
+        oktaOrigin={oktaOrigin}
+        onRemoveMember={onRemoveMember}
+        memberSourceIndex={memberSource?.index}
+        proofs={proofs}
+      />
 
       <BreakdownDetailsModal
         isOpen={detailKey !== null}
@@ -321,7 +228,7 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         title={detailKey ? dimensionTitle(detailKey) : ''}
         rows={detailRows}
         activeValues={detailActiveValues}
-        onRowClick={(row) => detailKey && handleCompositionToggle(detailKey, row)}
+        onRowClick={(row) => detailKey && memberFilters.toggleRow(detailKey, row)}
       />
 
       <CopyMembersModal isOpen={copyOpen} onClose={() => setCopyOpen(false)} members={sorted} />

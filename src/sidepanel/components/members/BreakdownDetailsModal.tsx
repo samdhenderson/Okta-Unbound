@@ -5,6 +5,7 @@ import CopyButton from '../shared/CopyButton';
 import ScrollableList from '../shared/ScrollableList';
 import BreakdownReport from './BreakdownReport';
 import { type BreakdownRow, NONE_VALUE, OTHER_VALUE } from './memberAnalytics';
+import type { BreakdownRowIntent } from './BreakdownReport';
 
 interface BreakdownDetailsModalProps {
   isOpen: boolean;
@@ -12,7 +13,8 @@ interface BreakdownDetailsModalProps {
   title: string;
   rows: BreakdownRow[];
   activeValues: Set<string>;
-  onRowClick: (row: BreakdownRow) => void;
+  onRowClick?: (row: BreakdownRow) => void;
+  rowIntent?: BreakdownRowIntent;
 }
 
 const BreakdownDetailsModal: React.FC<BreakdownDetailsModalProps> = ({
@@ -22,6 +24,7 @@ const BreakdownDetailsModal: React.FC<BreakdownDetailsModalProps> = ({
   rows,
   activeValues,
   onRowClick,
+  rowIntent = 'toggle',
 }) => {
   const realValues = rows
     .filter((r) => r.value !== NONE_VALUE && r.value !== OTHER_VALUE)
@@ -42,8 +45,12 @@ const BreakdownDetailsModal: React.FC<BreakdownDetailsModalProps> = ({
       <div className="space-y-(--sp-rung)">
         <div className="flex items-start justify-between gap-3">
           <p className="text-sm text-neutral-600">
-            All {realValues.length.toLocaleString()} values. Click any value to filter the member
-            list by it.
+            All {realValues.length.toLocaleString()} values
+            {!onRowClick
+              ? '.'
+              : rowIntent === 'navigate'
+                ? '. Pick one to open the Members tab filtered by it.'
+                : '. Click any value to filter the member list by it.'}
           </p>
           <CopyButton
             getText={() => realValues.join('\n')}
@@ -54,7 +61,12 @@ const BreakdownDetailsModal: React.FC<BreakdownDetailsModalProps> = ({
           />
         </div>
         <ScrollableList maxHeight="50vh" fillAvailable={false}>
-          <BreakdownReport rows={rows} activeValues={activeValues} onRowClick={onRowClick} />
+          <BreakdownReport
+            rows={rows}
+            activeValues={activeValues}
+            onRowClick={onRowClick}
+            rowIntent={rowIntent}
+          />
         </ScrollableList>
       </div>
     </Modal>

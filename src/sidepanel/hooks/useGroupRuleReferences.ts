@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useOwedLoad } from './useOwedLoad';
 import { useOktaApi } from './useOktaApi';
 import { extractReferencedGroupIds } from '../../shared/rules/groupRuleIndex';
@@ -14,6 +14,7 @@ export interface UseGroupRuleReferencesReturn {
   rules: ReferencingRule[];
   status: SourceStatus;
   error: string | null;
+  reload: () => void;
 }
 
 export function useGroupRuleReferences(
@@ -38,8 +39,10 @@ export function useGroupRuleReferences(
     setError(null);
   }
 
-  useOwedLoad(targetTabId == null ? groupId : `${targetTabId}:${groupId}`, enabled, () => {
+  const load = useCallback(() => {
     const runId = ++runIdRef.current;
+    setStatus('loading');
+    setError(null);
 
     ensureGroupRulesLoaded()
       .then((all) => {
@@ -62,7 +65,9 @@ export function useGroupRuleReferences(
         setError(err instanceof Error ? err.message : 'Failed to load referencing rules');
         setStatus('error');
       });
-  });
+  }, [groupId, ensureGroupRulesLoaded]);
 
-  return { rules, status, error };
+  useOwedLoad(targetTabId == null ? groupId : `${targetTabId}:${groupId}`, enabled, load);
+
+  return { rules, status, error, reload: load };
 }

@@ -18,7 +18,7 @@ function idleView(overrides: Partial<ActivityView> = {}): ActivityView {
     total: 0,
     percentage: 0,
     elapsedLabel: undefined,
-    etaLabel: undefined,
+    eta: null,
     apiCalls: undefined,
     queueLength: 0,
     activeRequests: 0,
@@ -45,16 +45,16 @@ const renderView = (view: ActivityView, onCancel = vi.fn()) => {
 };
 
 describe('ActivityBarView', () => {
-  it('renders a single slim bar when idle: status + rate limit, no operation', () => {
+  it('renders a single slim bar when idle: status only, no operation', () => {
     renderView(idleView());
-    expect(screen.getByText('Ready')).toBeInTheDocument();
-    expect(screen.getByTestId('activity-rate-limit')).toHaveTextContent('600/600');
+    expect(screen.getByTestId('activity-status-label')).toHaveTextContent('Ready');
+    expect(screen.getByTestId('activity-standing')).toBeInTheDocument();
     expect(screen.queryByTestId('activity-operation-name')).not.toBeInTheDocument();
   });
 
-  it('keeps the metric slots and action area mounted across idle → active (no reflow)', () => {
+  it('keeps the summary slots and action area mounted across idle → active (no reflow)', () => {
     const { unmount } = render(<ActivityBarView view={idleView()} onCancel={vi.fn()} />);
-    for (const id of ['activity-queue', 'activity-active', 'activity-rate-limit', 'activity-eta']) {
+    for (const id of ['activity-status-label', 'activity-standing']) {
       expect(screen.getByTestId(id)).toBeInTheDocument();
     }
     expect(screen.getByTestId('activity-actions')).toBeInTheDocument();
@@ -76,9 +76,8 @@ describe('ActivityBarView', () => {
         onCancel={vi.fn()}
       />,
     );
-    for (const id of ['activity-queue', 'activity-active', 'activity-rate-limit', 'activity-eta']) {
-      expect(screen.getByTestId(id)).toBeInTheDocument();
-    }
+    expect(screen.getByTestId('activity-operation-name')).toBeInTheDocument();
+    expect(screen.getByTestId('activity-standing')).toBeInTheDocument();
     expect(screen.getByTestId('activity-actions')).toBeInTheDocument();
   });
 
@@ -92,17 +91,17 @@ describe('ActivityBarView', () => {
         total: 20,
         percentage: 20,
         elapsedLabel: '0:12',
-        etaLabel: '~0:48 left',
+        eta: { kind: 'point', lowerMs: 48_000, label: '~0:48 left' },
         apiCalls: 4,
       }),
     );
     expect(screen.getByTestId('activity-operation-name')).toHaveTextContent('Exporting members');
     expect(screen.getByTestId('activity-progress-counter')).toHaveTextContent('4 / 20');
-    expect(screen.getByTestId('activity-eta')).toHaveTextContent('0:48');
+    expect(screen.getByTestId('activity-standing')).toHaveTextContent('0:48');
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '20');
   });
 
-  it('shows the operation breakdown (done / active / failed) while running', () => {
+  it('keeps the failure count while running, and drops the done/active pair', () => {
     renderView(
       idleView({
         operationActive: true,
@@ -116,10 +115,11 @@ describe('ActivityBarView', () => {
         opFailed: 2,
       }),
     );
-    const breakdown = screen.getByTestId('activity-op-breakdown');
-    expect(breakdown).toHaveTextContent('18 done');
-    expect(breakdown).toHaveTextContent('5 active');
-    expect(breakdown).toHaveTextContent('2 failed');
+    expect(screen.getByTestId('activity-failed')).toHaveTextContent('2 failed');
+    expect(screen.getByTestId('activity-progress-counter')).toHaveTextContent('20 / 30');
+    expect(screen.queryByTestId('activity-op-breakdown')).not.toBeInTheDocument();
+    expect(screen.queryByText(/18 done/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/5 active/)).not.toBeInTheDocument();
   });
 
   it('omits the operation breakdown when idle', () => {
@@ -127,20 +127,90 @@ describe('ActivityBarView', () => {
     expect(screen.queryByTestId('activity-op-breakdown')).not.toBeInTheDocument();
   });
 
-  it('shows queue and active counts when present', () => {
-    renderView(idleView({ queueLength: 7, activeRequests: 3 }));
-    expect(screen.getByTestId('activity-queue')).toHaveTextContent('7');
-    expect(screen.getByTestId('activity-active')).toHaveTextContent('3');
+  it('carries the queue depth on the lane that owns it, not as one org-wide figure', () => {
+    renderView(
+      idleView({
+        queueLength: 7,
+        activeRequests: 3,
+        buckets: [
+          {
+            bucket: '/api/v1/users',
+            limit: 600,
+            remaining: 600,
+            resetAt: FIXED_NOW + 60_000,
+            queued: 7,
+            active: 3,
+            planned: 0,
+            gatedUntil: null,
+            lastActiveAt: null,
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByTestId('activity-bucket-/api/v1/users')).toHaveTextContent(
+      '3 running · 7 queued',
+    );
+  });
+
+  it('renders the ETA as a range once a cooldown widens it', () => {
+    renderView(
+      idleView({
+        operationActive: true,
+        operationName: 'Exporting members',
+        busy: true,
+        current: 10,
+        total: 20,
+        eta: { kind: 'range', lowerMs: 20_000, upperMs: 110_000, label: '0:20–1:50 left' },
+      }),
+    );
+
+    expect(screen.getByTestId('activity-standing')).toHaveTextContent('0:20–1:50 left');
+  });
+
+  it('renders the unknown ETA as words, never as an optimistic number', () => {
+    renderView(
+      idleView({
+        operationActive: true,
+        operationName: 'Exporting members',
+        busy: true,
+        current: 1,
+        total: 800,
+        eta: { kind: 'unknown', label: 'estimating…' },
+      }),
+    );
+
+    const eta = screen.getByTestId('activity-standing');
+    expect(eta).toHaveTextContent('estimating');
+    expect(eta.textContent).not.toMatch(/\d/);
   });
 
   it('shows a cooldown countdown when cooling down', () => {
     renderView(idleView({ statusLabel: 'Cooldown', cooldownLabel: '12s' }));
-    expect(screen.getByTestId('activity-eta')).toHaveTextContent('12s');
+    expect(screen.getByTestId('activity-standing')).toHaveTextContent('resuming in 12s');
   });
 
-  it('flags a low rate-limit budget for the user', () => {
-    renderView(idleView({ rateLimit: { remaining: 20, limit: 600, low: true } }));
-    expect(screen.getByTestId('activity-rate-limit')).toHaveAttribute('data-low', 'true');
+  it('flags a low rate-limit budget in a word, on the lane that is low', () => {
+    renderView(
+      idleView({
+        buckets: [
+          {
+            bucket: '/api/v1/users',
+            limit: 600,
+            remaining: 20,
+            resetAt: FIXED_NOW + 60_000,
+            queued: 0,
+            active: 1,
+            planned: 0,
+            gatedUntil: null,
+            lastActiveAt: null,
+          },
+        ],
+      }),
+    );
+
+    expect(screen.getByTestId('activity-bucket-/api/v1/users')).toHaveAttribute('data-low', 'true');
+    expect(screen.getByTestId('activity-bucket-low-/api/v1/users')).toHaveTextContent('low');
   });
 
   it('enables Cancel and fires onCancel when there is work to cancel', () => {
@@ -187,10 +257,9 @@ describe('ActivityBarView', () => {
       expect(screen.getByTestId('activity-rate-compact')).toHaveTextContent('480/600');
       expect(screen.getByTestId('activity-processed-compact')).toHaveTextContent('118');
       expect(screen.getByTestId('activity-processed-compact')).toHaveTextContent('3 failed');
-      expect(screen.queryByTestId('activity-queue')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('activity-active')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('activity-eta')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('activity-op-breakdown')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('activity-standing')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('activity-status-label')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('activity-buckets')).not.toBeInTheDocument();
     });
 
     it('shows live progress instead of the tally while an operation runs', () => {
@@ -257,8 +326,8 @@ describe('ActivityBarView', () => {
           onToggleCollapse={vi.fn()}
         />,
       );
-      expect(screen.getByTestId('activity-queue')).toHaveTextContent('7');
-      expect(screen.getByTestId('activity-active')).toHaveTextContent('3');
+      expect(screen.getByTestId('activity-standing')).toBeInTheDocument();
+      expect(screen.getByTestId('activity-status-label')).toHaveTextContent('Ready');
       expect(
         screen.getByRole('button', { name: /hide extra activity stats/i }),
       ).toBeInTheDocument();
@@ -278,6 +347,7 @@ describe('per-bucket headroom', () => {
       active: 0,
       planned: 0,
       gatedUntil: null,
+      lastActiveAt: null,
       ...overrides,
     };
   }
@@ -288,7 +358,7 @@ describe('per-bucket headroom', () => {
     expect(screen.queryByTestId('activity-buckets')).not.toBeInTheDocument();
   });
 
-  it('collapses quiet buckets to a single line rather than a row each', () => {
+  it('gives every tracked bucket a lane, quiet or not', () => {
     render(
       <ActivityBarView
         view={idleView({
@@ -302,8 +372,8 @@ describe('per-bucket headroom', () => {
       />,
     );
 
-    expect(screen.queryAllByTestId(/^activity-bucket-/)).toHaveLength(0);
-    expect(screen.getByTestId('activity-buckets-quiet')).toHaveTextContent('3 buckets idle');
+    expect(screen.queryAllByTestId(/^activity-bucket-\/api/)).toHaveLength(3);
+    expect(screen.queryByTestId('activity-buckets-quiet')).not.toBeInTheDocument();
   });
 
   it('shows the planned work against a bucket before any of it is sent', () => {
@@ -332,8 +402,14 @@ describe('per-bucket headroom', () => {
       />,
     );
 
-    expect(screen.getByTestId('activity-bucket-cooldown-/api/v1/users')).toHaveTextContent('24s');
-    expect(screen.getByTestId('activity-buckets-quiet')).toHaveTextContent('groups');
+    expect(screen.getByTestId('activity-bucket-/api/v1/users')).toHaveTextContent(
+      'cooling down · 24s',
+    );
+    expect(screen.getByTestId('activity-bucket-/api/v1/groups')).toHaveAttribute(
+      'data-state',
+      'at-rest',
+    );
+    expect(screen.getByTestId('activity-bucket-/api/v1/groups')).not.toHaveAttribute('data-gated');
   });
 
   it('colours low headroom at the org threshold the view carries', () => {
@@ -363,6 +439,24 @@ describe('per-bucket headroom', () => {
 
     expect(screen.queryByTestId('activity-buckets')).not.toBeInTheDocument();
   });
+
+  it('draws no per-bucket lanes when condensed, and draws them when expanded', () => {
+    const view = idleView({
+      buckets: [
+        bucket({ bucket: '/api/v1/users', queued: 20, lastActiveAt: FIXED_NOW - 1_000 }),
+        bucket({ bucket: '/api/v1/groups', lastActiveAt: FIXED_NOW - 30_000 }),
+      ],
+    });
+
+    const { unmount } = render(
+      <ActivityBarView view={view} onCancel={vi.fn()} collapsible collapsed />,
+    );
+    expect(screen.queryAllByTestId(/^activity-bucket-\/api/)).toHaveLength(0);
+    unmount();
+
+    render(<ActivityBarView view={view} onCancel={vi.fn()} collapsible collapsed={false} />);
+    expect(screen.queryAllByTestId(/^activity-bucket-\/api/)).toHaveLength(2);
+  });
 });
 
 describe('ActivityBarView operation ledger', () => {
@@ -375,6 +469,7 @@ describe('ActivityBarView operation ledger', () => {
       active: 0,
       planned: 0,
       gatedUntil: null,
+      lastActiveAt: null,
       ...overrides,
     };
   }

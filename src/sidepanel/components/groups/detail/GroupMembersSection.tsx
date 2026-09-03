@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { AlertMessage, Button, DetailSection, EmptyState, Modal, Skeleton } from '../../shared';
-import MemberExplorer, { type MemberSourceContext } from '../../members/MemberExplorer';
+import MemberExplorer from '../../members/MemberExplorer';
+import type { MemberSourceContext } from '../../members/memberSourceContext';
+import type { MemberFilter } from '../../members/memberAnalytics';
 import MemberSourceNotes from './MemberSourceNotes';
 import { toMemberSourceSegments } from '../memberSourceBuckets';
 import type {
@@ -50,6 +52,8 @@ export interface GroupMembersSectionProps {
   onConfirmRemove: () => void;
   removeStatus: MemberWriteStatus;
   removeError: string | null;
+  onOpenInsights?: () => void;
+  pendingFilter?: MemberFilter | null;
 }
 
 const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
@@ -76,6 +80,8 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
   onConfirmRemove,
   removeStatus,
   removeError,
+  onOpenInsights,
+  pendingFilter,
 }) => {
   const hasMembers = memberCount > 0;
   const readOnlyReason = READ_ONLY_REASON[groupType];
@@ -144,6 +150,8 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
             ) : undefined
           }
           onProveMemberSource={proveMemberSource}
+          onOpenInsights={onOpenInsights}
+          pendingFilter={pendingFilter}
           onRemoveMember={readOnlyReason ? undefined : onRequestRemove}
         />
       )}

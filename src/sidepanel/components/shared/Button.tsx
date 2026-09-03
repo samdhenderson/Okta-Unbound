@@ -2,7 +2,7 @@ import React from 'react';
 import Icon, { type IconType } from '../shared/Icon';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -20,6 +20,7 @@ interface ButtonProps {
   title?: string;
   expanded?: boolean;
   controls?: string;
+  ariaLabel?: string;
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -52,10 +53,14 @@ const variantClasses: Record<ButtonVariant, string> = {
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
+  xs: 'px-2 py-0.5 text-xs min-h-6', // 24px
   sm: 'px-3 py-1.5 text-xs min-h-9', // 36px
   md: 'px-4 py-2 text-sm min-h-10', // 40px
   lg: 'px-4 py-3 text-base min-h-14', // 56px
 };
+
+const iconSize = (size: ButtonSize): 'xs' | 'sm' | 'md' =>
+  size === 'xs' ? 'xs' : size === 'sm' ? 'sm' : 'md';
 
 const Button: React.FC<ButtonProps> = ({
   children,
@@ -73,6 +78,7 @@ const Button: React.FC<ButtonProps> = ({
   title,
   expanded,
   controls,
+  ariaLabel,
 }) => {
   const baseClasses = `
     inline-flex items-center justify-center gap-2
@@ -93,6 +99,7 @@ const Button: React.FC<ButtonProps> = ({
       disabled={disabled || loading}
       className={`${baseClasses} ${className}`}
       title={title}
+      aria-label={ariaLabel}
       aria-expanded={expanded}
       aria-controls={controls}
       style={{ fontFamily: 'var(--font-heading)' }}
@@ -114,13 +121,9 @@ const Button: React.FC<ButtonProps> = ({
           />
         </svg>
       )}
-      {!loading && icon && iconPosition === 'left' && (
-        <Icon type={icon} size={size === 'sm' ? 'sm' : 'md'} />
-      )}
+      {!loading && icon && iconPosition === 'left' && <Icon type={icon} size={iconSize(size)} />}
       <span>{children}</span>
-      {!loading && icon && iconPosition === 'right' && (
-        <Icon type={icon} size={size === 'sm' ? 'sm' : 'md'} />
-      )}
+      {!loading && icon && iconPosition === 'right' && <Icon type={icon} size={iconSize(size)} />}
       {badge && (
         <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-danger text-white">
           {badge}

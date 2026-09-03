@@ -5,6 +5,7 @@ import { makeFakeCore } from '@/test/factories/coreApi';
 import type { OrgSnapshotView, SnapshotCollection } from '../snapshot';
 import type { ReportRow } from '../orgReportSource';
 import type { EntityExport } from '../types';
+import { DORMANT_ACCESS_DAYS, dormantAccessLabel } from '@/sidepanel/components/groups/ruleOrphans';
 import reportDescriptors, {
   dormantAccessReportDescriptor,
   groupCleanupReportDescriptor,
@@ -229,5 +230,11 @@ describe('a partial answer states its shortfall on every row', () => {
 
     expect(csv.split('\n')[0]).toBe('Group');
     expect(filename).not.toContain('-partial-');
+  });
+
+  it('names the dormant report with the threshold the join actually applies (ADR-0067 §1)', () => {
+    expect(dormantAccessReportDescriptor.displayName).toBe(`Report: ${dormantAccessLabel()}`);
+    expect(dormantAccessReportDescriptor.displayName).toContain('6 months');
+    expect(DORMANT_ACCESS_DAYS).toBe(180);
   });
 });

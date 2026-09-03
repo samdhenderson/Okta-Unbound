@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type React from 'react';
-import type { GroupMembership, OktaUser, UserInfo } from '../../shared/types';
+import type { GroupMembership, OktaUser } from '../../shared/types';
 import type { AlertAction, AlertMessageData } from '../components/shared/AlertMessage';
 import { invalidate } from '../cache/entityCache';
 import { useOktaApi } from './useOktaApi';
@@ -51,9 +51,6 @@ export interface UseUsersTabStateReturn {
   setSearchQuery: (query: string) => void;
   searchResults: OktaUser[];
   isSearching: boolean;
-  detectedUser: UserInfo | null;
-  loadDetectedUser: () => Promise<void>;
-  dismissDetectedUser: () => void;
   selectUser: (user: OktaUser) => Promise<void>;
   clearSearch: () => void;
   nav: ViewStack<UsersViewEntry>;
@@ -84,7 +81,7 @@ export function useUsersTabState({
   isActive = true,
   compareViewRef,
 }: UseUsersTabStateOptions): UseUsersTabStateReturn {
-  const { userInfo, oktaOrigin } = useUserContext(isActive);
+  const { oktaOrigin } = useUserContext(isActive);
   const [isLoadingMemberships, setIsLoadingMemberships] = useState(false);
   const [selectedUser, setSelectedUser] = useState<OktaUser | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +91,6 @@ export function useUsersTabState({
     setResultMessage(message);
     setResultAction(action ?? null);
   }, []);
-  const [dismissedDetectedId, setDismissedDetectedId] = useState<string | null>(null);
   const [recentlyAddedGroupId, setRecentlyAddedGroupId] = useState<string | null>(null);
   const pendingAddGroupIdRef = useRef<string | null>(null);
 
@@ -197,9 +193,8 @@ export function useUsersTabState({
     [showUserDetail],
   );
 
-  const { loadDetectedUser, loadUserById } = useDetectedUser({
+  const { loadUserById } = useDetectedUser({
     targetTabId,
-    detectedUserId: userInfo?.userId,
     loadMemberships,
     onSelectUser: onDetectedUserSelected,
     onError: setError,
@@ -220,18 +215,6 @@ export function useUsersTabState({
     loadUserById(selectedUserId);
     onUserSelected?.();
   }, [selectedUserId, loadUserById, onUserSelected, resetNav]);
-
-  const detectedUserId = userInfo?.userId;
-  const showDetectedBanner =
-    Boolean(userInfo) &&
-    detectedUserId !== selectedUser?.id &&
-    detectedUserId !== dismissedDetectedId &&
-    !searchQuery;
-
-  const dismissDetectedUser = useCallback(() => {
-    if (!userInfo) return;
-    setDismissedDetectedId(userInfo.userId);
-  }, [userInfo]);
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
@@ -329,9 +312,6 @@ export function useUsersTabState({
     setSearchQuery,
     searchResults,
     isSearching,
-    detectedUser: showDetectedBanner && userInfo ? userInfo : null,
-    loadDetectedUser,
-    dismissDetectedUser,
     selectUser: handleSelectUser,
     clearSearch,
     nav,

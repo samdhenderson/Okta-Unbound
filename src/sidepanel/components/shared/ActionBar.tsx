@@ -1,5 +1,5 @@
 import React, { useCallback, useId, useRef, useState } from 'react';
-import Button, { type ButtonVariant } from './Button';
+import Button, { type ButtonSize, type ButtonVariant } from './Button';
 import type { IconType } from '../shared/Icon';
 import { useActionOverflow } from './useActionOverflow';
 
@@ -18,11 +18,17 @@ export interface ActionDescriptor {
   testId?: string;
 }
 
+export interface ActionRegister {
+  ariaLabel: string;
+  actions: readonly ActionDescriptor[];
+}
+
 export interface ActionBarProps {
   actions: readonly ActionDescriptor[];
   ariaLabel: string;
   sticky?: boolean;
   subRow?: React.ReactNode;
+  register?: ActionRegister;
   expansion?: React.ReactNode;
   tierOpen?: boolean;
   defaultTierOpen?: boolean;
@@ -34,12 +40,27 @@ export interface ActionBarProps {
 const priorityOf = (action: ActionDescriptor): ActionPriority =>
   action.priority ?? (action.variant === 'primary' ? 'pinned' : 'flex');
 
+const splitByPriority = (
+  actions: readonly ActionDescriptor[],
+): { ordered: ActionDescriptor[]; pinned: number; tierOnly: ActionDescriptor[] } => {
+  const barEligible = actions.filter((a) => priorityOf(a) !== 'tier');
+  const pinnedActions = barEligible.filter((a) => priorityOf(a) === 'pinned');
+  return {
+    ordered: [...pinnedActions, ...barEligible.filter((a) => priorityOf(a) === 'flex')],
+    pinned: pinnedActions.length,
+    tierOnly: actions.filter((a) => priorityOf(a) === 'tier'),
+  };
+};
+
+const REGISTER_BUTTON_SIZE = 'xs' as const;
+
 const Action: React.FC<{
   action: ActionDescriptor;
   compact?: boolean;
   measure?: 'full' | 'compact';
   variant?: ButtonVariant;
-}> = ({ action, compact = false, measure, variant }) => (
+  size?: ButtonSize;
+}> = ({ action, compact = false, measure, variant, size = 'sm' }) => (
   <span
     className="inline-flex"
     data-action-id={action.id}
@@ -48,7 +69,7 @@ const Action: React.FC<{
   >
     <Button
       variant={variant ?? action.variant ?? 'secondary'}
-      size="sm"
+      size={size}
       {...(compact || !action.icon ? {} : { icon: action.icon })}
       onClick={action.onClick}
       disabled={action.disabled ?? false}
@@ -60,11 +81,47 @@ const Action: React.FC<{
   </span>
 );
 
+const MeasureProbe: React.FC<{
+  actions: readonly ActionDescriptor[];
+  cluster: boolean;
+  probeRef: React.RefObject<HTMLDivElement | null>;
+  size?: ButtonSize;
+}> = ({ actions, cluster, probeRef, size }) => (
+  <div
+    ref={probeRef}
+    aria-hidden="true"
+    inert
+    className="pointer-events-none invisible absolute top-0 left-0 flex w-max items-center gap-2 whitespace-nowrap"
+  >
+    {actions.map((action) => (
+      <Action key={`f-${action.id}`} action={action} measure="full" {...(size ? { size } : {})} />
+    ))}
+    {actions.map((action) => (
+      <Action
+        key={`c-${action.id}`}
+        action={action}
+        compact
+        measure="compact"
+        {...(size ? { size } : {})}
+      />
+    ))}
+    {cluster && (
+      <span className="inline-flex items-center" data-measure="cluster">
+        <span aria-hidden="true" className="mx-1 w-px self-stretch bg-neutral-200" />
+        <Button variant="ghost" size="sm" icon="chevron-down" iconPosition="right">
+          More
+        </Button>
+      </span>
+    )}
+  </div>
+);
+
 const ActionBar: React.FC<ActionBarProps> = ({
   actions,
   ariaLabel,
   sticky = true,
   subRow,
+  register,
   expansion,
   tierOpen,
   defaultTierOpen = false,
@@ -79,6 +136,8 @@ const ActionBar: React.FC<ActionBarProps> = ({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLElement | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);
+  const registerProbeRef = useRef<HTMLDivElement>(null);
+  const registerAnchorRef = useRef<HTMLElement | null>(null);
 
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultTierOpen);
   const open = tierOpen ?? uncontrolledOpen;
@@ -89,19 +148,33 @@ const ActionBar: React.FC<ActionBarProps> = ({
     onTierOpenChange?.(next);
   }, [open, tierOpen, onTierOpenChange]);
 
-  const barEligible = actions.filter((a) => priorityOf(a) !== 'tier');
-  const ordered = [
-    ...barEligible.filter((a) => priorityOf(a) === 'pinned'),
-    ...barEligible.filter((a) => priorityOf(a) === 'flex'),
-  ];
-  const pinned = ordered.filter((a) => priorityOf(a) === 'pinned').length;
-  const tierOnly = actions.filter((a) => priorityOf(a) === 'tier');
+  const { ordered, pinned, tierOnly } = splitByPriority(actions);
+  const registerSplit = splitByPriority(register?.actions ?? []);
 
-  const tierAlwaysPresent = expansion !== undefined || tierOnly.length > 0;
+  const tierAlwaysPresent =
+    expansion !== undefined || tierOnly.length > 0 || registerSplit.tierOnly.length > 0;
+
+  const registerFit = useActionOverflow(registerSplit.ordered, {
+    pinned: registerSplit.pinned,
+    tierAlwaysPresent,
+    tierOpen: open,
+    refs: {
+      band: bandRef,
+      probe: registerProbeRef,
+      sentinel: sentinelRef,
+      cluster: registerAnchorRef,
+      more: moreRef,
+    },
+  });
+  const registerInBar = registerSplit.ordered.slice(0, registerFit.inBar);
+  const registerOverflowed = [
+    ...registerSplit.ordered.slice(registerFit.inBar),
+    ...registerSplit.tierOnly,
+  ];
 
   const { inBar, compact, measuring } = useActionOverflow(ordered, {
     pinned,
-    tierAlwaysPresent,
+    tierAlwaysPresent: tierAlwaysPresent || registerOverflowed.length > 0,
     tierOpen: open,
     refs: {
       band: bandRef,
@@ -113,7 +186,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
   });
 
   const inBarActions = ordered.slice(0, inBar);
-  const overflowed = [...ordered.slice(inBar), ...tierOnly];
+  const overflowed = [...ordered.slice(inBar), ...tierOnly, ...registerOverflowed];
   const hasTier = overflowed.length > 0 || expansion !== undefined;
 
   const band = (
@@ -168,6 +241,29 @@ const ActionBar: React.FC<ActionBarProps> = ({
 
       {subRow !== undefined && <div className="px-2 pb-2">{subRow}</div>}
 
+      {register !== undefined && (
+        <div
+          role="group"
+          aria-label={register.ariaLabel}
+          data-testid="action-bar-register"
+          className="mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-md bg-neutral-50 px-2 py-1.5"
+        >
+          <span
+            ref={registerAnchorRef}
+            aria-hidden="true"
+            className="pointer-events-none absolute h-0 w-0"
+          />
+          {registerInBar.map((action) => (
+            <Action
+              key={action.id}
+              action={action}
+              compact={registerFit.compact}
+              size={REGISTER_BUTTON_SIZE}
+            />
+          ))}
+        </div>
+      )}
+
       {hasTier && (
         <div id={tierId} className="disclose" data-open={open} inert={!open || undefined}>
           <div>
@@ -188,26 +284,14 @@ const ActionBar: React.FC<ActionBarProps> = ({
         </div>
       )}
 
-      {measuring && (
-        <div
-          ref={probeRef}
-          aria-hidden="true"
-          inert
-          className="pointer-events-none invisible absolute top-0 left-0 flex w-max items-center gap-2 whitespace-nowrap"
-        >
-          {ordered.map((action) => (
-            <Action key={`f-${action.id}`} action={action} measure="full" />
-          ))}
-          {ordered.map((action) => (
-            <Action key={`c-${action.id}`} action={action} compact measure="compact" />
-          ))}
-          <span className="inline-flex items-center" data-measure="cluster">
-            <span aria-hidden="true" className="mx-1 w-px self-stretch bg-neutral-200" />
-            <Button variant="ghost" size="sm" icon="chevron-down" iconPosition="right">
-              More
-            </Button>
-          </span>
-        </div>
+      {measuring && <MeasureProbe actions={ordered} cluster probeRef={probeRef} />}
+      {registerFit.measuring && (
+        <MeasureProbe
+          actions={registerSplit.ordered}
+          cluster={false}
+          probeRef={registerProbeRef}
+          size={REGISTER_BUTTON_SIZE}
+        />
       )}
     </div>
   );

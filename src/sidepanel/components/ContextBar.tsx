@@ -1,8 +1,10 @@
 import React from 'react';
 import { Button, IconButton } from './shared';
 import Icon from './shared/Icon';
+import { KIND_ICON, destinationLabel } from './home/jumpDestinations';
 import type { ConnectionStatus } from '../hooks/useOktaTabContext';
 import type { PageType } from '../hooks/useOktaPageContext';
+import type { HandoffOffer } from '../hooks/useEntityHandoff';
 
 interface ContextBarProps {
   pageType: PageType;
@@ -16,10 +18,14 @@ interface ContextBarProps {
   liveEntityName?: string;
   onTogglePin: () => void;
   onRefresh: () => void;
+  refreshSubjectName?: string | null;
   onReconnect?: () => void;
+  handoff?: HandoffOffer | null;
+  onAcceptHandoff?: () => void;
+  onDismissHandoff?: () => void;
 }
 
-const DOT_COLOR: Record<PageType, string> = {
+const WIRE_COLOR: Record<PageType, string> = {
   group: 'var(--color-primary)',
   user: 'var(--color-accent)',
   app: 'var(--color-success)',
@@ -49,7 +55,11 @@ const ContextBar: React.FC<ContextBarProps> = ({
   liveEntityName,
   onTogglePin,
   onRefresh,
+  refreshSubjectName,
   onReconnect,
+  handoff,
+  onAcceptHandoff,
+  onDismissHandoff,
 }) => {
   const displayName = error
     ? 'Not connected'
@@ -57,57 +67,95 @@ const ContextBar: React.FC<ContextBarProps> = ({
       ? 'Loading…'
       : entityName || NO_ENTITY_LABEL[pageType];
 
-  const dotColor = error
-    ? 'var(--color-danger)'
-    : connectionStatus === 'connecting' || isLoading
-      ? 'var(--color-warning)'
-      : DOT_COLOR[pageType];
+  const isSettling = connectionStatus === 'connecting' || isLoading;
 
-  const connectionText = error
-    ? 'Disconnected'
-    : connectionStatus === 'connecting' || isLoading
-      ? 'Connecting…'
-      : 'Connected';
+  const wireColor = error
+    ? 'var(--color-danger)'
+    : isSettling
+      ? 'var(--color-warning)'
+      : WIRE_COLOR[pageType];
+
+  const connectionText = error ? 'Disconnected' : isSettling ? 'Connecting…' : 'Connected';
+
+  const degraded = Boolean(error);
 
   const liveChanged = isPinned && liveContextChanged;
 
-  return (
-    <div className="bg-white" style={{ fontFamily: 'var(--font-primary)' }}>
-      <div className="px-(--sp-gutter) py-1.5 flex items-center gap-2">
-        <span
-          className={`w-2.5 h-2.5 rounded-full shrink-0 ${connectionStatus === 'connecting' || isLoading ? 'animate-pulse' : ''}`}
-          style={{ backgroundColor: dotColor }}
-          title={connectionText}
-          role="img"
-          aria-label={connectionText}
-        />
-        <span className="min-w-0 truncate text-sm font-semibold text-neutral-900">
-          {displayName}
-        </span>
+  const refreshLabel = refreshSubjectName ? `Refresh ${refreshSubjectName}` : 'Refresh';
 
-        <div className="ms-auto flex items-center gap-1 shrink-0">
-          {error && onReconnect ? (
+  return (
+    <div className="relative bg-white" style={{ fontFamily: 'var(--font-primary)' }}>
+      <div
+        aria-hidden="true"
+        className={`absolute inset-x-0 top-0 transition-all duration-(--dur-instant) ease-(--ease-standard) ${degraded ? 'h-1.5' : 'h-1'} ${isSettling ? 'animate-pulse' : ''}`}
+        style={{ backgroundColor: wireColor }}
+      />
+      <span className="sr-only" role="status">
+        {connectionText}
+      </span>
+
+      <div className="disclose" data-open={degraded ? 'true' : 'false'}>
+        <div>
+          <div className="px-(--sp-gutter) pt-2 pb-1.5 flex items-center gap-(--sp-inline) bg-danger-light">
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-danger-text">
+              Not connected to the Okta tab
+            </span>
+            {onReconnect && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="refresh"
+                onClick={onReconnect}
+                title="Reload the Okta tab to re-establish the connection"
+              >
+                Reconnect
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="px-(--sp-gutter) py-1.5 flex items-center gap-2">
+        {handoff ? (
+          <div className="min-w-0 flex-1 flex items-center gap-(--sp-inline)">
             <Button
               variant="ghost"
               size="sm"
-              icon="refresh"
-              onClick={onReconnect}
-              title="Reload the Okta tab to re-establish the connection"
+              icon={KIND_ICON[handoff.kind]}
+              onClick={onAcceptHandoff}
+              className="min-w-0"
+              ariaLabel={`Open ${handoff.name} in ${destinationLabel(handoff.kind)}`}
+              title={`Open ${handoff.name} in ${destinationLabel(handoff.kind)}`}
             >
-              Reconnect
+              <span className="min-w-0 truncate">{handoff.name}</span>
+              <Icon type="handoff" size="sm" />
             </Button>
-          ) : (
             <IconButton
-              label="Refresh context"
-              onClick={onRefresh}
+              label={`Dismiss ${handoff.name}`}
+              onClick={onDismissHandoff}
               variant="ghost"
               size="sm"
-              disabled={isPinned}
-              title={isPinned ? 'Unpin to refresh live context' : 'Refresh context'}
+              title="Keep browsing what is on screen"
             >
-              <Icon type="refresh" size="sm" className={isLoading ? 'animate-spin' : ''} />
+              <Icon type="close" size="sm" />
             </IconButton>
-          )}
+          </div>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-900">
+            {displayName}
+          </span>
+        )}
+
+        <div className="flex items-center gap-1 shrink-0">
+          <IconButton
+            label={refreshLabel}
+            onClick={onRefresh}
+            variant="ghost"
+            size="sm"
+            title={refreshLabel}
+          >
+            <Icon type="refresh" size="sm" className={isLoading ? 'animate-spin' : ''} />
+          </IconButton>
           <Button
             variant={isPinned ? 'primary' : 'secondary'}
             size="sm"

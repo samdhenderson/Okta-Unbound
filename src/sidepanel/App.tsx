@@ -25,6 +25,9 @@ const AuditLogViewer = lazy(() => import('./components/AuditLogViewer'));
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
 import { useSessionExpiry } from './hooks/useSessionExpiry';
+import { useAppRefresh } from './hooks/useRefreshSubject';
+import { useEntityHandoff } from './hooks/useEntityHandoff';
+import type { JumpKind } from './hooks/useJumpResolver';
 import { SchedulerProvider } from './contexts/SchedulerContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { OrgEntityIndexProvider } from './contexts/OrgEntityIndexContext';
@@ -172,6 +175,11 @@ const App: React.FC = () => {
     void refetchPageContext();
   }, [refetchPageContext]);
 
+  const { subjectName: refreshSubjectName, refresh: handleRefresh } = useAppRefresh(
+    refetchPageContext,
+    isPinned,
+  );
+
   const handleReconnect = () => {
     if (targetTabId != null) {
       chrome.tabs.reload(targetTabId, {}, () => {
@@ -253,6 +261,21 @@ const App: React.FC = () => {
     ],
   );
 
+  const canNavigateToKind = useCallback(
+    (kind: JumpKind) => typeof navigationHandlers[kind] === 'function',
+    [navigationHandlers],
+  );
+  const navigateToKind = useCallback(
+    (kind: JumpKind, id: string) => navigationHandlers[kind]?.(id),
+    [navigationHandlers],
+  );
+  const handoff = useEntityHandoff({
+    page,
+    suppressed: isPinned,
+    canNavigateTo: canNavigateToKind,
+    navigateTo: navigateToKind,
+  });
+
   const handleNavigateToExport = (request: ExportRequest) => {
     setExportRequest(request);
     setActiveTab('export');
@@ -312,8 +335,12 @@ const App: React.FC = () => {
               liveContextChanged={liveContextChanged}
               liveEntityName={liveIdentity?.name}
               onTogglePin={handleTogglePin}
-              onRefresh={handleRefreshAll}
+              onRefresh={handleRefresh}
+              refreshSubjectName={refreshSubjectName}
               onReconnect={handleReconnect}
+              handoff={handoff.offer}
+              onAcceptHandoff={handoff.accept}
+              onDismissHandoff={handoff.dismiss}
             />
 
             <SessionExpiryNotice targetTabId={tabContext.targetTabId ?? null} />

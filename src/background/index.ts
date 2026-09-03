@@ -16,7 +16,8 @@ const log = createLogger('Background');
 log.info('Service worker started');
 
 const globalScheduler = new ApiScheduler({
-  maxConcurrent: 5,
+  maxConcurrent: 10,
+  maxConcurrentPerBucket: 4,
   minRemainingThreshold: 10, // Cooldown at 10% remaining
   cooldownDuration: 30000, // 30 seconds fallback
   retryDelay: 2000,
@@ -262,8 +263,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: 'Invalid syncSnapshot message' });
         return true;
       }
-
-      ensureRateLimitThreshold(globalScheduler, request.tabId);
 
       syncSnapshot(
         globalScheduler,

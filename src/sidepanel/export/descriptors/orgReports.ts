@@ -1,4 +1,5 @@
 import type { EntityExport, ExportColumn } from '../types';
+import { dormantAccessLabel } from '../../components/groups/ruleOrphans';
 import {
   readDormantAccessRows,
   readGroupCleanupRows,
@@ -102,7 +103,7 @@ export const unmaintainedAppAccessReportDescriptor: EntityExport<ReportRow> = {
 export const dormantAccessReportDescriptor: EntityExport<ReportRow> = {
   ...REPORT_SHAPE,
   id: 'report-dormant-app-access',
-  displayName: 'Report: App access with no membership change',
+  displayName: `Report: ${dormantAccessLabel()}`,
   icon: 'clock',
   description:
     'Groups holding an app open into which no membership write has landed since the ' +

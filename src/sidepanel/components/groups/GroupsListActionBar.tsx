@@ -44,17 +44,42 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
       id: panel,
       label: open ? openLabel : closedLabel,
       icon,
+      variant: 'ghost',
       onClick: () => onTogglePanel(panel),
       priority: open ? 'pinned' : restingPriority,
     };
   };
 
   const actions: ActionDescriptor[] = [
+    {
+      id: 'export-list',
+      label: 'Export list',
+      icon: 'download',
+      variant: 'primary',
+      onClick: onExportGroupsList,
+      disabled: filteredCount === 0,
+      title:
+        filteredCount === 0
+          ? 'No groups match the current filter, so there is nothing to export'
+          : 'Export the current groups list as CSV',
+    },
+    panelAction(
+      'crossSearch',
+      crossSearchBadge > 0 ? `Cross-search (${crossSearchBadge})` : 'Cross-search',
+      'Hide cross-search',
+      'search',
+    ),
+    panelAction('collections', 'Collections', 'Hide collections', 'clipboard', 'tier'),
+    panelAction('cleanup', 'Cleanup', 'Hide cleanup', 'sparkles', 'tier'),
+  ];
+
+  const registerActions: ActionDescriptor[] = [
     ...(selectedCount > 0
       ? [
           {
             id: 'deselect-all',
             label: 'Deselect all',
+            variant: 'ghost' as const,
             onClick: onDeselectAll,
             priority: 'pinned' as const,
           },
@@ -63,9 +88,15 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
     {
       id: 'select-all',
       label: `Select all (${filteredCount})`,
+      variant: 'ghost',
       onClick: onSelectAll,
       disabled: filteredCount === 0 || selectedCount === filteredCount,
-      title: 'Select every group the current filter matches',
+      title:
+        filteredCount === 0
+          ? 'No groups match the current filter'
+          : selectedCount === filteredCount
+            ? `All ${filteredCount} groups matching the filter are already selected`
+            : 'Select every group the current filter matches',
       priority: 'pinned' as const,
     },
     ...(selectedCount >= 2 && selectedCount <= 5
@@ -78,6 +109,7 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
           },
         ]
       : []),
+
     ...(selectedCount > 0
       ? [
           {
@@ -85,26 +117,10 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
             label: `Export (${selectedCount})`,
             icon: 'download' as const,
             onClick: onExportSelection,
+            priority: 'tier' as const,
           },
         ]
       : []),
-    panelAction(
-      'crossSearch',
-      crossSearchBadge > 0 ? `Cross-search (${crossSearchBadge})` : 'Cross-search',
-      'Hide cross-search',
-      'search',
-    ),
-    panelAction('collections', 'Collections', 'Hide collections', 'clipboard'),
-    {
-      id: 'export-list',
-      label: 'Export list',
-      icon: 'download',
-      variant: 'primary',
-      onClick: onExportGroupsList,
-      disabled: filteredCount === 0,
-      title: 'Export the current groups list as CSV',
-    },
-
     ...(selectedCount >= 2
       ? [
           {
@@ -120,7 +136,6 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
     ...(selectedCount > 0
       ? [panelAction('bulk', 'Bulk actions', 'Hide bulk actions', 'list', 'tier')]
       : []),
-    panelAction('cleanup', 'Cleanup', 'Hide cleanup', 'sparkles', 'tier'),
   ];
 
   return (
@@ -128,6 +143,7 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
       ariaLabel="Actions for the groups list"
       actions={actions}
       subRow={search}
+      register={{ ariaLabel: 'Selection actions for the groups list', actions: registerActions }}
       testId="groups-list-action-bar"
     />
   );
