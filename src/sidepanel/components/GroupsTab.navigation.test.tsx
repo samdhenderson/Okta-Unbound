@@ -310,6 +310,25 @@ describe('GroupsTab sub-navigation', () => {
     expect(screen.getByLabelText('Select Engineering').closest('div.hidden')).toBeNull();
   });
 
+  it('pushes straight to the named pane when a deep-link asks for a rung, not a row', async () => {
+    seedCache([cachedGroup()]);
+    const onGroupSelected = vi.fn();
+    render(
+      <GroupsTab
+        targetTabId={1}
+        oktaOrigin={ORIGIN}
+        selectedGroupId="g1"
+        selectedGroupPane="insights"
+        onGroupSelected={onGroupSelected}
+      />,
+    );
+    await act(async () => {});
+
+    const detail = within(await screen.findByTestId('group-detail-view'));
+    expect(detail.getByRole('tab', { name: 'Insights' })).toHaveAttribute('aria-selected', 'true');
+    expect(onGroupSelected).toHaveBeenCalled();
+  });
+
   it('shows the group id, dates and push state in the detail view', async () => {
     const uev = userEvent.setup();
     await renderCached([

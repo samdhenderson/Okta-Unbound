@@ -119,7 +119,9 @@ export const UnresolvedTargetGroups: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getAllByText('Group name not loaded')).toHaveLength(2);
-    await expect(canvas.queryByRole('button', { name: /^Open group/ })).not.toBeInTheDocument();
+    await expect(
+      canvas.getAllByRole('button', { name: /^Group name not loaded — open group 00g/ }),
+    ).toHaveLength(2);
   },
 };
 

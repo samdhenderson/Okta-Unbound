@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOktaApi } from './useOktaApi';
 import { parseRuleExpression } from '../../shared/ruleEvaluator';
 import { unevaluableReasonText } from '../../shared/rules/unevaluableReasonText';
@@ -15,6 +15,7 @@ const OKTA_GROUP_RULE_TYPE = 'group_rule';
 export interface UseCreateFeedingRuleOptions {
   targetTabId: number | null;
   group: GroupSummary;
+  onCreated?: (() => void) | undefined;
 }
 
 export interface UseCreateFeedingRuleReturn {
@@ -38,6 +39,7 @@ export interface UseCreateFeedingRuleReturn {
 export function useCreateFeedingRule({
   targetTabId,
   group,
+  onCreated,
 }: UseCreateFeedingRuleOptions): UseCreateFeedingRuleReturn {
   const { createGroupRule } = useOktaApi({ targetTabId });
 
@@ -48,6 +50,11 @@ export function useCreateFeedingRule({
   const [error, setError] = useState<string | null>(null);
   const [createdRuleName, setCreatedRuleName] = useState<string | null>(null);
   const [createdRuleId, setCreatedRuleId] = useState<string | null>(null);
+
+  const onCreatedRef = useRef(onCreated);
+  useEffect(() => {
+    onCreatedRef.current = onCreated;
+  }, [onCreated]);
 
   const trimmedName = name.trim();
   const trimmedExpression = expression.trim();
@@ -112,6 +119,7 @@ export function useCreateFeedingRule({
       log.info('Created group rule', { ruleId: created.rule.id, groupId: group.id });
       setCreatedRuleName(created.rule.name);
       setCreatedRuleId(created.rule.id);
+      onCreatedRef.current?.();
     } catch (err) {
       log.error('Failed to create group rule', err);
       setError(err instanceof Error ? err.message : 'Failed to create the rule');

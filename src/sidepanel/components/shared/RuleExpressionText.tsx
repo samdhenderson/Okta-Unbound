@@ -1,17 +1,27 @@
 import React, { useMemo } from 'react';
-import { EntityLink } from '../../shared';
+import EntityLink from './EntityLink';
 
 export type GroupNameResolver = (groupId: string) => string | undefined;
+
+export type RuleExpressionTone = 'default' | 'subdued';
 
 export interface RuleExpressionTextProps {
   text: string;
   resolveGroupName?: GroupNameResolver;
+  tone?: RuleExpressionTone;
   className?: string;
 }
 
 type ExpressionSegment =
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'group'; readonly id: string; readonly name: string };
+
+const BASE_CLASSES = 'block font-mono text-xs break-words whitespace-pre-wrap';
+
+const toneClasses: Record<RuleExpressionTone, string> = {
+  default: 'text-neutral-900',
+  subdued: 'text-neutral-700',
+};
 
 const QUOTED_LITERAL = /"([^"]*)"|'([^']*)'/g;
 
@@ -43,6 +53,7 @@ function segmentExpression(
 const RuleExpressionText: React.FC<RuleExpressionTextProps> = ({
   text,
   resolveGroupName,
+  tone = 'default',
   className = '',
 }) => {
   const segments = useMemo(
@@ -51,7 +62,7 @@ const RuleExpressionText: React.FC<RuleExpressionTextProps> = ({
   );
 
   return (
-    <code className={className}>
+    <code className={`${BASE_CLASSES} ${toneClasses[tone]} ${className}`.trim()}>
       {segments.map((segment, index) =>
         segment.kind === 'text' ? (
           <React.Fragment key={`text-${index}`}>{segment.text}</React.Fragment>

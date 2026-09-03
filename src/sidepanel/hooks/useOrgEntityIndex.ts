@@ -39,7 +39,7 @@ export interface OrgEntityIndex {
   appGroups: UseOrgSnapshotResult<OktaAppGroupAssignment>;
 }
 
-export interface UseOrgEntityIndexOptions {
+export interface UseOrgEntityIndexSourceOptions {
   oktaOrigin: string | null | undefined;
   targetTabId: number | null;
   enabled?: boolean;
@@ -55,11 +55,11 @@ function appName(app: OktaAppListItem): string {
   return app.label || app.name || app.id;
 }
 
-export function useOrgEntityIndex({
+export function useOrgEntityIndexSource({
   oktaOrigin,
   targetTabId,
   enabled = true,
-}: UseOrgEntityIndexOptions): OrgEntityIndex {
+}: UseOrgEntityIndexSourceOptions): OrgEntityIndex {
   const groups = useOrgSnapshot<RawOktaGroup>('groups', oktaOrigin, targetTabId, { enabled });
   const rules = useOrgSnapshot<OktaGroupRule>('rules', oktaOrigin, targetTabId, { enabled });
   const apps = useOrgSnapshot<OktaAppListItem>('apps', oktaOrigin, targetTabId, { enabled });
@@ -139,5 +139,8 @@ export function useOrgEntityIndex({
     [groupsById, rulesById, appsById, isAuthoritative],
   );
 
-  return { lookup, searchByName, isAuthoritative, groups, rules, apps, appGroups };
+  return useMemo(
+    () => ({ lookup, searchByName, isAuthoritative, groups, rules, apps, appGroups }),
+    [lookup, searchByName, isAuthoritative, groups, rules, apps, appGroups],
+  );
 }

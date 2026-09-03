@@ -511,6 +511,7 @@ async function seedSyncedCollection(
     cursor: null,
     walkStartedAt: null,
     deltaSupported: true,
+    parseVersion: GROUPS_SPEC.parseVersion,
     ...meta,
   });
 }
@@ -690,6 +691,118 @@ describe('the freshness ladder', () => {
   });
 });
 
+describe('the parse version (ADR-0066)', () => {
+  it('serves a snapshot at the current version from cache, never re-walking it', async () => {
+    await seedSyncedCollection([group('00g1', 'Eng')]);
+    const { request, urls } = scriptedRequest({
+      [deltaUrlFor(WATERMARK)]: { success: true, data: [], headers: {} },
+    });
+
+    const outcome = await syncCollection(GROUPS_SPEC, { origin: ORIGIN, request, now: NOW + 1000 });
+
+    expect(outcome.mode).toBe('delta');
+    expect(urls).toEqual([deltaUrlFor(WATERMARK)]);
+    await expect(storedGroupNames()).resolves.toEqual(['Eng']);
+  });
+
+  it('re-walks a collection whose stored rows were written by an older parser', async () => {
+    await seedSyncedCollection([group('00g1', 'Eng')], { parseVersion: 0 });
+    const { request, urls } = scriptedRequest({
+      [GROUPS_SPEC.firstUrl]: {
+        success: true,
+        data: [group('00g1', 'Eng'), group('00g2', 'Sales')],
+        headers: {},
+      },
+    });
+
+    const outcome = await syncCollection(GROUPS_SPEC, { origin: ORIGIN, request, now: NOW + 1000 });
+
+    expect(outcome.mode).toBe('full');
+    expect(urls).toEqual([GROUPS_SPEC.firstUrl]);
+    await expect(storedGroupNames()).resolves.toEqual(['Eng', 'Sales']);
+  });
+
+  it('re-walks a collection that has never recorded a version at all', async () => {
+    await seedSyncedCollection([group('00g1', 'Eng')], { parseVersion: undefined });
+    const stored = await orgSnapshotStore.getMeta('groups', ORIGIN);
+    expect(stored.parseVersion ?? null).toBeNull();
+
+    const { request } = scriptedRequest({
+      [GROUPS_SPEC.firstUrl]: { success: true, data: [group('00g1', 'Eng')], headers: {} },
+    });
+
+    const outcome = await syncCollection(GROUPS_SPEC, { origin: ORIGIN, request, now: NOW + 1000 });
+
+    expect(outcome.mode).toBe('full');
+  });
+
+  it('records the new version once the upgrade walk completes, and stops re-walking', async () => {
+    await seedSyncedCollection([group('00g1', 'Eng')], { parseVersion: 0 });
+    const pages = {
+      [GROUPS_SPEC.firstUrl]: {
+        success: true,
+        data: [group('00g1', 'Eng')],
+        headers: {},
+      },
+    };
+
+    await syncCollection(GROUPS_SPEC, {
+      origin: ORIGIN,
+      request: scriptedRequest(pages).request,
+      now: NOW + 1000,
+    });
+
+    expect((await orgSnapshotStore.getMeta('groups', ORIGIN)).parseVersion).toBe(
+      GROUPS_SPEC.parseVersion,
+    );
+
+    const second = scriptedRequest({
+      [deltaUrlFor(WATERMARK)]: { success: true, data: [], headers: {} },
+    });
+    const outcome = await syncCollection(GROUPS_SPEC, {
+      origin: ORIGIN,
+      request: second.request,
+      now: NOW + 2000,
+    });
+
+    expect(outcome.mode).toBe('delta');
+    expect(second.urls).not.toContain(GROUPS_SPEC.firstUrl);
+  });
+
+  it('leaves the old version in place when the upgrade walk is interrupted', async () => {
+    await seedSyncedCollection([group('00g1', 'Eng')], { parseVersion: 0 });
+    const page2 = '/api/v1/groups?limit=200&after=cur1';
+    const { request } = scriptedRequest({
+      [GROUPS_SPEC.firstUrl]: {
+        success: true,
+        data: [group('00g1', 'Eng')],
+        headers: linkTo(page2),
+      },
+      [`${page2}&expand=stats&expand=app`]: { success: false, error: 'rate limited' },
+    });
+
+    const outcome = await syncCollection(GROUPS_SPEC, { origin: ORIGIN, request, now: NOW + 1000 });
+
+    expect(outcome.complete).toBe(false);
+    expect((await orgSnapshotStore.getMeta('groups', ORIGIN)).parseVersion).toBe(0);
+  });
+
+  it('keeps serving the old rows while the upgrade walk runs, rather than clearing them', async () => {
+    await seedSyncedCollection([group('00g1', 'Eng')], { parseVersion: 0 });
+    let duringWalk: string[] = [];
+    const request: PageRequest = async (url) => {
+      duringWalk = await storedGroupNames();
+      if (url !== GROUPS_SPEC.firstUrl) throw new Error(`unscripted URL: ${url}`);
+      return { success: true, data: [group('00g1', 'Engineering')], headers: {} };
+    };
+
+    await syncCollection(GROUPS_SPEC, { origin: ORIGIN, request, now: NOW + 1000 });
+
+    expect(duringWalk).toEqual(['Eng']);
+    await expect(storedGroupNames()).resolves.toEqual(['Engineering']);
+  });
+});
+
 const assignmentSchema = z.object({ id: z.string() }).passthrough();
 
 const shardUrl = (appId: string): string => `/api/v1/apps/${appId}/groups?limit=200`;
@@ -699,6 +812,7 @@ function shardedSpec(appIds: string[]): CollectionSpec<{ id: string }> {
     collection: 'apps',
     firstUrl: '/api/v1/apps?limit=200',
     schema: assignmentSchema,
+    parseVersion: 1,
     context: 'GET /api/v1/apps/{id}/groups',
     shards: async () => appIds.map((key) => ({ key, firstUrl: shardUrl(key) })),
     identify: (row, shard) => {
@@ -849,5 +963,68 @@ describe('a sharded walk', () => {
 
     expect(outcome).toMatchObject({ complete: false, written: 0, swept: 0 });
     await expect(storedShardKeys()).resolves.toEqual(['0oaA::00g1']);
+  });
+});
+
+describe('the parse version, on a fan-out (ADR-0066)', () => {
+  async function seedCompletedFanOut(parseVersion: number | null): Promise<void> {
+    await orgSnapshotStore.patchMeta('apps', ORIGIN, {
+      complete: true,
+      lastFullWalkAt: NOW,
+      cursor: null,
+      walkStartedAt: null,
+      completedShards: [],
+      deltaSupported: false,
+      itemCount: 1,
+      parseVersion,
+    });
+  }
+
+  it('leaves a fan-out alone inside its interval when the version matches', async () => {
+    await seedCompletedFanOut(1);
+    const { request, urls } = scriptedRequest({});
+
+    const outcome = await syncCollection(shardedSpec(['0oaA']), {
+      origin: ORIGIN,
+      request,
+      now: NOW + 1000,
+    });
+
+    expect(outcome.mode).toBe('none');
+    expect(urls).toEqual([]);
+  });
+
+  it('re-runs a fan-out on a version mismatch, ignoring its refresh interval', async () => {
+    await seedCompletedFanOut(0);
+    const { request, urls } = scriptedRequest({
+      [shardUrl('0oaA')]: { success: true, data: [{ id: '00g1' }], headers: {} },
+    });
+
+    const outcome = await syncCollection(shardedSpec(['0oaA']), {
+      origin: ORIGIN,
+      request,
+      now: NOW + 1000,
+    });
+
+    expect(outcome.mode).toBe('full');
+    expect(urls).toEqual([shardUrl('0oaA')]);
+    expect((await orgSnapshotStore.getMeta('apps', ORIGIN)).parseVersion).toBe(1);
+  });
+
+  it('does not record the new version when a shard failed', async () => {
+    await seedCompletedFanOut(0);
+    const { request } = scriptedRequest({
+      [shardUrl('0oaA')]: { success: true, data: [{ id: '00g1' }], headers: {} },
+      [shardUrl('0oaB')]: { success: false, error: 'rate limited' },
+    });
+
+    const outcome = await syncCollection(shardedSpec(['0oaA', '0oaB']), {
+      origin: ORIGIN,
+      request,
+      now: NOW + 1000,
+    });
+
+    expect(outcome.complete).toBe(false);
+    expect((await orgSnapshotStore.getMeta('apps', ORIGIN)).parseVersion).toBe(0);
   });
 });

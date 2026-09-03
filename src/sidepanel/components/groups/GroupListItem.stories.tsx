@@ -254,4 +254,11 @@ export const Hover: Story = {
 
 export const LongText: Story = {
   args: { group: longTextGroup },
+  parameters: { viewport: { value: 'sidepanelCompact' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = canvas.getByText(longTextGroup.name);
+    await expect(name).toBeInTheDocument();
+    await expect(name).toHaveAttribute('title', longTextGroup.name);
+  },
 };

@@ -164,6 +164,25 @@ export const EmptyOrg: Story = {
   args: { boxes: boxes(read(), read(), read(), read()) },
 };
 
+export const SingleItemOrg: Story = {
+  args: {
+    boxes: boxes(read({ count: 1 }), read({ count: 1 }), read({ count: 1 }), read({ count: 1 }), {
+      empty: 1,
+      unruled: 1,
+      inactive: 1,
+      idlePush: 1,
+      paused: 1,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getAllByText('of 1 group')).toHaveLength(2);
+    await expect(canvas.getAllByText('of 1 application')).toHaveLength(2);
+    await expect(canvas.getByText('of 1 group rule')).toBeInTheDocument();
+    await expect(canvas.queryByText(/of 1 \w+s\b/)).not.toBeInTheDocument();
+  },
+};
+
 export const Reading: Story = {
   args: {
     readAt: null,

@@ -97,6 +97,26 @@ export const Expanded: Story = {
   },
 };
 
+export const HeaderClickToggles: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Show rules' }));
+    await waitFor(() => expect(canvas.getByText('Trusted device, no prompt')).toBeInTheDocument());
+    await expect(canvas.getByRole('button', { name: 'Hide rules' })).toBeInTheDocument();
+  },
+};
+
+export const KeyboardToggles: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = canvas.getByRole('button', { name: 'Show rules for Any two factors' });
+    toggle.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(canvas.getByText('Trusted device, no prompt')).toBeInTheDocument());
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  },
+};
+
 export const RulesLoadFailure: Story = {
   args: {
     loadRules: fn(async () => {

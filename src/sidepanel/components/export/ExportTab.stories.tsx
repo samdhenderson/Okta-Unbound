@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import ExportTab from './ExportTab';
+import { OrgEntityIndexProvider } from '../../contexts/OrgEntityIndexContext';
 
 const meta = {
   title: 'Export/ExportTab',
@@ -18,6 +19,13 @@ const meta = {
       },
     },
   },
+  decorators: [
+    (Story) => (
+      <OrgEntityIndexProvider oktaOrigin={null} targetTabId={null} enabled={false}>
+        <Story />
+      </OrgEntityIndexProvider>
+    ),
+  ],
   argTypes: {
     targetTabId: {
       description:

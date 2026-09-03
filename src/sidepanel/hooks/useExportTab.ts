@@ -5,6 +5,8 @@ import { buildExportEndpoint } from '../export/endpoint';
 import { listDescriptors } from '../export/registry';
 import type { EntityExport, ExportColumn, EntityContextOption } from '../export/types';
 import type { ExportApiDeps } from '../export/types.deps';
+import type { OrgSnapshotView } from '../export/snapshot';
+import type { CountResolution, OrgFigureStatus } from '../components/home/orgFigures';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('useExportTab');
@@ -36,6 +38,7 @@ export interface ExportTabApi {
     rows: Row[];
     enabledColumnIds: string[];
     contextLabel?: string;
+    resolution?: CountResolution;
   }) => Promise<void>;
 }
 
@@ -43,6 +46,7 @@ export interface UseExportTabOptions {
   api: ExportTabApi;
   registry: Record<string, EntityExport>;
   deps: ExportApiDeps;
+  snapshot?: OrgSnapshotView;
   oktaOrigin?: string;
   hasConnectedTab: boolean;
   onError: (message: string | null) => void;
@@ -89,6 +93,9 @@ export interface UseExportTab {
 
   canExport: boolean;
   hasConnectedTab: boolean;
+
+  snapshotStatus: OrgFigureStatus | null;
+  snapshotNote: string | null;
 }
 
 function toMessage(error: unknown): string {
@@ -99,6 +106,7 @@ export function useExportTab({
   api,
   registry,
   deps,
+  snapshot,
   oktaOrigin: _oktaOrigin,
   hasConnectedTab,
   onError,
@@ -123,6 +131,13 @@ export function useExportTab({
 
   const descriptors = useMemo(() => listDescriptors(registry), [registry]);
   const descriptor = selectedId ? (registry[selectedId] ?? null) : null;
+
+  const snapshotSource = descriptor?.source?.kind === 'snapshot' ? descriptor.source : null;
+
+  const snapshotResult = useMemo(
+    () => (snapshotSource && snapshot ? snapshotSource.read(snapshot) : null),
+    [snapshotSource, snapshot],
+  );
 
   const validColumnIds = useMemo(
     () => descriptor?.columnCatalog.map((column) => column.id) ?? [],
@@ -224,6 +239,10 @@ export function useExportTab({
   const matchReqRef = useRef(0);
   useEffect(() => {
     if (!enabled) return;
+    if (snapshotSource) {
+      setMatchCount(null);
+      return;
+    }
     if (!descriptor || descriptor.filter.kind === 'none') {
       setMatchCount(null);
       return;
@@ -250,7 +269,7 @@ export function useExportTab({
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [enabled, descriptor, contextId, filterText, api]);
+  }, [enabled, descriptor, snapshotSource, contextId, filterText, api]);
 
   const applyPreset = useCallback(
     (id: string) => {
@@ -284,6 +303,13 @@ export function useExportTab({
 
   const fetchRows = useCallback(
     async (target: EntityExport): Promise<unknown[]> => {
+      if (snapshotResult) {
+        setPreviewRows(snapshotResult.rows);
+        setFetched(snapshotResult.rows.length + snapshotResult.dropped);
+        setDropped(snapshotResult.dropped);
+        setCapped(false);
+        return snapshotResult.rows;
+      }
       const endpoint = buildExportEndpoint(descriptor as EntityExport, {
         contextId: contextId ?? undefined,
         filterText,
@@ -300,7 +326,16 @@ export function useExportTab({
         completeProgress();
       }
     },
-    [descriptor, contextId, filterText, api, startProgress, updateProgress, completeProgress],
+    [
+      descriptor,
+      snapshotResult,
+      contextId,
+      filterText,
+      api,
+      startProgress,
+      updateProgress,
+      completeProgress,
+    ],
   );
 
   const loadPreview = useCallback(async () => {
@@ -327,6 +362,7 @@ export function useExportTab({
         rows,
         enabledColumnIds: orderedEnabledIds,
         contextLabel: contextLabel ?? undefined,
+        resolution: snapshotResult?.resolution,
       });
       await saveLastUsed(orderedEnabledIds);
     } catch (error) {
@@ -343,11 +379,15 @@ export function useExportTab({
     contextLabel,
     saveLastUsed,
     filterText,
+    snapshotResult,
     onError,
   ]);
 
   const contextReady = descriptor?.context.kind !== 'search-to-select' || contextId !== null;
-  const canExport = enabledColumns.length > 0 && hasConnectedTab && contextReady && !isBusy;
+  const snapshotReady =
+    snapshotSource === null || (snapshotResult?.resolution.value ?? null) !== null;
+  const canExport =
+    enabledColumns.length > 0 && hasConnectedTab && contextReady && snapshotReady && !isBusy;
 
   return {
     phase,
@@ -387,5 +427,11 @@ export function useExportTab({
 
     canExport,
     hasConnectedTab,
+
+    snapshotStatus: snapshotSource ? (snapshotResult?.resolution.status ?? 'unavailable') : null,
+    snapshotNote: snapshotSource
+      ? (snapshotResult?.resolution.note ??
+        'The org snapshot has not been read yet, so there is nothing to export.')
+      : null,
   };
 }

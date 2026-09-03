@@ -28,9 +28,10 @@ const meta = {
           'A **negated** clause (`!isMemberOfAnyGroup(…)`) failed because one *did* match. A real rule may ' +
           'exclude twenty groups of which the user is in one, so only the memberships they actually hold are ' +
           'shown; the rest are counted, never listed.\n\n' +
-          'Group ids are labelled through `resolveGroupName` with the id kept underneath as evidence — an id ' +
-          'is unreadable but it is the thing you paste into Okta. An id with no known name appears once, as ' +
-          'itself.\n\n' +
+          'Group ids are labelled through `resolveGroupName` with the id kept underneath as evidence, via the ' +
+          'shared `CopyableId` — an id is unreadable but it is the thing you paste into Okta, so it stays a ' +
+          'one-click copy rather than a raw string to select by hand. An id with no known name appears once, ' +
+          'as itself, with no separate copy row.\n\n' +
           'Every state is stated in words (`already in`, `blocking`); colour never carries a meaning alone.',
       },
     },
@@ -51,6 +52,14 @@ export const OnePrerequisite: Story = {
         Add
       </Button>
     ),
+  },
+};
+
+export const ResolvedWithCopyableId: Story = {
+  args: {
+    requirement: 'member',
+    references: [ref({ value: '00gFAKEunion00001' })],
+    resolveGroupName: () => 'us.employees.union',
   },
 };
 
@@ -115,5 +124,12 @@ export const PatternMatch: Story = {
   args: {
     requirement: 'member',
     references: [ref({ match: 'nameStartsWith', value: 'sso.' })],
+  },
+};
+
+export const UnresolvableId: Story = {
+  args: {
+    requirement: 'member',
+    references: [ref({ value: '00gFAKEunknown0001' })],
   },
 };

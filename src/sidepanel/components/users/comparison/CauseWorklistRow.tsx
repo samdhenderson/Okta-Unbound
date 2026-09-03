@@ -1,7 +1,6 @@
 import React from 'react';
-import { Button } from '../../shared';
+import { Button, RuleExpressionText, type GroupNameResolver } from '../../shared';
 import ClauseGroupList from './ClauseGroupList';
-import RuleExpressionText, { type GroupNameResolver } from '../../groups/detail/RuleExpressionText';
 import type { AccessCause, UndeterminedReason } from './accessCause';
 import type {
   ClauseExplanation,
@@ -136,7 +135,6 @@ const FailingClauses: React.FC<{
             <RuleExpressionText
               text={clause.expressionText}
               resolveGroupName={clauseGroupNames(clause, resolveGroupName)}
-              className="block font-mono text-xs break-words whitespace-pre-wrap text-neutral-900"
             />
             {clause.groupReferences === undefined && (
               <span className="mt-0.5 block text-xs text-neutral-600">

@@ -1,6 +1,5 @@
 import React from 'react';
-import { CopyableId, CopyButton, EntityLink } from '../shared';
-import Icon from '../shared/Icon';
+import { CopyButton, EntityLink } from '../shared';
 import MemberSourceMeter from './detail/MemberSourceMeter';
 import type { GroupSummary } from '../../../shared/types';
 import type { MemberSourceBreakdown } from '../../../shared/membership/groupSource';
@@ -10,19 +9,6 @@ interface GroupListItemDetailsProps {
   group: GroupSummary;
   breakdown: MemberSourceBreakdown | null;
 }
-
-const UnnamedPushApp: React.FC<{
-  appId: string;
-}> = ({ appId }) => (
-  <span
-    className="inline-flex max-w-full items-center gap-1 text-xs"
-    title="Okta returned no name for this application, so only its id is known here."
-  >
-    <Icon type="app" size="xs" className="shrink-0 text-neutral-500" />
-    <span className="shrink-0 italic text-neutral-600">App name not loaded</span>
-    <CopyableId value={appId} label={`Copy application id ${appId}`} />
-  </span>
-);
 
 const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
@@ -82,7 +68,12 @@ const GroupListItemDetails: React.FC<GroupListItemDetailsProps> = ({ group, brea
                     copyIdLabel={`Copy application id ${mapping.appId}`}
                   />
                 ) : (
-                  <UnnamedPushApp appId={mapping.appId} />
+                  <EntityLink
+                    type="app"
+                    id={mapping.appId}
+                    unresolvedReason="Okta returned no name for this application, so only its id is known here."
+                    copyIdLabel={`Copy application id ${mapping.appId}`}
+                  />
                 )}
                 {mapping.targetGroupName && (
                   <div className="truncate text-xs text-neutral-600">

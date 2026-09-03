@@ -1,6 +1,7 @@
 import React from 'react';
 import Icon, { type IconType } from '../shared/Icon';
 import CopyIconButton from './CopyIconButton';
+import CopyableId from './CopyableId';
 import { useEntityNavigation, type EntityType } from '../../contexts/NavigationContext';
 
 const typeIcon: Record<EntityType, IconType> = {
@@ -19,24 +20,37 @@ const typeNoun: Record<EntityType, string> = {
   policy: 'policy',
 };
 
-export interface EntityLinkProps {
+const capitalisedNoun = (type: EntityType): string =>
+  typeNoun[type].charAt(0).toUpperCase() + typeNoun[type].slice(1);
+
+interface EntityLinkBaseProps {
   type: EntityType;
-  id?: string;
-  name: string;
   unlinkableReason?: string;
+  unresolvedLabel?: string;
+  unresolvedReason?: string;
   copyId?: boolean;
   copyIdLabel?: string;
   className?: string;
   testId?: string;
 }
 
+export interface EntityLinkProps extends EntityLinkBaseProps {
+  name?: string;
+  id?: string;
+}
+
 const sharedClasses = 'inline-flex max-w-full items-center gap-1 text-xs font-medium';
+
+const nonAnswerClasses =
+  'inline-flex max-w-full items-center gap-1 text-xs italic text-neutral-600';
 
 const EntityLink: React.FC<EntityLinkProps> = ({
   type,
   id,
   name,
   unlinkableReason,
+  unresolvedLabel,
+  unresolvedReason,
   copyId = false,
   copyIdLabel,
   className = '',
@@ -44,6 +58,41 @@ const EntityLink: React.FC<EntityLinkProps> = ({
 }) => {
   const { navigateTo, canNavigateTo } = useEntityNavigation();
   const linkable = Boolean(id) && canNavigateTo(type);
+
+  if (name === undefined) {
+    const label = unresolvedLabel ?? `${capitalisedNoun(type)} name not loaded`;
+    const reason =
+      unresolvedReason ??
+      `Only this ${typeNoun[type]}'s id was loaded into this view, so its name cannot be shown here.`;
+    const glyph = <Icon type={typeIcon[type]} size="xs" className="shrink-0 text-neutral-500" />;
+
+    return (
+      <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+        {linkable ? (
+          <button
+            type="button"
+            onClick={() => navigateTo({ type, id: id as string })}
+            aria-label={`${label} — open ${typeNoun[type]} ${id}`}
+            title={`${reason} It can still be opened by id.`}
+            data-testid={testId}
+            className={`${nonAnswerClasses} rounded-sm hover:underline transition-colors duration-(--dur-instant) focus:outline-2 focus:outline-offset-2 focus:outline-primary ${className}`}
+          >
+            {glyph}
+            <span className="truncate">{label}</span>
+            <Icon type="chevron-right" size="xs" className="shrink-0 opacity-60" />
+          </button>
+        ) : (
+          <span className={`${nonAnswerClasses} ${className}`} title={reason} data-testid={testId}>
+            {glyph}
+            <span className="truncate">{label}</span>
+          </span>
+        )}
+        {id !== undefined && (
+          <CopyableId value={id} label={copyIdLabel ?? `Copy ${typeNoun[type]} id ${id}`} />
+        )}
+      </span>
+    );
+  }
 
   const chip = linkable ? (
     <button

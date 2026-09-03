@@ -126,6 +126,41 @@ describe('GroupRulesSection', () => {
     expect(screen.getAllByRole('button', { name: /Open rule/ }).length).toBe(2);
   });
 
+  it('states the condition expression in place, with no press and no tab change', () => {
+    const onNavigateToRule = vi.fn();
+    render(<GroupRulesSection {...base} onNavigateToRule={onNavigateToRule} />);
+
+    expect(listUnder(ASSIGNS).getByText('user.department == "Engineering"')).toBeInTheDocument();
+    expect(listUnder(REFERENCES).getByText('user.department == "Engineering"')).toBeInTheDocument();
+    expect(onNavigateToRule).not.toHaveBeenCalled();
+  });
+
+  it('resolves a group id inside the condition to its name', () => {
+    render(
+      <GroupRulesSection
+        {...base}
+        referencingRules={[
+          rule({
+            id: 'r9',
+            name: 'Contractors gate',
+            conditionExpression: 'isMemberOfAnyGroup("00gFAKE1")',
+            allGroupNamesMap: { '00gFAKE1': 'Engineering — Platform' },
+          }),
+        ]}
+      />,
+    );
+
+    const references = listUnder(REFERENCES);
+    expect(references.getByText('Engineering — Platform')).toBeInTheDocument();
+    expect(references.queryByText(/00gFAKE1/)).not.toBeInTheDocument();
+  });
+
+  it('adds no control alongside the inline condition', () => {
+    render(<GroupRulesSection {...base} />);
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
   it("shows each rule's Okta status verbatim", () => {
     render(<GroupRulesSection {...base} />);
     expect(screen.getByText('ACTIVE')).toBeInTheDocument();

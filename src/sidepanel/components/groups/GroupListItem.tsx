@@ -114,6 +114,7 @@ const GroupListItem: React.FC<GroupListItemProps> = memo(
             <h3
               id={nameId}
               className="min-w-0 truncate text-sm font-semibold text-neutral-900 group-hover/row:text-primary-text"
+              title={group.name || undefined}
             >
               {group.name}
             </h3>

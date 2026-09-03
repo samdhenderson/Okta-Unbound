@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import type { OktaAdminEntityType } from '@/shared/utils/oktaUrl';
 import type { IconType } from '@/sidepanel/components/shared/Icon';
+import type { CountResolution } from '@/sidepanel/components/home/orgFigures';
+import type { OrgSnapshotView } from './snapshot';
 
 export type ColumnGroup = 'base' | 'profile' | 'custom';
 
@@ -39,6 +41,22 @@ export type FilterSupport =
       placeholder: string;
     };
 
+export interface SnapshotRows<Row> {
+  rows: Row[];
+  resolution: CountResolution;
+  dropped: number;
+}
+
+export type EntityRowSource<Row> =
+  | {
+      kind: 'endpoint';
+    }
+  | {
+      kind: 'snapshot';
+      completenessColumnId: string;
+      read(snapshot: OrgSnapshotView): SnapshotRows<Row>;
+    };
+
 export interface IdLinkify {
   entityType: OktaAdminEntityType;
   idColumnId: string;
@@ -51,6 +69,8 @@ export interface EntityExport<Row = unknown> {
   description: string;
 
   context: EntityContextMode;
+
+  source?: EntityRowSource<Row>;
 
   endpoint?: string;
   defaultQuery: Record<string, string | number>;

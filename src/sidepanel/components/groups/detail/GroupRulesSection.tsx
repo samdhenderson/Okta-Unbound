@@ -1,9 +1,31 @@
-import React from 'react';
-import { AlertMessage, DetailSection, LoadingSpinner } from '../../shared';
+import React, { useMemo } from 'react';
+import { AlertMessage, DetailSection, LoadingSpinner, RuleExpressionText } from '../../shared';
 import RuleCard from '../../RuleCard';
 import type { FeedingRule, SourceStatus } from '../../../hooks/useGroupSource';
 import type { ReferencingRule } from '../../../hooks/useGroupRuleReferences';
 import type { FormattedRule } from '../../../../shared/types';
+
+const RuleConditionLine: React.FC<{ rule: FormattedRule }> = ({ rule }) => {
+  const names = rule.allGroupNamesMap;
+  const resolveGroupName = useMemo(
+    () => (names ? (groupId: string) => names[groupId] : undefined),
+    [names],
+  );
+
+  const expression = rule.conditionExpression || rule.condition;
+  if (!expression) return null;
+
+  return (
+    <div className="mt-1 flex items-baseline gap-(--sp-inline) rounded-md border border-neutral-200 bg-neutral-50 px-(--sp-inline) py-1.5">
+      <span className="shrink-0 text-xs font-medium text-neutral-500">When</span>
+      <RuleExpressionText
+        text={expression}
+        resolveGroupName={resolveGroupName}
+        className="min-w-0 flex-1 font-mono text-xs whitespace-pre-wrap text-neutral-900"
+      />
+    </div>
+  );
+};
 
 const RuleRelationList: React.FC<{
   heading: string;
@@ -30,7 +52,10 @@ const RuleRelationList: React.FC<{
       ) : (
         <div className="space-y-2">
           {rules.map((rule) => (
-            <RuleCard key={rule.id} rule={rule} onOpenInRulesTab={onNavigateToRule} />
+            <div key={rule.id}>
+              <RuleCard rule={rule} onOpenInRulesTab={onNavigateToRule} />
+              <RuleConditionLine rule={rule} />
+            </div>
           ))}
         </div>
       )}

@@ -162,6 +162,52 @@ describe('sync meta', () => {
     });
   });
 
+  it('round-trips the parse version a completed walk recorded (ADR-0066)', async () => {
+    await orgSnapshotStore.patchMeta('groups', ORIGIN, { complete: true, parseVersion: 4 });
+
+    expect((await orgSnapshotStore.getMeta('groups', ORIGIN)).parseVersion).toBe(4);
+  });
+
+  it('reads a record written before the parse version existed as carrying none', async () => {
+    tables.set(
+      'syncMeta',
+      new Map([
+        [
+          `${ORIGIN}::groups`,
+          {
+            origin: ORIGIN,
+            collection: 'groups',
+            complete: true,
+            lastFullWalkAt: NOW,
+            lastDeltaAt: null,
+            watermark: null,
+            itemCount: 1,
+            cursor: null,
+            walkStartedAt: null,
+            deltaSupported: true,
+            completedShards: [],
+            status: null,
+          } satisfies SyncMeta,
+        ],
+      ]),
+    );
+
+    const meta = await orgSnapshotStore.getMeta('groups', ORIGIN);
+    expect(meta.complete).toBe(true);
+    expect(meta.parseVersion).toBeUndefined();
+  });
+
+  it('preserves the parse version when a patch touches another axis', async () => {
+    await orgSnapshotStore.patchMeta('groups', ORIGIN, { parseVersion: 2, complete: true });
+
+    await orgSnapshotStore.patchMeta('groups', ORIGIN, { lastDeltaAt: NOW });
+
+    expect(await orgSnapshotStore.getMeta('groups', ORIGIN)).toMatchObject({
+      parseVersion: 2,
+      lastDeltaAt: NOW,
+    });
+  });
+
   it('keeps a cursor across a suspended walk so it can resume', async () => {
     await orgSnapshotStore.patchMeta('groups', ORIGIN, {
       cursor: '/api/v1/groups?limit=200&after=abc',

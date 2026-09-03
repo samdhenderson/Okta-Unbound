@@ -108,7 +108,7 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
         )}
 
         {hasPolicies && (
-          <div className="space-y-2">
+          <div className="space-y-(--sp-toolbar)">
             <Input
               value={searchQuery}
               onChange={setSearchQuery}

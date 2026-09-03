@@ -28,7 +28,7 @@ import { cacheKeys } from '../../../cache/keys';
 import { OKTA_PAGE_SIZE } from '../../../../shared/utils/oktaPagination';
 import type { GroupSummary } from '../../../../shared/types';
 
-type GroupDetailTab = 'overview' | 'members' | 'access' | 'rules' | 'insights';
+export type GroupDetailTab = 'overview' | 'members' | 'access' | 'rules' | 'insights';
 
 const AUTO_LOAD_MEMBER_CAP = OKTA_PAGE_SIZE * 5;
 
@@ -45,7 +45,7 @@ interface GroupDetailViewProps {
   targetTabId: number | null;
   oktaOrigin?: string | null;
   onNavigateToRule?: (ruleId: string) => void;
-  autoAnalyze?: boolean;
+  initialPane?: GroupDetailTab;
   isActive?: boolean;
   onExportGroup?: (groupId: string, groupName: string) => void;
 }
@@ -55,11 +55,11 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   targetTabId,
   oktaOrigin,
   onNavigateToRule,
-  autoAnalyze = false,
+  initialPane,
   isActive = true,
   onExportGroup,
 }) => {
-  const [activeTab, setActiveTab] = useState<GroupDetailTab>(autoAnalyze ? 'members' : 'overview');
+  const [activeTab, setActiveTab] = useState<GroupDetailTab>(initialPane ?? 'overview');
 
   useWorkingSetEntry({
     origin: oktaOrigin,
@@ -125,7 +125,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
     addMember.closeModal();
   };
 
-  const createFeedingRule = useCreateFeedingRule({ targetTabId, group });
+  const onRuleCreated = isActive ? source.refreshRules : undefined;
+  const createFeedingRule = useCreateFeedingRule({ targetTabId, group, onCreated: onRuleCreated });
 
   const comparison = useGroupComparison({ group, targetTabId, enabled: isActive });
 
@@ -136,7 +137,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
 
   const openedGroupId = source.group?.id;
   const withinAutoLoadBudget = group.memberCount <= AUTO_LOAD_MEMBER_CAP;
-  useOwedLoad(group.id, (autoAnalyze || withinAutoLoadBudget) && openedGroupId === group.id, () => {
+  const shouldAnalyze = initialPane === 'members' || withinAutoLoadBudget;
+  useOwedLoad(group.id, shouldAnalyze && openedGroupId === group.id, () => {
     analyzeMembers();
   });
 

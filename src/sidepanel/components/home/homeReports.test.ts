@@ -83,3 +83,50 @@ describe('buildReport', () => {
     expect(report.findings).toHaveLength(REPORT_PREVIEW_LIMIT);
   });
 });
+
+describe('buildReport with a failed precondition', () => {
+  it('withholds the number and every name when a precondition failed', () => {
+    const report = buildReport({
+      ...base,
+      findings: [finding(1), finding(2)],
+      suppressed: 'Needs a complete read of your groups, which has not finished yet.',
+    });
+    expect(report).toMatchObject({
+      status: 'unavailable',
+      value: null,
+      note: 'Needs a complete read of your groups, which has not finished yet.',
+    });
+    expect(report.findings).toEqual([]);
+  });
+
+  it('downgrades a floor-shortened count too, rather than serving it as partial', () => {
+    const report = buildReport({
+      ...base,
+      floors: [named({ complete: false }, 'app group assignments')],
+      findings: [finding(1)],
+      suppressed: 'No anchor.',
+    });
+    expect(report).toMatchObject({ status: 'unavailable', value: null, note: 'No anchor.' });
+  });
+
+  it('leaves a collection failure saying which collection, not which precondition', () => {
+    const report = buildReport({
+      ...base,
+      gates: [named({ complete: false, lastFullWalkAt: null, count: 0 }, 'group rules')],
+      findings: [finding(1)],
+      suppressed: 'No anchor.',
+    });
+    expect(report.note).toBe('Needs group rules, which have not been read.');
+    expect(report.value).toBeNull();
+  });
+
+  it('shows a skeleton rather than a failure while a collection is still reading', () => {
+    const report = buildReport({
+      ...base,
+      counted: named({ isReading: true }),
+      findings: [finding(1)],
+      suppressed: 'No anchor.',
+    });
+    expect(report).toMatchObject({ status: 'reading', value: null, note: undefined });
+  });
+});

@@ -15,6 +15,7 @@ import {
 } from '../utils/oktaPagination';
 import { createLogger } from '../utils/logger';
 import { orgSnapshotStore } from './orgSnapshotStore';
+import { isParseVersionStale } from './parseVersion';
 import {
   advanceWatermark,
   driftVerdict,
@@ -39,6 +40,7 @@ export interface CollectionSpec<T = unknown> {
   collection: SnapshotCollection;
   firstUrl: string;
   schema: z.ZodType<T, z.ZodTypeDef, unknown>;
+  parseVersion: number;
   preserveParams?: string[];
   context: string;
   shards?: ShardProvider;
@@ -157,6 +159,7 @@ export async function runFullWalk<T>(
     walkStartedAt: null,
     watermark,
     itemCount,
+    parseVersion: spec.parseVersion,
   });
 
   log.debug('Full walk complete', { collection, written, swept, itemCount });
@@ -389,6 +392,7 @@ export async function runShardedWalk<T>(
     walkStartedAt: null,
     completedShards: [],
     itemCount,
+    parseVersion: spec.parseVersion,
   });
 
   log.debug('Sharded walk complete', { collection, shards: shards.length, written, swept });
@@ -400,9 +404,18 @@ export async function syncCollection<T>(
   options: FullWalkOptions,
 ): Promise<WalkOutcome> {
   const meta = await orgSnapshotStore.getMeta(spec.collection, options.origin);
-  const mode: SyncMode = options.force
-    ? 'full'
-    : nextSyncMode(meta, options.now, spec.refreshIntervalMs);
+
+  const stale = isParseVersionStale(spec, meta);
+  if (stale && !options.force) {
+    log.debug('Snapshot parse version behind the spec; upgrading with a full walk', {
+      collection: spec.collection,
+      stored: meta.parseVersion ?? null,
+      expected: spec.parseVersion,
+    });
+  }
+
+  const mode: SyncMode =
+    options.force || stale ? 'full' : nextSyncMode(meta, options.now, spec.refreshIntervalMs);
 
   if (spec.shards) {
     if (mode === 'none')
@@ -430,6 +443,7 @@ export const GROUPS_SPEC: CollectionSpec = {
   collection: 'groups',
   firstUrl: `/api/v1/groups?limit=${OKTA_PAGE_SIZE}&expand=stats&expand=app`,
   schema: oktaGroupListItemSchema,
+  parseVersion: 1,
   preserveParams: ['expand'],
   context: 'GET /api/v1/groups',
 };
@@ -438,6 +452,7 @@ export const RULES_SPEC: CollectionSpec = {
   collection: 'rules',
   firstUrl: `/api/v1/groups/rules?limit=${OKTA_PAGE_SIZE}`,
   schema: oktaGroupRuleSchema,
+  parseVersion: 1,
   context: 'GET /api/v1/groups/rules',
 };
 
@@ -445,6 +460,7 @@ export const APPS_SPEC: CollectionSpec = {
   collection: 'apps',
   firstUrl: `/api/v1/apps?limit=${OKTA_PAGE_SIZE}`,
   schema: oktaAppListItemSchema,
+  parseVersion: 1,
   context: 'GET /api/v1/apps',
 };
 
@@ -498,6 +514,7 @@ export const APP_GROUPS_SPEC: CollectionSpec = {
   collection: 'appGroups',
   firstUrl: `/api/v1/apps/{appId}/groups?limit=${OKTA_PAGE_SIZE}`,
   schema: oktaAppGroupAssignmentSchema,
+  parseVersion: 1,
   context: 'GET /api/v1/apps/{appId}/groups',
   shards: pushEnabledAppShards,
   identify: (row, shard) => {
