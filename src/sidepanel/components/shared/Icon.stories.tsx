@@ -100,6 +100,18 @@ export const Settings: Story = {
   },
 };
 
+export const Upload: Story = {
+  args: {
+    type: 'upload',
+  },
+};
+
+export const Pencil: Story = {
+  args: {
+    type: 'pencil',
+  },
+};
+
 export const WithCustomColor: Story = {
   args: {
     type: 'bolt',
@@ -122,8 +134,10 @@ export const AllIcons: Story = {
       'lock',
       'refresh',
       'download',
+      'upload',
       'settings',
       'trash',
+      'pencil',
       'plus',
       'minus',
       'search',

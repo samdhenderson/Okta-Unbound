@@ -196,6 +196,51 @@ describe('buildSubCount', () => {
     });
   });
 
+  it('agrees with its denominator when there is exactly one of them', () => {
+    const one = buildSubCount({
+      ...base,
+      counted: named({ count: 1 }, 'applications'),
+      count: 1,
+    });
+    expect(one.note).toBe('of 1 application');
+  });
+
+  it('keeps the plural at zero, and localises a four-figure denominator', () => {
+    expect(buildSubCount({ ...base, counted: named({ count: 0 }, 'applications') }).note).toBe(
+      'of 0 applications',
+    );
+    const many = buildSubCount({ ...base, counted: named({ count: 1204 }) }).note;
+    expect(many).toMatch(/^of 1\D?204 groups$/);
+  });
+
+  it('takes a stated singular over the derived one, for a noun derivation would mangle', () => {
+    const irregular = buildSubCount({
+      ...base,
+      counted: { ...named({ count: 1 }, 'authentication policies'), singular: 'auth policy' },
+      count: 1,
+    });
+    expect(irregular.note).toBe('of 1 auth policy');
+  });
+
+  it('leaves the three count-free sentences plural, whatever the count', () => {
+    const single = { count: 1 } as const;
+    expect(buildSubCount({ ...base, counted: named({ ...single, complete: false }) }).note).toBe(
+      'At least — the last read of groups did not finish.',
+    );
+    expect(
+      buildSubCount({
+        ...base,
+        gates: [named({ ...single, complete: false }, 'group rules')],
+      }).note,
+    ).toBe('Needs group rules, which have not been read.');
+    expect(
+      buildSubCount({
+        ...base,
+        counted: named({ count: 0, complete: false, lastFullWalkAt: null }),
+      }).note,
+    ).toBe('Groups have not been read yet.');
+  });
+
   it('marks a floor when the counted walk did not finish', () => {
     const floor = buildSubCount({ ...base, counted: named({ count: 214, complete: false }) });
     expect(floor).toMatchObject({ status: 'partial', value: 31 });

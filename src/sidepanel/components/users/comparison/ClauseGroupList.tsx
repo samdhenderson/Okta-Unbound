@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '../../shared';
+import { Button, CopyableId } from '../../shared';
 import type {
   ClauseGroupReference,
   ClauseGroupRequirement,
@@ -131,9 +131,7 @@ const GroupEntry: React.FC<{
           )}
         </span>
         {showId && (
-          <span className="truncate font-mono text-xs text-neutral-500" title={reference.value}>
-            {reference.value}
-          </span>
+          <CopyableId value={reference.value} label={`Copy group id ${reference.value}`} />
         )}
       </span>
       {actionable && <span className="shrink-0">{renderGroupAction?.(reference)}</span>}

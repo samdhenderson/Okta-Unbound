@@ -4,7 +4,6 @@ import WorkingSet from './home/WorkingSet';
 import OrgSnapshotCard from './home/OrgSnapshotCard';
 import ReportsCard from './home/ReportsCard';
 import { useOktaApi } from '../hooks/useOktaApi';
-import { useOrgEntityIndex } from '../hooks/useOrgEntityIndex';
 import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useOrgFigures } from '../hooks/useOrgFigures';
 import { useHomeReports } from '../hooks/useHomeReports';
@@ -12,6 +11,7 @@ import { useJumpResolver, type JumpResult } from '../hooks/useJumpResolver';
 import { useEntitySearchSources } from '../hooks/useEntitySearchSources';
 import { useStaggerReveal } from '../hooks/useStaggerReveal';
 import { useEntityNavigation } from '../contexts/NavigationContext';
+import { useOrgEntityIndex } from '../contexts/OrgEntityIndexContext';
 import { navigationTarget } from './home/jumpDestinations';
 import type { WorkingSetRef } from '../../shared/storage/workingSetStore';
 import type { ListViewRequest, ListViewTab } from '../listViewRequest';
@@ -22,6 +22,7 @@ export interface HomeTabProps {
   oktaOrigin?: string | null;
   onOpenListView: (request: ListViewRequest) => void;
   onOpenTab: (tab: ListViewTab) => void;
+  onScanGroupMfa: (groupId: string) => void;
 }
 
 const HOME_JUMP_KINDS = ['group', 'user'] as const;
@@ -32,18 +33,19 @@ const HomeTab: React.FC<HomeTabProps> = ({
   oktaOrigin,
   onOpenListView,
   onOpenTab,
+  onScanGroupMfa,
 }) => {
   const api = useOktaApi({ targetTabId, oktaOrigin });
   const nav = useEntityNavigation();
 
-  const index = useOrgEntityIndex({ oktaOrigin, targetTabId, enabled: isActive });
+  const index = useOrgEntityIndex();
   const workingSet = useWorkingSet(oktaOrigin);
   const orgFigures = useOrgFigures({
     index,
     enabled: isActive,
     connected: targetTabId !== null,
   });
-  const { reports } = useHomeReports({ index });
+  const { reports, groupChoices, groupChoicesStatus } = useHomeReports({ index });
 
   const [autoFocus] = useState(() => isActive && document.visibilityState === 'visible');
 
@@ -97,6 +99,9 @@ const HomeTab: React.FC<HomeTabProps> = ({
         <ReportsCard
           reports={reports}
           onOpenGroup={(id) => nav.navigateTo({ type: 'group', id })}
+          groupChoices={groupChoices}
+          groupChoicesStatus={groupChoicesStatus}
+          onScanGroupMfa={onScanGroupMfa}
         />
       </div>
     </div>

@@ -1,6 +1,7 @@
 import type { CoreApi } from './core';
 import type { AuditLogEntry } from './types';
 import type { EntityExport, CellValue } from '@/sidepanel/export/types';
+import type { CountResolution } from '@/sidepanel/components/home/orgFigures';
 import { parseNextLink, nextPageUrl } from '@/shared/utils/oktaPagination';
 import { openingWalkEstimate, refinedWalkEstimate } from '@/shared/scheduler/planEstimate';
 import { parseOktaList } from '@/shared/schemas/okta';
@@ -34,6 +35,7 @@ export interface RunExportArgs<Row> {
   rows: Row[];
   enabledColumnIds: string[];
   contextLabel?: string;
+  resolution?: CountResolution;
 }
 
 export function createExportEngineOperations(coreApi: CoreApi) {
@@ -110,11 +112,14 @@ export function createExportEngineOperations(coreApi: CoreApi) {
   };
 
   const runExport = async <Row>(args: RunExportArgs<Row>): Promise<void> => {
-    const { descriptor, rows, enabledColumnIds, contextLabel } = args;
+    const { descriptor, rows, enabledColumnIds, contextLabel, resolution } = args;
     const startTime = Date.now();
 
-    const columns = descriptor.columnCatalog.filter((column) =>
-      enabledColumnIds.includes(column.id),
+    const snapshotSource = descriptor.source?.kind === 'snapshot' ? descriptor.source : null;
+    const isPartial = snapshotSource !== null && resolution?.status === 'partial';
+    const forcedId = isPartial ? snapshotSource.completenessColumnId : undefined;
+    const columns = descriptor.columnCatalog.filter(
+      (column) => enabledColumnIds.includes(column.id) || column.id === forcedId,
     );
     const headers = columns.map((column) => column.label);
     const dataRows: CellValue[][] = rows.map((row) =>
@@ -127,7 +132,8 @@ export function createExportEngineOperations(coreApi: CoreApi) {
 
     const csv = generateCSV(headers, dataRows);
     const stem = sanitizeFilename(contextLabel ?? descriptor.displayName);
-    downloadCSV(csv, `${stem}-${descriptor.id}-${getDateForFilename()}.csv`);
+    const partialMarker = isPartial ? '-partial' : '';
+    downloadCSV(csv, `${stem}-${descriptor.id}${partialMarker}-${getDateForFilename()}.csv`);
 
     await logExportAudit(coreApi, descriptor, rows.length, startTime);
   };

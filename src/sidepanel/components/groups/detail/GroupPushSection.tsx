@@ -1,24 +1,10 @@
 import React from 'react';
-import { CopyableId, DetailSection, EntityLink } from '../../shared';
-import Icon from '../../shared/Icon';
+import { DetailSection, EntityLink } from '../../shared';
 import type { PushGroupMapping } from '../../../../shared/types';
 
 interface GroupPushSectionProps {
   mappings?: PushGroupMapping[];
 }
-
-const UnnamedPushApp: React.FC<{
-  appId: string;
-}> = ({ appId }) => (
-  <span
-    className="inline-flex max-w-full items-center gap-1 text-xs"
-    title="Okta returned no name for this application, so only its id is known here."
-  >
-    <Icon type="app" size="xs" className="shrink-0 text-neutral-500" />
-    <span className="shrink-0 italic text-neutral-600">App name not loaded</span>
-    <CopyableId value={appId} label={`Copy application id ${appId}`} />
-  </span>
-);
 
 const GroupPushSection: React.FC<GroupPushSectionProps> = ({ mappings }) => (
   <DetailSection
@@ -48,7 +34,12 @@ const GroupPushSection: React.FC<GroupPushSectionProps> = ({ mappings }) => (
                   copyIdLabel={`Copy application id ${mapping.appId}`}
                 />
               ) : (
-                <UnnamedPushApp appId={mapping.appId} />
+                <EntityLink
+                  type="app"
+                  id={mapping.appId}
+                  unresolvedReason="Okta returned no name for this application, so only its id is known here."
+                  copyIdLabel={`Copy application id ${mapping.appId}`}
+                />
               )}
               {mapping.targetGroupName && (
                 <span className="mt-0.5 truncate text-xs text-neutral-500">

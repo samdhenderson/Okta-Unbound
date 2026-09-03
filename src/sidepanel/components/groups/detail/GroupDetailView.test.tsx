@@ -304,23 +304,25 @@ describe('GroupDetailView', () => {
     expect(within(picker).getByRole('button', { name: 'Compare' })).toBeDisabled();
   });
 
-  it('fires the gated member-source analysis exactly once when autoAnalyze is set and the open has landed', () => {
+  it("fires the gated member-source analysis exactly once when initialPane is 'members' and the open has landed", () => {
     const group = makeGroup();
     groupSource.group = { id: group.id };
 
     const { rerender } = render(
-      <GroupDetailView group={group} targetTabId={1} autoAnalyze isActive />,
+      <GroupDetailView group={group} targetTabId={1} initialPane="members" isActive />,
     );
     expect(groupSource.analyzeMembers).toHaveBeenCalledTimes(1);
 
-    rerender(<GroupDetailView group={group} targetTabId={1} autoAnalyze isActive={false} />);
-    rerender(<GroupDetailView group={group} targetTabId={1} autoAnalyze isActive />);
+    rerender(
+      <GroupDetailView group={group} targetTabId={1} initialPane="members" isActive={false} />,
+    );
+    rerender(<GroupDetailView group={group} targetTabId={1} initialPane="members" isActive />);
     expect(groupSource.analyzeMembers).toHaveBeenCalledTimes(1);
 
     expect(screen.getByRole('tab', { name: 'Members' })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('auto-analyzes a plain drill-in (autoAnalyze unset) when the group is within the auto-load budget, and still lands on Overview', () => {
+  it('auto-analyzes a plain drill-in (initialPane unset) when the group is within the auto-load budget, and still lands on Overview', () => {
     const group = makeGroup(); // memberCount: 10 — well under AUTO_LOAD_MEMBER_CAP
     groupSource.group = { id: group.id };
     render(<GroupDetailView group={group} targetTabId={1} />);

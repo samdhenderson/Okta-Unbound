@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useId, useState } from 'react';
-import { CopyableId, IconButton, ListRow } from '../shared';
+import { CopyableId, Eyebrow, IconButton, ListRow, StretchedButton } from '../shared';
 import Icon from '../shared/Icon';
 import PolicyRulesList from './PolicyRulesList';
 import { useEntityQuery } from '../../cache/useEntityQuery';
@@ -14,6 +14,7 @@ interface PolicyCardProps {
 const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const rulesId = useId();
+  const nameId = useId();
 
   const toggleExpanded = useCallback(() => setIsExpanded((prev) => !prev), []);
 
@@ -41,9 +42,7 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
         >
           <div>
             <div className="space-y-3 border-t border-neutral-100 bg-neutral-50 px-4 pb-4 pt-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-600">
-                Rules
-              </div>
+              <Eyebrow as="div">Rules</Eyebrow>
               <PolicyRulesList rules={rules} isLoading={isLoading} error={error} />
               <div className="flex min-w-0 items-center gap-1 border-t border-neutral-200 pt-2 text-xs text-neutral-600">
                 <span className="shrink-0 font-semibold">Policy ID:</span>
@@ -57,10 +56,17 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
         </div>
       }
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="relative flex items-start justify-between gap-4">
+        <StretchedButton
+          label={isExpanded ? 'Hide rules' : 'Show rules'}
+          describedBy={nameId}
+          onClick={toggleExpanded}
+        />
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-(--sp-inline)">
-            <h3 className="text-sm font-semibold text-neutral-900">{name}</h3>
+            <h3 id={nameId} className="text-sm font-semibold text-neutral-900">
+              {name}
+            </h3>
             <span
               className={`rounded-md border px-2 py-0.5 text-xs font-medium ${policyStatusClasses(policy.status)}`}
             >
@@ -87,7 +93,7 @@ const PolicyCard: React.FC<PolicyCardProps> = memo(({ policy, loadRules }) => {
           size="md"
           expanded={isExpanded}
           controls={rulesId}
-          className="shrink-0"
+          className="relative z-10 shrink-0"
           onClick={toggleExpanded}
         >
           <Icon

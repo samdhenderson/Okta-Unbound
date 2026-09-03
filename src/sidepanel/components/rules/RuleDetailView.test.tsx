@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import RuleDetailView from './RuleDetailView';
 import { NavigationProvider } from '../../contexts/NavigationContext';
 import type { FormattedRule } from '../../../shared/types';
@@ -90,6 +91,25 @@ describe('RuleDetailView', () => {
     expect(
       screen.getByRole('button', { name: `Copy group id ${TARGET_GROUP_ID}` }),
     ).toBeInTheDocument();
+  });
+
+  it('opens an unresolved target group by id', async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+
+    render(
+      <NavigationProvider handlers={{ group: onNavigate }}>
+        <RuleDetailView rule={unresolved} oktaOrigin={null} sticky={false} {...strip} />
+      </NavigationProvider>,
+    );
+
+    await user.click(
+      screen.getByRole('button', {
+        name: `Group name not loaded — open group ${TARGET_GROUP_ID}`,
+      }),
+    );
+
+    expect(onNavigate).toHaveBeenCalledWith(TARGET_GROUP_ID);
   });
 
   it('shows the attributes the condition reads', () => {

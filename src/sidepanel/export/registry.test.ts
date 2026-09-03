@@ -21,6 +21,34 @@ describe('buildRegistry', () => {
   });
 });
 
+describe('row-acquisition invariant', () => {
+  it('resolves every descriptor exactly one way', () => {
+    for (const descriptor of Object.values(buildRegistry(deps))) {
+      const isSnapshot = descriptor.source?.kind === 'snapshot';
+      const namesAnEndpoint =
+        descriptor.endpoint !== undefined || descriptor.context.kind === 'search-to-select';
+      expect(isSnapshot).not.toBe(namesAnEndpoint);
+    }
+  });
+
+  it('leaves every endpoint descriptor with no source at all', () => {
+    const endpointDescriptors = Object.values(buildRegistry(deps)).filter(
+      (descriptor) => descriptor.source?.kind !== 'snapshot',
+    );
+
+    expect(endpointDescriptors.length).toBeGreaterThan(0);
+    expect(endpointDescriptors.every((descriptor) => descriptor.source === undefined)).toBe(true);
+  });
+
+  it('registers the three report descriptors from one module', () => {
+    const registry = buildRegistry(deps);
+
+    expect(registry['report-group-cleanup']?.source?.kind).toBe('snapshot');
+    expect(registry['report-unmaintained-app-access']?.source?.kind).toBe('snapshot');
+    expect(registry['report-dormant-app-access']?.source?.kind).toBe('snapshot');
+  });
+});
+
 describe('listDescriptors', () => {
   it('returns the descriptors sorted by display name', () => {
     const registry = buildRegistry(deps);

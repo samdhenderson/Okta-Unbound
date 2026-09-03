@@ -79,7 +79,11 @@ export const UnnamedApp: Story = {
     await expect(
       canvas.getByRole('button', { name: `Copy application id ${unnamedMapping.appId}` }),
     ).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /^Open app/ })).not.toBeInTheDocument();
+    await expect(
+      canvas.getByRole('button', {
+        name: `App name not loaded — open app ${unnamedMapping.appId}`,
+      }),
+    ).toBeInTheDocument();
   },
 };
 

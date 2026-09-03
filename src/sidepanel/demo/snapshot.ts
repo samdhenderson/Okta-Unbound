@@ -148,6 +148,20 @@ export const demoRules: OktaGroupRule[] = [
     [fakeId('00g', 21)],
     'INACTIVE',
   ),
+  rule(10, 'Customer Success by department', 'user.department == "Customer Success"', [
+    fakeId('00g', 4),
+  ]),
+  rule(11, 'Marketing by department', 'user.department == "Marketing"', [fakeId('00g', 5)]),
+  rule(12, 'Finance by department', 'user.department == "Finance"', [fakeId('00g', 6)]),
+  rule(13, 'People Ops by department', 'user.department == "People Ops"', [fakeId('00g', 7)]),
+  rule(14, 'IT by department', 'user.department == "IT"', [fakeId('00g', 8)]),
+  rule(15, 'Security by department', 'user.department == "Security"', [fakeId('00g', 9)]),
+  rule(16, 'Data by department', 'user.department == "Data"', [fakeId('00g', 10)]),
+  rule(17, 'Legal by department', 'user.department == "Legal"', [fakeId('00g', 11)]),
+  rule(18, 'Seattle office', 'user.city == "Seattle"', [fakeId('00g', 26)]),
+  rule(19, 'Austin office', 'user.city == "Austin"', [fakeId('00g', 27)]),
+  rule(20, 'Sydney office', 'user.city == "Sydney"', [fakeId('00g', 28)]),
+  rule(21, 'Engineering → Datadog', 'user.department == "Engineering"', [fakeId('00g', 34)]),
 ];
 
 function app(

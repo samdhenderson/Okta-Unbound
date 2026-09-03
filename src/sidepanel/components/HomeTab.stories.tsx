@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import HomeTab from './HomeTab';
 import { NavigationProvider } from '../contexts/NavigationContext';
+import { OrgEntityIndexProvider } from '../contexts/OrgEntityIndexContext';
 import { useOktaApi, makeUseOktaApiValue } from '../../../.storybook/mocks/useOktaApi.mock';
 import {
   resetSyncSnapshotResponder,
@@ -152,9 +153,15 @@ const meta = {
     },
   },
   decorators: [
-    (Story) => (
+    (Story, { args }) => (
       <NavigationProvider handlers={{ group: fn(), user: fn() }}>
-        <Story />
+        <OrgEntityIndexProvider
+          oktaOrigin={args.oktaOrigin ?? null}
+          targetTabId={args.targetTabId}
+          enabled={args.isActive}
+        >
+          <Story />
+        </OrgEntityIndexProvider>
       </NavigationProvider>
     ),
   ],
@@ -172,6 +179,7 @@ const meta = {
     oktaOrigin: ORIGIN,
     onOpenListView: fn(),
     onOpenTab: fn(),
+    onScanGroupMfa: fn(),
   },
   beforeEach: async () => {
     resetSyncSnapshotResponder();

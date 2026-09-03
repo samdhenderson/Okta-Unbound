@@ -93,7 +93,12 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
       <div className="flex items-center gap-(--sp-inline)">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
-            <h4 className="truncate text-sm font-semibold text-neutral-900">{groupName}</h4>
+            <h4
+              className="truncate text-sm font-semibold text-neutral-900"
+              title={groupName || undefined}
+            >
+              {groupName}
+            </h4>
             <Badge variant={verdict.variant} title={verdict.title} className="shrink-0">
               {verdict.label}
             </Badge>

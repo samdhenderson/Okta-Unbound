@@ -1,3 +1,4 @@
+import { pluralize, singularOf, type NounForms } from '../../../shared/utils/plural';
 import type { IconType } from '../shared/Icon';
 import type { ListViewRequest, ListViewTab } from '../../listViewRequest';
 
@@ -70,6 +71,7 @@ export function buildFigure(
 export interface NamedSource {
   source: FigureSource;
   noun: string;
+  singular?: string;
 }
 
 export interface OrgSubCount {
@@ -113,6 +115,10 @@ export interface CountInput {
   count: number;
 }
 
+function nounForms(named: NamedSource): NounForms {
+  return { one: named.singular ?? singularOf(named.noun), other: named.noun };
+}
+
 function countNote(
   status: OrgFigureStatus,
   counted: NamedSource,
@@ -120,7 +126,7 @@ function countNote(
   floors: NamedSource[],
 ): string | undefined {
   if (status === 'reading') return undefined;
-  if (status === 'ok') return `of ${counted.source.count.toLocaleString()} ${counted.noun}`;
+  if (status === 'ok') return `of ${pluralize(counted.source.count, nounForms(counted))}`;
   if (status === 'partial') {
     const short = [counted, ...floors].find((source) => figureStatus(source.source) !== 'ok');
     return `At least — the last read of ${(short ?? counted).noun} did not finish.`;

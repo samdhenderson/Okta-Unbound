@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import TabJumpPalette, { type SectionMeta } from './TabJumpPalette';
 import { useOktaApi } from '../hooks/useOktaApi';
-import { useOrgEntityIndex } from '../hooks/useOrgEntityIndex';
 import { useEntitySearchSources } from '../hooks/useEntitySearchSources';
 import { useJumpResolver, JUMP_SEARCH_MIN_CHARS, type JumpKind } from '../hooks/useJumpResolver';
 import { useEntityNavigation } from '../contexts/NavigationContext';
+import { useOrgEntityIndex } from '../contexts/OrgEntityIndexContext';
 import { navigationTarget } from './home/jumpDestinations';
 import type { JumpResult } from '../hooks/useJumpResolver';
 import type { TabType } from '../tabs';
@@ -28,18 +28,11 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
   targetTabId,
   oktaOrigin,
 }) => {
-  const [hasOpened, setHasOpened] = useState(false);
-  if (isOpen && !hasOpened) setHasOpened(true);
-
   const nav = useEntityNavigation();
 
   const api = useOktaApi({ targetTabId, oktaOrigin: oktaOrigin ?? undefined });
 
-  const index = useOrgEntityIndex({
-    oktaOrigin: hasOpened ? oktaOrigin : null,
-    targetTabId,
-    enabled: isOpen,
-  });
+  const index = useOrgEntityIndex();
 
   const { searchers, fetchers } = useEntitySearchSources({
     api,

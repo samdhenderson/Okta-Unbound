@@ -26,6 +26,7 @@ export interface SyncMeta {
   deltaSupported: boolean | null;
   complete: boolean;
   status: number | null;
+  parseVersion?: number | null;
   completedShards: string[];
 }
 

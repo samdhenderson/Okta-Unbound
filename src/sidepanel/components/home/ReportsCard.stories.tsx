@@ -4,6 +4,7 @@ import ReportsCard from './ReportsCard';
 import { buildReport, REPORT_PREVIEW_LIMIT } from './homeReports';
 import type { FigureSource } from './orgFigures';
 import { APP_ACCESS_CAVEAT, CLEANUP_CAVEAT, type GroupFinding } from '../groups/ruleOrphans';
+import type { EntityChoice } from './EntityChooser';
 
 const NOW = Date.now();
 
@@ -15,6 +16,12 @@ const read = (over: Partial<FigureSource> = {}): FigureSource => ({
   error: null,
   ...over,
 });
+
+const CHOICES: EntityChoice[] = [
+  { id: '00gFAKE01', name: 'AWS Sandbox 2019', detail: '0 members' },
+  { id: '00gFAKE11', name: 'Salesforce Users', detail: '412 members' },
+  { id: '00gFAKE21', name: 'Engineering – All', detail: '1,204 members' },
+];
 
 const CLEANUP: GroupFinding[] = [
   {
@@ -103,9 +110,15 @@ const meta = {
   argTypes: {
     reports: { description: 'The report rows, in display order.' },
     onOpenGroup: { description: 'Open one of the named groups on the Groups tab.' },
+    groupChoices: { description: "The MFA launcher's chooser rows, from the org snapshot." },
+    groupChoicesStatus: { description: 'Read state of the collection behind those choices.' },
+    onScanGroupMfa: { description: "Open a group's Insights pane with the scan armed, un-run." },
   },
   args: {
     onOpenGroup: fn(),
+    groupChoices: CHOICES,
+    groupChoicesStatus: 'ok' as const,
+    onScanGroupMfa: fn(),
     reports: reports(read(), read({ count: 61 }), read({ count: 38 }), read({ count: 90 })),
   },
 } satisfies Meta<typeof ReportsCard>;
@@ -161,7 +174,8 @@ export const NothingFound: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByRole('button')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /Empty groups/ })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /App access/ })).not.toBeInTheDocument();
     await expect(canvas.getAllByText('0')).toHaveLength(2);
   },
 };
@@ -181,7 +195,8 @@ export const GateNeverRead: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.queryByRole('button')).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /Empty groups/ })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /App access/ })).not.toBeInTheDocument();
     await expect(canvas.queryByText('AWS Sandbox 2019')).not.toBeInTheDocument();
     await expect(canvas.getAllByText('Needs group rules, which have not been read.')).toHaveLength(
       2,
@@ -205,5 +220,26 @@ export const FloorFellShort: Story = {
     ).toBeInTheDocument();
     await userEvent.click(canvas.getByRole('button', { name: /App access/ }));
     await expect(canvas.getByText('Salesforce Users')).toBeInTheDocument();
+  },
+};
+
+export const MfaLauncherOpened: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /MFA coverage/ }));
+    await expect(canvas.getByText(/not free/)).toBeInTheDocument();
+    await userEvent.type(canvas.getByRole('searchbox', { name: 'Filter groups' }), 'sales');
+    await expect(canvas.queryByText('AWS Sandbox 2019')).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { description: 'Salesforce Users' }));
+    await expect(args.onScanGroupMfa).toHaveBeenCalledWith('00gFAKE11');
+  },
+};
+
+export const MfaLauncherUnavailable: Story = {
+  args: { groupChoices: [], groupChoicesStatus: 'unavailable' as const },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /MFA coverage/ })).not.toBeInTheDocument();
+    await expect(canvas.getByText(/Groups have not been read yet/)).toBeInTheDocument();
   },
 };

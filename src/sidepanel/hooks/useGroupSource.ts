@@ -30,6 +30,7 @@ export interface UseGroupSourceReturn {
   memberSourceIndex: MemberSourceIndex | null;
   error: string | null;
   open: (group: GroupSummary) => void;
+  refreshRules: () => void;
   analyzeMembers: () => void;
   resummarize: (members: OktaUser[]) => void;
   close: () => void;
@@ -77,6 +78,26 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     },
     [getGroupRulesForGroup],
   );
+
+  const refreshRules = useCallback(() => {
+    if (!group) return;
+    const runId = runIdRef.current;
+
+    if (feedingRules.length === 0) setRulesStatus('loading');
+
+    getGroupRulesForGroup(group.id)
+      .then((rules) => {
+        if (runId !== runIdRef.current) return;
+        setFeedingRules(rules);
+        setRulesStatus('done');
+      })
+      .catch((err) => {
+        if (runId !== runIdRef.current) return;
+        log.error('Failed to refresh feeding rules:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load feeding rules');
+        setRulesStatus('error');
+      });
+  }, [group, feedingRules.length, getGroupRulesForGroup]);
 
   const analyzeMembers = useCallback(() => {
     if (!group) return;
@@ -160,6 +181,7 @@ export function useGroupSource(targetTabId?: number): UseGroupSourceReturn {
     memberSourceIndex,
     error,
     open,
+    refreshRules,
     analyzeMembers,
     resummarize,
     close,

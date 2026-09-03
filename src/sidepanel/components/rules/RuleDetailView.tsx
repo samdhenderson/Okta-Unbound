@@ -31,17 +31,6 @@ const MissingGroupChip: React.FC<{ groupId: string }> = ({ groupId }) => (
   </span>
 );
 
-const UnnamedGroupChip: React.FC<{ groupId: string }> = ({ groupId }) => (
-  <span
-    className="inline-flex max-w-full items-center gap-1 rounded-md border border-dashed border-neutral-300 px-2 py-0.5 text-xs"
-    title="This rule assigns to this group id. No name for it was loaded into this view."
-  >
-    <Icon type="users" size="xs" className="shrink-0 text-neutral-500" />
-    <span className="shrink-0 italic text-neutral-600">Group name not loaded</span>
-    <CopyableId value={groupId} label={`Copy group id ${groupId}`} />
-  </span>
-);
-
 const renderConditionWithGroupBadges = (
   expression: string,
   allGroupNamesMap?: Record<string, string>,
@@ -177,7 +166,12 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
                   copyIdLabel={`Copy group id ${groupId}`}
                 />
               ) : (
-                <UnnamedGroupChip key={groupId} groupId={groupId} />
+                <EntityLink
+                  key={groupId}
+                  type="group"
+                  id={groupId}
+                  unresolvedReason="This rule assigns to this group id. No name for it was loaded into this view."
+                />
               );
             })}
           </div>

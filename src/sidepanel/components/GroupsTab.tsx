@@ -32,7 +32,7 @@ import GroupSearchBar from './groups/GroupSearchBar';
 import GroupFilterPanel from './groups/GroupFilterPanel';
 import GroupsListActionBar, { type ActivePanel } from './groups/GroupsListActionBar';
 import GroupsListPanel from './groups/GroupsListPanel';
-import GroupDetailView from './groups/detail/GroupDetailView';
+import GroupDetailView, { type GroupDetailTab } from './groups/detail/GroupDetailView';
 import GroupMergeModal from './groups/GroupMergeModal';
 import { downloadCSV, getDateForFilename } from '../../shared/utils/csvUtils';
 import { buildGroupsListCsv } from './groups/groupsListCsv';
@@ -42,6 +42,7 @@ interface GroupsTabProps {
   oktaOrigin?: string;
   onNavigateToRule?: (ruleId: string) => void;
   selectedGroupId?: string | null;
+  selectedGroupPane?: GroupDetailTab;
   onGroupSelected?: () => void;
   onExportGroup?: (groupId: string, groupName: string) => void;
   isActive?: boolean;
@@ -59,6 +60,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   oktaOrigin,
   onNavigateToRule,
   selectedGroupId,
+  selectedGroupPane,
   onGroupSelected,
   isActive = true,
   scrollRootRef,
@@ -105,7 +107,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const detailViewRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const noScroller = useRef<HTMLElement | null>(null);
-  const [autoAnalyzeGroupId, setAutoAnalyzeGroupId] = useState<string | null>(null);
+  const [panePush, setPanePush] = useState<{ groupId: string; pane: GroupDetailTab } | null>(null);
   const nav = useViewStack<GroupSummary>({
     rootLabel: 'Groups',
     getLabel: groupCrumbLabel,
@@ -139,7 +141,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const handleOpenDetail = useCallback(
     (group: GroupSummary) => {
       captureListScroll();
-      setAutoAnalyzeGroupId(null);
+      setPanePush(null);
       pushView(group);
     },
     [captureListScroll, pushView],
@@ -148,7 +150,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const handleAnalyzeSource = useCallback(
     (group: GroupSummary) => {
       captureListScroll();
-      setAutoAnalyzeGroupId(group.id);
+      setPanePush({ groupId: group.id, pane: 'members' });
       pushView(group);
     },
     [captureListScroll, pushView],
@@ -163,7 +165,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
       return;
     }
     if (navHandledRef.current === selectedGroupId) return;
-    if (!groups.some((g) => g.id === selectedGroupId)) {
+    const target = groups.find((g) => g.id === selectedGroupId);
+    if (!target) {
       if (!loading && navLoadRef.current !== selectedGroupId) {
         navLoadRef.current = selectedGroupId;
         setSearchMode('cached');
@@ -172,6 +175,13 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
       return;
     }
     navHandledRef.current = selectedGroupId;
+
+    if (selectedGroupPane) {
+      setPanePush({ groupId: target.id, pane: selectedGroupPane });
+      pushView(target);
+      onGroupSelected?.();
+      return;
+    }
 
     nav.reset();
     setSearchMode('cached');
@@ -189,7 +199,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
       clearTimeout(clearT);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGroupId, groups, loading]);
+  }, [selectedGroupId, selectedGroupPane, groups, loading]);
 
   const listViewHandledRef = useRef<GroupsListView | null>(null);
   useEffect(() => {
@@ -347,7 +357,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             searchRow
           )}
 
-          <div className="space-y-3">
+          <div className="space-y-(--sp-toolbar)">
             {searchMode === 'cached' && showFilters && (
               <GroupFilterPanel
                 activeFilterCount={activeFilterCount}
@@ -456,7 +466,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
               targetTabId={targetTabId}
               oktaOrigin={oktaOrigin}
               onNavigateToRule={onNavigateToRule}
-              autoAnalyze={autoAnalyzeGroupId === detailGroup.id}
+              initialPane={panePush?.groupId === detailGroup.id ? panePush.pane : undefined}
               isActive={isActive}
               onExportGroup={onExportGroup}
             />

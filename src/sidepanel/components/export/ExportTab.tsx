@@ -3,7 +3,9 @@ import { PageHeader, AlertMessage, Button } from '../shared';
 import { useOktaApi } from '../../hooks/useOktaApi';
 import type { OperationResult } from '../../hooks/useOktaApi/types';
 import { useExportTab } from '../../hooks/useExportTab';
+import { useOrgEntityIndex } from '../../contexts/OrgEntityIndexContext';
 import { buildRegistry } from '../../export/registry';
+import type { OrgSnapshotView } from '../../export/snapshot';
 import type { ExportApiDeps } from '../../export/types.deps';
 import EntityPicker from './EntityPicker';
 import ExportContextBar from './ExportContextBar';
@@ -65,10 +67,22 @@ const ExportTab: React.FC<ExportTabProps> = ({
 
   const registry = useMemo(() => buildRegistry(deps), [deps]);
 
+  const index = useOrgEntityIndex();
+  const snapshot = useMemo<OrgSnapshotView>(
+    () => ({
+      groups: index.groups,
+      rules: index.rules,
+      apps: index.apps,
+      appGroups: index.appGroups,
+    }),
+    [index.groups, index.rules, index.apps, index.appGroups],
+  );
+
   const tab = useExportTab({
     api,
     registry,
     deps,
+    snapshot,
     oktaOrigin,
     hasConnectedTab: targetTabId != null,
     onError: setError,
@@ -169,25 +183,34 @@ const ExportTab: React.FC<ExportTabProps> = ({
               canSave={tab.enabledCount > 0}
             />
 
-            <div className="flex items-center gap-3">
-              <Button
-                variant="secondary"
-                onClick={tab.loadPreview}
-                disabled={!tab.canExport}
-                loading={tab.isBusy}
-              >
-                Preview
-              </Button>
-              <Button
-                variant="primary"
-                icon="download"
-                onClick={tab.download}
-                disabled={!tab.canExport}
-                loading={tab.isBusy}
-              >
-                Download CSV
-              </Button>
-            </div>
+            {tab.snapshotStatus === 'unavailable' ? (
+              <AlertMessage message={{ type: 'info', text: tab.snapshotNote ?? '' }} />
+            ) : (
+              <div className="space-y-2">
+                {tab.snapshotStatus === 'partial' && tab.snapshotNote && (
+                  <AlertMessage message={{ type: 'warning', text: tab.snapshotNote }} />
+                )}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="secondary"
+                    onClick={tab.loadPreview}
+                    disabled={!tab.canExport}
+                    loading={tab.isBusy}
+                  >
+                    Preview
+                  </Button>
+                  <Button
+                    variant="primary"
+                    icon="download"
+                    onClick={tab.download}
+                    disabled={!tab.canExport}
+                    loading={tab.isBusy}
+                  >
+                    Download CSV
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {tab.previewRows !== null && (
               <ExportPreviewTable

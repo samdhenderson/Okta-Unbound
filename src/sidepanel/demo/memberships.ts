@@ -66,44 +66,79 @@ const OFFICE_GROUPS: readonly { ordinal: number; city: string }[] = [
 
 const attr = (user: OktaUser, key: string): string => String(user.profile[key] ?? '');
 
-const RULE_FED: readonly { ordinal: number; predicate: (user: OktaUser) => boolean }[] = [
+type RuleFedGroup = {
+  ordinal: number;
+  predicate: (user: OktaUser) => boolean;
+  expression: string | null;
+  exemption?: string;
+};
+
+const RULE_FED: readonly RuleFedGroup[] = [
   ...DEPARTMENT_GROUPS.map(({ ordinal, department }) => ({
     ordinal,
     predicate: (user: OktaUser) => attr(user, 'department') === department,
+    expression: `user.department == "${department}"`,
   })),
   ...OFFICE_GROUPS.map(({ ordinal, city }) => ({
     ordinal,
     predicate: (user: OktaUser) => attr(user, 'city') === city,
+    expression: `user.city == "${city}"`,
   })),
-  { ordinal: GROUP.vpnUsers, predicate: (user) => user.status === 'ACTIVE' },
+  {
+    ordinal: GROUP.vpnUsers,
+    predicate: (user) => user.status === 'ACTIVE',
+    expression: 'user.status == "ACTIVE"',
+  },
   {
     ordinal: GROUP.contractorsEmea,
     predicate: (user) =>
       attr(user, 'employeeType') === 'CONTRACTOR' &&
       EMEA_COUNTRIES.includes(attr(user, 'countryCode')),
+    expression:
+      'user.employeeType == "CONTRACTOR" && (user.countryCode == "GB" || user.countryCode == "DE" || user.countryCode == "IE")',
   },
   {
     ordinal: GROUP.contractorsAmer,
     predicate: (user) =>
       attr(user, 'employeeType') === 'CONTRACTOR' &&
       ['US', 'CA'].includes(attr(user, 'countryCode')),
+    expression:
+      'user.employeeType == "CONTRACTOR" && (user.countryCode == "US" || user.countryCode == "CA")',
   },
-  { ordinal: GROUP.interns, predicate: (user) => attr(user, 'employeeType') === 'INTERN' },
+  {
+    ordinal: GROUP.interns,
+    predicate: (user) => attr(user, 'employeeType') === 'INTERN',
+    expression:
+      'user.employeeType == "INTERN" && String.stringContains(user.organization, "Northwind")',
+  },
   {
     ordinal: GROUP.githubEngineering,
     predicate: (user) =>
       attr(user, 'department') === 'Engineering' && attr(user, 'employeeType') !== 'CONTRACTOR',
+    expression: 'user.department == "Engineering" && user.employeeType != "CONTRACTOR"',
   },
-  { ordinal: GROUP.everyone, predicate: () => true },
+  {
+    ordinal: GROUP.everyone,
+    predicate: () => true,
+    expression: null,
+    exemption:
+      'Okta maintains the built-in Everyone group itself and rejects a group rule that targets it; declaring one would misstate the platform.',
+  },
   {
     ordinal: GROUP.workdayAllWorkers,
     predicate: (user) => user.status !== 'STAGED' && user.status !== 'DEPROVISIONED',
+    expression: null,
+    exemption:
+      'Sourced from the Workday HR import, which fills it on every sync. The invisible maintainer is the point: to the panel it is indistinguishable from an unmaintained group.',
   },
   {
     ordinal: GROUP.datadogEngineering,
     predicate: (user) => attr(user, 'department') === 'Engineering',
+    expression: 'user.department == "Engineering"',
   },
 ];
+
+export const RULE_FED_GROUPS: readonly RuleFedGroup[] = RULE_FED;
 
 const HAND_MANAGED: readonly {
   ordinal: number;

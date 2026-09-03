@@ -300,7 +300,9 @@ export const LongGroupName: Story = {
   parameters: { viewport: { value: 'sidepanelCompact' } },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(longName.group.profile.name)).toBeInTheDocument();
+    const name = canvas.getByText(longName.group.profile.name);
+    await expect(name).toBeInTheDocument();
+    await expect(name).toHaveAttribute('title', longName.group.profile.name);
     await expect(canvas.getByText('Rule · 2?')).toBeInTheDocument();
     await expect(canvas.getByText('On page')).toBeInTheDocument();
   },

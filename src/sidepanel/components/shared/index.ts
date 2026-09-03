@@ -36,6 +36,7 @@ export { default as SearchDropdown } from './SearchDropdown';
 export { default as SelectionChips } from './SelectionChips';
 export { default as JsonViewer } from './JsonViewer';
 export { default as JsonNode } from './JsonNode';
+export { default as RuleExpressionText } from './RuleExpressionText';
 
 export type { ButtonVariant, ButtonSize } from './Button';
 export type { IconButtonVariant, IconButtonSize } from './IconButton';
@@ -50,6 +51,11 @@ export type { BadgeVariant, BadgeProps } from './Badge';
 export type { EntityLinkProps } from './EntityLink';
 export type { FilterToggleProps } from './FilterToggle';
 export type { EyebrowProps } from './Eyebrow';
+export type {
+  RuleExpressionTextProps,
+  RuleExpressionTone,
+  GroupNameResolver,
+} from './RuleExpressionText';
 export type { StableWidthProps } from './StableWidth';
 export type { StatusType, UserStatusVariant } from './status';
 export { userStatusVariant } from './status';

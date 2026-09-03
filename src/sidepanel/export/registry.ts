@@ -1,8 +1,10 @@
 import type { EntityExport } from './types';
 import type { ExportApiDeps } from './types.deps';
 
+type DescriptorExport = EntityExport | EntityExport[];
+
 interface DescriptorModule {
-  default: EntityExport | ((deps: ExportApiDeps) => EntityExport);
+  default: DescriptorExport | ((deps: ExportApiDeps) => DescriptorExport);
 }
 
 const descriptorModules = import.meta.glob<DescriptorModule>(
@@ -11,9 +13,10 @@ const descriptorModules = import.meta.glob<DescriptorModule>(
 );
 
 export function buildRegistry(deps: ExportApiDeps): Record<string, EntityExport> {
-  const descriptors = Object.values(descriptorModules).map((mod) => {
+  const descriptors = Object.values(descriptorModules).flatMap((mod) => {
     const exported = mod.default;
-    return typeof exported === 'function' ? exported(deps) : exported;
+    const produced = typeof exported === 'function' ? exported(deps) : exported;
+    return Array.isArray(produced) ? produced : [produced];
   });
 
   return Object.fromEntries(descriptors.map((descriptor) => [descriptor.id, descriptor]));
