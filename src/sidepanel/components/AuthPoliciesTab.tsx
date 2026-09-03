@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from './shared/PageHeader';
-import Button from './shared/Button';
 import Input from './shared/Input';
 import AlertMessage from './shared/AlertMessage';
 import PoliciesListPanel from './policies/PoliciesListPanel';
@@ -9,6 +8,7 @@ import { useOktaApi } from '../hooks/useOktaApi';
 import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useOwedLoad } from '../hooks/useOwedLoad';
 import { usePoliciesData } from '../hooks/usePoliciesData';
+import { useRefreshSubject } from '../hooks/useRefreshSubject';
 import { filterPolicies } from './policies/policyFilters';
 import { getRelativeTime } from '../../shared/utils/dateFormat';
 
@@ -67,11 +67,9 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
   const hasPolicies = policies.length > 0;
   const lastUpdatedLabel = lastFetchTime ? getRelativeTime(lastFetchTime) : null;
 
-  const handleRefresh = useCallback(
-    () => void loadPolicies(hasPolicies),
-    [loadPolicies, hasPolicies],
-  );
   const handleLoad = useCallback(() => void loadPolicies(true), [loadPolicies]);
+
+  useRefreshSubject('the auth policies list', handleLoad, isActive);
 
   return (
     <div className="tab-content active" style={{ fontFamily: 'var(--font-primary)', padding: 0 }}>
@@ -85,17 +83,6 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
                 variant: 'neutral',
               }
             : undefined
-        }
-        actions={
-          <Button
-            variant={hasPolicies ? 'secondary' : 'primary'}
-            icon="refresh"
-            onClick={handleRefresh}
-            disabled={isLoading}
-            loading={isLoading}
-          >
-            {hasPolicies ? 'Refresh' : 'Load Policies'}
-          </Button>
         }
       />
 

@@ -146,7 +146,8 @@ const compareSearchInput = () => screen.getByPlaceholderText('Search by email, n
 const compareView = () => within(screen.getByTestId('user-comparison-view'));
 
 async function selectAda(uev: ReturnType<typeof userEvent.setup>) {
-  await uev.click(screen.getByRole('button', { name: 'Load' }));
+  await uev.type(screen.getByPlaceholderText('Search by email, name, or login...'), 'ada');
+  await uev.click(await screen.findByText('Ada Lovelace', {}, { timeout: 3000 }));
   await screen.findByRole('heading', { name: 'Ada Lovelace' });
 }
 
@@ -231,7 +232,7 @@ describe('UsersTab sub-navigation', () => {
     const uev = userEvent.setup();
     await renderWithAda(uev);
 
-    await uev.type(tabSearchInput(), 'ada');
+    expect(tabSearchInput()).toHaveValue('ada');
     const trigger = await pushCompare(uev);
 
     expect(trigger).toBeInTheDocument();

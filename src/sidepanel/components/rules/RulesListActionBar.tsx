@@ -6,8 +6,6 @@ export type RulesPanel = 'none' | 'duplicates' | 'currentGroup' | 'stats';
 interface RulesListActionBarProps {
   search?: React.ReactNode;
   hasRules: boolean;
-  isLoading: boolean;
-  onLoad: () => void;
   duplicateClusterCount: number;
   hasCurrentGroup: boolean;
   currentGroupRelationCount: number;
@@ -19,8 +17,6 @@ interface RulesListActionBarProps {
 const RulesListActionBar: React.FC<RulesListActionBarProps> = ({
   search,
   hasRules,
-  isLoading,
-  onLoad,
   duplicateClusterCount,
   hasCurrentGroup,
   currentGroupRelationCount,
@@ -47,24 +43,13 @@ const RulesListActionBar: React.FC<RulesListActionBarProps> = ({
   };
 
   const actions: ActionDescriptor[] = [
-    {
-      id: 'load',
-      label: hasRules ? 'Refresh' : 'Load rules',
-      icon: 'refresh',
-      variant: 'primary',
-      onClick: onLoad,
-      disabled: isLoading,
-      loading: isLoading,
-      title: hasRules
-        ? 'Re-fetch every group rule from Okta, bypassing the cache'
-        : 'Fetch every group rule in the org',
-    },
     ...(onExportRules
       ? [
           {
             id: 'export-rules',
             label: 'Export rules',
             icon: 'download',
+            variant: 'primary',
             onClick: onExportRules,
             title: 'Export every group rule as CSV (opens the Export tab with a column picker)',
           } satisfies ActionDescriptor,

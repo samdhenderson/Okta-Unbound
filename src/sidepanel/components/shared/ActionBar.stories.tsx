@@ -43,6 +43,16 @@ const meta = {
         'Always-visible caller UI inside the band, under the verbs and above the tier — a list ' +
         "rung's search field. Never measured, so unlike a descriptor it may carry JSX.",
     },
+    register: {
+      description:
+        'The **selection register** — a second measured row of selection-scoped verbs, rendered ' +
+        'below `subRow` and separated from the action row by a tonal step alone: no border, no ' +
+        'rule, no divider. It shares rather than stacks (pass it whenever the rung has a ' +
+        'selection at all, so the first tick adds controls to a row that already exists instead ' +
+        'of pushing the list down), it overflows independently of the action row, and both rows ' +
+        'spill into the one tier behind the one **More**. Its leading descriptor must be a ' +
+        'selection control (ADR-0051 §2).',
+    },
     sticky: {
       description:
         'Pin below the tab rail and the page header while the page scrolls under it, merging into the header as it docks. Defaults to `true`; pass `false` in an already-fixed region, which also opts out of the merge (the strip then simply keeps its resting card).',
@@ -428,4 +438,68 @@ export const AlignsWithTheRung: Story = {
       </DetailSection>
     </div>
   ),
+};
+
+export const WithSelectionRegister: Story = {
+  args: {
+    ariaLabel: 'Actions for the groups list',
+    actions: [
+      {
+        id: 'export-list',
+        label: 'Export list',
+        icon: 'download',
+        variant: 'primary',
+        onClick: fn(),
+      },
+      { id: 'cross-search', label: 'Cross-search', icon: 'search', onClick: fn() },
+    ],
+    register: {
+      ariaLabel: 'Actions for the selected groups',
+      actions: [
+        { id: 'deselect-all', label: 'Deselect all', onClick: fn(), priority: 'pinned' },
+        { id: 'select-all', label: 'Select all (34)', onClick: fn(), priority: 'pinned' },
+        { id: 'compare', label: 'Compare (3)', icon: 'chart', onClick: fn() },
+        { id: 'merge', label: 'Merge (3)', icon: 'link', onClick: fn(), priority: 'tier' },
+      ],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const register = canvas.getByRole('group', { name: 'Actions for the selected groups' });
+    const first = within(register).getAllByRole('button')[0];
+    await expect(first).toHaveAccessibleName('Deselect all');
+
+    await expect(
+      within(register).queryByRole('button', { name: 'Export list' }),
+    ).not.toBeInTheDocument();
+
+    await expect(canvas.getAllByRole('button', { name: 'More' })).toHaveLength(1);
+    await userEvent.click(canvas.getByRole('button', { name: 'More' }));
+    await expect(canvas.getByRole('button', { name: 'Merge (3)' })).toBeVisible();
+  },
+};
+
+export const TheRegisterHoldsItsRowWhenEmpty: Story = {
+  args: {
+    ariaLabel: 'Actions for the groups list',
+    actions: [
+      {
+        id: 'export-list',
+        label: 'Export list',
+        icon: 'download',
+        variant: 'primary',
+        onClick: fn(),
+      },
+    ],
+    register: {
+      ariaLabel: 'Actions for the selected groups',
+      actions: [{ id: 'select-all', label: 'Select all (34)', onClick: fn(), priority: 'pinned' }],
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const register = canvas.getByRole('group', { name: 'Actions for the selected groups' });
+    await expect(register).toBeInTheDocument();
+    await expect(within(register).getAllByRole('button')).toHaveLength(1);
+  },
 };

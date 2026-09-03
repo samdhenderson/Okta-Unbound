@@ -83,6 +83,7 @@ const Input: React.FC<InputProps> = ({
     ${icon ? leadingPaddingClasses[size] : ''}
     ${trailing ? trailingPaddingClasses[size] : ''}
     ${fullWidth ? 'w-full' : ''}
+    ${type === 'search' && trailingInteractive ? '[&::-webkit-search-cancel-button]:appearance-none' : ''}
   `
     .trim()
     .replace(/\s+/g, ' ');

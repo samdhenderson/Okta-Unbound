@@ -21,6 +21,7 @@ import { useViewStack } from '../hooks/useViewStack';
 import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useScrollPreservation } from '../hooks/useScrollPreservation';
 import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useRefreshSubject } from '../hooks/useRefreshSubject';
 import type { GroupSummary } from '../../shared/types';
 import GroupExportModal from './groups/GroupExportModal';
 import GroupComparisonModal from './groups/GroupComparisonModal';
@@ -128,6 +129,12 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const { filteredGroups, activeFilterCount } = filters;
   const { selectedGroupIds, selectedGroups } = selection;
 
+  const reloadGroups = useCallback(() => {
+    void loadAllGroups(true);
+  }, [loadAllGroups]);
+
+  useRefreshSubject('the groups list', reloadGroups, isActive);
+
   const pushedGroup = nav.currentEntry;
   const detailGroup = pushedGroup
     ? (groups.find((g) => g.id === pushedGroup.id) ?? pushedGroup)
@@ -213,8 +220,8 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     nav.reset();
     setSearchMode('cached');
     filters.clearFilters();
-    if (listView === 'empty') filters.setSizeFilter('empty');
-    else filters.setRuleFilter('unruled');
+    if (listView !== 'no-rules') filters.setSizeFilter('empty');
+    if (listView !== 'empty') filters.setRuleFilter('unruled');
 
     if (groups.length === 0 && !loading) void loadAllGroups();
     onListViewConsumed?.();
@@ -278,11 +285,9 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
         badge={
           identity
             ? identity.badge
-            : selectedGroupIds.size > 0
-              ? { text: `${selectedGroupIds.size} Selected`, variant: 'primary' }
-              : searchMode === 'cached'
-                ? { text: `${groups.length} Cached`, variant: 'success' }
-                : { text: 'Live', variant: 'primary' }
+            : searchMode === 'cached'
+              ? { text: `${groups.length} Cached`, variant: 'success' }
+              : { text: 'Live', variant: 'primary' }
         }
         actions={
           identity ? (
@@ -302,16 +307,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             >
               Load All Groups
             </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              icon="refresh"
-              onClick={() => void loadAllGroups(true)}
-              loading={loading}
-            >
-              Refresh
-            </Button>
-          )
+          ) : null
         }
         cornerAction={
           detailGroup && (
@@ -442,6 +438,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             activeFilterCount={activeFilterCount}
             filteredGroups={filteredGroups}
             selectedGroupIds={selectedGroupIds}
+            selectedCount={selectedGroupIds.size}
             onToggleSelect={selection.toggleSelect}
             oktaOrigin={oktaOrigin}
             onLoadAllGroups={() => void loadAllGroups()}

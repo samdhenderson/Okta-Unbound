@@ -9,6 +9,7 @@ export interface FilterToggleProps {
   size?: 'md' | 'lg';
   label?: string;
   title?: string;
+  controls?: string;
 }
 
 const PADDING: Record<'md' | 'lg', string> = {
@@ -23,11 +24,14 @@ const FilterToggle: React.FC<FilterToggleProps> = ({
   size = 'md',
   label = 'Filters',
   title = 'Toggle filters',
+  controls,
 }) => (
   <button
     type="button"
     onClick={onToggle}
-    aria-pressed={open}
+    aria-pressed={controls ? undefined : open}
+    aria-expanded={controls ? open : undefined}
+    aria-controls={controls}
     aria-label={activeCount > 0 ? `${label}, ${activeCount} applied` : label}
     className={`press flex shrink-0 items-center gap-(--sp-inline) rounded-md border text-sm font-medium ${
       PADDING[size]

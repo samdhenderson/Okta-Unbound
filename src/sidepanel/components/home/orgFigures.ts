@@ -77,6 +77,7 @@ export interface NamedSource {
 export interface OrgSubCount {
   key: string;
   label: string;
+  icon: IconType;
   status: OrgFigureStatus;
   value: number | null;
   note?: string;
@@ -160,11 +161,18 @@ export function resolveCount({
 export interface SubCountInput extends CountInput {
   key: string;
   label: string;
+  icon: IconType;
   request: ListViewRequest;
 }
 
-export function buildSubCount({ key, label, request, ...counts }: SubCountInput): OrgSubCount {
-  return { key, label, ...resolveCount(counts), request };
+export function buildSubCount({
+  key,
+  label,
+  icon,
+  request,
+  ...counts
+}: SubCountInput): OrgSubCount {
+  return { key, label, icon, ...resolveCount(counts), request };
 }
 
 export function buildBox(

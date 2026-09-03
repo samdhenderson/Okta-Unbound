@@ -8,8 +8,6 @@ import {
   type OrgBox,
 } from '../components/home/orgFigures';
 import { countRulesByGroup } from '../../shared/rules/groupRuleIndex';
-import { isGroupPushApp } from '../../shared/schemas/okta';
-import { splitShardedId } from '../../shared/snapshot/types';
 import type { OrgEntityIndex } from './useOrgEntityIndex';
 
 export const ORG_FIGURES_MAX_AGE_MS = 60 * 60 * 1000;
@@ -51,94 +49,51 @@ export function useOrgFigures({
   enabled,
   connected,
 }: UseOrgFiguresOptions): UseOrgFiguresResult {
-  const { groups, rules, apps, appGroups } = index;
+  const { groups, rules } = index;
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const groupSource = toSource(groups);
   const ruleSource = toSource(rules);
-  const appSource = toSource(apps);
-  const appGroupSource = toSource(appGroups);
 
   const pausedRules = useMemo(
     () => rules.rows.filter((rule) => rule.status === 'INACTIVE').length,
     [rules.rows],
   );
 
-  const emptyGroups = useMemo(
-    () => groups.rows.filter((group) => (group._embedded?.stats?.usersCount ?? 0) === 0).length,
-    [groups.rows],
-  );
-
-  const unruledGroups = useMemo(() => {
+  const emptyUnfilledGroups = useMemo(() => {
     const assigned = countRulesByGroup(
       rules.rows.map((rule) => ({ groupIds: rule.actions?.assignUserToGroups?.groupIds ?? [] })),
     );
-    return groups.rows.filter((group) => (assigned.get(group.id) ?? 0) === 0).length;
+    return groups.rows.filter(
+      (group) =>
+        (group._embedded?.stats?.usersCount ?? 0) === 0 && (assigned.get(group.id) ?? 0) === 0,
+    ).length;
   }, [groups.rows, rules.rows]);
 
-  const inactiveApps = useMemo(
-    () => apps.rows.filter((app) => app.status?.toUpperCase() !== 'ACTIVE').length,
-    [apps.rows],
-  );
-
-  const idlePushApps = useMemo(() => {
-    const withAssignments = new Set<string>();
-    for (const record of appGroups.records) {
-      const split = splitShardedId(record.id);
-      if (split) withAssignments.add(split.shardKey);
-    }
-    return apps.rows.filter((app) => isGroupPushApp(app.features) && !withAssignments.has(app.id))
-      .length;
-  }, [apps.rows, appGroups.records]);
-
   const groupsNamed = { source: groupSource, noun: 'groups' };
-  const appsNamed = { source: appSource, noun: 'applications' };
   const rulesNamed = { source: ruleSource, noun: 'group rules' };
-  const appGroupsNamed = { source: appGroupSource, noun: 'app group assignments' };
 
   const boxes = useMemo(
     () => [
-      buildBox(buildFigure('groups', 'Groups', 'users', groupSource), 'groups', 'groups', [
-        buildSubCount({
-          key: 'groups-empty',
-          label: 'Groups with no members',
-          counted: groupsNamed,
-          count: emptyGroups,
-          request: { tab: 'groups', view: 'empty' },
-        }),
-        buildSubCount({
-          key: 'groups-unruled',
-          label: 'Groups no rule fills',
-          counted: groupsNamed,
-          gates: [rulesNamed],
-          count: unruledGroups,
-          request: { tab: 'groups', view: 'no-rules' },
-        }),
-      ]),
-      buildBox(buildFigure('apps', 'Applications', 'app', appSource), 'apps', 'applications', [
-        buildSubCount({
-          key: 'apps-inactive',
-          label: 'Deactivated applications',
-          counted: appsNamed,
-          count: inactiveApps,
-          request: { tab: 'apps', view: 'inactive' },
-        }),
-        buildSubCount({
-          key: 'apps-idle-push',
-          label: 'Push apps pushing nothing',
-          counted: appsNamed,
-          gates: [appGroupsNamed],
-          count: idlePushApps,
-          request: { tab: 'apps', view: 'pushes-nothing' },
-        }),
-      ]),
       buildBox(buildFigure('rules', 'Group rules', 'bolt', ruleSource), 'rules', 'group rules', [
         buildSubCount({
           key: 'rules-paused',
-          label: 'Paused group rules',
+          label: 'Group rules paused',
+          icon: 'pause',
           counted: rulesNamed,
           count: pausedRules,
           request: { tab: 'rules', view: 'paused' },
+        }),
+      ]),
+      buildBox(buildFigure('groups', 'Groups', 'users', groupSource), 'groups', 'groups', [
+        buildSubCount({
+          key: 'groups-empty-unfilled',
+          label: 'Groups with no members that no rule fills',
+          icon: 'users',
+          counted: groupsNamed,
+          gates: [rulesNamed],
+          count: emptyUnfilledGroups,
+          request: { tab: 'groups', view: 'empty-no-rules' },
         }),
       ]),
     ],
@@ -150,38 +105,23 @@ export function useOrgFigures({
       groupSource.count,
       groupSource.error,
       groupSource.status,
-      appSource.isReading,
-      appSource.complete,
-      appSource.lastFullWalkAt,
-      appSource.count,
-      appSource.error,
-      appSource.status,
       ruleSource.isReading,
       ruleSource.complete,
       ruleSource.lastFullWalkAt,
       ruleSource.count,
       ruleSource.error,
       ruleSource.status,
-      appGroupSource.isReading,
-      appGroupSource.complete,
-      appGroupSource.lastFullWalkAt,
-      appGroupSource.count,
-      appGroupSource.error,
-      appGroupSource.status,
-      emptyGroups,
-      unruledGroups,
-      inactiveApps,
-      idlePushApps,
+      emptyUnfilledGroups,
       pausedRules,
     ],
   );
 
-  const readAt = oldestWalkAt([groupSource, appSource, ruleSource]);
+  const readAt = oldestWalkAt([groupSource, ruleSource]);
 
   const toppedUp = useRef(false);
 
   const sawReading = useRef(false);
-  const anyReading = groups.isReading || apps.isReading || rules.isReading || appGroups.isReading;
+  const anyReading = groups.isReading || rules.isReading;
   const syncRef = useRef(groups.sync);
   syncRef.current = groups.sync;
 
@@ -205,7 +145,7 @@ export function useOrgFigures({
   return {
     boxes,
     readAt,
-    isRefreshing: isRefreshing || groups.isSyncing || apps.isSyncing || rules.isSyncing,
+    isRefreshing: isRefreshing || groups.isSyncing || rules.isSyncing,
     refresh,
     canRefresh: connected,
   };

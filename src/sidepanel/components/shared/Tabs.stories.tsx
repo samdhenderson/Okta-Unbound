@@ -10,6 +10,13 @@ const SECTION_TABS: TabItem[] = [
   { key: 'all', label: 'All' },
 ];
 
+const COMPARISON_TABS: TabItem[] = [
+  { key: 'overview', label: 'Overview', icon: 'chart' },
+  { key: 'groups', label: 'Groups', icon: 'users', count: 3, countDisplay: 'nonzero' },
+  { key: 'apps', label: 'Apps', icon: 'app', count: 12, countDisplay: 'nonzero' },
+  { key: 'attributes', label: 'Attributes', icon: 'list', count: 0, countDisplay: 'nonzero' },
+];
+
 const COMPOSITION_TABS: TabItem[] = [
   { key: 'attrs', label: 'Attributes', count: 9 },
   { key: 'mfa', label: 'MFA factors' },
@@ -51,6 +58,10 @@ const meta = {
       description:
         '`underline` (default) for section navigation; `segmented` for compact toggles; `rail` for icon-first navigation in a narrow panel.',
     },
+    wrap: {
+      description:
+        'Let a `segmented` strip take a second row on a narrow panel: two equal columns below `sm`, one row above it. Ignored by `underline` and `rail`.',
+    },
     ariaLabel: { description: 'Accessible label for the tablist (e.g. “User profile sections”).' },
     className: { description: 'Extra classes merged onto the tablist container.' },
   },
@@ -69,11 +80,13 @@ const ControlledTabs = ({
   initial,
   variant,
   width,
+  wrap = false,
 }: {
   tabs: TabItem[];
   initial: string;
   variant: TabsVariant;
   width: number;
+  wrap?: boolean;
 }) => {
   const [active, setActive] = useState(initial);
   return (
@@ -83,6 +96,7 @@ const ControlledTabs = ({
         activeKey={active}
         onChange={setActive}
         variant={variant}
+        wrap={wrap}
         ariaLabel="Demo"
       />
       <p className="text-sm text-neutral-600" style={{ padding: 12 }}>
@@ -101,6 +115,19 @@ export const Underline: Story = {
 export const Segmented: Story = {
   render: () => (
     <ControlledTabs tabs={COMPOSITION_TABS} initial="attrs" variant="segmented" width={260} />
+  ),
+};
+
+export const SegmentedWithIcons: Story = {
+  render: () => (
+    <ControlledTabs tabs={COMPARISON_TABS} initial="overview" variant="segmented" width={480} />
+  ),
+};
+
+export const SegmentedWrapped: Story = {
+  parameters: { layout: 'padded' },
+  render: () => (
+    <ControlledTabs tabs={COMPARISON_TABS} initial="groups" variant="segmented" width={330} wrap />
   ),
 };
 

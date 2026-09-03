@@ -2,11 +2,14 @@ import React from 'react';
 import type { BreakdownRow } from './memberAnalytics';
 import { OTHER_VALUE } from './memberAnalytics';
 
+export type BreakdownRowIntent = 'toggle' | 'navigate';
+
 interface BreakdownReportProps {
   rows: BreakdownRow[];
   activeValues: Set<string>;
-  onRowClick: (row: BreakdownRow) => void;
+  onRowClick?: (row: BreakdownRow) => void;
   onShowOther?: () => void;
+  rowIntent?: BreakdownRowIntent;
   emptyMessage?: string;
 }
 
@@ -15,6 +18,7 @@ const BreakdownReport: React.FC<BreakdownReportProps> = ({
   activeValues,
   onRowClick,
   onShowOther,
+  rowIntent = 'toggle',
   emptyMessage = 'No data',
 }) => {
   if (rows.length === 0) {
@@ -26,7 +30,8 @@ const BreakdownReport: React.FC<BreakdownReportProps> = ({
       {rows.map((row) => {
         const isOther = row.value === OTHER_VALUE;
         const isActive = activeValues.has(row.value);
-        const clickable = isOther ? !!onShowOther : true;
+        const clickable = isOther ? !!onShowOther : !!onRowClick;
+        const navigates = clickable && !isOther && rowIntent === 'navigate';
 
         return (
           <button
@@ -35,7 +40,7 @@ const BreakdownReport: React.FC<BreakdownReportProps> = ({
             disabled={!clickable}
             onClick={() => {
               if (isOther) onShowOther?.();
-              else onRowClick(row);
+              else onRowClick?.(row);
             }}
             className={`
               press-subtle relative w-full text-left rounded-md px-2.5 py-1.5
@@ -45,7 +50,12 @@ const BreakdownReport: React.FC<BreakdownReportProps> = ({
             `
               .trim()
               .replace(/\s+/g, ' ')}
-            aria-pressed={!isOther ? isActive : undefined}
+            aria-pressed={!isOther && clickable && !navigates ? isActive : undefined}
+            aria-label={
+              navigates
+                ? `Filter Members by ${row.label} — ${row.count.toLocaleString()} members. Opens the Members tab.`
+                : undefined
+            }
           >
             <div
               className="absolute inset-y-0 left-0 rounded-md bg-neutral-100"
@@ -65,6 +75,14 @@ const BreakdownReport: React.FC<BreakdownReportProps> = ({
                   <span className="ml-1.5 not-italic text-primary-text">View →</span>
                 )}
               </span>
+              {navigates && (
+                <span
+                  aria-hidden="true"
+                  className="flex-shrink-0 text-xs font-medium text-primary-text"
+                >
+                  Filter Members →
+                </span>
+              )}
               <span className="flex-shrink-0 text-xs font-medium text-neutral-600 tabular-nums">
                 {row.count.toLocaleString()}
                 <span className="ml-1 text-neutral-400">{row.pct.toFixed(0)}%</span>

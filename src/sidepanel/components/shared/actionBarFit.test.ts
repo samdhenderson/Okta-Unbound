@@ -237,4 +237,33 @@ describe('degenerate input', () => {
       }),
     ).toEqual({ inBar: 3, compact: false });
   });
+
+  describe('the selection register is a second, independent row', () => {
+    const REGISTER = { widths: [160, 160], compactWidths: [140, 140] };
+    const ROW = { widths: [80, 80, 80], compactWidths: [64, 64, 64] };
+
+    it('lets one row overflow while the other seats everything', () => {
+      expect(fit({ ...REGISTER, available: 260, overflowWidth: 0, pinned: 1 })).toEqual({
+        inBar: 1,
+        compact: true,
+      });
+      expect(fit({ ...ROW, available: 260 })).toEqual({ inBar: 3, compact: false });
+    });
+
+    it('lets one row go compact while the other keeps its glyphs', () => {
+      expect(fit({ ...REGISTER, available: 300, overflowWidth: 0, pinned: 0 })).toEqual({
+        inBar: 2,
+        compact: true,
+      });
+      expect(fit({ ...ROW, available: 300 })).toEqual({ inBar: 3, compact: false });
+    });
+
+    it('never lets a register verb push a page verb out, or the reverse', () => {
+      const rowAlone = fit({ ...ROW, available: 320, tierAlwaysPresent: true });
+      expect(
+        fit({ widths: [900, 900], compactWidths: [900, 900], available: 320, pinned: 1 }),
+      ).toEqual({ inBar: 1, compact: true });
+      expect(fit({ ...ROW, available: 320, tierAlwaysPresent: true })).toEqual(rowAlone);
+    });
+  });
 });

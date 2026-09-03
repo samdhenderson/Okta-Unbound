@@ -1,4 +1,5 @@
 import React from 'react';
+import { PLANNED_HATCH } from './hatches';
 
 export interface PipelineCounts {
   spent: number;
@@ -12,9 +13,6 @@ export interface PipelineMeterProps {
   approximate?: boolean;
   label: string;
 }
-
-const HATCH =
-  'repeating-linear-gradient(135deg, var(--color-neutral-400) 0 3px, transparent 3px 6px)';
 
 function Segment({ fraction, style }: { fraction: number; style: React.CSSProperties }) {
   if (fraction <= 0) return null;
@@ -44,7 +42,9 @@ const PipelineMeter: React.FC<PipelineMeterProps> = ({ counts, approximate = fal
       <Segment
         fraction={share(counts.planned)}
         style={
-          approximate ? { backgroundImage: HATCH } : { backgroundColor: 'var(--color-neutral-400)' }
+          approximate
+            ? { backgroundImage: PLANNED_HATCH }
+            : { backgroundColor: 'var(--color-neutral-400)' }
         }
       />
     </div>

@@ -1,10 +1,6 @@
 import React from 'react';
-import Eyebrow from '../shared/Eyebrow';
+import { Eyebrow, IconButton, ListRow, Skeleton } from '../shared';
 import Icon from '../shared/Icon';
-import IconButton from '../shared/IconButton';
-import Skeleton from '../shared/Skeleton';
-import StretchedButton from '../shared/StretchedButton';
-import FigureNumber from './FigureNumber';
 import { getRelativeTime } from '../../../shared/utils/dateFormat';
 import type { ListViewRequest, ListViewTab } from '../../listViewRequest';
 import type { OrgBox, OrgSubCount } from './orgFigures';
@@ -19,61 +15,102 @@ export interface OrgSnapshotCardProps {
   onOpenListView: (request: ListViewRequest) => void;
 }
 
-const FindingLines: React.FC<{ subCount: OrgSubCount; id: string }> = ({ subCount, id }) => (
-  <span className="flex min-w-0 flex-1 flex-col gap-px">
-    <span
-      id={id}
-      className={`text-sm ${
-        subCount.value === null ? 'font-medium text-neutral-600' : 'font-semibold text-neutral-900'
-      }`}
-    >
-      {subCount.label}
-    </span>
-    {subCount.note && (
+const NUMBER_SLOT = 'shrink-0 min-w-[3ch] text-right text-base font-semibold tabular-nums';
+
+function glyphTone(subCount: OrgSubCount): string {
+  if (subCount.status === 'reading') return 'text-neutral-300';
+  if (subCount.value === 0) return 'text-success-text';
+  return 'text-neutral-400';
+}
+
+const FindingBody: React.FC<{
+  subCount: OrgSubCount;
+  noteId: string;
+  isControl: boolean;
+}> = ({ subCount, noteId, isControl }) => {
+  const recessed = subCount.value === null;
+
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <Icon type={subCount.icon} size="md" className={`shrink-0 ${glyphTone(subCount)}`} />
+
+      <div className="min-w-0 flex-1">
+        {subCount.status === 'reading' ? (
+          <div className="space-y-1">
+            <Skeleton
+              variant="text"
+              size="sm"
+              width="w-3/4"
+              label={`Reading ${subCount.label}`}
+              className="text-left"
+            />
+            <Skeleton variant="text" size="sm" width="w-1/2" label="" />
+          </div>
+        ) : (
+          <>
+            <p
+              className={`text-pretty text-sm font-medium ${
+                recessed ? 'text-neutral-600' : 'text-neutral-900'
+              }`}
+            >
+              {subCount.label}
+            </p>
+            {subCount.note && (
+              <p
+                id={noteId}
+                className={`text-xs ${
+                  subCount.status === 'partial' ? 'text-warning-text' : 'text-neutral-600'
+                }`}
+              >
+                {subCount.note}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+
       <span
-        className={`text-xs ${
-          subCount.status === 'partial' ? 'text-warning-text' : 'text-neutral-600'
-        }`}
+        className={`${NUMBER_SLOT} ${recessed ? 'text-neutral-400' : 'text-neutral-900'}`}
+        aria-hidden={subCount.value === null ? 'true' : undefined}
       >
-        {subCount.note}
+        {subCount.status === 'reading' ? '·' : (subCount.value?.toLocaleString() ?? '—')}
       </span>
-    )}
-  </span>
-);
+
+      {isControl ? (
+        <Icon type="chevron-right" size="xs" className="shrink-0 text-neutral-400" />
+      ) : (
+        <span aria-hidden="true" className="w-3 shrink-0" />
+      )}
+    </div>
+  );
+};
 
 const Finding: React.FC<{
   subCount: OrgSubCount;
   onOpen: (request: ListViewRequest) => void;
 }> = ({ subCount, onOpen }) => {
-  const labelId = `org-finding-${subCount.key}`;
+  const noteId = `org-finding-note-${subCount.key}`;
+  const isControl = subCount.value !== null && subCount.value > 0;
 
-  if (subCount.status === 'reading') {
+  if (!isControl) {
     return (
-      <li className="px-(--sp-row-x) py-(--sp-row-y)">
-        <Skeleton variant="text" size="sm" width="w-3/4" label={`Reading ${subCount.label}`} />
-      </li>
-    );
-  }
-
-  if (subCount.value === null) {
-    return (
-      <li className="flex items-stretch gap-3 bg-neutral-50 px-(--sp-row-x) py-(--sp-row-y)">
-        <FigureNumber value={null} />
-        <FindingLines subCount={subCount} id={labelId} />
-      </li>
+      <ListRow as="li" density="comfortable">
+        <FindingBody subCount={subCount} noteId={noteId} isControl={false} />
+      </ListRow>
     );
   }
 
   return (
-    <li className="relative flex items-stretch gap-3 px-(--sp-row-x) py-(--sp-row-y) transition-colors duration-(--dur-instant) hover:bg-neutral-50">
-      <StretchedButton
-        label="Open the filtered list"
-        describedBy={labelId}
+    <li>
+      <ListRow
+        as="button"
+        density="comfortable"
         onClick={() => onOpen(subCount.request)}
-      />
-      <FigureNumber value={subCount.value} />
-      <FindingLines subCount={subCount} id={labelId} />
-      <Icon type="chevron-right" size="xs" className="shrink-0 self-center text-neutral-400" />
+        ariaLabel={`${subCount.label} — ${subCount.value?.toLocaleString()}`}
+        describedBy={subCount.note ? noteId : undefined}
+      >
+        <FindingBody subCount={subCount} noteId={noteId} isControl />
+      </ListRow>
     </li>
   );
 };
@@ -105,7 +142,7 @@ const OrgSnapshotCard: React.FC<OrgSnapshotCardProps> = ({
         </IconButton>
       </div>
 
-      <ul className="divide-y divide-neutral-100 overflow-hidden rounded-md border border-neutral-200 bg-white">
+      <ul className="space-y-1">
         {findings.map((subCount) => (
           <Finding key={subCount.key} subCount={subCount} onOpen={onOpenListView} />
         ))}

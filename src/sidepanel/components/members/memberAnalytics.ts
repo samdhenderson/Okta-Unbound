@@ -198,6 +198,7 @@ export interface AttributeSummary {
   total: number; // total members
   fillRate: number; // 0-100, populated / total
   rows: BreakdownRow[]; // top values (+ "Other" / "(none)") for the summary bar
+  driftValues?: readonly string[];
 }
 
 export interface DiscoverOptions {
@@ -250,6 +251,7 @@ export function discoverAttributeBreakdowns(
       total,
       fillRate: total > 0 ? (populated / total) * 100 : 0,
       rows: mapToRows(withMissing, total, maxRows),
+      driftValues: nearDuplicateValues(map.keys()),
     });
   }
 
@@ -434,4 +436,113 @@ export function outlierValues(summary: AttributeSummary): string[] {
   return real
     .filter((row) => row !== dominant && shareOf(row.count) <= OUTLIER_MAX_SHARE)
     .map((row) => row.value);
+}
+
+export const DRIFT_WEIGHT = 4;
+
+export const TAIL_WEIGHT = 2;
+
+export const RULE_WEIGHT = 1;
+
+export const TAIL_SHARE_THRESHOLD = 20;
+
+export function normalizeAttributeValue(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export function nearDuplicateValues(labels: Iterable<string>): string[] {
+  const groups = new Map<string, string[]>();
+  for (const label of labels) {
+    const key = normalizeAttributeValue(label);
+    if (key === '') continue;
+    const group = groups.get(key);
+    if (!group) {
+      groups.set(key, [label]);
+    } else if (!group.includes(label)) {
+      group.push(label);
+    }
+  }
+
+  const collisions: string[] = [];
+  for (const group of groups.values()) {
+    if (group.length > 1) collisions.push(...group);
+  }
+  return collisions;
+}
+
+export type AttributeSignalKind = 'drift' | 'tail' | 'rule';
+
+export interface AttributeSignal {
+  kind: AttributeSignalKind;
+  weight: number;
+  label: string;
+  description: string;
+}
+
+export function attributeTailCount(summary: AttributeSummary): number {
+  return summary.rows.find((row) => row.value === OTHER_VALUE)?.count ?? 0;
+}
+
+export function attributeDriftValues(summary: AttributeSummary): string[] {
+  if (summary.driftValues) return [...summary.driftValues];
+  return nearDuplicateValues(
+    summary.rows
+      .filter((row) => row.value !== NONE_VALUE && row.value !== OTHER_VALUE)
+      .map((row) => row.label),
+  );
+}
+
+export function attributeSignals(summary: AttributeSummary, ruleCount: number): AttributeSignal[] {
+  const signals: AttributeSignal[] = [];
+
+  const drift = attributeDriftValues(summary);
+  if (drift.length > 1) {
+    signals.push({
+      kind: 'drift',
+      weight: DRIFT_WEIGHT,
+      label: `${drift.length} near-duplicate values`,
+      description: `${drift.join(', ')} — these differ only in case or spacing, so they are almost certainly one value entered more than one way.`,
+    });
+  }
+
+  const tailCount = attributeTailCount(summary);
+  const tailShare = summary.total > 0 ? (tailCount / summary.total) * 100 : 0;
+  if (tailShare >= TAIL_SHARE_THRESHOLD) {
+    signals.push({
+      kind: 'tail',
+      weight: TAIL_WEIGHT,
+      label: `${Math.round(tailShare)}% hidden in the tail`,
+      description: `${tailCount.toLocaleString()} of ${summary.total.toLocaleString()} members hold a value this card does not name. Open it to see them.`,
+    });
+  }
+
+  if (ruleCount > 0) {
+    signals.push({
+      kind: 'rule',
+      weight: RULE_WEIGHT,
+      label: ruleCount === 1 ? 'A rule depends on it' : `${ruleCount} rules depend on it`,
+      description: 'A feeding rule reads this attribute, so how it is spelled grants access today.',
+    });
+  }
+
+  return signals;
+}
+
+export interface RankedAttribute {
+  summary: AttributeSummary;
+  signals: AttributeSignal[];
+  score: number;
+  flagged: boolean;
+}
+
+export function rankAttributes(
+  summaries: readonly AttributeSummary[],
+  ruleCountFor: (key: string) => number,
+): RankedAttribute[] {
+  const ranked = summaries.map((summary) => {
+    const signals = attributeSignals(summary, ruleCountFor(summary.key));
+    const score = signals.reduce((sum, signal) => sum + signal.weight, 0);
+    return { summary, signals, score, flagged: score > 0 };
+  });
+  return ranked.sort((a, b) => b.score - a.score);
 }

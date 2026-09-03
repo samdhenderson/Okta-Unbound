@@ -165,7 +165,7 @@ describe('AuthPoliciesTab', () => {
 
     expect(api.listPolicies).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Load Policies' }));
+    await user.click(screen.getByRole('button', { name: 'Reload Policies' }));
     await waitFor(() => expect(screen.getByText('No Okta tab connected')).toBeInTheDocument());
     expect(api.listPolicies).not.toHaveBeenCalled();
   });

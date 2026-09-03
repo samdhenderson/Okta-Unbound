@@ -331,12 +331,10 @@ export const OrgFiguresAreFree: Story = {
     const canvas = within(canvasElement);
     await expect(
       await canvas.findByRole('button', {
-        name: 'Open the filtered list',
-        description: /Groups with no members/,
+        name: 'Groups with no members that no rule fills — 2',
       }),
     ).toBeInTheDocument();
     await expect(await canvas.findByRole('button', { name: '2 groups' })).toBeInTheDocument();
-    await expect(await canvas.findByText('Empty groups nothing fills')).toBeInTheDocument();
     await expect(await canvas.findByText('App access no rule maintains')).toBeInTheDocument();
     await waitFor(() => expect(syncRequests).toBe(0));
   },

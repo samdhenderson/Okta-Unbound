@@ -1,8 +1,10 @@
 import React from 'react';
 import { Button, IconButton } from './shared';
 import BucketList from './activity/BucketList';
+import CondensedBar from './activity/CondensedBar';
 import OperationList from './activity/OperationList';
 import ResetTimeline from './activity/ResetTimeline';
+import { CollapseChevron, ProgressTrack, StatusDot } from './activity/barParts';
 import type { ActivityView } from '../hooks/useActivityBar';
 
 export interface ActivityBarViewProps {
@@ -14,48 +16,7 @@ export interface ActivityBarViewProps {
   onToggleCollapse?: () => void;
 }
 
-const MetricSlot: React.FC<{
-  testId: string;
-  label: string;
-  children: React.ReactNode;
-  emphasis?: 'default' | 'low';
-  present: boolean;
-}> = ({ testId, label, children, emphasis = 'default', present }) => (
-  <div
-    data-testid={testId}
-    data-low={emphasis === 'low' ? 'true' : undefined}
-    className={`flex min-w-[5.5rem] items-center gap-1.5 rounded-md border px-2.5 py-1 ${
-      !present
-        ? 'border-neutral-200 bg-neutral-50 text-neutral-400'
-        : emphasis === 'low'
-          ? 'border-danger/20 bg-danger-light text-danger-text'
-          : 'border-neutral-200 bg-neutral-50 text-neutral-900'
-    }`}
-  >
-    <span className="text-neutral-600">{label}</span>
-    {present ? (
-      <span className="font-bold">{children}</span>
-    ) : (
-      <span aria-hidden="true" className="font-bold">
-        –
-      </span>
-    )}
-  </div>
-);
-
-const CollapseChevron: React.FC<{ collapsed: boolean }> = ({ collapsed }) => (
-  <svg
-    aria-hidden="true"
-    className={`h-4 w-4 transition-transform duration-(--dur-quick) ease-standard ${
-      collapsed ? '' : 'rotate-90'
-    }`}
-    fill="none"
-    stroke="currentColor"
-    viewBox="0 0 24 24"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-  </svg>
-);
+const BAR_CLASSES = 'fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white';
 
 const ActivityBarView: React.FC<ActivityBarViewProps> = ({
   view,
@@ -65,134 +26,55 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
   collapsed = false,
   onToggleCollapse,
 }) => {
-  const etaContent = view.operationActive ? view.etaLabel : view.cooldownLabel;
-  const etaLabel = view.cooldownLabel && !view.operationActive ? 'Resuming' : 'ETA';
-
-  const statusDot = (
-    <div
-      aria-hidden="true"
-      className={`motion-exempt h-2 w-2 shrink-0 rounded-full shadow-sm ${view.busy ? 'animate-pulse' : ''}`}
-      style={{ backgroundColor: view.statusColorVar }}
-    />
-  );
-
   const cancelsEverything = view.operations.length > 1;
 
-  const cancelButton = (
-    <Button
-      variant="danger"
-      size="sm"
+  const standing = view.operationActive
+    ? (view.eta?.label ?? null)
+    : (view.cooldownLabel ?? null) !== null
+      ? `resuming in ${view.cooldownLabel}`
+      : view.buckets.length > 0
+        ? `${view.buckets.length} ${view.buckets.length === 1 ? 'bucket' : 'buckets'}`
+        : null;
 
-      disabled={!view.canCancel || view.isCancelling}
-      onClick={onCancel}
-      title={
-        cancelsEverything
-          ? 'Cancel every running operation and clear the queue'
-          : 'Cancel the current operation and clear the queue'
-      }
-    >
-      {view.isCancelling ? 'Cancelling…' : cancelsEverything ? 'Cancel all' : 'Cancel'}
-    </Button>
+  const actions = (
+    <>
+      {collapsible && (
+        <IconButton
+          label={collapsed ? 'Show all activity stats' : 'Hide extra activity stats'}
+          variant="subtle"
+          size="sm"
+          active={!collapsed}
+          onClick={onToggleCollapse}
+        >
+          <CollapseChevron collapsed={collapsed} />
+        </IconButton>
+      )}
+      <Button
+        variant="danger"
+        size="sm"
+        disabled={!view.canCancel || view.isCancelling}
+        onClick={onCancel}
+        title={
+          cancelsEverything
+            ? 'Cancel every running operation and clear the queue'
+            : 'Cancel the current operation and clear the queue'
+        }
+      >
+        {view.isCancelling ? 'Cancelling…' : cancelsEverything ? 'Cancel all' : 'Cancel'}
+      </Button>
+    </>
   );
-
-  const collapseToggle = collapsible ? (
-    <IconButton
-      label={collapsed ? 'Show all activity stats' : 'Hide extra activity stats'}
-      variant="subtle"
-      size="sm"
-
-      active={!collapsed}
-      onClick={onToggleCollapse}
-    >
-      <CollapseChevron collapsed={collapsed} />
-    </IconButton>
-  ) : null;
-
-  const progressTrack = (
-    <div
-      role="progressbar"
-      aria-label="Operation progress"
-      aria-valuenow={Math.round(view.percentage)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      className="h-1 w-full bg-neutral-100"
-    >
-      <div
-        className="motion-exempt h-full bg-primary transition-[width] duration-(--dur-tell) ease-standard"
-        style={{ width: `${view.percentage}%` }}
-      />
-    </div>
-  );
-
-  const barClasses = 'fixed bottom-0 left-0 right-0 z-50 border-t border-neutral-200 bg-white';
 
   if (collapsed) {
     return (
       <div
         role="status"
         aria-live="polite"
-        className={barClasses}
+        className={BAR_CLASSES}
         style={{ fontFamily: 'var(--font-primary)' }}
       >
-        <div className="flex items-center gap-(--sp-inline) px-(--sp-gutter) py-2.5 text-xs">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {statusDot}
-            {view.operationActive && view.operationName ? (
-              <span
-                data-testid="activity-operation-name"
-                className="truncate font-bold text-neutral-900"
-              >
-                {view.operationName}
-              </span>
-            ) : (
-              <span className="truncate font-bold text-neutral-900">{view.statusLabel}</span>
-            )}
-          </div>
-
-          {view.rateLimit && (
-            <span
-              data-testid="activity-rate-compact"
-              data-low={view.rateLimit.low ? 'true' : undefined}
-              className={`shrink-0 ${view.rateLimit.low ? 'text-danger-text' : 'text-neutral-600'}`}
-            >
-              Rate{' '}
-              <span className="font-bold">
-                {view.rateLimit.remaining}/{view.rateLimit.limit}
-              </span>
-            </span>
-          )}
-
-          {view.operationActive ? (
-            <span data-testid="activity-progress-compact" className="shrink-0 text-neutral-600">
-              <span className="font-bold text-neutral-900">
-                {view.current}/{view.total}
-              </span>
-              {view.opFailed > 0 && (
-                <span className="ml-1 font-semibold text-danger-text">
-                  ({view.opFailed} failed)
-                </span>
-              )}
-            </span>
-          ) : (
-            view.processed > 0 && (
-              <span data-testid="activity-processed-compact" className="shrink-0 text-neutral-600">
-                Processed <span className="font-bold text-neutral-900">{view.processed}</span>
-                {view.failed > 0 && (
-                  <span className="ml-1 font-semibold text-danger-text">
-                    ({view.failed} failed)
-                  </span>
-                )}
-              </span>
-            )
-          )}
-
-          <div data-testid="activity-actions" className="flex shrink-0 items-center gap-1.5">
-            {collapseToggle}
-            {cancelButton}
-          </div>
-        </div>
-
-        {progressTrack}
+        <CondensedBar view={view} actions={actions} />
+        <ProgressTrack percentage={view.percentage} />
       </div>
     );
   }
@@ -201,14 +83,14 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
     <div
       role="status"
       aria-live="polite"
-      className={barClasses}
+      className={BAR_CLASSES}
       style={{ fontFamily: 'var(--font-primary)' }}
     >
       <div
         className={`flex items-center gap-(--sp-inline) px-(--sp-gutter) py-2.5 text-xs ${collapsible ? 'flex-wrap' : ''}`}
       >
-        <div className="flex min-w-[8rem] items-center gap-2">
-          {statusDot}
+        <div className="flex min-w-0 items-baseline gap-2">
+          <StatusDot busy={view.busy} colorVar={view.statusColorVar} />
           {view.operationActive && view.operationName ? (
             <span
               data-testid="activity-operation-name"
@@ -217,63 +99,39 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
               {view.operationName}
             </span>
           ) : (
-            <span className="font-bold text-neutral-900">{view.statusLabel}</span>
+            <span data-testid="activity-status-label" className="font-bold text-neutral-900">
+              {view.statusLabel}
+            </span>
+          )}
+          {view.operationActive && view.total > 0 && (
+            <span
+              data-testid="activity-progress-counter"
+              className="shrink-0 tabular-nums text-neutral-600"
+            >
+              {view.current} / {view.total}
+            </span>
           )}
         </div>
 
-        <MetricSlot testId="activity-queue" label="Queue" present={view.queueLength > 0}>
-          {view.queueLength}
-        </MetricSlot>
-        <MetricSlot testId="activity-active" label="Active" present={view.activeRequests > 0}>
-          {view.activeRequests}
-        </MetricSlot>
-        <MetricSlot
-          testId="activity-rate-limit"
-          label="Rate"
-          present={view.rateLimit !== null}
-          emphasis={view.rateLimit?.low ? 'low' : 'default'}
+        <div
+          data-testid="activity-standing"
+          className="ms-auto flex shrink-0 items-baseline gap-2 text-neutral-600"
         >
-          {view.rateLimit ? `${view.rateLimit.remaining}/${view.rateLimit.limit}` : null}
-        </MetricSlot>
-        <MetricSlot testId="activity-eta" label={etaLabel} present={Boolean(etaContent)}>
-          {etaContent}
-        </MetricSlot>
-
-        {view.operationActive && view.total > 0 && (
-          <div
-            data-testid="activity-op-breakdown"
-            className="ml-auto flex items-center gap-2 font-medium text-neutral-600"
-          >
-            <span data-testid="activity-progress-counter" className="text-neutral-900">
-              {view.current} / {view.total}
+          {view.opFailed > 0 && (
+            <span data-testid="activity-failed" className="font-semibold text-danger-text">
+              {view.opFailed} failed
             </span>
-            <span aria-hidden="true" className="text-neutral-300">
-              |
-            </span>
-            <span className="text-success-text">{view.opCompleted} done</span>
-            <span className="text-info">{view.opActive} active</span>
-            {view.opFailed > 0 && <span className="text-danger-text">{view.opFailed} failed</span>}
-          </div>
-        )}
-
-        {!view.operationActive && view.processed > 0 && (
-          <div className="ml-auto flex items-center gap-1.5 text-neutral-600">
-            <span>Processed:</span>
-            <span className="font-bold text-neutral-900">{view.processed}</span>
-            {view.failed > 0 && (
-              <span className="font-semibold text-danger-text">({view.failed} failed)</span>
-            )}
-          </div>
-        )}
+          )}
+          <span className="tabular-nums">{standing}</span>
+        </div>
 
         <div
           data-testid="activity-actions"
           className={`flex items-center gap-1.5 ${
-            view.operationActive || view.processed > 0 ? '' : 'ml-auto'
+            view.operationActive || view.processed > 0 ? '' : 'ms-auto'
           }`}
         >
-          {collapseToggle}
-          {cancelButton}
+          {actions}
         </div>
       </div>
 
@@ -287,7 +145,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
         now={view.now}
       />
 
-      {progressTrack}
+      <ProgressTrack percentage={view.percentage} />
     </div>
   );
 };

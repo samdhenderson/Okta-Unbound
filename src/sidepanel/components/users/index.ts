@@ -12,4 +12,3 @@ export { default as UserComparisonPanel } from './UserComparisonPanel';
 export { default as UserComparisonView } from './UserComparisonView';
 export { default as AddToGroupModal } from './AddToGroupModal';
 export { default as UserLifecycleActions } from './UserLifecycleActions';
-export { default as DetectedUserBanner } from './DetectedUserBanner';

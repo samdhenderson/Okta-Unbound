@@ -148,8 +148,12 @@ async function openFilters(): Promise<void> {
   await userEvent.click(screen.getByRole('button', { name: /^Filters/ }));
 }
 
+async function rulesLoaded(): Promise<void> {
+  await waitFor(() => expect(screen.queryByText('No Rules Loaded')).not.toBeInTheDocument());
+}
+
 async function openRuleRung(ruleId: string): Promise<void> {
-  await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+  await rulesLoaded();
   await waitFor(() => expect(screen.getByTestId(`rule-${ruleId}`)).toBeInTheDocument());
   await userEvent.click(screen.getByRole('button', { name: `open ${ruleId}` }));
   await screen.findByTestId('rule-action-bar');
@@ -173,14 +177,36 @@ beforeEach(() => {
 });
 
 describe('RulesTab characterization', () => {
-  it('shows the empty state until rules are loaded', () => {
-    renderTab();
+  it('issues no request while the tab is hidden, and fetches on arrival', async () => {
+    const { rerender } = render(
+      <ProgressProvider>
+        <RulesTab targetTabId={1} isActive={false} />
+      </ProgressProvider>,
+    );
+
+    await waitFor(() => expect(loadTabState).toHaveBeenCalled());
+    expect(rulesFetchCalls()).toHaveLength(0);
+
+    rerender(
+      <ProgressProvider>
+        <RulesTab targetTabId={1} isActive />
+      </ProgressProvider>,
+    );
+
+    await rulesLoaded();
+    expect(rulesFetchCalls()).toHaveLength(1);
+  });
+
+  it('shows the empty state, with its own load prompt, when no Okta tab is connected', () => {
+    renderTab({ targetTabId: undefined });
     expect(screen.getByText('No Rules Loaded')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Load Rules' }).length).toBeGreaterThan(0);
+    expect(rulesFetchCalls()).toHaveLength(0);
   });
 
   it('loads rules via the content script and renders stats + cards', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
 
     await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
     expect(rulesFetchCalls()).toHaveLength(1);
@@ -208,7 +234,7 @@ describe('RulesTab characterization', () => {
       timestamp: Date.now(),
     });
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
 
     await waitFor(() => expect(screen.getByText('Cached Rule')).toBeInTheDocument());
     expect(rulesFetchCalls()).toHaveLength(0);
@@ -296,7 +322,7 @@ describe('RulesTab characterization', () => {
 
   it('filters the list by search query', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
     await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
 
     await userEvent.type(screen.getByPlaceholderText(/Search rules/i), 'Sales');
@@ -306,7 +332,7 @@ describe('RulesTab characterization', () => {
 
   it('filters the list to active rules only', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
     await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
 
     await openFilters();
@@ -321,7 +347,7 @@ describe('RulesTab characterization', () => {
       data: [...DEFAULT_RAW_RULES, rawRule({ id: 'r3', name: 'Broken Rule', status: 'INVALID' })],
     });
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
     await waitFor(() => expect(screen.getByTestId('rule-r3')).toBeInTheDocument());
 
     await openFilters();
@@ -336,8 +362,8 @@ describe('RulesTab characterization', () => {
   it('surfaces a load failure in the error banner', async () => {
     rulesFetchResponse = () => ({ success: false, error: 'Okta said no' });
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
     await waitFor(() => expect(screen.getByText('Okta said no')).toBeInTheDocument());
+    expect(screen.getAllByRole('button', { name: 'Load Rules' }).length).toBeGreaterThan(0);
   });
 
   it('auto-loads rules when deep-linked to a rule with nothing loaded yet', async () => {
@@ -366,7 +392,7 @@ describe('RulesTab characterization', () => {
 
   it('the duplicates panel "View" link opens the rule\'s rung', async () => {
     renderTab();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
     await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
     expect(screen.queryByTestId('rule-action-bar')).not.toBeInTheDocument();
 
@@ -408,7 +434,7 @@ describe('RulesTab current-group filter', () => {
     });
 
     renderTab({ currentGroupId: 'g1' });
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
     await waitFor(() => expect(screen.getByTestId('rule-r1')).toBeInTheDocument());
 
     await openFilters();
@@ -435,7 +461,7 @@ describe('RulesTab current-group filter', () => {
     });
 
     renderTab({ currentGroupId: 'g1' });
-    await userEvent.click(screen.getAllByRole('button', { name: 'Load Rules' })[0]);
+    await rulesLoaded();
     await waitFor(() => expect(screen.getByTestId('rule-r2')).toBeInTheDocument());
 
     await openFilters();

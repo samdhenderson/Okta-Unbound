@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupInsightsPane from './GroupInsightsPane';
 import type { FeedingRule } from '../../../hooks/useGroupSource';
 import type { OktaUser, MemberMfaResult } from '../../../../shared/types';
@@ -74,10 +74,11 @@ const meta = {
           'a reader draws one from — and will hold more of it over time (staleness, orphaned ' +
           'assignments, rule overlap). Naming it for the subject is what lets those land here ' +
           'without the label going stale.\n\n' +
-          '**Every attribute gets a card; rules only decide the order.** The rule index used to ' +
-          'be a *filter*, so a card existed only for attributes some feeding rule referenced — ' +
-          'which hid the drift worth catching most. Rule-referenced attributes still sort first, ' +
-          'because those are the ones granting access today.\n\n' +
+          '**Every attribute gets a card; three signals only decide the order.** The rule index ' +
+          'used to be a *filter*, so a card existed only for attributes some feeding rule ' +
+          'referenced — which hid the drift worth catching most. It is now the *lightest* of ' +
+          'three ranking inputs, behind near-duplicate spellings and a hidden tail; see ' +
+          '`AttributeSpreadSection` for the weights.\n\n' +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
       },
     },
@@ -96,7 +97,8 @@ const meta = {
       description: '`false` when no Okta tab is connected; disables both gate buttons.',
     },
     feedingRules: {
-      description: 'The feeding rules, layered onto the cards as an annotation and a sort key.',
+      description:
+        'The feeding rules, layered onto the cards as an annotation and the lightest ranking input.',
     },
     mfaResults: { description: 'Per-member MFA scan results, or `null` before a scan has run.' },
     scanStatus: { description: 'Current MFA scan lifecycle status.' },
@@ -166,3 +168,61 @@ export const MfaError: Story = {
 };
 
 export const Disabled: Story = { args: { canAnalyze: false } };
+
+export const CompositionJumpsToMembers: Story = {
+  args: { members, memberStatus: 'done', onFilterMembers: fn() },
+  play: async ({ args, canvas, canvasElement }) => {
+    const disclosure = canvas.getByRole('button', { name: /Composition/ });
+    await userEvent.click(disclosure);
+    await expect(canvas.getByText('Pick a value to open the Members tab filtered by it.'));
+
+    const regionId = disclosure.getAttribute('aria-controls')!;
+    const composition = within(canvasElement.querySelector(`#${regionId}`) as HTMLElement);
+
+    await userEvent.click(composition.getByRole('button', { name: /^Engineering/ }));
+    await expect(args.onFilterMembers).toHaveBeenCalledWith(
+      expect.objectContaining({ dimension: 'department', value: 'Engineering' }),
+    );
+  },
+};
+
+export const CompositionOmittedWithNowhereToGo: Story = {
+  args: { members, memberStatus: 'done' },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('button', { name: /Composition/ })).toBeNull();
+  },
+};
+
+const wideMembers: OktaUser[] = Array.from({ length: 40 }, (_, i) => ({
+  id: `wide${i + 1}`,
+  status: 'ACTIVE',
+  profile: {
+    login: `wide${i + 1}@example.com`,
+    email: `wide${i + 1}@example.com`,
+    firstName: `First${i + 1}`,
+    lastName: `Last${i + 1}`,
+    department: i % 2 === 0 ? 'Engineering' : 'Product',
+    costCenter: `CC-${100 + (i % 9)}`,
+  },
+}));
+
+export const HiddenTailRevealedInThreeStages: Story = {
+  args: { members: wideMembers, memberCount: wideMembers.length, memberStatus: 'done' },
+  play: async ({ canvas, canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+
+    await expect(canvas.getByText('costCenter')).toBeVisible();
+    await expect(canvas.getByText('30% hidden in the tail')).toBeVisible();
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show the value breakdown for costCenter' }),
+    );
+
+    await userEvent.click(canvas.getByRole('button', { name: /Show all 9 values/ }));
+
+    const dialog = await body.findByRole('dialog');
+    await expect(within(dialog).getByText('CC-108')).toBeVisible();
+    await expect(within(dialog).getByText('CC-100')).toBeVisible();
+    await expect(within(dialog).queryByText(/Members tab/)).toBeNull();
+  },
+};

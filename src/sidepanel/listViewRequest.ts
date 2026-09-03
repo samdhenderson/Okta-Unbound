@@ -1,4 +1,4 @@
-export type GroupsListView = 'empty' | 'no-rules';
+export type GroupsListView = 'empty' | 'no-rules' | 'empty-no-rules';
 
 export type AppsListView = 'inactive' | 'pushes-nothing';
 

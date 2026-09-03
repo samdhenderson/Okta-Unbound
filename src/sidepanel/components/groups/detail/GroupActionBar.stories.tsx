@@ -29,10 +29,18 @@ const meta = {
           '`ActionBar` directly with an `export-members` descriptor shipped `disabled: !onExportGroup` ' +
           'whenever that prop was left out — a ghost action with no live wire.\n\n' +
           '**Export members** now only appears in the strip when `onExportGroup` is actually provided ' +
-          '(omitted, never disabled-forever). **Add** is the everyday, reversible verb and stays in ' +
-          "the row at `priority: 'flex'`, mirroring `UserActionBar`'s treatment of *Add group*. " +
-          '**Compare** sits beside it for the same reason that strip puts its own *Compare* in the ' +
-          'row: it reads two rosters and writes nothing.\n\n' +
+          '(omitted, never disabled-forever).\n\n' +
+          '**`Add` is the `primary` and `Export members` is behind More** (ADR-0068). This strip ' +
+          'used to lead with *Export members* in the blue button and put *Add* beside it in plain ' +
+          '`secondary`. `primary` marks a verb that **acts** — its object is the whole page *and* ' +
+          'pressing it opens a modal or performs the operation — and *Add* passes both while an ' +
+          'export passes neither: an export descriptor forwards to the Export tab with its column ' +
+          'picker and presets, which is navigation wearing a verb’s clothes. So every export ' +
+          "descriptor in the app takes `priority: 'tier'`, on every rung, as a flat rule rather " +
+          'than a per-strip judgement. *Add* also passes ADR-0039’s consequence test in the row’s ' +
+          'favour: an add is undone by a remove.\n\n' +
+          '**Compare** sits beside it for the same reason `UserActionBar` puts its own *Compare* in ' +
+          'the row: it reads two rosters and writes nothing.\n\n' +
           'The strip has a disclosure tier holding two verbs, one of each shape `ActionBar` ' +
           'offers. First, as a descriptor: **Remove deprovisioned**, ' +
           'the bulk cleanup that empties a group of every member Okta has already deprovisioned. ' +
@@ -108,6 +116,24 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const AddIsThePrimaryAndExportIsBehindMore: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const more = canvas.getByRole('button', { name: 'More' });
+    await expect(more).toHaveAttribute('aria-expanded', 'false');
+    const tier = document.getElementById(more.getAttribute('aria-controls') ?? '');
+    if (!tier) throw new Error('the More control names no region');
+
+    await expect(within(tier).getByRole('button', { name: /Export members/ })).toBeInTheDocument();
+    await expect(within(tier).queryByRole('button', { name: 'Add' })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Add' })).toBeEnabled();
+
+    await userEvent.click(more);
+    await expect(more).toHaveAttribute('aria-expanded', 'true');
+  },
+};
 
 export const ExportOmitted: Story = {
   args: { onExportGroup: undefined },

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import GroupsListPanel from './GroupsListPanel';
 import { mockGroup } from '../../../test/mocks/fixtures';
 import type { GroupSummary } from '../../../shared/types';
@@ -69,6 +69,14 @@ const meta = {
     },
     filteredGroups: { description: 'Groups to render after filtering/sorting.' },
     selectedGroupIds: { description: 'Ids of the currently selected groups.' },
+    selectedCount: {
+      description:
+        'How many groups are selected — the `· N selected` half of the line beneath the list, ' +
+        'omitted from it entirely when zero. This line is the app’s one plain-prose statement of ' +
+        'the count: the strip’s verbs carry it in their labels (*Compare (3)*), and the ' +
+        '`PageHeader` badge no longer states it at all, because a header describes what you are ' +
+        'browsing rather than what you have picked (ADR-0032).',
+    },
     onToggleSelect: { description: 'Toggles selection for a group id.' },
     oktaOrigin: { description: 'Okta origin passed to each row for deep-linking.' },
     onLoadAllGroups: {
@@ -92,6 +100,7 @@ const meta = {
     activeFilterCount: 0,
     filteredGroups: sampleGroups,
     selectedGroupIds: new Set<string>(),
+    selectedCount: 0,
     onToggleSelect: fn(),
     oktaOrigin: 'https://example.okta.com',
     onLoadAllGroups: fn(),
@@ -106,7 +115,11 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const WithSelection: Story = {
-  args: { selectedGroupIds: new Set([sampleGroups[0].id]) },
+  args: { selectedGroupIds: new Set([sampleGroups[0].id]), selectedCount: 1 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Showing 3 of 3 · 1 selected/)).toBeInTheDocument();
+  },
 };
 
 export const Highlighted: Story = {

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useOwedLoad } from './useOwedLoad';
 import { useOktaApi } from './useOktaApi';
@@ -38,6 +38,7 @@ export interface UseGroupAccessGrantsReturn {
   appsError: string | null;
   roles: RoleGrant[];
   rolesStatus: RolesReadStatus;
+  reload: () => void;
 }
 
 function toAppGrant(app: {
@@ -89,8 +90,11 @@ export function useGroupAccessGrants(
     setRolesStatus('loading');
   }
 
-  useOwedLoad(targetTabId == null ? groupId : `${targetTabId}:${groupId}`, enabled, () => {
+  const load = useCallback(() => {
     const runId = ++runIdRef.current;
+    setAppsStatus('loading');
+    setAppsError(null);
+    setRolesStatus('loading');
 
     fetchAllPages(
       (url) => makeApiRequest(url, { reason: 'Load group app assignments' }),
@@ -134,7 +138,9 @@ export function useGroupAccessGrants(
         setRoles([]);
         setRolesStatus('unavailable');
       });
-  });
+  }, [groupId, makeApiRequest]);
 
-  return { apps, appsStatus, appsError, roles, rolesStatus };
+  useOwedLoad(targetTabId == null ? groupId : `${targetTabId}:${groupId}`, enabled, load);
+
+  return { apps, appsStatus, appsError, roles, rolesStatus, reload: load };
 }

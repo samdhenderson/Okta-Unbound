@@ -33,10 +33,6 @@ const meta = {
     isSearching: false,
     searchResults: [],
     onSelectUser: fn(),
-    detectedUser: null,
-    isDetectedUserLoading: false,
-    onLoadDetectedUser: fn(),
-    onDismissDetectedUser: fn(),
     hasSelectedUser: false,
     hasError: false,
   },
@@ -53,14 +49,6 @@ const meta = {
       description: 'Latest committed search results; an empty array renders no results block.',
     },
     onSelectUser: { description: 'Invoked with the chosen user when a result row is clicked.' },
-    detectedUser: {
-      description: 'The user detected on the current admin page, or `null` to hide the banner.',
-    },
-    isDetectedUserLoading: {
-      description: "Disables the banner's Load button while a load/analysis is in flight.",
-    },
-    onLoadDetectedUser: { description: 'Load the detected user + their memberships into the tab.' },
-    onDismissDetectedUser: { description: 'Dismiss the detected-user banner without loading.' },
     hasSelectedUser: {
       description: 'Whether a user is selected — hides the results and the empty state.',
     },
@@ -85,19 +73,6 @@ export const WithResults: Story = {
   args: { searchQuery: 'ada', searchResults: mockUsers.slice(10, 14) },
 };
 
-export const WithDetectedUser: Story = {
-  args: {
-    detectedUser: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
-  },
-};
-
-export const DetectedUserLoading: Story = {
-  args: {
-    detectedUser: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
-    isDetectedUserLoading: true,
-  },
-};
-
 export const WithError: Story = {
   args: {
     searchQuery: 'ada',
@@ -110,23 +85,10 @@ export const UserSelected: Story = {
   args: { hasSelectedUser: true, searchResults: mockUsers.slice(10, 14) },
 };
 
-export const BannerAndResults: Story = {
-  args: {
-    searchQuery: 'ada',
-    searchResults: mockUsers.slice(10, 14),
-    detectedUser: { userId: '00uFAKE0001', userName: 'Ada Lovelace', userStatus: 'ACTIVE' },
-  },
-};
-
 export const Compact360: Story = {
   args: {
     searchQuery: 'ada',
     searchResults: mockUsers.slice(10, 14),
-    detectedUser: {
-      userId: '00uFAKE0005',
-      userName: 'Bartholomew Featherstonehaugh-Wintergreen',
-      userStatus: 'LOCKED_OUT',
-    },
   },
   parameters: { viewport: { value: 'sidepanelCompact' } },
 };

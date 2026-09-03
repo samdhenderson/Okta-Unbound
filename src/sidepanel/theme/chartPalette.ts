@@ -10,3 +10,6 @@ export const INDIGO_RAMP: readonly string[] = [
 export const CHART_NONE_COLOR = 'var(--color-neutral-300)';
 
 export const CHART_OTHER_COLOR = '#e5e5e5'; // chart-only — a hair lighter than neutral-200
+
+export const CHART_TAIL_HATCH =
+  'repeating-linear-gradient(45deg, var(--color-neutral-300) 0 3px, var(--color-neutral-100) 3px 6px)';

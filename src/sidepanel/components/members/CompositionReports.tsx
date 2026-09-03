@@ -87,7 +87,9 @@ const CompositionReports: React.FC<CompositionReportsProps> = ({
           ) : (
             <div className="space-y-(--sp-rung)">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-neutral-500">Click any value to filter the members.</p>
+                <p className="text-xs text-neutral-500">
+                  Pick a value to open the Members tab filtered by it.
+                </p>
                 {attributes.length > SEARCH_THRESHOLD && (
                   <Input
                     value={attrQuery}
@@ -136,7 +138,9 @@ const CompositionReports: React.FC<CompositionReportsProps> = ({
             </div>
           ) : (
             <div className="space-y-2">
-              <p className="text-xs text-neutral-500">Click any factor to filter the members.</p>
+              <p className="text-xs text-neutral-500">
+                Pick a factor to open the Members tab filtered by it.
+              </p>
               <BreakdownReport
                 rows={mfaRows}
                 activeValues={mfaActive}

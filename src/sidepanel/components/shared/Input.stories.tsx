@@ -194,6 +194,21 @@ export const WithIconAndTrailing: Story = {
   },
 };
 
+export const SearchWithClear: Story = {
+  args: {
+    type: 'search',
+    label: 'Search groups',
+    value: 'engineering',
+    icon: <Icon type="search" size="sm" />,
+    trailingInteractive: true,
+    trailing: (
+      <IconButton label="Clear search" variant="ghost" size="sm" onClick={fn()}>
+        <Icon type="close" size="sm" />
+      </IconButton>
+    ),
+  },
+};
+
 export const Searching: Story = {
   args: {
     size: 'lg',

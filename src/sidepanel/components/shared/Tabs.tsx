@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import Icon, { type IconType } from '../shared/Icon';
+import StableWidth from './StableWidth';
 import Tooltip, { type TooltipTriggerProps } from './Tooltip';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useTabRail } from '../../hooks/useTabRail';
@@ -8,8 +9,11 @@ export interface TabItem {
   key: string;
   label: string;
   count?: number;
+  countDisplay?: TabCountDisplay;
   icon?: IconType;
 }
+
+export type TabCountDisplay = 'always' | 'nonzero';
 
 export type TabsVariant = 'underline' | 'segmented' | 'rail';
 
@@ -18,14 +22,21 @@ interface TabsProps {
   activeKey: string;
   onChange: (key: string) => void;
   variant?: TabsVariant;
+  wrap?: boolean;
   ariaLabel?: string;
   className?: string;
 }
 
 const HEADING_FONT = { fontFamily: 'var(--font-heading)' };
 
+const SEGMENTED_CHROME =
+  'items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 p-1';
+
+const SEGMENTED_WRAPPED_LAYOUT =
+  'grid grid-cols-2 sm:grid-cols-none sm:auto-cols-fr sm:grid-flow-col';
+
 const listClassesByVariant: Record<TabsVariant, string> = {
-  segmented: 'flex items-center gap-1 rounded-md border border-neutral-200 bg-neutral-50 p-1',
+  segmented: `flex ${SEGMENTED_CHROME}`,
   underline:
     'flex items-center gap-1 border-b border-neutral-200 overflow-x-auto overflow-y-hidden',
   rail:
@@ -40,11 +51,17 @@ const TAB_BASE = 'relative flex items-center text-xs focus-visible:outline-none'
 
 const RING_FOCUS = 'focus-visible:ring-2 focus-visible:ring-primary';
 
+const BADGE_BASE =
+  'inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums leading-none';
+
+const BADGE_RESERVE = 'inline-flex min-w-[18px] px-1.5 text-xs leading-none';
+
 const Tabs: React.FC<TabsProps> = ({
   tabs,
   activeKey,
   onChange,
   variant = 'underline',
+  wrap = false,
   ariaLabel,
   className = '',
 }) => {
@@ -103,7 +120,11 @@ const Tabs: React.FC<TabsProps> = ({
       aria-label={ariaLabel}
       ref={isRail ? listRef : undefined}
       data-overflow={isRail ? edge : undefined}
-      className={`${listClassesByVariant[variant]} ${className}`}
+      className={`${
+        isSegmented && wrap
+          ? `${SEGMENTED_WRAPPED_LAYOUT} ${SEGMENTED_CHROME}`
+          : listClassesByVariant[variant]
+      } ${className}`}
     >
       {tabs.map((tab, index) => {
         const active = tab.key === activeKey;
@@ -117,7 +138,8 @@ const Tabs: React.FC<TabsProps> = ({
         const tabClasses = isRail
           ? railClasses
           : isSegmented
-            ? `${TAB_BASE} ${RING_FOCUS} flex-1 justify-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-all duration-(--dur-instant) ${
+            ? // `press press-subtle` (both classes together — see `tailwind.css`) rather
+              `${TAB_BASE} ${RING_FOCUS} press press-subtle flex-1 justify-center gap-1.5 rounded-md px-3 py-1.5 font-semibold ${
                 active
                   ? 'bg-white text-neutral-900 shadow-sm'
                   : 'text-neutral-600 hover:text-neutral-900'
@@ -135,6 +157,20 @@ const Tabs: React.FC<TabsProps> = ({
           : active
             ? 'bg-primary-light text-primary-text'
             : 'bg-neutral-100 text-neutral-600';
+
+        const pillClasses = `${BADGE_BASE} ${badgeClasses}`;
+        const badge =
+          tab.count === undefined ? null : tab.countDisplay === 'nonzero' ? (
+            <StableWidth
+              reserve={<span className={BADGE_RESERVE}>00</span>}
+              align="center"
+              className="ml-0.5 shrink-0"
+            >
+              {tab.count > 0 && <span className={pillClasses}>{tab.count}</span>}
+            </StableWidth>
+          ) : (
+            <span className={`ml-0.5 ${pillClasses}`}>{tab.count}</span>
+          );
 
         const renderTab = (trigger?: TooltipTriggerProps) => (
           <button
@@ -169,15 +205,16 @@ const Tabs: React.FC<TabsProps> = ({
                 </span>
               </>
             ) : (
-              <span>{tab.label}</span>
+              <>
+                {tab.icon && (
+                  <span aria-hidden="true" className="flex shrink-0 items-center">
+                    <Icon type={tab.icon} size="sm" />
+                  </span>
+                )}
+                <span>{tab.label}</span>
+              </>
             )}
-            {tab.count !== undefined && (
-              <span
-                className={`ml-0.5 inline-flex min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold leading-none ${badgeClasses}`}
-              >
-                {tab.count}
-              </span>
-            )}
+            {badge}
           </button>
         );
 

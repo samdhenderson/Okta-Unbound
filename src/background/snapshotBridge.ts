@@ -1,6 +1,7 @@
 import type { ApiScheduler } from '../shared/scheduler/apiScheduler';
 import { syncOrg, type PageRequest, type WalkOutcome } from '../shared/snapshot/snapshotSync';
 import type { SnapshotCollection } from '../shared/snapshot/types';
+import { ensureRateLimitThreshold } from './rateLimitThreshold';
 import { createLogger } from '../shared/utils/logger';
 import { oktaOriginOf } from '../shared/utils/oktaUrl';
 
@@ -77,6 +78,8 @@ export async function syncSnapshot(
 
   const raced = inFlight.get(origin);
   if (raced && (raced.force || !force)) return raced.run;
+
+  ensureRateLimitThreshold(scheduler, tabId);
 
   const run = syncOrg({
     origin,

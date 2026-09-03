@@ -12,7 +12,7 @@ const meta = {
       description: {
         component:
           'The primary text button primitive — the default choice for any clickable CTA.\n\n' +
-          'Five variants (`primary | secondary | danger | ghost | success`) and three sizes (`sm | md | lg`), with an optional leading/trailing icon, loading spinner, trailing count badge, and full-width layout. Disabled and loading both block interaction. For icon-only affordances use `IconButton`; for filter toggles use `FilterPill`.',
+          'Five variants (`primary | secondary | danger | ghost | success`) and four sizes (`xs | sm | md | lg`), with an optional leading/trailing icon, loading spinner, trailing count badge, and full-width layout. Disabled and loading both block interaction. For icon-only affordances use `IconButton`; for filter toggles use `FilterPill`.',
       },
     },
   },
@@ -22,7 +22,10 @@ const meta = {
       description:
         'Visual treatment: `secondary` is the default; `danger`/`success` carry semantic colour; `ghost` is chromeless; `primary` is the page call to action.',
     },
-    size: { description: 'Size scale (`sm` ≈ 36px, `md` ≈ 40px, `lg` ≈ 56px). Defaults to `md`.' },
+    size: {
+      description:
+        'Size scale (`xs` ≈ 24px, `sm` ≈ 36px, `md` ≈ 40px, `lg` ≈ 56px). Defaults to `md`. `xs` is the recessed step — selection-register furniture, not a page verb.',
+    },
     icon: {
       description: 'Optional icon glyph rendered alongside the label (hidden while `loading`).',
     },
@@ -93,6 +96,9 @@ export const Pressed: Story = {
 export const Sizes: Story = {
   render: (args) => (
     <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+      <Button {...args} size="xs">
+        Extra small
+      </Button>
       <Button {...args} size="sm">
         Small
       </Button>

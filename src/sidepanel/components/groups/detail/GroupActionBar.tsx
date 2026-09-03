@@ -44,24 +44,11 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
     deprovisionedCount !== undefined &&
     deprovisionedCount > 0;
   const actions: ActionDescriptor[] = [
-    ...(onExportGroup
-      ? [
-          {
-            id: 'export-members',
-            label: 'Export members',
-            icon: 'download',
-            variant: 'primary',
-            onClick: () => onExportGroup(group.id, group.name),
-            title:
-              "Export this group's members (opens the Export tab with column picker + presets)",
-          } satisfies ActionDescriptor,
-        ]
-      : []),
     {
       id: 'add-member',
       label: 'Add',
       icon: 'plus',
-      priority: 'flex',
+      variant: 'primary',
       onClick: onAddMember,
       disabled: targetTabId === null,
       title: 'Add a member to this group',
@@ -75,6 +62,19 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
       disabled: targetTabId === null,
       title: 'Compare this group’s membership with another group',
     },
+    ...(onExportGroup
+      ? [
+          {
+            id: 'export-members',
+            label: 'Export members',
+            icon: 'download',
+            priority: 'tier',
+            onClick: () => onExportGroup(group.id, group.name),
+            title:
+              "Export this group's members (opens the Export tab with column picker + presets)",
+          } satisfies ActionDescriptor,
+        ]
+      : []),
     ...(canRemoveDeprovisioned
       ? [
           {
