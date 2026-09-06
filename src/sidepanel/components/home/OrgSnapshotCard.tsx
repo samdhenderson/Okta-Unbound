@@ -70,6 +70,7 @@ const FindingBody: React.FC<{
       </div>
 
       <span
+        data-testid="org-finding-value"
         className={`${NUMBER_SLOT} ${recessed ? 'text-neutral-400' : 'text-neutral-900'}`}
         aria-hidden={subCount.value === null ? 'true' : undefined}
       >

@@ -23,9 +23,10 @@ interface DemoResult {
   success: boolean;
   data?: unknown;
   error?: string;
+  status?: number;
 }
 
-const ok = (data: unknown): DemoResult => ({ success: true, data });
+const ok = (data: unknown): DemoResult => ({ success: true, data, status: 200 });
 
 function asOktaGroup(id: string): OktaGroup | null {
   const raw = currentGroupsById().get(id);
