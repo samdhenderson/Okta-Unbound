@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import UserProfilePane from './UserProfilePane';
-import type { ProfileEditControls } from './UserProfilePaneHeader';
+import type { ProfileDisplayCustomizeControls, ProfileEditControls } from './UserProfilePaneHeader';
 import type { AttributeDescriptor } from './profileAttributes';
 import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
 import type { AttributeEditCell } from '../../hooks/useProfileEdit';
@@ -150,6 +150,13 @@ const EDIT_CELLS: Readonly<Record<string, AttributeEditCell>> = {
   },
 };
 
+const CUSTOMIZE_CONTROLS: ProfileDisplayCustomizeControls = {
+  isCustomizing: false,
+  onBegin: fn(),
+  onCommit: fn(),
+  onCancel: fn(),
+};
+
 const RULE_READS: Record<string, string[]> = {
   department: ['Engineering → VPN Access', 'Engineering → Wiki'],
   title: ['Staff+ → On-call Rotation'],
@@ -175,9 +182,13 @@ const meta = {
           'and whether API names, rule chips and empty attributes show at all. Attributes filed under no ' +
           'category — or under one that was deleted — collect in a final **Uncategorized** block that can never ' +
           'silently vanish.\n\n' +
-          '`attributes`, `config` and `ruleReads` are props, not hooks: the pane renders and never fetches, and ' +
-          'it owns no dialog — the gear calls `onConfigure` and `Save` only *arms* the confirmation, both of ' +
-          'which are mounted by `UserDetailPanel`.\n\n' +
+          '`attributes`, `config` and `ruleReads` are props, not hooks: the pane renders and never fetches, ' +
+          'and it holds no configuration. `Save` only *arms* its confirmation, which `UserDetailPanel` ' +
+          'mounts.\n\n' +
+          '**Customizing the display happens here, in place.** The gear switches the pane into customize ' +
+          'mode, where `ProfileDisplayEditor` replaces the section list — so the categories being dragged ' +
+          'are the categories on screen, not a second copy of them in a dialog. The editor owns a local ' +
+          'draft and returns the **whole** configuration on Done; Cancel leaves nothing behind.\n\n' +
           '**Editing** arrives the same way. `edit` carries the pane-level verbs and `cells` carries one entry ' +
           'per attribute that has a control; an attribute with no cell renders exactly as it does in read ' +
           'mode, which is what keeps the no-truncation contract a property of the file rather than of a ' +
@@ -193,12 +204,15 @@ const meta = {
     ruleReads: { description: 'Attribute name → the granting rules that read it.' },
     edit: { description: 'The pane-level edit verbs; absent means the pane is read-only.' },
     cells: { description: 'Attribute name → its edit cell. Empty outside edit mode.' },
+    customize: {
+      description: 'The customize-mode flag and verbs; absent means no gear and no editor.',
+    },
   },
   args: {
     attributes: ATTRIBUTES,
     config: CONFIG,
     ruleReads: RULE_READS,
-    onConfigure: fn(),
+    customize: CUSTOMIZE_CONTROLS,
   },
   decorators: [
     (Story) => (
@@ -359,4 +373,21 @@ export const EditingNarrow: Story = {
     cells: EDIT_CELLS,
   },
   parameters: { viewport: { value: 'sidepanelCompact' } },
+};
+
+export const Customizing: Story = {
+  args: {
+    edit: EDIT_CONTROLS,
+    customize: { ...CUSTOMIZE_CONTROLS, isCustomizing: true },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText('Customizing display')).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('button', { name: 'Configure attribute display' }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Done' })).toBeInTheDocument();
+  },
 };

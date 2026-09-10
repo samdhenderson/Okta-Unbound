@@ -5,14 +5,18 @@ import type { ProfileDisplayConfig } from '../../../shared/storage/profileDispla
 import type { AttributeDescriptor } from './profileAttributes';
 import { buildAttributeBlocks } from './profileAttributeBlocks';
 import UserProfileAttributeList from './UserProfileAttributeList';
-import UserProfilePaneHeader, { type ProfileEditControls } from './UserProfilePaneHeader';
+import UserProfilePaneHeader, {
+  type ProfileDisplayCustomizeControls,
+  type ProfileEditControls,
+} from './UserProfilePaneHeader';
+import ProfileDisplayEditor from './ProfileDisplayEditor';
 import type { AttributeEditCell } from '../../hooks/useProfileEdit';
 
 export interface UserProfilePaneProps {
   attributes: readonly AttributeDescriptor[];
   config: ProfileDisplayConfig;
   ruleReads: Record<string, string[]>;
-  onConfigure: () => void;
+  customize?: ProfileDisplayCustomizeControls;
   isLoading?: boolean;
   edit?: ProfileEditControls;
   cells?: Readonly<Record<string, AttributeEditCell>>;
@@ -26,13 +30,20 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
   attributes,
   config,
   ruleReads,
-  onConfigure,
+  customize,
   isLoading = false,
   edit,
   cells,
 }) => {
   const [filter, setFilter] = useState('');
   const [onlyRuleRead, setOnlyRuleRead] = useState(false);
+
+  const isCustomizing = customize?.isCustomizing ?? false;
+
+  const beginCustomizing = (): void => {
+    setOnlyRuleRead(false);
+    customize?.onBegin();
+  };
 
   const blocks = useMemo(
     () => buildAttributeBlocks(attributes, config, ruleReads, { filter, onlyRuleRead }),
@@ -47,6 +58,10 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
     0,
   );
 
+  const configureActions = customize
+    ? [{ label: 'Configure display', onClick: beginCustomizing, variant: 'secondary' as const }]
+    : undefined;
+
   const isFiltered = filter.trim() !== '' || onlyRuleRead;
   const clearFilters = (): void => {
     setFilter('');
@@ -59,7 +74,7 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
         shown={shown}
         total={total}
         ruleReadCount={readCount}
-        onConfigure={onConfigure}
+        customize={customize && { ...customize, onBegin: beginCustomizing }}
         edit={edit}
       />
 
@@ -95,7 +110,16 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
         </div>
       </div>
 
-      {isLoading ? (
+      {isCustomizing && customize ? (
+        <ProfileDisplayEditor
+          attributes={attributes}
+          config={config}
+          ruleReads={ruleReads}
+          filter={filter}
+          onCommit={customize.onCommit}
+          onCancel={customize.onCancel}
+        />
+      ) : isLoading ? (
         <div className="px-(--sp-card) pb-(--sp-card)">
           <Skeleton variant="row" size="md" count={4} label="Loading profile attributes" />
         </div>
@@ -112,7 +136,7 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
             icon="settings"
             title="No attributes to show"
             description="Every attribute is hidden, or empty on this user and set not to show."
-            actions={[{ label: 'Configure display', onClick: onConfigure, variant: 'secondary' }]}
+            actions={configureActions}
           />
         )
       ) : (

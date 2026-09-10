@@ -49,7 +49,6 @@ export interface UseUserDetailPanesReturn {
   isLoadingProfile: boolean;
   profileConfig: ProfileDisplayConfig;
   updateProfileConfig: (patch: Partial<ProfileDisplayConfig>) => void;
-  resetProfileConfig: () => void;
   ruleReads: Record<string, string[]>;
   mastering: ProfileMastering;
 }
@@ -111,11 +110,10 @@ export function useUserDetailPanes({
   );
 
   const attributeNames = attributes.map((attribute) => attribute.name);
-  const {
-    config: profileConfig,
-    update: updateProfileConfig,
-    reset: resetProfileConfig,
-  } = useProfileDisplayConfig(oktaOrigin, attributeNames);
+  const { config: profileConfig, update: updateProfileConfig } = useProfileDisplayConfig(
+    oktaOrigin,
+    attributeNames,
+  );
 
   const ruleReads = useMemo(
     () =>
@@ -137,7 +135,6 @@ export function useUserDetailPanes({
     isLoadingProfile: schemaQuery.isLoading,
     profileConfig,
     updateProfileConfig,
-    resetProfileConfig,
     ruleReads,
     mastering,
   };

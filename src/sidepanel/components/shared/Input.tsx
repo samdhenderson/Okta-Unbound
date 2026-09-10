@@ -20,6 +20,7 @@ interface InputProps {
   className?: string;
   autoFocus?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   inputRef?: React.Ref<HTMLInputElement>;
 }
 
@@ -71,6 +72,7 @@ const Input: React.FC<InputProps> = ({
   className = '',
   autoFocus = false,
   onKeyDown,
+  onBlur,
   inputRef,
 }) => {
   const inputClasses = `
@@ -114,6 +116,7 @@ const Input: React.FC<InputProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
+          onBlur={onBlur}
           aria-label={ariaLabel}
           placeholder={placeholder}
           disabled={disabled}
