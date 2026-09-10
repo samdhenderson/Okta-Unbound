@@ -1,7 +1,7 @@
 import React from 'react';
 import Icon, { type IconType } from '../shared/Icon';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success' | 'link';
 export type ButtonSize = 'xs' | 'sm' | 'md' | 'lg';
 
 interface ButtonProps {
@@ -50,13 +50,27 @@ const variantClasses: Record<ButtonVariant, string> = {
     text-neutral-700 font-medium
     disabled:text-neutral-400
   `,
+  link: `
+    bg-transparent
+    text-primary-text hover:text-primary-dark hover:underline underline-offset-2
+    font-medium
+    transition-colors duration-(--dur-instant)
+    disabled:text-neutral-400 disabled:no-underline
+  `,
+};
+
+const sizePaddingX: Record<ButtonSize, string> = {
+  xs: 'px-2',
+  sm: 'px-3',
+  md: 'px-4',
+  lg: 'px-4',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  xs: 'px-2 py-0.5 text-xs min-h-6', // 24px
-  sm: 'px-3 py-1.5 text-xs min-h-9', // 36px
-  md: 'px-4 py-2 text-sm min-h-10', // 40px
-  lg: 'px-4 py-3 text-base min-h-14', // 56px
+  xs: 'py-0.5 text-xs min-h-6', // 24px
+  sm: 'py-1.5 text-xs min-h-9', // 36px
+  md: 'py-2 text-sm min-h-10', // 40px
+  lg: 'py-3 text-base min-h-14', // 56px
 };
 
 const iconSize = (size: ButtonSize): 'xs' | 'sm' | 'md' =>
@@ -80,12 +94,15 @@ const Button: React.FC<ButtonProps> = ({
   controls,
   ariaLabel,
 }) => {
+  const isLink = variant === 'link';
+
   const baseClasses = `
-    inline-flex items-center justify-center gap-2
-    rounded-md press active:brightness-90
+    inline-flex items-center gap-2
+    ${isLink ? 'justify-start rounded-sm' : 'justify-center rounded-md press active:brightness-90'}
     disabled:cursor-not-allowed
     focus:outline-2 focus:outline-offset-2 focus:outline-primary
     ${variantClasses[variant]}
+    ${isLink ? '' : sizePaddingX[size]}
     ${sizeClasses[size]}
     ${fullWidth ? 'w-full' : ''}
   `

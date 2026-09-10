@@ -79,7 +79,7 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
           {
             id: 'deselect-all',
             label: 'Deselect all',
-            variant: 'ghost' as const,
+            variant: 'link' as const,
             onClick: onDeselectAll,
             priority: 'pinned' as const,
           },
@@ -88,7 +88,7 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
     {
       id: 'select-all',
       label: `Select all (${filteredCount})`,
-      variant: 'ghost',
+      variant: 'link',
       onClick: onSelectAll,
       disabled: filteredCount === 0 || selectedCount === filteredCount,
       title:
