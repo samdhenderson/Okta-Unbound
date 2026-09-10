@@ -1,5 +1,11 @@
 import React from 'react';
-import { Badge, ListRow, type BadgeVariant } from '../shared';
+import {
+  Badge,
+  ListRow,
+  RuleExpressionText,
+  type BadgeVariant,
+  type GroupNameResolver,
+} from '../shared';
 import Icon, { type IconType } from '../shared/Icon';
 import { unevaluableReasonText } from '../../../shared/rules/unevaluableReasonText';
 import { ruleStatusBadge } from '../../../shared/ruleUtils';
@@ -7,6 +13,7 @@ import type { RuleEffect, RuleTransition } from '../../../shared/membership/blas
 
 export interface BlastRadiusRuleRowProps {
   effect: RuleEffect;
+  resolveGroupName?: GroupNameResolver;
 }
 
 interface TransitionPresentation {
@@ -56,7 +63,7 @@ const MetaLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
   </p>
 );
 
-const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect }) => {
+const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect, resolveGroupName }) => {
   const presentation = transitionPresentation[effect.transition];
   const undeterminedReason =
     effect.transition === 'undetermined'
@@ -104,9 +111,13 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect }) => {
         {undeterminedReason && <p className="text-xs text-neutral-600">{undeterminedReason}</p>}
 
         {effect.expression !== '' && (
-          <code className="rounded-md bg-neutral-50 px-2 py-1 font-mono text-xs break-words whitespace-pre-wrap text-neutral-700">
-            {effect.expression}
-          </code>
+          <div className="rounded-md bg-neutral-50 px-2 py-1">
+            <RuleExpressionText
+              text={effect.expression}
+              tone="subdued"
+              resolveGroupName={resolveGroupName}
+            />
+          </div>
         )}
       </div>
     </ListRow>

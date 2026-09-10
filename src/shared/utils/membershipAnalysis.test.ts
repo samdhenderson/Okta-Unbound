@@ -6,6 +6,7 @@ import {
   isDeducedAttribution,
   unclassifiedMemberships,
 } from './membershipAnalysis';
+import { groupContextOfGroups } from '../membership/groupContext';
 import type { OktaGroup, OktaUser, MembershipRule, MembershipAttribution } from '../types';
 
 function group(over: Partial<OktaGroup> = {}): OktaGroup {
@@ -324,7 +325,7 @@ describe('analyzeMemberships — condition evaluation', () => {
   });
 
   it('treats an unsupported operator as unevaluable, never as "does not match"', () => {
-    const unsupported = ruleWith('String.substring(user.department, 0, 3) == "Eng"', {
+    const unsupported = ruleWith('String.replaceFirst(user.department, "E", "X") == "Xng"', {
       id: 'unsupported',
     });
     const [m] = analyzeMemberships([group()], [unsupported], engUser);
@@ -356,5 +357,95 @@ describe('analyzeMemberships — condition evaluation', () => {
       user,
     );
     expect(allExcluded.attribution).toBe('exact');
+  });
+});
+
+describe("analyzeMemberships — with the user's complete group list", () => {
+  const ENGINEERING = group({ id: 'g1', profile: { name: 'Engineering', description: '' } });
+  const CONTRACTORS = group({ id: 'g2', profile: { name: 'Contractors', description: '' } });
+  const memberOf = [ENGINEERING, CONTRACTORS];
+
+  const membershipRule = (expression: string, over: Partial<MembershipRule> = {}) =>
+    rule({
+      id: 'rMember',
+      groupIds: ['g1'],
+      conditions: { expression: { value: expression, type: 'urn:okta:expression:1.0' } },
+      ...over,
+    });
+
+  it('answers an isMemberOfGroup rule instead of deferring to the coarse scorer', () => {
+    const r = membershipRule('isMemberOfGroup("g2")');
+
+    const [without] = analyzeMemberships(memberOf, [r], user);
+    expect(without.attribution).toBe('inferred');
+
+    const [withList] = analyzeMemberships(memberOf, [r], user, {
+      groups: groupContextOfGroups(memberOf),
+    });
+    expect(withList.membershipType).toBe('RULE_BASED');
+    expect(withList.attribution).toBe('exact');
+    expect(withList.rules.map((rr) => rr.id)).toEqual(['rMember']);
+  });
+
+  it('answers a NON-matching isMemberOfGroup rule as a manual add, not a guess', () => {
+    const r = membershipRule('isMemberOfGroup("gOther")');
+    const [m] = analyzeMemberships(memberOf, [r], user, {
+      groups: groupContextOfGroups(memberOf),
+    });
+    expect(m.membershipType).toBe('DIRECT');
+    expect(m.attribution).toBe('exact');
+  });
+
+  it('matches isMemberOfGroupName by name, case-sensitively', () => {
+    const context = groupContextOfGroups(memberOf);
+    expect(
+      analyzeMemberships(memberOf, [membershipRule('isMemberOfGroupName("Contractors")')], user, {
+        groups: context,
+      })[0].attribution,
+    ).toBe('exact');
+    expect(
+      analyzeMemberships(memberOf, [membershipRule('isMemberOfGroupName("contractors")')], user, {
+        groups: context,
+      })[0].membershipType,
+    ).toBe('DIRECT');
+  });
+
+  it('treats a group-based exclusion as an exclusion, not as a credited rule', () => {
+    const r = membershipRule('user.status == "ACTIVE"', { excludedGroupIds: ['g2'] });
+
+    const [m] = analyzeMemberships(memberOf, [r], user, {
+      groups: groupContextOfGroups(memberOf),
+    });
+    expect(m.membershipType).toBe('DIRECT');
+    expect(m.rules).toEqual([]);
+
+    const [credited] = analyzeMemberships(
+      memberOf,
+      [membershipRule('user.status == "ACTIVE"')],
+      user,
+      {
+        groups: groupContextOfGroups(memberOf),
+      },
+    );
+    expect(credited.membershipType).toBe('RULE_BASED');
+  });
+
+  it('reads a group exclusion off a raw rule as well as a formatted one', () => {
+    const raw = membershipRule('user.status == "ACTIVE"', {
+      conditions: {
+        expression: { value: 'user.status == "ACTIVE"', type: 'urn:okta:expression:1.0' },
+        people: { groups: { exclude: ['g2'] } },
+      },
+    });
+    const [m] = analyzeMemberships(memberOf, [raw], user, {
+      groups: groupContextOfGroups(memberOf),
+    });
+    expect(m.membershipType).toBe('DIRECT');
+  });
+
+  it('never claims a group exclusion it cannot check', () => {
+    const r = membershipRule('user.status == "ACTIVE"', { excludedGroupIds: ['g2'] });
+    const [m] = analyzeMemberships(memberOf, [r], user);
+    expect(m.membershipType).toBe('RULE_BASED');
   });
 });

@@ -14,6 +14,8 @@ const user: OktaUser = {
     department: 'Engineering',
     title: 'Intern',
     projectCode: null,
+    employeeType: 'CONTRACTOR',
+    countryCode: 'IE',
   },
 };
 

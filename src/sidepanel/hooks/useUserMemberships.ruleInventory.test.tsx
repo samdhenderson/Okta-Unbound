@@ -32,9 +32,15 @@ import { emptySyncMeta } from '../../shared/snapshot/syncMeta';
 import type { OktaGroupRule, OktaUser } from '../../shared/types';
 
 const tabsSendMessage = vi.fn();
+const runtimeSendMessage = vi.fn(async (_message: unknown) => ({
+  success: true,
+  data: [rawRule],
+  headers: {},
+}));
 
 globalThis.chrome = {
   tabs: { sendMessage: tabsSendMessage },
+  runtime: { sendMessage: runtimeSendMessage, lastError: undefined },
   storage: { local: { get: vi.fn(), set: vi.fn(), remove: vi.fn() } },
 } as unknown as typeof chrome;
 
@@ -105,7 +111,7 @@ describe('useUserMemberships rule inventory on a memberships cache hit', () => {
     expect(tabsSendMessage).not.toHaveBeenCalled();
   });
 
-  it('leaves the inventory unresolved — never unavailable — when nothing is cached', async () => {
+  it('asks for the rules listing when neither local source holds one', async () => {
     setEntry(['userMemberships', user.id], []);
 
     const { result } = renderHook(() => useUserMemberships({ targetTabId: 1, oktaOrigin: ORIGIN }));
@@ -114,7 +120,20 @@ describe('useUserMemberships rule inventory on a memberships cache hit', () => {
       await result.current.loadMemberships(user);
     });
 
-    expect(result.current.rules).toEqual({ status: 'unresolved' });
+    await waitFor(() =>
+      expect(runtimeSendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'scheduleApiRequest' }),
+      ),
+    );
+    expect(runtimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ endpoint: expect.stringContaining('/api/v1/groups/rules') }),
+    );
     expect(tabsSendMessage).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(result.current.rules.status).not.toBe('unresolved'));
+    expect(result.current.rules).toMatchObject({
+      status: 'available',
+      rules: [{ id: rule.id, conditionExpression: rule.conditionExpression }],
+    });
   });
 });

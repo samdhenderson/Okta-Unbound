@@ -41,6 +41,7 @@ export const GROUP = {
   migrationAccess: 35,
   salesEmeaLegacy: 36,
   verifyRollout: 37,
+  contractorsAll: 38,
 } as const;
 
 const DEPARTMENT_GROUPS: readonly { ordinal: number; department: string }[] = [
@@ -130,6 +131,13 @@ const RULE_FED: readonly RuleFedGroup[] = [
     expression: null,
     exemption:
       'Sourced from the Workday HR import, which fills it on every sync. The invisible maintainer is the point: to the panel it is indistinguishable from an unmaintained group.',
+  },
+  {
+    ordinal: GROUP.contractorsAll,
+    predicate: (user) =>
+      attr(user, 'employeeType') === 'CONTRACTOR' &&
+      [...EMEA_COUNTRIES, 'US', 'CA'].includes(attr(user, 'countryCode')),
+    expression: `isMemberOfAnyGroup("${fakeId('00g', GROUP.contractorsEmea)}", "${fakeId('00g', GROUP.contractorsAmer)}")`,
   },
   {
     ordinal: GROUP.datadogEngineering,

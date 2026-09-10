@@ -17,9 +17,19 @@ for (const [operator, precedence] of WORD_BINARY_OPERATORS) {
   jsep.addBinaryOp(operator, precedence);
 }
 
+const WORD_UNARY_OPERATORS: readonly string[] = ['not', 'NOT'];
+
+for (const operator of WORD_UNARY_OPERATORS) {
+  jsep.addUnaryOp(operator);
+}
+
+const NEGATION_OPERATORS: ReadonlySet<string> = new Set(['!', ...WORD_UNARY_OPERATORS]);
+
 const MAX_EXPRESSION_LENGTH = 4096;
 
-type ExprValue = string | number | boolean | null;
+type ExprScalar = string | number | boolean | null;
+
+type ExprValue = ExprScalar | readonly ExprScalar[];
 
 export type RuleExprValue = ExprValue;
 
@@ -34,6 +44,7 @@ export type RuleUnevaluableReason =
   | 'fn-arity'
   | 'unsupported-node'
   | 'operand-type'
+  | 'attribute-absent'
   | 'not-a-boolean'
   | 'walk-failed';
 
@@ -99,9 +110,17 @@ function asString(value: ExprValue | undefined): string | Unresolved {
   return typeof value === 'string' ? value : UNRESOLVED;
 }
 
+function asInteger(value: ExprValue | undefined): number | Unresolved {
+  return typeof value === 'number' && Number.isInteger(value) ? value : UNRESOLVED;
+}
+
+function asArray(value: ExprValue | undefined): readonly ExprScalar[] | Unresolved {
+  return Array.isArray(value) ? value : UNRESOLVED;
+}
+
 function withTwoStrings(
   args: readonly ExprValue[],
-  fn: (a: string, b: string) => ExprValue,
+  fn: (a: string, b: string) => EvalResult,
 ): EvalResult {
   const first = asString(args[0]);
   const second = asString(args[1]);
@@ -109,9 +128,61 @@ function withTwoStrings(
   return fn(first, second);
 }
 
-function withOneString(args: readonly ExprValue[], fn: (a: string) => ExprValue): EvalResult {
+function withOneString(args: readonly ExprValue[], fn: (a: string) => EvalResult): EvalResult {
   const first = asString(args[0]);
   return isUnresolved(first) ? UNRESOLVED : fn(first);
+}
+
+function evaluateOverArray(
+  args: readonly ExprValue[],
+  fn: (items: readonly ExprScalar[]) => ExprValue,
+): EvalResult {
+  const items = asArray(args[0]);
+  return isUnresolved(items) ? UNRESOLVED : fn(items);
+}
+
+function evaluateArraysContains(args: readonly ExprValue[]): EvalResult {
+  const items = asArray(args[0]);
+  if (isUnresolved(items)) return UNRESOLVED;
+  const needle = args[1];
+  if (Array.isArray(needle) || needle === undefined) return UNRESOLVED;
+  return items.some((item) => item === needle);
+}
+
+function evaluateJoin(args: readonly ExprValue[]): EvalResult {
+  const separator = asString(args[0]);
+  const first = asString(args[1]);
+  const second = asString(args[2]);
+  if (isUnresolved(separator) || isUnresolved(first) || isUnresolved(second)) return UNRESOLVED;
+  return `${first}${separator}${second}`;
+}
+
+function evaluateReplace(args: readonly ExprValue[]): EvalResult {
+  const source = asString(args[0]);
+  const target = asString(args[1]);
+  const replacement = asString(args[2]);
+  if (isUnresolved(source) || isUnresolved(target) || isUnresolved(replacement)) return UNRESOLVED;
+  if (target === '') return UNRESOLVED;
+  return source.split(target).join(replacement);
+}
+
+function evaluateSubstring(args: readonly ExprValue[]): EvalResult {
+  const source = asString(args[0]);
+  const start = asInteger(args[1]);
+  const end = asInteger(args[2]);
+  if (isUnresolved(source) || isUnresolved(start) || isUnresolved(end)) return UNRESOLVED;
+  if (start < 0 || end > source.length || start > end) return UNRESOLVED;
+  return source.slice(start, end);
+}
+
+function substringAfter(source: string, separator: string): ExprValue | Unresolved {
+  const at = source.indexOf(separator);
+  return at === -1 ? UNRESOLVED : source.slice(at + separator.length);
+}
+
+function substringBefore(source: string, separator: string): ExprValue | Unresolved {
+  const at = source.indexOf(separator);
+  return at === -1 ? UNRESOLVED : source.slice(0, at);
 }
 
 export const SUPPORTED_FUNCTIONS: ReadonlyMap<string, SupportedFunction> = new Map<
@@ -134,6 +205,31 @@ export const SUPPORTED_FUNCTIONS: ReadonlyMap<string, SupportedFunction> = new M
     { arity: 2, evaluate: (a) => withTwoStrings(a, (s, suffix) => s.endsWith(suffix)) },
   ],
   ['String.append', { arity: 2, evaluate: (a) => withTwoStrings(a, (s, suffix) => s + suffix) }],
+  ['String.join', { arity: 3, evaluate: (a) => evaluateJoin(a) }],
+  [
+    'String.removeSpaces',
+    { arity: 1, evaluate: (a) => withOneString(a, (s) => s.replace(/ /g, '')) },
+  ],
+  ['String.replace', { arity: 3, evaluate: (a) => evaluateReplace(a) }],
+  ['String.substring', { arity: 3, evaluate: (a) => evaluateSubstring(a) }],
+  [
+    'String.substringAfter',
+    { arity: 2, evaluate: (a) => withTwoStrings(a, (s, sep) => substringAfter(s, sep)) },
+  ],
+  [
+    'String.substringBefore',
+    { arity: 2, evaluate: (a) => withTwoStrings(a, (s, sep) => substringBefore(s, sep)) },
+  ],
+  ['Arrays.contains', { arity: 2, evaluate: (a) => evaluateArraysContains(a) }],
+  ['Arrays.size', { arity: 1, evaluate: (a) => evaluateOverArray(a, (items) => items.length) }],
+  [
+    'Arrays.isEmpty',
+    { arity: 1, evaluate: (a) => evaluateOverArray(a, (items) => items.length === 0) },
+  ],
+  [
+    'Arrays.toCsvString',
+    { arity: 1, evaluate: (a) => evaluateOverArray(a, (items) => items.join(',')) },
+  ],
 ]);
 
 export const GROUP_MEMBERSHIP_FUNCTIONS: ReadonlySet<string> = new Set([
@@ -228,7 +324,8 @@ function parseExpression(expression: string): jsep.Expression | undefined {
 }
 
 function truthiness(result: EvalResult): boolean | Unresolved {
-  return isUnresolved(result) ? UNRESOLVED : Boolean(result);
+  if (isUnresolved(result) || Array.isArray(result)) return UNRESOLVED;
+  return Boolean(result);
 }
 
 function giveUp(reason: RuleUnevaluableReason, options: EvaluationWalkOptions): Unresolved {
@@ -241,16 +338,56 @@ function giveUpLogged(reason: RuleUnevaluableReason, options: EvaluationWalkOpti
   return giveUp(reason, options);
 }
 
+const USER_TOP_LEVEL_FIELDS: ReadonlySet<string> = new Set([
+  'id',
+  'status',
+  'created',
+  'activated',
+  'statusChanged',
+  'lastLogin',
+  'lastUpdated',
+  'passwordChanged',
+]);
+
+function asOperand(raw: unknown, options: EvaluationWalkOptions): EvalResult {
+  if (raw === null) return null;
+  if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') return raw;
+  if (Array.isArray(raw)) {
+    const scalars: ExprScalar[] = [];
+    for (const item of raw) {
+      if (item === null) {
+        scalars.push(null);
+      } else if (
+        typeof item === 'string' ||
+        typeof item === 'number' ||
+        typeof item === 'boolean'
+      ) {
+        scalars.push(item);
+      } else {
+        return giveUp('operand-type', options);
+      }
+    }
+    return scalars;
+  }
+  return giveUp('operand-type', options);
+}
+
 function resolveMember(node: jsep.MemberExpression, options: EvaluationWalkOptions): EvalResult {
   if (node.computed) return giveUp('unsupported-node', options);
   const { object, property } = node;
   if (!isIdentifier(object) || object.name !== 'user') return giveUp('unsupported-node', options);
   if (!isIdentifier(property)) return giveUp('unsupported-node', options);
 
-  const raw = (options.user.profile as Record<string, unknown>)[property.name];
-  if (raw === undefined || raw === null) return null;
-  if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') return raw;
-  return String(raw);
+  const profile = options.user.profile as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(profile, property.name)) {
+    return asOperand(profile[property.name], options);
+  }
+  if (USER_TOP_LEVEL_FIELDS.has(property.name)) {
+    const raw = (options.user as unknown as Record<string, unknown>)[property.name];
+    if (raw === undefined) return giveUp('attribute-absent', options);
+    return asOperand(raw, options);
+  }
+  return giveUp('attribute-absent', options);
 }
 
 function evaluateAnd(left: EvalResult, right: EvalResult): EvalResult {
@@ -301,6 +438,8 @@ function evaluateBinary(node: jsep.BinaryExpression, options: EvaluationWalkOpti
   if (OR_OPERATORS.has(operator)) return evaluateOr(left, right);
 
   if (isUnresolved(left) || isUnresolved(right)) return UNRESOLVED;
+
+  if (Array.isArray(left) || Array.isArray(right)) return giveUp('operand-type', options);
 
   if (EQUALITY_OPERATORS.has(operator)) return left === right;
   if (INEQUALITY_OPERATORS.has(operator)) return left !== right;
@@ -374,7 +513,7 @@ function evaluateNode(node: jsep.Expression, options: EvaluationWalkOptions): Ev
   if (isCallExpression(node)) return evaluateCall(node, options);
   if (isBinaryExpression(node)) return evaluateBinary(node, options);
   if (isUnaryExpression(node)) {
-    if (node.operator !== '!') return giveUp('unsupported-node', options);
+    if (!NEGATION_OPERATORS.has(node.operator)) return giveUp('unsupported-node', options);
     const argument = truthiness(evaluateNode(node.argument, options));
     return isUnresolved(argument) ? UNRESOLVED : !argument;
   }
@@ -448,7 +587,7 @@ function isSupportedNode(node: jsep.Expression, options: GrammarWalkOptions = {}
     return node.arguments.every((argument) => isSupportedNode(argument, options));
   }
   if (isUnaryExpression(node)) {
-    if (node.operator !== '!') return reject('unsupported-node', options);
+    if (!NEGATION_OPERATORS.has(node.operator)) return reject('unsupported-node', options);
     return isSupportedNode(node.argument, options);
   }
   if (isBinaryExpression(node)) {

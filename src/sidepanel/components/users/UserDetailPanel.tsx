@@ -17,6 +17,7 @@ import type { UserProfileEditing } from '../../hooks/useUsersTabProfileEdit';
 
 export interface UserDetailPanelProps {
   user: OktaUser;
+  targetTabId?: number | null;
   oktaOrigin?: string | null;
 
   pane: UserDetailPane;
@@ -45,6 +46,7 @@ export interface UserDetailPanelProps {
 
 const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   user,
+  targetTabId,
   oktaOrigin,
   pane,
   onPaneChange,
@@ -97,6 +99,8 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
           <GroupMembershipsList
             memberships={memberships}
             user={user}
+            targetTabId={targetTabId}
+            isActive={pane === 'groups'}
             isLoading={isLoadingMemberships}
             currentGroupId={currentGroupId}
             oktaOrigin={oktaOrigin}

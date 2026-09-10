@@ -6,7 +6,14 @@ export function expressionText(rule: OktaGroupRule): string {
 }
 
 function excludedUserIdsOf(rule: OktaGroupRule): string[] {
-  const value: unknown = rule.conditions?.people?.users?.exclude;
+  return stringIdsOf(rule.conditions?.people?.users?.exclude);
+}
+
+function excludedGroupIdsOf(rule: OktaGroupRule): string[] {
+  return stringIdsOf(rule.conditions?.people?.groups?.exclude);
+}
+
+function stringIdsOf(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
 }
 
@@ -106,6 +113,7 @@ export function formatRuleForDisplay(
     groupIds,
     userAttributes,
     excludedUserIds: excludedUserIdsOf(rule),
+    excludedGroupIds: excludedGroupIdsOf(rule),
     created: rule.created,
     lastUpdated: rule.lastUpdated,
     affectsCurrentGroup,

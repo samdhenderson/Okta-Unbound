@@ -1,15 +1,24 @@
 import React, { useMemo } from 'react';
-import { AlertMessage, DetailSection, LoadingSpinner, RuleExpressionText } from '../../shared';
+import {
+  AlertMessage,
+  DetailSection,
+  LoadingSpinner,
+  RuleExpressionText,
+  type GroupNameResolver,
+} from '../../shared';
 import RuleCard from '../../RuleCard';
 import type { FeedingRule, SourceStatus } from '../../../hooks/useGroupSource';
 import type { ReferencingRule } from '../../../hooks/useGroupRuleReferences';
 import type { FormattedRule } from '../../../../shared/types';
 
-const RuleConditionLine: React.FC<{ rule: FormattedRule }> = ({ rule }) => {
+const RuleConditionLine: React.FC<{
+  rule: FormattedRule;
+  resolveGroupName?: GroupNameResolver;
+}> = ({ rule, resolveGroupName: resolveFromHost }) => {
   const names = rule.allGroupNamesMap;
-  const resolveGroupName = useMemo(
-    () => (names ? (groupId: string) => names[groupId] : undefined),
-    [names],
+  const resolveGroupName = useMemo<GroupNameResolver | undefined>(
+    () => (groupId) => names?.[groupId] ?? resolveFromHost?.(groupId),
+    [names, resolveFromHost],
   );
 
   const expression = rule.conditionExpression || rule.condition;
@@ -35,7 +44,17 @@ const RuleRelationList: React.FC<{
   emptyMessage: string;
   rules: FormattedRule[];
   onNavigateToRule?: (ruleId: string) => void;
-}> = ({ heading, hint, status, error, emptyMessage, rules, onNavigateToRule }) => (
+  resolveGroupName?: GroupNameResolver;
+}> = ({
+  heading,
+  hint,
+  status,
+  error,
+  emptyMessage,
+  rules,
+  onNavigateToRule,
+  resolveGroupName,
+}) => (
   <div>
     <h3 className="text-xs font-medium text-neutral-600">
       {heading}
@@ -54,7 +73,7 @@ const RuleRelationList: React.FC<{
           {rules.map((rule) => (
             <div key={rule.id}>
               <RuleCard rule={rule} onOpenInRulesTab={onNavigateToRule} />
-              <RuleConditionLine rule={rule} />
+              <RuleConditionLine rule={rule} resolveGroupName={resolveGroupName} />
             </div>
           ))}
         </div>
@@ -71,6 +90,7 @@ interface GroupRulesSectionProps {
   referencingStatus: SourceStatus;
   referencingError: string | null;
   onNavigateToRule?: (ruleId: string) => void;
+  resolveGroupName?: GroupNameResolver;
 }
 
 const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
@@ -81,6 +101,7 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
   referencingStatus,
   referencingError,
   onNavigateToRule,
+  resolveGroupName,
 }) => (
   <DetailSection title="Rules">
     <div className="space-y-4">
@@ -92,6 +113,7 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
         emptyMessage="No rule assigns users to this group. Members are added manually or by app push."
         rules={assigningRules}
         onNavigateToRule={onNavigateToRule}
+        resolveGroupName={resolveGroupName}
       />
 
       <RuleRelationList
@@ -102,6 +124,7 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
         emptyMessage="No rule condition references this group by id."
         rules={referencingRules}
         onNavigateToRule={onNavigateToRule}
+        resolveGroupName={resolveGroupName}
       />
     </div>
   </DetailSection>

@@ -2,8 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createGroupDiscoveryOperations } from './groupDiscovery';
 import type { CoreApi } from './core';
 import { RulesCache } from '../../../shared/rulesCache';
-import { formatRuleForDisplay } from '../../../shared/ruleUtils';
+import { formatRulesWithGroupIndex } from '../fetchGroupRulesRequest';
 import { makeFakeCore } from '@/test/factories/coreApi';
+import { orgSnapshotStore } from '../../../shared/snapshot/orgSnapshotStore';
+
+vi.mock('../../../shared/snapshot/orgSnapshotStore', () => ({
+  orgSnapshotStore: {
+    getCollection: vi.fn().mockResolvedValue([]),
+    getMeta: vi.fn().mockResolvedValue({ complete: false }),
+  },
+}));
 
 vi.mock('../../../shared/rulesCache', () => ({
   RulesCache: {
@@ -227,6 +235,49 @@ describe('getGroupRulesForGroup', () => {
     expect(rules[0].userAttributes).toEqual(['department', 'title']);
   });
 
+  it('banks the org-wide rules with the snapshot group names, not bare ids', async () => {
+    vi.mocked(orgSnapshotStore.getCollection).mockResolvedValue([
+      { id: '00gFAKEtarget0000001', profile: { name: 'Engineering' } },
+      { id: '00gFAKEcondition0001', profile: { name: 'Contractors' } },
+    ]);
+    vi.mocked(orgSnapshotStore.getMeta).mockResolvedValue({
+      complete: true,
+    } as Awaited<ReturnType<typeof orgSnapshotStore.getMeta>>);
+
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({
+        success: true,
+        data: [
+          rule('r1', {
+            conditions: {
+              expression: {
+                value: 'isMemberOfGroup("00gFAKEcondition0001")',
+                type: 'urn:okta:expression:1.0',
+              },
+            },
+            actions: {
+              assignUserToGroups: { groupIds: ['00gFAKEtarget0000001', '00gFAKEgone000000001'] },
+            },
+          }),
+        ],
+      }),
+    });
+
+    const rules = await createGroupDiscoveryOperations(
+      core,
+      'https://example.okta.com',
+    ).ensureGroupRulesLoaded();
+
+    expect(rules).not.toBeNull();
+    expect(rules?.[0].groupNames).toEqual(['Engineering', '00gFAKEgone000000001']);
+    expect(rules?.[0].allGroupNamesMap).toEqual({
+      '00gFAKEtarget0000001': 'Engineering',
+      '00gFAKEcondition0001': 'Contractors',
+    });
+    expect(rules?.[0].missingGroupIds).toEqual(['00gFAKEgone000000001']);
+    expect(setMock).toHaveBeenCalledWith(rules, expect.anything(), expect.anything(), []);
+  });
+
   it('returns the same shape from the cache-hit and cache-miss paths', async () => {
     const raw = {
       id: 'r1',
@@ -249,7 +300,13 @@ describe('getGroupRulesForGroup', () => {
     });
     const missRules = await createGroupDiscoveryOperations(missCore).getGroupRulesForGroup('g1');
 
-    getRulesForGroupMock.mockResolvedValue([formatRuleForDisplay(raw, undefined, [])]);
+    getRulesForGroupMock.mockResolvedValue(
+      formatRulesWithGroupIndex([raw], {
+        nameById: new Map(),
+        idsHeld: new Set(),
+        complete: false,
+      }).rules,
+    );
     const hitCore = makeCore();
     const hitRules = await createGroupDiscoveryOperations(hitCore).getGroupRulesForGroup('g1');
     expect(hitCore.makeApiRequest).not.toHaveBeenCalled();

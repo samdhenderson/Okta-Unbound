@@ -16,6 +16,8 @@ const user: OktaUser = {
     city: 'San Francisco',
     headcount: 42,
     isContractor: true,
+    nullable: null,
+    roles: ['admin', 'dev'],
   },
 };
 
@@ -107,8 +109,8 @@ describe('clauses the grammar gate rejects', () => {
     },
     {
       name: 'a function outside the allow-list',
-      expression: 'String.substring(user.email, 0, 3) == "ada"',
-      expressionText: 'String.substring(user.email, 0, 3) == "ada"',
+      expression: 'String.replaceFirst(user.email, "a", "b") == "ada"',
+      expressionText: 'String.replaceFirst(user.email, "a", "b") == "ada"',
       reasonCode: 'unknown-fn',
     },
     {
@@ -248,10 +250,14 @@ describe('nesting, parentheses and negation', () => {
     expect(summary.result).toEqual({ outcome: 'match' });
   });
 
-  it('distinguishes an absent attribute (null) from nothing resolvable', () => {
+  it('distinguishes an attribute present-and-null from one that is absent', () => {
+    const present = explainRuleExpression('user.nullable == null', user);
+    expect(present.clauses[0].resolvedValue).toBeNull();
+    expect(present.clauses[0].status).toBe('pass');
+
     const absent = explainRuleExpression('user.costCenter == null', user);
-    expect(absent.clauses[0].resolvedValue).toBeNull();
-    expect(absent.clauses[0].status).toBe('pass');
+    expect(absent.clauses[0].status).toBe('not-evaluated');
+    expect(absent.clauses[0].reasonCode).toBe('attribute-absent');
 
     const nothing = explainRuleExpression('isMemberOfGroupName("Engineering")', user);
     expect(nothing.clauses[0].resolvedValue).toBeUndefined();
@@ -327,7 +333,7 @@ describe('expressions that never become clauses', () => {
 describe('bounded output', () => {
   it('caps clause rows and says so', () => {
     const { clauses, summary } = explainRuleExpression(
-      'user.a == "1" && user.b == "2" && user.c == "3"',
+      'user.department == "1" && user.title == "2" && user.city == "3"',
       user,
       { maxClauses: 2 },
     );
@@ -360,8 +366,11 @@ describe('an unresolvable clause is never a failure', () => {
     'session.amr == "pwd"',
     'user["department"] == "Engineering"',
     'user.department + "x" == "Engineeringx"',
-    'String.substring(user.email, 0, 3) == "ada"',
+    'String.replaceFirst(user.email, "a", "b") == "ada"',
+    'Arrays.flatten(user.roles)',
     'Arrays.contains(user.department, "Eng")',
+    'user.costCenter == "1234"',
+    'user.roles == "admin,dev"',
     'String.startsWith(user.headcount, "4")',
     'user.department > "A"',
     'user.department',

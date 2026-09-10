@@ -21,6 +21,7 @@ import CurrentGroupRuleRelations from './rules/CurrentGroupRuleRelations';
 import RuleConsolidationModal from './RuleConsolidationModal';
 import type { FormattedRule, GroupRuleStatus, OktaGroupRule } from '../../shared/types';
 import { filterRules } from '../../shared/ruleUtils';
+import { extractReferencedGroupIds } from '../../shared/rules/groupRuleIndex';
 import { findMergeableRuleGroups, type MergeableRuleGroup } from '../../shared/rules/consolidation';
 import { sortRules, type RuleSortMode } from '../../shared/rules/similarity';
 import { countCurrentGroupRuleRelations } from '../../shared/rules/currentGroupRelations';
@@ -33,6 +34,7 @@ import { useRulesData } from '../hooks/useRulesData';
 import { useRuleLifecycle } from '../hooks/useRuleLifecycle';
 import { useRuleConsolidation } from '../hooks/useRuleConsolidation';
 import { useViewStack } from '../hooks/useViewStack';
+import { useGroupNameResolver } from '../hooks/useGroupNameResolver';
 import { useScrollPreservation } from '../hooks/useScrollPreservation';
 import type { RuleImpactInput } from '../hooks/useOktaApi/ruleImpact';
 import { TabStateManager, saveRulesTabState } from '../../shared/tabState/tabStateManager';
@@ -283,6 +285,25 @@ const RulesTab: React.FC<RulesTabProps> = ({
     ? (rules.find((r) => r.id === currentEntry.id) ?? currentEntry)
     : null;
 
+  const { resolveGroupName: resolveRuleGroupName, request: requestGroupNames } =
+    useGroupNameResolver({ targetTabId, oktaOrigin, enabled: isActive });
+
+  const referencedGroupIds = React.useMemo(
+    () =>
+      openRule
+        ? [
+            ...new Set(
+              extractReferencedGroupIds(openRule.conditionExpression || openRule.condition),
+            ),
+          ]
+        : [],
+    [openRule],
+  );
+
+  useEffect(() => {
+    if (referencedGroupIds.length > 0) requestGroupNames(referencedGroupIds);
+  }, [referencedGroupIds, requestGroupNames]);
+
   const identity = openRule ? ruleIdentity(openRule) : null;
 
   const [tierRung, setTierRung] = useState<string | null>(null);
@@ -458,6 +479,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
             onConfirmActivate={handleConfirmActivate}
             onRequestDeactivate={() => handleRequestDeactivate(openRule.id)}
             onAddTargetGroup={() => consolidation.openAddTarget(openRule)}
+            resolveGroupName={resolveRuleGroupName}
             sticky={isActive}
           />
         </div>

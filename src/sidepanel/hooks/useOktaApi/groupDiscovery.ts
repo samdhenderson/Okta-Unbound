@@ -1,14 +1,14 @@
 import type { CoreApi } from './core';
 import type { OktaGroup, OktaGroupRule, FormattedRule } from '../../../shared/types';
 import { RulesCache } from '../../../shared/rulesCache';
-import { detectConflicts, formatRuleForDisplay } from '../../../shared/ruleUtils';
+import { formatRulesWithGroupIndex, loadCachedGroupIndex } from '../fetchGroupRulesRequest';
 import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import { oktaGroupRuleSchema } from '../../../shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useOktaApi');
 
-export function createGroupDiscoveryOperations(coreApi: CoreApi) {
+export function createGroupDiscoveryOperations(coreApi: CoreApi, oktaOrigin?: string | null) {
   const getAllGroups = async (
     onProgress?: (loaded: number, total: number) => void,
   ): Promise<OktaGroup[]> =>
@@ -64,8 +64,8 @@ export function createGroupDiscoveryOperations(coreApi: CoreApi) {
       });
     }
 
-    const conflicts = detectConflicts(rawRules);
-    const rules = rawRules.map((rule) => formatRuleForDisplay(rule, undefined, conflicts));
+    const groupIndex = await loadCachedGroupIndex(oktaOrigin);
+    const { rules, conflicts } = formatRulesWithGroupIndex(rawRules, groupIndex);
     await RulesCache.set(
       rules,
       rawRules,

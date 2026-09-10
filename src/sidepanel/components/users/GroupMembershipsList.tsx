@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, FilterPill, IconButton, Input, Skeleton } from '../shared';
 import Icon from '../shared/Icon';
 import GroupMembershipRow from './GroupMembershipRow';
@@ -12,6 +12,9 @@ import {
 } from './membershipVerdict';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
 import { groupContextOf } from '../../../shared/membership/groupContext';
+import { conditionExpressionOf } from '../../../shared/membership/ruleExpression';
+import { extractReferencedGroupIds } from '../../../shared/rules/groupRuleIndex';
+import { useGroupNameResolver } from '../../hooks/useGroupNameResolver';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
 
 const BUCKET_ORDER: readonly MembershipBucket[] = ['rule', 'direct', 'app', 'unresolved'];
@@ -25,6 +28,8 @@ interface GroupMembershipsListProps {
   recentlyAddedGroupId?: string | null;
   appsByGroupId?: Record<string, string[]>;
   onProveMembershipSource?: (groupId: string) => Promise<MemberRuleAttribution>;
+  targetTabId?: number | null;
+  isActive?: boolean;
 }
 
 const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
@@ -36,6 +41,8 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   recentlyAddedGroupId,
   appsByGroupId,
   onProveMembershipSource,
+  targetTabId,
+  isActive = true,
 }) => {
   const [query, setQuery] = useState('');
   const [bucket, setBucket] = useState<MembershipBucketFilter>('all');
@@ -59,6 +66,46 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
     () => (isLoading ? undefined : groupContextOf(memberships)),
     [isLoading, memberships],
   );
+
+  const knownGroupNames = useMemo(
+    () => new Map(memberships.map((m) => [m.group.id, m.group.profile.name])),
+    [memberships],
+  );
+
+  const { resolveGroupName, request: requestGroupNames } = useGroupNameResolver({
+    targetTabId,
+    oktaOrigin,
+    known: knownGroupNames,
+    enabled: isActive,
+  });
+
+  const referencedGroupIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          memberships.flatMap((membership) =>
+            membership.rules.flatMap((rule) =>
+              extractReferencedGroupIds(conditionExpressionOf(rule)),
+            ),
+          ),
+        ),
+      ].filter((id) => !knownGroupNames.has(id)),
+    [memberships, knownGroupNames],
+  );
+
+  useEffect(() => {
+    if (referencedGroupIds.length > 0) requestGroupNames(referencedGroupIds);
+  }, [referencedGroupIds, requestGroupNames]);
+
+  const unsettled = useMemo(
+    () => (isLoading ? [] : memberships.filter((m) => m.attribution !== 'exact')),
+    [isLoading, memberships],
+  );
+
+  useEffect(() => {
+    if (!isActive || unsettled.length === 0) return;
+    proofs.proveAll(unsettled);
+  }, [isActive, unsettled, proofs]);
 
   const toggleRow = (groupId: string) =>
     setOpenGroupIds((current) => {
@@ -144,6 +191,7 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
               membership={membership}
               user={user}
               groupContext={groupContext}
+              resolveGroupName={resolveGroupName}
               isCurrentGroup={membership.group.id === currentGroupId}
               expanded={openGroupIds.has(membership.group.id)}
               onToggle={toggleRow}

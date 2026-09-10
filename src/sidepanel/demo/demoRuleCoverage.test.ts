@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { tryEvaluateRuleExpression } from '../../shared/ruleEvaluator';
+import { tryEvaluateRuleExpression, type RuleGroupContext } from '../../shared/ruleEvaluator';
 import { GROUP, RULE_FED_GROUPS, demoGroupMembers } from './memberships';
 import { fakeId } from './org';
 import { currentGroupsById, demoRules } from './snapshot';
 import { demoUsers } from './users';
 
 const EXPECTED_EXEMPT_ORDINALS: readonly number[] = [GROUP.everyone, GROUP.workdayAllWorkers];
-
-const EVALUATOR_CANNOT_REPRODUCE: readonly number[] = [GROUP.vpnUsers];
 
 const groupId = (ordinal: number): string => fakeId('00g', ordinal);
 
@@ -66,32 +64,33 @@ describe('every rule-fed demo group states its reason', () => {
   });
 });
 
+const groupContextByUser = ((): ReadonlyMap<string, RuleGroupContext> => {
+  const byUser = new Map<string, { id: string; name: string }[]>();
+  for (const [id, members] of demoGroupMembers()) {
+    const name = currentGroupsById().get(id)?.profile?.name ?? id;
+    for (const userId of members) {
+      const held = byUser.get(userId) ?? [];
+      held.push({ id, name });
+      byUser.set(userId, held);
+    }
+  }
+  return byUser;
+})();
+
 describe('the declared expression selects the derived membership', () => {
   for (const entry of declared) {
     const name = groupName(entry.ordinal);
     const expression = entry.expression ?? '';
 
-    if (EVALUATOR_CANNOT_REPRODUCE.includes(entry.ordinal)) {
-      it(`${name}'s rule is declared, and the evaluator still cannot reproduce it`, () => {
-        const derived = demoGroupMembers().get(groupId(entry.ordinal)) ?? [];
-        const matched = demoUsers.filter(
-          (user) => tryEvaluateRuleExpression(expression, user) === 'match',
-        );
-
-        expect(derived.length).toBeGreaterThan(0);
-        expect(
-          matched.length,
-          `${name}'s rule now selects members; the ruleEvaluator defect is fixed, so delete this entry from EVALUATOR_CANNOT_REPRODUCE and let the equality check below cover it`,
-        ).toBe(0);
-      });
-      continue;
-    }
-
     it(`${name}'s rule evaluates to exactly its ${demoGroupMembers().get(groupId(entry.ordinal))?.length ?? 0} members`, () => {
       const derived = new Set(demoGroupMembers().get(groupId(entry.ordinal)) ?? []);
       const evaluated = new Set(
         demoUsers
-          .filter((user) => tryEvaluateRuleExpression(expression, user) === 'match')
+          .filter(
+            (user) =>
+              tryEvaluateRuleExpression(expression, user, groupContextByUser.get(user.id) ?? []) ===
+              'match',
+          )
           .map((user) => user.id),
       );
 

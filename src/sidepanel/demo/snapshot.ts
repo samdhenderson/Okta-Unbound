@@ -95,6 +95,11 @@ const groupTemplates: readonly RawOktaGroup[] = [
   ),
   group(GROUP.salesEmeaLegacy, 'Sales - EMEA legacy', 'Superseded by Sales - All'),
   group(GROUP.verifyRollout, 'Okta Verify Rollout', 'Pilot cohort for the Okta Verify rollout'),
+  group(
+    GROUP.contractorsAll,
+    'Contractors - All',
+    'Rule-assigned: everyone in either regional contractor group',
+  ),
 ];
 
 function rule(
@@ -162,6 +167,12 @@ export const demoRules: OktaGroupRule[] = [
   rule(19, 'Austin office', 'user.city == "Austin"', [fakeId('00g', 27)]),
   rule(20, 'Sydney office', 'user.city == "Sydney"', [fakeId('00g', 28)]),
   rule(21, 'Engineering → Datadog', 'user.department == "Engineering"', [fakeId('00g', 34)]),
+  rule(
+    22,
+    'Regional contractors → Contractors - All',
+    `isMemberOfAnyGroup("${fakeId('00g', 15)}", "${fakeId('00g', 16)}")`,
+    [fakeId('00g', 38)],
+  ),
 ];
 
 function app(

@@ -122,6 +122,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
 
               <UserDetailPanel
                 user={selectedUser}
+                targetTabId={targetTabId}
                 oktaOrigin={state.oktaOrigin}
                 pane={panes.pane}
                 onPaneChange={panes.setPane}
