@@ -2,9 +2,8 @@ import React from 'react';
 import ListRow from '../shared/ListRow';
 import OpenInOktaLink from '../shared/OpenInOktaLink';
 import Icon from '../shared/Icon';
-import { destinationLabel, KIND_ICON } from './jumpDestinations';
+import { destinationLabel, KIND_ICON, oktaAdminTargetFor } from './jumpDestinations';
 import type { JumpResult } from '../../hooks/useJumpResolver';
-import type { OktaAdminEntityType } from '../../../shared/utils/oktaUrl';
 
 export interface JumpResultRowProps {
   result: JumpResult;
@@ -12,21 +11,15 @@ export interface JumpResultRowProps {
   oktaOrigin?: string | null;
 }
 
-const OKTA_LINK_TYPE: Partial<Record<JumpResult['kind'], OktaAdminEntityType>> = {
-  group: 'group',
-  user: 'user',
-  app: 'app',
-};
-
 const JumpResultRow: React.FC<JumpResultRowProps> = ({ result, onSelect, oktaOrigin }) => {
-  const linkType = OKTA_LINK_TYPE[result.kind];
+  const oktaTarget = oktaAdminTargetFor(result);
 
   const mark = onSelect ? (
     <span className="text-xs font-medium text-neutral-600 shrink-0">
       {destinationLabel(result.kind)} ›
     </span>
-  ) : linkType ? (
-    <OpenInOktaLink oktaOrigin={oktaOrigin} entityType={linkType} entityId={result.id} size="sm" />
+  ) : oktaTarget ? (
+    <OpenInOktaLink oktaOrigin={oktaOrigin} target={oktaTarget} size="sm" />
   ) : null;
 
   return (

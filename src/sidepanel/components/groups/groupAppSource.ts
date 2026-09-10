@@ -14,6 +14,7 @@ export type GroupAppPush =
 export interface GroupAppRowModel {
   id: string;
   label: string;
+  name?: string;
   status?: string;
   statusVariant: AppStatusVariant;
   signOnMode?: string;
@@ -33,6 +34,7 @@ export function toGroupAppRows(
   return apps.map((app) => ({
     id: app.id,
     label: app.label,
+    name: app.name,
     status: app.status,
     statusVariant: appStatusVariant(app.status),
     signOnMode: app.signOnMode,

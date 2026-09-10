@@ -1,4 +1,5 @@
-import type { JumpKind } from '../../hooks/useJumpResolver';
+import type { JumpKind, JumpResult } from '../../hooks/useJumpResolver';
+import type { OktaAdminTarget } from '../../../shared/utils/oktaUrl';
 import type { EntityType } from '../../contexts/NavigationContext';
 import { TAB_DEFS, type TabType } from '../../tabs';
 import type { IconType } from '../shared/Icon';
@@ -34,4 +35,18 @@ export function destinationLabel(kind: JumpKind): string {
 
 export function navigationTarget(kind: JumpKind): EntityType {
   return KIND_TO_ENTITY_TYPE[kind];
+}
+
+export function oktaAdminTargetFor(result: JumpResult): OktaAdminTarget | null {
+  switch (result.kind) {
+    case 'group':
+      return { type: 'group', id: result.id };
+    case 'user':
+      return { type: 'user', id: result.id };
+    case 'app':
+      return { type: 'app', id: result.id, name: result.appName };
+    case 'rule':
+    case 'policy':
+      return null;
+  }
 }

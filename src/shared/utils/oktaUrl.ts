@@ -22,20 +22,26 @@ export function oktaOriginOf(url: string | null | undefined): string | null {
   }
 }
 
-export type OktaAdminEntityType = 'group' | 'user' | 'app';
+export type OktaAdminTarget =
+  | { type: 'group'; id: string | null | undefined }
+  | { type: 'user'; id: string | null | undefined }
+  | {
+      type: 'app';
+      id: string | null | undefined;
+      name: string | null | undefined;
+    };
 
 export function oktaAdminEntityUrl(
   origin: string | null | undefined,
-  type: OktaAdminEntityType,
-  id: string | null | undefined,
+  target: OktaAdminTarget,
 ): string | null {
-  if (!origin || !id) return null;
-  switch (type) {
+  if (!origin || !target.id) return null;
+  switch (target.type) {
     case 'group':
-      return `${origin}/admin/group/${id}`;
+      return `${origin}/admin/group/${target.id}`;
     case 'user':
-      return `${origin}/admin/user/profile/view/${id}`;
+      return `${origin}/admin/user/profile/view/${target.id}`;
     case 'app':
-      return `${origin}/admin/app/${id}/instance/${id}`;
+      return target.name ? `${origin}/admin/app/${target.name}/instance/${target.id}` : null;
   }
 }

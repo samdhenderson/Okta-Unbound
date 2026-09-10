@@ -24,6 +24,7 @@ export interface IndexedEntity {
   id: string;
   name: string;
   secondary?: string;
+  appName?: string;
 }
 
 export type LocalLookup =
@@ -92,7 +93,8 @@ export function useOrgEntityIndexSource({
   const appsById = useMemo(() => {
     const byId = new Map<string, IndexedEntity>();
     for (const app of apps.rows) {
-      if (app.id) byId.set(app.id, { kind: 'app', id: app.id, name: appName(app) });
+      if (app.id)
+        byId.set(app.id, { kind: 'app', id: app.id, name: appName(app), appName: app.name });
     }
     return byId;
   }, [apps.rows]);

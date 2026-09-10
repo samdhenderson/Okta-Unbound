@@ -19,6 +19,7 @@ const log = createLogger('useOktaApi');
 export interface UserAppAssignment {
   id: string;
   label: string;
+  name?: string;
   scope?: AppAssignmentScope;
   grantGroupId?: string;
   isProfileSource: boolean;
@@ -59,6 +60,7 @@ export function createUserOperations(coreApi: CoreApi) {
               apps.push({
                 id: app.id,
                 label: app.label || app.name || app.id,
+                name: app.name,
                 scope: extractAppAssignmentScope(app._embedded),
                 grantGroupId: extractAppGrantGroupId(app._embedded),
                 isProfileSource: isProfileSourceApp(app.features),

@@ -24,7 +24,7 @@ export interface EntitySearchApi {
       email?: string;
     }>
   >;
-  searchApps: (query: string) => Promise<Array<{ id: string; label: string }>>;
+  searchApps: (query: string) => Promise<Array<{ id: string; label: string; name?: string }>>;
   listPolicies: (type?: OktaPolicyType) => Promise<OktaPolicyListItem[]>;
   getGroupById: (id: string) => Promise<{ id: string; name: string; description?: string } | null>;
   getUserById: (id: string) => Promise<{
@@ -111,7 +111,7 @@ export function useEntitySearchSources({
         const seen = new Set(local.map((row) => row.id));
         const live = (await searchApps(query))
           .filter((app) => !seen.has(app.id))
-          .map((app) => ({ kind: 'app' as const, id: app.id, name: app.label }));
+          .map((app) => ({ kind: 'app' as const, id: app.id, name: app.label, appName: app.name }));
         return [...local, ...live];
       };
     }
@@ -170,6 +170,7 @@ export function useEntitySearchSources({
             kind: 'app',
             id: lookup.app.id,
             name: lookup.app.label || lookup.app.name || lookup.app.id,
+            appName: lookup.app.name,
           };
         case 'missing':
           return null;

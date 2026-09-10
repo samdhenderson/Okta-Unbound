@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { OktaAdminEntityType } from '@/shared/utils/oktaUrl';
+import type { OktaAdminTarget } from '@/shared/utils/oktaUrl';
 import type { IconType } from '@/sidepanel/components/shared/Icon';
 import type { CountResolution } from '@/sidepanel/components/home/orgFigures';
 import type { OrgSnapshotView } from './snapshot';
@@ -57,9 +57,9 @@ export type EntityRowSource<Row> =
       read(snapshot: OrgSnapshotView): SnapshotRows<Row>;
     };
 
-export interface IdLinkify {
-  entityType: OktaAdminEntityType;
+export interface IdLinkify<Row = unknown> {
   idColumnId: string;
+  target(row: Row): OktaAdminTarget | null;
 }
 
 export interface EntityExport<Row = unknown> {
@@ -81,7 +81,7 @@ export interface EntityExport<Row = unknown> {
 
   filter: FilterSupport;
 
-  linkify?: IdLinkify;
+  linkify?: IdLinkify<Row>;
 
   maxRows?: number;
 }

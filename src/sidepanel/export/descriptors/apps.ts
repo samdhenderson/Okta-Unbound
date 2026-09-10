@@ -16,7 +16,7 @@ export const appsDescriptor: EntityExport<OktaAppListItem> = {
     help: 'Search apps by name/label (prefix match).',
     placeholder: 'salesforce',
   },
-  linkify: { entityType: 'app', idColumnId: 'id' },
+  linkify: { idColumnId: 'id', target: (a) => ({ type: 'app', id: a.id, name: a.name }) },
   columnCatalog: [
     { id: 'id', label: 'App ID', group: 'base', defaultEnabled: true, accessor: (a) => a.id },
     {

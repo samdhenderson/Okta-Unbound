@@ -87,7 +87,7 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
                 />
               )}
 
-              <OpenInOktaLink oktaOrigin={oktaOrigin} entityType="group" entityId={group.id} />
+              <OpenInOktaLink oktaOrigin={oktaOrigin} target={{ type: 'group', id: group.id }} />
             </div>
           </div>
         </div>

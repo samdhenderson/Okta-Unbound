@@ -1,11 +1,10 @@
 import React from 'react';
 import Icon from '../shared/Icon';
-import { oktaAdminEntityUrl, type OktaAdminEntityType } from '../../../shared/utils/oktaUrl';
+import { oktaAdminEntityUrl, type OktaAdminTarget } from '../../../shared/utils/oktaUrl';
 
 interface OpenInOktaLinkProps {
   oktaOrigin?: string | null;
-  entityType: OktaAdminEntityType;
-  entityId: string | null | undefined;
+  target: OktaAdminTarget;
   label?: string;
   size?: 'sm' | 'md';
   className?: string;
@@ -18,13 +17,12 @@ const sizeClasses: Record<'sm' | 'md', string> = {
 
 const OpenInOktaLink: React.FC<OpenInOktaLinkProps> = ({
   oktaOrigin,
-  entityType,
-  entityId,
+  target,
   label = 'Open in Okta',
   size = 'sm',
   className = '',
 }) => {
-  const href = oktaAdminEntityUrl(oktaOrigin, entityType, entityId);
+  const href = oktaAdminEntityUrl(oktaOrigin, target);
   if (!href) return null;
 
   return (
@@ -32,7 +30,7 @@ const OpenInOktaLink: React.FC<OpenInOktaLinkProps> = ({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      title={`Open this ${entityType} in the Okta Admin Console`}
+      title={`Open this ${target.type} in the Okta Admin Console`}
       className={`inline-flex items-center ${sizeClasses[size]} font-medium bg-white text-neutral-700 border border-neutral-200 rounded-md hover:bg-neutral-50 hover:border-neutral-500 transition-colors duration-(--dur-instant) ${className}`}
       style={{ fontFamily: 'var(--font-heading)' }}
     >
