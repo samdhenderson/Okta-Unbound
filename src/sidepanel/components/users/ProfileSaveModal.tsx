@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertMessage, Badge, Button, Eyebrow, Modal } from '../shared';
+import { AlertMessage, Badge, Button, Eyebrow, Modal, type GroupNameResolver } from '../shared';
 import BlastRadiusReport from './BlastRadiusReport';
 import type { BlastRadiusReport as BlastRadiusReportData } from '../../../shared/membership/blastRadiusTypes';
 import type { DraftChange } from './profileDraft';
@@ -13,6 +13,7 @@ export interface ProfileSaveModalProps {
   report: BlastRadiusReportData;
   onAnalyze: () => void;
   isAnalyzing: boolean;
+  resolveGroupName?: GroupNameResolver;
   error?: string;
 }
 
@@ -52,6 +53,7 @@ const ProfileSaveModal: React.FC<ProfileSaveModalProps> = ({
   report,
   onAnalyze,
   isAnalyzing,
+  resolveGroupName,
   error,
 }) => {
   const items = changes ?? [];
@@ -120,7 +122,7 @@ const ProfileSaveModal: React.FC<ProfileSaveModalProps> = ({
               Analyze blast radius
             </Button>
           )}
-          <BlastRadiusReport report={report} />
+          <BlastRadiusReport report={report} resolveGroupName={resolveGroupName} />
         </section>
       </div>
     </Modal>

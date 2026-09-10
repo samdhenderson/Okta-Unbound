@@ -39,6 +39,7 @@ export interface ComparisonPendingSave {
   readonly isSaving: boolean;
   readonly report: BlastRadiusReport;
   readonly isAnalyzing: boolean;
+  readonly resolveGroupName: (groupId: string) => string | undefined;
   readonly error?: string;
   readonly analyze: () => void;
   readonly cancel: () => void;
@@ -224,6 +225,7 @@ function useComparisonEditSide({
             isSaving: edit.isSaving,
             report: blast.report,
             isAnalyzing: blast.isAnalyzing,
+            resolveGroupName: blast.resolveGroupName,
             ...(message?.type === 'danger' ? { error: message.text } : {}),
             analyze: analyzeSide,
             cancel: dismiss,
@@ -236,6 +238,7 @@ function useComparisonEditSide({
       edit.isSaving,
       blast.report,
       blast.isAnalyzing,
+      blast.resolveGroupName,
       message,
       analyzeSide,
       dismiss,

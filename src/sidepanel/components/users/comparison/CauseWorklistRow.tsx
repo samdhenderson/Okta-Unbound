@@ -103,8 +103,10 @@ const CauseWorklistRow: React.FC<CauseWorklistRowProps> = ({
   </li>
 );
 
-const formatResolvedValue = (value: RuleExprValue): string =>
-  typeof value === 'string' ? JSON.stringify(value) : String(value);
+const formatResolvedValue = (value: RuleExprValue): string => {
+  if (Array.isArray(value)) return `[${value.map(formatResolvedValue).join(', ')}]`;
+  return typeof value === 'string' ? JSON.stringify(value) : String(value);
+};
 
 const clauseGroupNames =
   (clause: ClauseExplanation, resolveGroupName?: GroupNameResolver): GroupNameResolver =>

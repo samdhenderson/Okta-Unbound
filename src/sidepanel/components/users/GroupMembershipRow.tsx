@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Badge, IconButton, ListRow, OpenInOktaLink } from '../shared';
+import { Badge, IconButton, ListRow, OpenInOktaLink, type GroupNameResolver } from '../shared';
 import Icon from '../shared/Icon';
 import MembershipRuleEvidence from './MembershipRuleEvidence';
 import MembershipProofAction, { type MembershipProofOutcome } from './GroupMembershipsListProof';
@@ -12,6 +12,7 @@ export interface GroupMembershipRowProps {
   membership: GroupMembership;
   user?: OktaUser;
   groupContext?: RuleGroupContext;
+  resolveGroupName?: GroupNameResolver;
   isCurrentGroup: boolean;
   expanded: boolean;
   onToggle: (groupId: string) => void;
@@ -27,6 +28,7 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
   membership,
   user,
   groupContext,
+  resolveGroupName,
   isCurrentGroup,
   expanded,
   onToggle,
@@ -66,6 +68,7 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
                   rule={rule}
                   user={user}
                   groupContext={groupContext}
+                  resolveGroupName={resolveGroupName}
                 />
               ))}
 

@@ -26,7 +26,8 @@ import {
 } from '../components/users/profileAttributes';
 import { profileMastering } from '../components/users/profileEditability';
 import { profileRuleReads } from '../components/users/profileRuleReads';
-import { loadCachedGroupNames } from './fetchGroupRulesRequest';
+import { useGroupNameResolver } from './useGroupNameResolver';
+import { extractReferencedGroupIds } from '../../shared/rules/groupRuleIndex';
 import type { OktaUser, GroupMembership } from '../../shared/types';
 import type { OktaUserProfileSchema } from '../../shared/schemas/okta';
 
@@ -251,28 +252,38 @@ export function useUserComparison({
     });
   }, [groupBuckets.onlyCompared, contextUser, contextGroups, ruleInventory]);
 
-  const [cachedGroupNames, setCachedGroupNames] = useState<ReadonlyMap<string, string>>(
-    () => new Map(),
-  );
-
-  useEffect(() => {
-    if (!isActive) return;
-    let cancelled = false;
-    void loadCachedGroupNames(oktaOrigin).then((names) => {
-      if (!cancelled) setCachedGroupNames(names);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [isActive, oktaOrigin]);
-
-  const resolveGroupName = useMemo(() => {
-    const byId = new Map(cachedGroupNames);
+  const knownGroupNames = useMemo(() => {
+    const byId = new Map<string, string>();
     for (const membership of [...contextGroups, ...comparedGroups]) {
       byId.set(membership.group.id, membership.group.profile.name);
     }
-    return (groupId: string): string | undefined => byId.get(groupId);
-  }, [cachedGroupNames, contextGroups, comparedGroups]);
+    return byId;
+  }, [contextGroups, comparedGroups]);
+
+  const { resolveGroupName, request: requestGroupNames } = useGroupNameResolver({
+    targetTabId,
+    oktaOrigin,
+    known: knownGroupNames,
+    enabled: isActive,
+  });
+
+  const referencedGroupIds = useMemo(() => {
+    if (!causes) return [];
+    const ids = new Set<string>();
+    for (const cause of causes) {
+      for (const reference of [...(cause.requiredGroups ?? []), ...(cause.blockingGroups ?? [])]) {
+        if (reference.match === 'id') ids.add(reference.value);
+      }
+      for (const clause of cause.failingClauses) {
+        for (const id of extractReferencedGroupIds(clause.expressionText)) ids.add(id);
+      }
+    }
+    return [...ids];
+  }, [causes]);
+
+  useEffect(() => {
+    if (referencedGroupIds.length > 0) requestGroupNames(referencedGroupIds);
+  }, [referencedGroupIds, requestGroupNames]);
 
   const groupDiffCount = groupBuckets.onlyCompared.length + groupBuckets.onlyContext.length;
   const appDiffCount = appBuckets.onlyCompared.length + appBuckets.onlyContext.length;

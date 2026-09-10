@@ -11,6 +11,7 @@ import { orgSnapshotStore } from '../../shared/snapshot/orgSnapshotStore';
 import { getOrFetch, peek, setEntry, invalidate } from '../cache/entityCache';
 import { cacheKeys, RULE_INVENTORY_KEY } from '../cache/keys';
 import { analyzeMemberships, unclassifiedMemberships } from '../../shared/utils/membershipAnalysis';
+import { groupContextOfGroups } from '../../shared/membership/groupContext';
 import { createLogger } from '../../shared/utils/logger';
 import { useOktaApi } from './useOktaApi';
 import { getUserGroupsRequest } from './getUserGroupsRequest';
@@ -77,16 +78,17 @@ export function useUserMemberships({
     return rawRules.map((rule) => formatRuleForDisplay(rule, undefined, conflicts));
   }, []);
 
-  const adoptCachedRuleInventory = useCallback(async (): Promise<void> => {
+  const adoptCachedRuleInventory = useCallback(async (): Promise<boolean> => {
     const cached = peek<FormattedRule[] | null>(RULE_INVENTORY_KEY);
     if (cached) {
       setRuleInventory({ status: 'available', rules: cached });
-      return;
+      return true;
     }
     const derived = await deriveSnapshotRuleInventory();
-    if (!derived) return;
+    if (!derived) return false;
     setEntry(RULE_INVENTORY_KEY, derived);
     setRuleInventory({ status: 'available', rules: derived });
+    return true;
   }, [deriveSnapshotRuleInventory]);
 
   const loadRuleInventory = useCallback(async (): Promise<FormattedRule[] | null> => {
@@ -115,6 +117,11 @@ export function useUserMemberships({
     return rules;
   }, [deriveSnapshotRuleInventory, makeApiRequest]);
 
+  const ensureRuleInventory = useCallback(async (): Promise<void> => {
+    if (await adoptCachedRuleInventory()) return;
+    await loadRuleInventory();
+  }, [adoptCachedRuleInventory, loadRuleInventory]);
+
   const loadMemberships = useCallback(
     async (user: OktaUser, options?: { force?: boolean }) => {
       if (!targetTabId) {
@@ -129,7 +136,7 @@ export function useUserMemberships({
         if (cached) {
           setMemberships(cached);
           reportLoading(false);
-          void adoptCachedRuleInventory();
+          void ensureRuleInventory();
           return;
         }
       }
@@ -166,7 +173,9 @@ export function useUserMemberships({
               return unclassifiedMemberships(rawGroups);
             }
 
-            return analyzeMemberships(rawGroups, rules, user);
+            return analyzeMemberships(rawGroups, rules, user, {
+              groups: groupContextOfGroups(rawGroups),
+            });
           },
           { force: options?.force },
         );
@@ -190,7 +199,7 @@ export function useUserMemberships({
       reportLoading,
       makeApiRequest,
       loadRuleInventory,
-      adoptCachedRuleInventory,
+      ensureRuleInventory,
     ],
   );
 

@@ -84,39 +84,12 @@ export async function fetchGroupRulesRequest(
     const groupIndex = resolveGroupNames
       ? await loadCachedGroupIndex(origin)
       : { nameById: new Map<string, string>(), idsHeld: new Set<string>(), complete: false };
-    const groupNameMap = groupIndex.nameById;
 
-    const conflicts = detectConflicts(rules);
-
-    const missingTargetsByRule = new Map<string, string[]>(
-      findRulesWithMissingTargets(
-        rules.map((rule) => ({
-          id: rule.id,
-          name: rule.name,
-          groupIds: rule.actions?.assignUserToGroups?.groupIds ?? [],
-        })),
-        groupIndex.idsHeld,
-        groupIndex.complete,
-      ).map((finding) => [finding.id, finding.missingGroupIds]),
+    const { rules: formattedRules, conflicts } = formatRulesWithGroupIndex(
+      rules,
+      groupIndex,
+      currentGroupId,
     );
-
-    const formattedRules: FormattedRule[] = rules.map((rule) => {
-      const base = formatRuleForDisplay(rule, currentGroupId, conflicts);
-      const groupNames = base.groupIds.map((id) => groupNameMap.get(id) || id);
-      const missingGroupIds = groupIndex.complete
-        ? (missingTargetsByRule.get(rule.id) ?? [])
-        : undefined;
-
-      const allGroupNamesMap: Record<string, string> = {};
-      new Set(groupIdsReferencedBy(rule)).forEach((id) => {
-        const name = groupNameMap.get(id);
-        if (name) allGroupNamesMap[id] = name;
-      });
-
-      return missingGroupIds
-        ? { ...base, groupNames, allGroupNamesMap, missingGroupIds }
-        : { ...base, groupNames, allGroupNamesMap };
-    });
 
     const activeCount = rules.filter((r) => r.status === 'ACTIVE').length;
     const stats: RuleStats = {
@@ -135,4 +108,45 @@ export async function fetchGroupRulesRequest(
       error: error instanceof Error ? error.message : 'Failed to fetch rules',
     };
   }
+}
+
+export function formatRulesWithGroupIndex(
+  rules: readonly OktaGroupRule[],
+  groupIndex: CachedGroupIndex,
+  currentGroupId?: string,
+): { rules: FormattedRule[]; conflicts: RuleConflict[] } {
+  const groupNameMap = groupIndex.nameById;
+  const conflicts = detectConflicts(rules as OktaGroupRule[]);
+
+  const missingTargetsByRule = new Map<string, string[]>(
+    findRulesWithMissingTargets(
+      rules.map((rule) => ({
+        id: rule.id,
+        name: rule.name,
+        groupIds: rule.actions?.assignUserToGroups?.groupIds ?? [],
+      })),
+      groupIndex.idsHeld,
+      groupIndex.complete,
+    ).map((finding) => [finding.id, finding.missingGroupIds]),
+  );
+
+  const formatted = rules.map((rule) => {
+    const base = formatRuleForDisplay(rule, currentGroupId, conflicts);
+    const groupNames = base.groupIds.map((id) => groupNameMap.get(id) || id);
+    const missingGroupIds = groupIndex.complete
+      ? (missingTargetsByRule.get(rule.id) ?? [])
+      : undefined;
+
+    const allGroupNamesMap: Record<string, string> = {};
+    new Set(groupIdsReferencedBy(rule)).forEach((id) => {
+      const name = groupNameMap.get(id);
+      if (name) allGroupNamesMap[id] = name;
+    });
+
+    return missingGroupIds
+      ? { ...base, groupNames, allGroupNamesMap, missingGroupIds }
+      : { ...base, groupNames, allGroupNamesMap };
+  });
+
+  return { rules: formatted, conflicts };
 }

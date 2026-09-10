@@ -21,6 +21,7 @@ interface ClauseChecklistProps {
   user: OktaUser;
   maxClauses?: number;
   groupContext?: RuleGroupContext;
+  resolveGroupName?: GroupNameResolver;
 }
 
 interface ClauseRowProps {
@@ -83,6 +84,7 @@ const ClauseStatusChip: React.FC<{ presentation: StatusPresentation }> = ({ pres
 
 function formatResolvedValue(value: RuleExprValue): string {
   if (value === null) return 'null';
+  if (Array.isArray(value)) return `[${value.map(formatResolvedValue).join(', ')}]`;
   return typeof value === 'string' ? JSON.stringify(value) : String(value);
 }
 
@@ -184,6 +186,7 @@ const ClauseChecklist: React.FC<ClauseChecklistProps> = ({
   user,
   maxClauses,
   groupContext,
+  resolveGroupName: resolveFromHost,
 }) => {
   const { clauses, summary } = useMemo(
     () => explainRuleExpression(expression, user, { maxClauses, groups: groupContext }),
@@ -191,10 +194,10 @@ const ClauseChecklist: React.FC<ClauseChecklistProps> = ({
   );
 
   const resolveGroupName = useMemo<GroupNameResolver | undefined>(() => {
-    if (!groupContext || groupContext.length === 0) return undefined;
-    const namesById = new Map(groupContext.map((entry) => [entry.id, entry.name]));
-    return (groupId) => namesById.get(groupId);
-  }, [groupContext]);
+    const namesById = new Map((groupContext ?? []).map((entry) => [entry.id, entry.name]));
+    if (namesById.size === 0 && !resolveFromHost) return undefined;
+    return (groupId) => namesById.get(groupId) ?? resolveFromHost?.(groupId);
+  }, [groupContext, resolveFromHost]);
 
   if (clauses.length === 0) {
     const reasonCode =

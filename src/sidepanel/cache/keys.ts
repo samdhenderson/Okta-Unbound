@@ -23,6 +23,8 @@ export const cacheKeys = {
 
   appGroups: (appId: string): EntityKey => ['appGroups', appId],
 
+  groupName: (groupId: string): EntityKey => ['groupName', groupId],
+
   userApps: (userId: string): EntityKey => ['userApps', userId],
 
   userDetails: (userId: string): EntityKey => ['userDetails', userId],

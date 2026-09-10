@@ -240,8 +240,8 @@ describe('an unevaluable sibling rule is never read as a no (ADR-0020)', () => {
   });
 });
 
-describe('a rule that was already failing contributes nothing', () => {
-  it('reads an absent attribute as unchanged-no-match and emits no group effect', () => {
+describe('a rule the evaluator cannot settle contributes no group effect', () => {
+  it('reads an absent attribute as undetermined and emits no group effect', () => {
     const costCentreRule = ruleOf({
       id: '0prFAKEcc',
       name: 'Cost centre feeder',
@@ -254,7 +254,9 @@ describe('a rule that was already failing contributes nothing', () => {
 
     expect(report.rules).toHaveLength(1);
     expect(report.rules[0]).toMatchObject({
-      transition: 'unchanged-no-match',
+      transition: 'undetermined',
+      beforeReason: 'attribute-absent',
+      afterReason: 'attribute-absent',
       touchedAttributes: [],
     });
     expect(report.groups).toEqual([]);

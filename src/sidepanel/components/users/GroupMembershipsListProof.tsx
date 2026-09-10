@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Button } from '../shared';
 import Icon from '../shared/Icon';
 import { membershipSourceLine, sourceLineLabel } from '../../../shared/membership/sourceLine';
@@ -14,6 +14,7 @@ export type MembershipProofOutcome =
 export interface MembershipProofs {
   outcomeFor: (rowKey: string) => MembershipProofOutcome | undefined;
   prove: (membership: GroupMembership, rowKey?: string) => void;
+  proveAll: (memberships: readonly GroupMembership[]) => void;
   enabled: boolean;
 }
 
@@ -47,9 +48,24 @@ export function useMembershipProofs(
     [onProve],
   );
 
+  const asked = useRef<Set<string>>(new Set());
+
+  const proveAll = useCallback(
+    (memberships: readonly GroupMembership[]) => {
+      if (!onProve) return;
+      for (const membership of memberships) {
+        const rowKey = membership.group.id;
+        if (asked.current.has(rowKey)) continue;
+        asked.current.add(rowKey);
+        prove(membership, rowKey);
+      }
+    },
+    [onProve, prove],
+  );
+
   const outcomeFor = useCallback((rowKey: string) => outcomes[rowKey], [outcomes]);
 
-  return { outcomeFor, prove, enabled: Boolean(onProve) };
+  return { outcomeFor, prove, proveAll, enabled: Boolean(onProve) };
 }
 
 interface MembershipProofActionProps {

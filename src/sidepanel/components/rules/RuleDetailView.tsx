@@ -1,5 +1,11 @@
-import React from 'react';
-import { CopyableId, DetailSection, EntityLink } from '../shared';
+import React, { useMemo } from 'react';
+import {
+  CopyableId,
+  DetailSection,
+  EntityLink,
+  RuleExpressionText,
+  type GroupNameResolver,
+} from '../shared';
 import Icon from '../shared/Icon';
 import RuleActionBar from './RuleActionBar';
 import type { FormattedRule } from '../../../shared/types';
@@ -7,6 +13,7 @@ import type { FormattedRule } from '../../../shared/types';
 export interface RuleDetailViewProps {
   rule: FormattedRule;
   oktaOrigin?: string | null;
+  resolveGroupName?: GroupNameResolver;
   onPreviewImpact?: () => void;
   tierOpen: boolean;
   onTierOpenChange: (open: boolean) => void;
@@ -31,50 +38,10 @@ const MissingGroupChip: React.FC<{ groupId: string }> = ({ groupId }) => (
   </span>
 );
 
-const renderConditionWithGroupBadges = (
-  expression: string,
-  allGroupNamesMap?: Record<string, string>,
-): React.ReactNode => {
-  if (!allGroupNamesMap || Object.keys(allGroupNamesMap).length === 0) return expression;
-
-  const groupIdPattern = /\b00g[a-zA-Z0-9]{17}\b/g;
-  const parts: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = groupIdPattern.exec(expression)) !== null) {
-    const groupId = match[0];
-    const groupName = allGroupNamesMap[groupId];
-
-    if (match.index > lastIndex) parts.push(expression.substring(lastIndex, match.index));
-
-    if (groupName && groupName !== groupId) {
-      parts.push(
-        <EntityLink
-          key={`${groupId}-${match.index}`}
-          type="group"
-          id={groupId}
-          name={groupName}
-          copyId
-          copyIdLabel={`Copy group id ${groupId}`}
-          className="align-middle"
-        />,
-      );
-    } else {
-      parts.push(groupId);
-    }
-
-    lastIndex = match.index + groupId.length;
-  }
-
-  if (lastIndex < expression.length) parts.push(expression.substring(lastIndex));
-
-  return parts.length > 0 ? parts : expression;
-};
-
 const RuleDetailView: React.FC<RuleDetailViewProps> = ({
   rule,
   oktaOrigin,
+  resolveGroupName: resolveFromHost,
   onPreviewImpact,
   tierOpen,
   onTierOpenChange,
@@ -89,6 +56,12 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
 }) => {
   const hasConflicts = Boolean(rule.conflicts && rule.conflicts.length > 0);
   const missingTargetCount = rule.missingGroupIds?.length ?? 0;
+
+  const names = rule.allGroupNamesMap;
+  const resolveGroupName = useMemo<GroupNameResolver>(
+    () => (groupId: string) => names?.[groupId] ?? resolveFromHost?.(groupId),
+    [names, resolveFromHost],
+  );
 
   return (
     <div className="space-y-(--sp-rung)">
@@ -112,12 +85,10 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
         description="The condition Okta evaluates against every user in the org."
       >
         <div className="rounded-md border border-neutral-200 bg-white p-(--sp-card)">
-          <code className="block overflow-x-auto font-mono text-sm text-neutral-900">
-            {renderConditionWithGroupBadges(
-              rule.conditionExpression || rule.condition,
-              rule.allGroupNamesMap,
-            )}
-          </code>
+          <RuleExpressionText
+            text={rule.conditionExpression || rule.condition}
+            resolveGroupName={resolveGroupName}
+          />
         </div>
 
         {rule.userAttributes.length > 0 && (

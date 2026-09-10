@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { AlertMessage, EmptyState, Eyebrow, FilterPill } from '../shared';
+import { AlertMessage, EmptyState, Eyebrow, FilterPill, type GroupNameResolver } from '../shared';
 import BlastRadiusGroupRow from './BlastRadiusGroupRow';
 import BlastRadiusRuleRow from './BlastRadiusRuleRow';
 import type {
@@ -11,6 +11,7 @@ import type {
 export interface BlastRadiusReportProps {
   report: BlastRadiusReportData;
   className?: string;
+  resolveGroupName?: GroupNameResolver;
 }
 
 type ReportView = 'groups' | 'rules';
@@ -32,22 +33,31 @@ const GroupSection: React.FC<{ title: string; effects: readonly GroupEffect[] }>
     </section>
   );
 
-const RuleSection: React.FC<{ title: string; effects: readonly RuleEffect[] }> = ({
-  title,
-  effects,
-}) =>
+const RuleSection: React.FC<{
+  title: string;
+  effects: readonly RuleEffect[];
+  resolveGroupName?: GroupNameResolver;
+}> = ({ title, effects, resolveGroupName }) =>
   effects.length === 0 ? null : (
     <section className="flex flex-col gap-2">
       <Eyebrow as="h3">{title}</Eyebrow>
       <ul className="space-y-(--sp-rung)">
         {effects.map((effect) => (
-          <BlastRadiusRuleRow key={effect.ruleId} effect={effect} />
+          <BlastRadiusRuleRow
+            key={effect.ruleId}
+            effect={effect}
+            resolveGroupName={resolveGroupName}
+          />
         ))}
       </ul>
     </section>
   );
 
-const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({ report, className = '' }) => {
+const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
+  report,
+  className = '',
+  resolveGroupName,
+}) => {
   const [view, setView] = useState<ReportView>('groups');
 
   const { added, removed, notPredicted } = useMemo(
@@ -136,9 +146,21 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({ report, className
             </p>
           ) : (
             <>
-              <RuleSection title="Starts matching" effects={starts} />
-              <RuleSection title="Stops matching" effects={stops} />
-              <RuleSection title="Could not be evaluated" effects={undetermined} />
+              <RuleSection
+                title="Starts matching"
+                effects={starts}
+                resolveGroupName={resolveGroupName}
+              />
+              <RuleSection
+                title="Stops matching"
+                effects={stops}
+                resolveGroupName={resolveGroupName}
+              />
+              <RuleSection
+                title="Could not be evaluated"
+                effects={undetermined}
+                resolveGroupName={resolveGroupName}
+              />
             </>
           )}
           {unaffectedCount > 0 && (

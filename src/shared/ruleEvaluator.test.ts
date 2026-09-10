@@ -35,6 +35,7 @@ describe('tryEvaluateRuleExpression', () => {
       title: 'Developer',
       city: 'San Francisco',
       employeeNumber: 42,
+      nullable: null,
     },
   } as unknown as OktaUser;
 
@@ -87,8 +88,12 @@ describe('tryEvaluateRuleExpression', () => {
       ).toBe('match');
     });
 
-    it('returns match for an absent attribute compared against null', () => {
-      expect(tryEvaluateRuleExpression('user.division == null', user)).toBe('match');
+    it('returns match for an attribute present and explicitly null', () => {
+      expect(tryEvaluateRuleExpression('user.nullable == null', user)).toBe('match');
+    });
+
+    it('resolves a top-level user field, not just the profile', () => {
+      expect(tryEvaluateRuleExpression('user.status == "ACTIVE"', user)).toBe('match');
     });
   });
 
@@ -106,8 +111,8 @@ describe('tryEvaluateRuleExpression', () => {
       ).toBe('no-match');
     });
 
-    it('returns no-match when an attribute is absent (null) rather than guessing', () => {
-      expect(tryEvaluateRuleExpression('user.costCenter == "1234"', user)).toBe('no-match');
+    it('returns no-match for an unsatisfied top-level user field', () => {
+      expect(tryEvaluateRuleExpression('user.status == "SUSPENDED"', user)).toBe('no-match');
     });
 
     it('returns no-match for an unsatisfied String function', () => {
@@ -161,11 +166,16 @@ describe('tryEvaluateRuleExpression', () => {
       expect(tryEvaluateRuleExpression('app.clientId == "x"', user)).toBe('unevaluable');
     });
 
+    it('is unevaluable for an attribute the profile does not carry', () => {
+      expect(tryEvaluateRuleExpression('user.costCenter == "1234"', user)).toBe('unevaluable');
+      expect(tryEvaluateRuleExpression('user.division == null', user)).toBe('unevaluable');
+    });
+
     it('is unevaluable for a function outside the allow-list', () => {
-      expect(tryEvaluateRuleExpression('String.substring(user.email, 0, 3) == "ada"', user)).toBe(
-        'unevaluable',
-      );
-      expect(tryEvaluateRuleExpression('Arrays.contains(user.department, "Eng")', user)).toBe(
+      expect(
+        tryEvaluateRuleExpression('String.replaceFirst(user.email, "a", "b") == "x"', user),
+      ).toBe('unevaluable');
+      expect(tryEvaluateRuleExpression('Arrays.flatten(user.roles) == "Eng"', user)).toBe(
         'unevaluable',
       );
       expect(tryEvaluateRuleExpression('Time.now() == "x"', user)).toBe('unevaluable');
@@ -229,7 +239,7 @@ describe('the grammar gate, over whole expressions', () => {
 
   it('rejects expressions that parse but use unsupported grammar', () => {
     expect(gateAccepts('user.department + "x" == "y"')).toBe(false);
-    expect(gateAccepts('String.substring(user.email, 0, 3) == "ada"')).toBe(false);
+    expect(gateAccepts('String.replaceFirst(user.email, "a", "b") == "x"')).toBe(false);
   });
 
   it('rejects unparseable and empty input', () => {
@@ -256,6 +266,8 @@ describe('supported subset', () => {
       employeeNumber: 42,
       active: true,
       roles: ['admin', 'dev'],
+      manager: { id: '00uFAKEMANAGER' },
+      notes: null,
     },
   } as unknown as OktaUser;
 
@@ -291,8 +303,28 @@ describe('supported subset', () => {
     expect(tryEvaluateRuleExpression('!user.active', user)).toBe('no-match');
   });
 
-  it('stringifies a non-scalar profile value rather than failing', () => {
-    expect(tryEvaluateRuleExpression('user.roles == "admin,dev"', user)).toBe('match');
+  it('refuses to compare a multi-valued attribute to its joined string', () => {
+    expect(tryEvaluateRuleExpression('user.roles == "admin,dev"', user)).toBe('unevaluable');
+  });
+
+  it('answers a multi-valued attribute through the Arrays helpers instead', () => {
+    expect(tryEvaluateRuleExpression('Arrays.contains(user.roles, "admin")', user)).toBe('match');
+    expect(tryEvaluateRuleExpression('Arrays.contains(user.roles, "auditor")', user)).toBe(
+      'no-match',
+    );
+    expect(tryEvaluateRuleExpression('Arrays.size(user.roles) == 2', user)).toBe('match');
+  });
+
+  it('refuses an object-valued attribute rather than reading [object Object]', () => {
+    expect(tryEvaluateRuleExpression('user.manager == "[object Object]"', user)).toBe(
+      'unevaluable',
+    );
+  });
+
+  it('negates with the NOT word form as well as with !', () => {
+    expect(tryEvaluateRuleExpression('NOT user.active', user)).toBe('no-match');
+    expect(tryEvaluateRuleExpression('not user.active', user)).toBe('no-match');
+    expect(tryEvaluateRuleExpression('user.notes == null', user)).toBe('match');
   });
 
   describe('three-valued logic', () => {
@@ -438,6 +470,7 @@ describe('tryEvaluateRuleExpressionDetailed', () => {
       department: 'Engineering',
       city: 'San Francisco',
       employeeNumber: 42,
+      roles: ['admin', 'dev'],
     },
   } as unknown as OktaUser;
 
@@ -492,7 +525,10 @@ describe('tryEvaluateRuleExpressionDetailed', () => {
     { expression: 'user.department ==', reasonCode: 'parse-error' },
     { expression: 'user.department + "x" == "Engineeringx"', reasonCode: 'unsupported-operator' },
     { expression: 'isMemberOfGroupName("Eng")', reasonCode: 'group-membership-fn' },
-    { expression: 'Arrays.contains(user.department, "Eng")', reasonCode: 'unknown-fn' },
+    { expression: 'Arrays.flatten(user.roles)', reasonCode: 'unknown-fn' },
+    { expression: 'Arrays.contains(user.department, "Eng")', reasonCode: 'operand-type' },
+    { expression: 'user.costCenter == "1234"', reasonCode: 'attribute-absent' },
+    { expression: 'user.roles == "admin,dev"', reasonCode: 'operand-type' },
     { expression: 'String.startsWith(user.firstName)', reasonCode: 'fn-arity' },
     { expression: 'app.clientId == "x"', reasonCode: 'unsupported-node' },
     { expression: 'user["department"] == "Engineering"', reasonCode: 'unsupported-node' },

@@ -5,7 +5,11 @@ import type {
   GroupMembership,
   MembershipAttribution,
 } from '../types';
-import { tryEvaluateRuleExpression, type RuleMatchOutcome } from '../ruleEvaluator';
+import {
+  tryEvaluateRuleExpression,
+  type RuleGroupContext,
+  type RuleMatchOutcome,
+} from '../ruleEvaluator';
 import { conditionExpressionOf } from '../membership/ruleExpression';
 import { createLogger } from './logger';
 
@@ -39,6 +43,28 @@ function isUserExcludedFromRule(rule: MembershipRule, userId: string): boolean {
     (rule.excludedUserIds?.includes(userId) ?? false) ||
     (rule.conditions?.people?.users?.exclude?.includes(userId) ?? false)
   );
+}
+
+function isUserExcludedByGroup(
+  rule: MembershipRule,
+  groups: RuleGroupContext | undefined,
+): boolean {
+  if (!groups || groups.length === 0) return false;
+  const excluded = [
+    ...(rule.excludedGroupIds ?? []),
+    ...(rule.conditions?.people?.groups?.exclude ?? []),
+  ];
+  if (excluded.length === 0) return false;
+  const excludedIds = new Set(excluded);
+  return groups.some((group) => excludedIds.has(group.id));
+}
+
+export function isUserExcluded(
+  rule: MembershipRule,
+  userId: string,
+  groups: RuleGroupContext | undefined,
+): boolean {
+  return isUserExcludedFromRule(rule, userId) || isUserExcludedByGroup(rule, groups);
 }
 
 function scoreCandidateRules(rules: MembershipRule[], user: OktaUser): MembershipRule[] {
@@ -82,10 +108,15 @@ export function unclassifiedMemberships(groups: OktaGroup[]): GroupMembership[] 
   }));
 }
 
+export interface MembershipAnalysisOptions {
+  readonly groups?: RuleGroupContext;
+}
+
 export function analyzeMemberships(
   groups: OktaGroup[],
   rules: MembershipRule[],
   user: OktaUser,
+  options: MembershipAnalysisOptions = {},
 ): GroupMembership[] {
   log.debug('Analyzing memberships for user:', user.id);
   log.debug(
@@ -96,10 +127,15 @@ export function analyzeMemberships(
   );
   log.debug('Total groups:', groups.length);
 
-  return groups.map((group) => ({ group, ...classify(group, rules, user) }));
+  return groups.map((group) => ({ group, ...classify(group, rules, user, options.groups) }));
 }
 
-function classify(group: OktaGroup, rules: MembershipRule[], user: OktaUser): Classification {
+function classify(
+  group: OktaGroup,
+  rules: MembershipRule[],
+  user: OktaUser,
+  groupContext: RuleGroupContext | undefined,
+): Classification {
   if (group.type === 'APP_GROUP') {
     log.debug(`Group ${group.id}: APP_GROUP (application managed)`);
     return { membershipType: 'RULE_BASED', rules: [], attribution: 'exact' };
@@ -118,7 +154,7 @@ function classify(group: OktaGroup, rules: MembershipRule[], user: OktaUser): Cl
     return direct();
   }
 
-  const candidates = targetingRules.filter((rule) => !isUserExcludedFromRule(rule, user.id));
+  const candidates = targetingRules.filter((rule) => !isUserExcluded(rule, user.id, groupContext));
 
   if (candidates.length === 0) {
     log.debug(`Group ${group.id}: DIRECT (user excluded from all ${targetingRules.length} rules)`);
@@ -133,7 +169,7 @@ function classify(group: OktaGroup, rules: MembershipRule[], user: OktaUser): Cl
 
   const outcomes = candidates.map((rule): [MembershipRule, RuleMatchOutcome] => [
     rule,
-    tryEvaluateRuleExpression(conditionExpressionOf(rule), user),
+    tryEvaluateRuleExpression(conditionExpressionOf(rule), user, groupContext),
   ]);
 
   const matched = outcomes.filter(([, outcome]) => outcome === 'match').map(([rule]) => rule);

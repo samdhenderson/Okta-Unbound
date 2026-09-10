@@ -22,9 +22,10 @@ const NOT_COMPUTED: BlastRadiusReport = Object.freeze({
 interface ReportState {
   readonly userId: string | null;
   readonly report: BlastRadiusReport;
+  readonly groupNames: ReadonlyMap<string, string>;
 }
 
-const IDLE: ReportState = { userId: null, report: NOT_COMPUTED };
+const IDLE: ReportState = { userId: null, report: NOT_COMPUTED, groupNames: new Map() };
 
 export interface UseBlastRadiusOptions {
   user: OktaUser | null;
@@ -38,6 +39,7 @@ export interface UseBlastRadiusReturn {
   analyze: (draft: Readonly<Record<string, unknown>>) => void;
   reset: () => void;
   isAnalyzing: boolean;
+  resolveGroupName: (groupId: string) => string | undefined;
 }
 
 export function useBlastRadius({
@@ -72,6 +74,12 @@ export function useBlastRadius({
   const currentUserId = user?.id ?? null;
   const report = state.userId === currentUserId ? state.report : NOT_COMPUTED;
 
+  const committedNames = state.userId === currentUserId ? state.groupNames : undefined;
+  const resolveGroupName = useCallback(
+    (groupId: string) => committedNames?.get(groupId),
+    [committedNames],
+  );
+
   const analyze = useCallback(
     (draft: Readonly<Record<string, unknown>>) => {
       if (!user) {
@@ -93,7 +101,7 @@ export function useBlastRadius({
         if (!mountedRef.current || runIdRef.current !== runId) return;
 
         const next = analyzeBlastRadius({ user, draft, memberships, rules, groupNames });
-        setState({ userId: user.id, report: next });
+        setState({ userId: user.id, report: next, groupNames });
         setIsAnalyzing(false);
         log.debug('Analyzed', next.status, next.counts);
       })();
@@ -101,5 +109,5 @@ export function useBlastRadius({
     [user, memberships, rules, oktaOrigin, reset],
   );
 
-  return { report, analyze, reset, isAnalyzing };
+  return { report, analyze, reset, isAnalyzing, resolveGroupName };
 }

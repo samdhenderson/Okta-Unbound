@@ -7,7 +7,7 @@ import {
 import type { RuleGroupContext } from '../../../../shared/ruleEvaluator';
 import { groupContextOf } from '../../../../shared/membership/groupContext';
 import { conditionExpressionOf } from '../../../../shared/membership/ruleExpression';
-import { isDeducedAttribution } from '../../../../shared/utils/membershipAnalysis';
+import { isDeducedAttribution, isUserExcluded } from '../../../../shared/utils/membershipAnalysis';
 import type { GroupMembership, MembershipRule, OktaUser } from '../../../../shared/types';
 
 export type AccessRemedy =
@@ -61,10 +61,6 @@ function rulesTargeting(rules: readonly MembershipRule[], groupId: string): Memb
   });
 }
 
-function isUserExcludedFromRule(rule: MembershipRule, userId: string): boolean {
-  return (rule.conditions?.people?.users?.exclude || []).includes(userId);
-}
-
 type RuleAssessment =
   | { readonly kind: 'excluded'; readonly rule: MembershipRule }
   | {
@@ -87,7 +83,7 @@ function assessRule(
   contextUser: OktaUser,
   groupContext: RuleGroupContext | undefined,
 ): RuleAssessment {
-  if (isUserExcludedFromRule(rule, contextUser.id)) return { kind: 'excluded', rule };
+  if (isUserExcluded(rule, contextUser.id, groupContext)) return { kind: 'excluded', rule };
 
   const expression = conditionExpressionOf(rule);
   if (expression.trim() === '') return { kind: 'unknown', rule, reason: 'no-condition' };
@@ -118,7 +114,10 @@ function assessRule(
   return {
     kind: 'unknown',
     rule,
-    reason: summary.needsGroupContext > 0 ? 'needs-group-context' : 'unevaluable-clause',
+    reason:
+      groupContext === undefined && summary.needsGroupContext > 0
+        ? 'needs-group-context'
+        : 'unevaluable-clause',
   };
 }
 
