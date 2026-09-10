@@ -86,10 +86,11 @@ const ExportPreviewTable: React.FC<ExportPreviewTableProps> = ({
               <tr key={rowIndex} className="border-b border-neutral-100 last:border-b-0">
                 {columns.map((column) => {
                   const value = projectCell(column, row);
-                  const href =
+                  const target =
                     linkColumn && column.id === linkColumn.id && linkify
-                      ? oktaAdminEntityUrl(oktaOrigin, linkify.entityType, value)
+                      ? linkify.target(row)
                       : null;
+                  const href = target ? oktaAdminEntityUrl(oktaOrigin, target) : null;
                   return (
                     <td
                       key={column.id}

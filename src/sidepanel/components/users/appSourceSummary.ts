@@ -54,6 +54,7 @@ export function isPrivilegedApp(label: string): boolean {
 export interface AppSourceRow {
   id: string;
   label: string;
+  name?: string;
   state: AppSourceState;
   bucket: AppSourceBucket;
   badgeLabel: string;
@@ -100,6 +101,7 @@ function toRow(app: UserAppAssignment, byGroupId: Map<string, GroupMembership>):
   return {
     id: app.id,
     label: app.label,
+    name: app.name,
     state,
     bucket: copy.bucket,
     badgeLabel: copy.label,

@@ -31,6 +31,7 @@ export type AppLookup =
 export interface AppSummary {
   id: string;
   label: string;
+  name?: string;
   status?: string;
 }
 
@@ -47,6 +48,7 @@ export function createAppOperations(coreApi: CoreApi) {
       return apps.map((app) => ({
         id: app.id,
         label: app.label || app.name || app.id,
+        name: app.name,
         status: app.status,
       }));
     } catch {

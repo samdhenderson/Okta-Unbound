@@ -39,9 +39,9 @@ describe('searchApps', () => {
       reason: 'Search apps by name',
     });
     expect(result).toEqual([
-      { id: '0oaFAKE1', label: 'Salesforce', status: 'ACTIVE' },
-      { id: '0oaFAKE2', label: 'okta_org2org', status: 'INACTIVE' },
-      { id: '0oaFAKE3', label: '0oaFAKE3', status: undefined },
+      { id: '0oaFAKE1', label: 'Salesforce', name: 'salesforce', status: 'ACTIVE' },
+      { id: '0oaFAKE2', label: 'okta_org2org', name: 'okta_org2org', status: 'INACTIVE' },
+      { id: '0oaFAKE3', label: '0oaFAKE3', name: undefined, status: undefined },
     ]);
   });
 

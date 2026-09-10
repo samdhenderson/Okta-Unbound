@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertMessage, EmptyState, Input, LoadingSpinner, Modal } from './shared';
 import Icon, { type IconType } from './shared/Icon';
 import PaletteRow from './palette/PaletteRow';
-import { destinationLabel, KIND_ICON } from './home/jumpDestinations';
+import { destinationLabel, KIND_ICON, oktaAdminTargetFor } from './home/jumpDestinations';
 import { TAB_DEFS, type TabType } from '../tabs';
 import type { JumpKind, JumpMode, JumpResult } from '../hooks/useJumpResolver';
-import { oktaAdminEntityUrl, type OktaAdminEntityType } from '../../shared/utils/oktaUrl';
+import { oktaAdminEntityUrl } from '../../shared/utils/oktaUrl';
 
 const SECTION_ORDER: ReadonlyArray<{ kind: JumpKind; heading: string }> = [
   { kind: 'group', heading: 'Groups' },
@@ -14,12 +14,6 @@ const SECTION_ORDER: ReadonlyArray<{ kind: JumpKind; heading: string }> = [
   { kind: 'policy', heading: 'Policies' },
   { kind: 'user', heading: 'Users' },
 ];
-
-const OKTA_LINK_TYPE: Partial<Record<JumpKind, OktaAdminEntityType>> = {
-  group: 'group',
-  user: 'user',
-  app: 'app',
-};
 
 export interface SectionMeta {
   fromSnapshot: boolean;
@@ -260,9 +254,9 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
 
             const { row, heading } = entry;
             const reachable = canReach?.(row.kind) ?? false;
-            const linkType = OKTA_LINK_TYPE[row.kind];
+            const oktaTarget = oktaAdminTargetFor(row);
             const href =
-              !reachable && linkType ? oktaAdminEntityUrl(oktaOrigin, linkType, row.id) : null;
+              !reachable && oktaTarget ? oktaAdminEntityUrl(oktaOrigin, oktaTarget) : null;
             const mark = reachable ? `${destinationLabel(row.kind)} ›` : href ? 'Okta ↗' : null;
             const provenance = provenanceMark(sectionMeta?.[row.kind]);
 

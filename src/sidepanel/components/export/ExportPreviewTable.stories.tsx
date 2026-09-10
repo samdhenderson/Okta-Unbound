@@ -71,7 +71,7 @@ const meta = {
     fetched: rows.length,
     dropped: 0,
     capped: false,
-    linkify: { entityType: 'user', idColumnId: 'id' },
+    linkify: { idColumnId: 'id', target: (row) => ({ type: 'user', id: (row as FakeRow).id }) },
     oktaOrigin: 'https://example.okta.com',
   },
 } satisfies Meta<typeof ExportPreviewTable>;

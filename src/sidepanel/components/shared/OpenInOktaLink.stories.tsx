@@ -11,7 +11,7 @@ const meta = {
       description: {
         component:
           'Shared “Open in Okta” deep link that opens an entity’s Admin Console page in a new tab.\n\n' +
-          'A single, consistent affordance used by the context banner, group overview, and user profile card. Compact (`sm`) or standard (`md`) sizing. Renders nothing when the org origin or entity id is missing, so callers can drop it in unconditionally. The URL is built from the validated `oktaOrigin` plus id and opened with `rel="noopener noreferrer"`.',
+          'A single, consistent affordance used by the context banner, group overview, and user profile card. Compact (`sm`) or standard (`md`) sizing. Renders nothing when the org origin or any part of the target is missing, so callers can drop it in unconditionally. The URL is built from the validated `oktaOrigin` plus the target and opened with `rel="noopener noreferrer"`.',
       },
     },
   },
@@ -19,16 +19,17 @@ const meta = {
     oktaOrigin: {
       description: 'Okta org origin used to build the admin URL; the link hides when absent.',
     },
-    entityType: { description: 'Which kind of entity to deep-link to.' },
-    entityId: { description: 'The entity’s Okta id; the link hides when absent.' },
+    target: {
+      description:
+        'What to deep-link to. An app target also carries the app *type* key (`name`), because its Admin Console route is `/admin/app/{name}/instance/{id}`.',
+    },
     label: { description: 'Link text. Defaults to `Open in Okta`.' },
     size: { description: 'Compact (`sm`) or standard (`md`) sizing. Defaults to `sm`.' },
     className: { description: 'Extra classes merged onto the anchor.' },
   },
   args: {
     oktaOrigin: 'https://example.okta.com',
-    entityType: 'group',
-    entityId: '00g1abcdEXAMPLE',
+    target: { type: 'group', id: '00g1abcdEXAMPLE' },
   },
 } satisfies Meta<typeof OpenInOktaLink>;
 
@@ -38,7 +39,15 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const User: Story = {
-  args: { entityType: 'user', entityId: '00u1abcdEXAMPLE' },
+  args: { target: { type: 'user', id: '00u1abcdEXAMPLE' } },
+};
+
+export const App: Story = {
+  args: { target: { type: 'app', id: '0oa1abcdEXAMPLE', name: 'salesforce' } },
+};
+
+export const AppWithoutTypeKey: Story = {
+  args: { target: { type: 'app', id: '0oa1abcdEXAMPLE', name: undefined } },
 };
 
 export const Medium: Story = {

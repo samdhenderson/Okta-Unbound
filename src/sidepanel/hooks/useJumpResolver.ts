@@ -19,6 +19,7 @@ export interface JumpResult {
   id: string;
   name: string;
   secondary?: string;
+  appName?: string;
 }
 
 export interface JumpResolution {

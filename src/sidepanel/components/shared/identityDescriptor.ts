@@ -1,5 +1,5 @@
 import type { IconType } from '../shared/Icon';
-import type { OktaAdminEntityType } from '../../../shared/utils/oktaUrl';
+import type { OktaAdminTarget } from '../../../shared/utils/oktaUrl';
 import type { BadgeVariant } from './Badge';
 
 export type IdentityFact =
@@ -15,5 +15,5 @@ export interface EntityIdentityDescriptor {
   name: string;
   badge?: { text: string; variant?: BadgeVariant };
   rows: IdentityRow[];
-  link?: { entityType: OktaAdminEntityType; entityId: string };
+  link?: OktaAdminTarget;
 }

@@ -12,6 +12,7 @@ const log = createLogger('useGroupAccessGrants');
 export interface AppGrant {
   id: string;
   label: string;
+  name?: string;
   status?: string;
   signOnMode?: string;
   lastUpdated?: Date;
@@ -53,6 +54,7 @@ function toAppGrant(app: {
   return {
     id: app.id,
     label: app.label ?? app.name ?? app.id,
+    name: app.name,
     status: app.status,
     signOnMode: app.signOnMode,
     lastUpdated: lastUpdated && !Number.isNaN(lastUpdated.getTime()) ? lastUpdated : undefined,
