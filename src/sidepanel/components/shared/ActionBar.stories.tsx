@@ -46,8 +46,9 @@ const meta = {
     register: {
       description:
         'The **selection register** — a second measured row of selection-scoped verbs, rendered ' +
-        'below `subRow` and separated from the action row by a tonal step alone: no border, no ' +
-        'rule, no divider. It shares rather than stacks (pass it whenever the rung has a ' +
+        "below `subRow` on the band's own white surface: no border, no rule, no divider and no " +
+        'wash — what marks it as a different family is that its selection furniture is `link` at ' +
+        '`xs` while the page verbs above are buttons at `sm`. It shares rather than stacks (pass it whenever the rung has a ' +
         'selection at all, so the first tick adds controls to a row that already exists instead ' +
         'of pushing the list down), it overflows independently of the action row, and both rows ' +
         'spill into the one tier behind the one **More**. Its leading descriptor must be a ' +
@@ -456,8 +457,20 @@ export const WithSelectionRegister: Story = {
     register: {
       ariaLabel: 'Actions for the selected groups',
       actions: [
-        { id: 'deselect-all', label: 'Deselect all', onClick: fn(), priority: 'pinned' },
-        { id: 'select-all', label: 'Select all (34)', onClick: fn(), priority: 'pinned' },
+        {
+          id: 'deselect-all',
+          label: 'Deselect all',
+          variant: 'link',
+          onClick: fn(),
+          priority: 'pinned',
+        },
+        {
+          id: 'select-all',
+          label: 'Select all (34)',
+          variant: 'link',
+          onClick: fn(),
+          priority: 'pinned',
+        },
         { id: 'compare', label: 'Compare (3)', icon: 'chart', onClick: fn() },
         { id: 'merge', label: 'Merge (3)', icon: 'link', onClick: fn(), priority: 'tier' },
       ],
@@ -493,7 +506,15 @@ export const TheRegisterHoldsItsRowWhenEmpty: Story = {
     ],
     register: {
       ariaLabel: 'Actions for the selected groups',
-      actions: [{ id: 'select-all', label: 'Select all (34)', onClick: fn(), priority: 'pinned' }],
+      actions: [
+        {
+          id: 'select-all',
+          label: 'Select all (34)',
+          variant: 'link',
+          onClick: fn(),
+          priority: 'pinned',
+        },
+      ],
     },
   },
   play: async ({ canvasElement }) => {

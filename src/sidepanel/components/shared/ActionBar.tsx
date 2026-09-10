@@ -246,7 +246,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
           role="group"
           aria-label={register.ariaLabel}
           data-testid="action-bar-register"
-          className="mx-2 mb-2 flex flex-wrap items-center gap-2 rounded-md bg-neutral-50 px-2 py-1.5"
+          className="flex flex-wrap items-center gap-2 px-2 pb-2"
         >
           <span
             ref={registerAnchorRef}

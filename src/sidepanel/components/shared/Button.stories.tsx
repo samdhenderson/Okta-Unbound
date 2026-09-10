@@ -20,7 +20,7 @@ const meta = {
     children: { description: 'Button label content.' },
     variant: {
       description:
-        'Visual treatment: `secondary` is the default; `danger`/`success` carry semantic colour; `ghost` is chromeless; `primary` is the page call to action.',
+        'Visual treatment: `secondary` is the default; `danger`/`success` carry semantic colour; `ghost` is chromeless but still a box; `link` reads as running text, with no horizontal padding at all; `primary` is the page call to action.',
     },
     size: {
       description:
@@ -64,6 +64,14 @@ export const Danger: Story = {
 
 export const Ghost: Story = {
   args: { variant: 'ghost' },
+};
+
+export const Link: Story = {
+  args: { variant: 'link', size: 'xs', children: 'Select all (245)' },
+};
+
+export const LinkDisabled: Story = {
+  args: { variant: 'link', size: 'xs', children: 'Select all (245)', disabled: true },
 };
 
 export const Disabled: Story = {
