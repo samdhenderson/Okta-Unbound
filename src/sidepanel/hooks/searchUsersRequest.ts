@@ -13,6 +13,30 @@ export interface SearchUsersResult {
   error?: string;
 }
 
+const SEARCHED_FIELDS = [
+  'profile.firstName',
+  'profile.lastName',
+  'profile.login',
+  'profile.email',
+] as const;
+
+function scimString(value: string): string {
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+function nameSearchExpression(query: string): string {
+  const clauses = SEARCHED_FIELDS.map((field) => `${field} sw ${scimString(query)}`);
+
+  const tokens = query.split(/\s+/).filter(Boolean);
+  if (tokens.length > 1) {
+    const first = scimString(tokens[0]);
+    const last = scimString(tokens[tokens.length - 1]);
+    clauses.push(`(profile.firstName sw ${first} and profile.lastName sw ${last})`);
+  }
+
+  return clauses.join(' or ');
+}
+
 export async function searchUsersRequest(
   makeApiRequest: MakeApiRequest,
   rawQuery: string,
@@ -31,7 +55,7 @@ export async function searchUsersRequest(
     if (response.success && response.data && response.data.length > 0) {
       users = response.data;
     } else {
-      const searchParam = encodeURIComponent(trimmedQuery);
+      const searchParam = encodeURIComponent(nameSearchExpression(trimmedQuery));
       response = await makeApiRequest(`/api/v1/users?search=${searchParam}&limit=20`, {
         method: 'GET',
         priority: 'interactive',
