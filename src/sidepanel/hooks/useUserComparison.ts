@@ -285,10 +285,6 @@ export function useUserComparison({
     if (referencedGroupIds.length > 0) requestGroupNames(referencedGroupIds);
   }, [referencedGroupIds, requestGroupNames]);
 
-  const groupDiffCount = groupBuckets.onlyCompared.length + groupBuckets.onlyContext.length;
-  const appDiffCount = appBuckets.onlyCompared.length + appBuckets.onlyContext.length;
-  const attributeDiffCount = attributeParity.differenceCount;
-
   const groupSimilarity = jaccard(
     groupBuckets.shared.length,
     groupBuckets.shared.length + groupBuckets.onlyCompared.length + groupBuckets.onlyContext.length,
@@ -321,10 +317,7 @@ export function useUserComparison({
     groupBuckets,
     appBuckets,
     causes,
-    groupDiffCount,
-    appDiffCount,
     attributeParity,
-    attributeDiffCount,
     attributeConfig,
     attributeRuleReads,
     attributeEdit,
