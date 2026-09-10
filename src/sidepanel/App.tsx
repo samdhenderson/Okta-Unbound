@@ -354,7 +354,7 @@ const App: React.FC = () => {
             <div
               ref={scrollRootRef}
               data-testid="app-scroll-root"
-              className="flex flex-col flex-1 min-h-0 overflow-y-auto [overflow-anchor:none] pb-14"
+              className="flex flex-col flex-1 min-h-0 overflow-y-auto [overflow-anchor:none] pb-[var(--activity-h,36px)]"
             >
               {renderTabPanel('home', (isActive) => (
                 <HomeTab

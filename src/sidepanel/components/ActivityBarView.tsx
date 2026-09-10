@@ -1,17 +1,17 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button, IconButton } from './shared';
 import BucketList from './activity/BucketList';
 import CondensedBar from './activity/CondensedBar';
 import OperationList from './activity/OperationList';
 import ResetTimeline from './activity/ResetTimeline';
 import { CollapseChevron, ProgressTrack, StatusDot } from './activity/barParts';
+import { usePublishedHeight } from '../hooks/usePublishedHeight';
 import type { ActivityView } from '../hooks/useActivityBar';
 
 export interface ActivityBarViewProps {
   view: ActivityView;
   onCancel: () => void;
   onCancelOperation?: (planId: string) => void;
-  collapsible?: boolean;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }
@@ -22,10 +22,12 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
   view,
   onCancel,
   onCancelOperation,
-  collapsible = false,
   collapsed = false,
   onToggleCollapse,
 }) => {
+  const barRef = useRef<HTMLDivElement>(null);
+  usePublishedHeight(barRef, '--activity-h');
+
   const cancelsEverything = view.operations.length > 1;
 
   const standing = view.operationActive
@@ -38,20 +40,18 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
 
   const actions = (
     <>
-      {collapsible && (
-        <IconButton
-          label={collapsed ? 'Show all activity stats' : 'Hide extra activity stats'}
-          variant="subtle"
-          size="sm"
-          active={!collapsed}
-          onClick={onToggleCollapse}
-        >
-          <CollapseChevron collapsed={collapsed} />
-        </IconButton>
-      )}
+      <IconButton
+        label={collapsed ? 'Show all activity stats' : 'Hide extra activity stats'}
+        variant="subtle"
+        size="sm"
+        active={!collapsed}
+        onClick={onToggleCollapse}
+      >
+        <CollapseChevron collapsed={collapsed} />
+      </IconButton>
       <Button
         variant="danger"
-        size="sm"
+        size="xs"
         disabled={!view.canCancel || view.isCancelling}
         onClick={onCancel}
         title={
@@ -68,6 +68,7 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
   if (collapsed) {
     return (
       <div
+        ref={barRef}
         role="status"
         aria-live="polite"
         className={BAR_CLASSES}
@@ -81,14 +82,13 @@ const ActivityBarView: React.FC<ActivityBarViewProps> = ({
 
   return (
     <div
+      ref={barRef}
       role="status"
       aria-live="polite"
       className={BAR_CLASSES}
       style={{ fontFamily: 'var(--font-primary)' }}
     >
-      <div
-        className={`flex items-center gap-(--sp-inline) px-(--sp-gutter) py-2.5 text-xs ${collapsible ? 'flex-wrap' : ''}`}
-      >
+      <div className="flex flex-wrap items-center gap-(--sp-inline) px-(--sp-gutter) py-1.5 text-xs">
         <div className="flex min-w-0 items-baseline gap-2">
           <StatusDot busy={view.busy} colorVar={view.statusColorVar} />
           {view.operationActive && view.operationName ? (
