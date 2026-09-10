@@ -192,9 +192,11 @@ describe('GroupMembershipsList', () => {
     );
     await openRow('Engineering');
 
-    expect(screen.getByText('Possible rule:')).toBeInTheDocument();
+    expect(screen.getByText('Rule:')).toBeInTheDocument();
     expect(screen.queryByText('Added by Rule:')).not.toBeInTheDocument();
-    expect(screen.getByText(/Auto-add Engineers, On-call rotation/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Auto-add Engineers, On-call rotation \(2 candidates, unresolved\)/),
+    ).toBeInTheDocument();
     expect(screen.getByText('Pass')).toBeInTheDocument();
     expect(screen.getByText('Not evaluated')).toBeInTheDocument();
   });
@@ -492,12 +494,14 @@ describe('GroupMembershipsList — memberships with no rule to name', () => {
     withSource({ membershipType: 'DIRECT', rules: [] });
 
     expect(screen.getByText('Added directly')).toBeInTheDocument();
+    expect(screen.queryByTitle(/not every rule condition could be evaluated/i)).toBeNull();
   });
 
-  it('softens a direct membership the classifier only deduced', () => {
+  it('discloses that a direct membership the classifier only deduced was not fully evaluated', () => {
     withSource({ membershipType: 'DIRECT', rules: [], attribution: 'inferred' });
 
-    expect(screen.getByText('Likely added directly')).toBeInTheDocument();
+    expect(screen.getByText('Added directly')).toBeInTheDocument();
+    expect(screen.getByTitle(/not every rule condition could be evaluated/i)).toBeInTheDocument();
   });
 
   it('carries the full caveat on hover', () => {
@@ -603,7 +607,7 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
 
     expect(await screen.findByText(/Okta did not answer/)).toBeInTheDocument();
     expect(screen.queryByText(/Okta confirms/)).not.toBeInTheDocument();
-    expect(screen.getAllByText('Possible rule:')).toHaveLength(1);
+    expect(screen.getAllByText('Rule:')).toHaveLength(1);
   });
 
   it('leaves the per-rule explanation standing beside Okta’s answer', async () => {
@@ -616,7 +620,7 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
     await screen.findByText(/Okta confirms/);
 
     expect(screen.getByText('user.department == "Engineering"')).toBeInTheDocument();
-    expect(screen.getByText('Possible rule:')).toBeInTheDocument();
+    expect(screen.getByText('Rule:')).toBeInTheDocument();
   });
 
   it('carries the full caveat about whose answer it is on hover', async () => {

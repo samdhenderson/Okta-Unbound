@@ -395,7 +395,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     const engineering = await membershipRow('Engineering');
     expect(within(engineering).getByText('Direct')).toBeInTheDocument();
-    expect(within(engineering).queryByText('Rule?')).not.toBeInTheDocument();
+    expect(within(engineering).queryByText(/^Rule/)).not.toBeInTheDocument();
   });
 
   it('reports memberships as UNKNOWN, not a confident DIRECT, when rules cannot be fetched', async () => {

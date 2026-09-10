@@ -15,13 +15,13 @@ interface KindPresentation {
 }
 
 const kindPresentation: Record<GroupEffectKind, KindPresentation> = {
-  'likely-added': {
-    label: 'Likely added',
+  added: {
+    label: 'Added',
     icon: 'plus',
     markerClass: 'border-success-light bg-success-light text-success-text',
   },
-  'likely-removed': {
-    label: 'Likely removed',
+  removed: {
+    label: 'Removed',
     icon: 'minus',
     markerClass: 'border-warning-light bg-warning-light text-warning-text',
   },
@@ -47,7 +47,7 @@ function withheldReasonText(effect: GroupEffect): string {
         : 'Another active rule still matches this user, so the membership stays.';
     case 'membership-not-credited-to-rule':
       return 'Okta credits this membership to a direct add, not to a rule, so changing a rule will not remove it.';
-    case 'membership-attribution-hedged':
+    case 'membership-attribution-deduced':
       return 'Which rule grants this membership was never established, so the effect of this change cannot be predicted.';
     case 'rule-unevaluable-after':
       return 'Another rule targeting this group could not be evaluated here, so we cannot say the membership ends.';
@@ -63,12 +63,12 @@ function withheldReasonText(effect: GroupEffect): string {
 function effectSentence(effect: GroupEffect): string {
   const count = effect.contributingRuleIds.length;
   switch (effect.kind) {
-    case 'likely-added':
+    case 'added':
       if (effect.ruleName) return `Rule “${effect.ruleName}” starts matching this user.`;
       return count > 1
         ? `${count} rules start matching this user.`
         : 'A group rule starts matching this user.';
-    case 'likely-removed':
+    case 'removed':
       if (effect.ruleName) return `Rule “${effect.ruleName}” stops matching this user.`;
       return count > 1
         ? `All ${count} rules that place this user in the group stop matching.`

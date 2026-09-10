@@ -15,6 +15,7 @@ export interface MembershipVerdict {
 
 interface ClassifiedMembership extends MembershipVerdict {
   bucket: MembershipBucket;
+  deduced: boolean;
 }
 
 function classify(membership: GroupMembership): ClassifiedMembership {
@@ -23,35 +24,45 @@ function classify(membership: GroupMembership): ClassifiedMembership {
 
   if (provenance) {
     return provenance.rules.length > 0
-      ? { label: 'Rule', variant: 'primary', bucket: 'rule', title }
-      : { label: 'Direct', variant: 'success', bucket: 'direct', title };
+      ? { label: 'Rule', variant: 'primary', bucket: 'rule', title, deduced: false }
+      : { label: 'Direct', variant: 'success', bucket: 'direct', title, deduced: false };
   }
 
   if (membershipType === 'UNKNOWN') {
-    return { label: 'Unresolved', variant: 'warning', bucket: 'unresolved', title };
+    return { label: 'Unresolved', variant: 'warning', bucket: 'unresolved', title, deduced: true };
   }
 
   if (membershipType === 'DIRECT') {
     return isDeducedAttribution(attribution)
-      ? { label: 'Direct?', variant: 'warning', bucket: 'direct', title }
-      : { label: 'Direct', variant: 'success', bucket: 'direct', title };
+      ? { label: 'Direct', variant: 'warning', bucket: 'direct', title, deduced: true }
+      : { label: 'Direct', variant: 'success', bucket: 'direct', title, deduced: false };
   }
 
   if (rules.length === 0) {
     if (group.type === 'APP_GROUP') {
-      return { label: 'App', variant: 'neutral', bucket: 'app', title };
+      return { label: 'App', variant: 'neutral', bucket: 'app', title, deduced: false };
     }
-    return { label: 'Unresolved', variant: 'warning', bucket: 'unresolved', title };
+    return { label: 'Unresolved', variant: 'warning', bucket: 'unresolved', title, deduced: true };
   }
 
   switch (attribution) {
     case 'exact':
-      return { label: 'Rule', variant: 'primary', bucket: 'rule', title };
+      return { label: 'Rule', variant: 'primary', bucket: 'rule', title, deduced: false };
     case 'inferred':
-      return { label: 'Rule?', variant: 'warning', bucket: 'rule', title };
+      return { label: 'Rule', variant: 'warning', bucket: 'rule', title, deduced: true };
     case 'ambiguous':
-      return { label: `Rule · ${rules.length}?`, variant: 'warning', bucket: 'rule', title };
+      return {
+        label: `Rule · ${rules.length}`,
+        variant: 'warning',
+        bucket: 'rule',
+        title,
+        deduced: true,
+      };
   }
+}
+
+export function isMembershipAttributionDeduced(membership: GroupMembership): boolean {
+  return classify(membership).deduced;
 }
 
 export function membershipVerdict(membership: GroupMembership): MembershipVerdict {

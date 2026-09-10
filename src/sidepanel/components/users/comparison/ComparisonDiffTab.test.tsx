@@ -181,14 +181,14 @@ describe('carried forward from the bucket suite', () => {
         rows={[row()]}
         renderContextAction={() => <button type="button">Add</button>}
         renderMeta={() => (
-          <span>Likely added by rule: Contractors → VPN Access, Remote Access Baseline</span>
+          <span>Added by rule: Contractors → VPN Access, Remote Access Baseline</span>
         )}
       />,
     );
 
     const li = rowFor('VPN Access');
     const action = within(li).getByRole('button', { name: 'Add' });
-    const detail = within(li).getByText(/Likely added by rule/);
+    const detail = within(li).getByText(/Added by rule/);
 
     const column = within(li).getByTitle('VPN Access').parentElement;
     expect(column).toContainElement(detail);

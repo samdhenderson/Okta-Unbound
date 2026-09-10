@@ -14,7 +14,7 @@ const GROUPS: GroupEffect[] = [
   {
     groupId: '00gFAKE00000000000001',
     groupName: 'Sales-All',
-    kind: 'likely-added',
+    kind: 'added',
     ruleId: SALES_RULE,
     ruleName: 'Sales auto-add',
     contributingRuleIds: [SALES_RULE],
@@ -23,7 +23,7 @@ const GROUPS: GroupEffect[] = [
   {
     groupId: '00gFAKE00000000000002',
     groupName: 'Engineering-All',
-    kind: 'likely-removed',
+    kind: 'removed',
     ruleId: ENG_RULE,
     ruleName: 'Eng auto-add',
     contributingRuleIds: [ENG_RULE],
@@ -160,8 +160,8 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole('heading', { name: 'Likely added' })).toBeInTheDocument();
-    await expect(canvas.getByRole('heading', { name: 'Likely removed' })).toBeInTheDocument();
+    await expect(canvas.getByRole('heading', { name: 'Added' })).toBeInTheDocument();
+    await expect(canvas.getByRole('heading', { name: 'Removed' })).toBeInTheDocument();
     await expect(canvas.getByRole('heading', { name: 'Not predicted' })).toBeInTheDocument();
 
     await expect(canvas.getByText('Sales-All')).toBeInTheDocument();
@@ -210,7 +210,7 @@ export const NoEffects: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('No group changes predicted')).toBeInTheDocument();
-    await expect(canvas.getByText(/Predictions are likely, not certain/i)).toBeInTheDocument();
+    await expect(canvas.queryByText(/Predictions are likely, not certain/i)).toBeNull();
   },
 };
 

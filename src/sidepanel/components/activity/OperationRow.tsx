@@ -21,7 +21,7 @@ export function operationBuckets(operation: PlanSummary): string[] {
 
 export function budgetLabel(operation: PlanSummary): string {
   if (operation.estimated === null) return `${operation.spent}`;
-  return `${operation.spent} / ${operation.approximate ? '~' : ''}${operation.estimated}`;
+  return `${operation.spent} / ${operation.estimated}`;
 }
 
 const OperationRow: React.FC<OperationRowProps> = ({ operation, onCancel }) => {
@@ -57,10 +57,7 @@ const OperationRow: React.FC<OperationRowProps> = ({ operation, onCancel }) => {
       </div>
       <PipelineMeter
         counts={{ spent: operation.spent, active: 0, queued: 0, planned: remaining }}
-        approximate={operation.approximate}
-        label={`${operation.name}: ${operation.spent} requests spent, ${
-          operation.approximate ? 'at least ' : ''
-        }${remaining} to come`}
+        label={`${operation.name}: ${operation.spent} requests spent, ${remaining} to come`}
       />
     </div>
   );

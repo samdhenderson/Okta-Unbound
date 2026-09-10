@@ -1,5 +1,4 @@
 import React from 'react';
-import { PLANNED_HATCH } from './hatches';
 
 export interface PipelineCounts {
   spent: number;
@@ -10,7 +9,6 @@ export interface PipelineCounts {
 
 export interface PipelineMeterProps {
   counts: PipelineCounts;
-  approximate?: boolean;
   label: string;
 }
 
@@ -21,7 +19,7 @@ function Segment({ fraction, style }: { fraction: number; style: React.CSSProper
   );
 }
 
-const PipelineMeter: React.FC<PipelineMeterProps> = ({ counts, approximate = false, label }) => {
+const PipelineMeter: React.FC<PipelineMeterProps> = ({ counts, label }) => {
   const total = counts.spent + counts.active + counts.queued + counts.planned;
   const share = (n: number) => (total > 0 ? n / total : 0);
 
@@ -30,7 +28,6 @@ const PipelineMeter: React.FC<PipelineMeterProps> = ({ counts, approximate = fal
       role="img"
       aria-label={label}
       data-testid="pipeline-meter"
-      data-approximate={approximate ? 'true' : undefined}
       className="flex h-1.5 w-full overflow-hidden rounded-full bg-neutral-100"
     >
       <Segment fraction={share(counts.spent)} style={{ backgroundColor: 'var(--color-primary)' }} />
@@ -41,11 +38,7 @@ const PipelineMeter: React.FC<PipelineMeterProps> = ({ counts, approximate = fal
       />
       <Segment
         fraction={share(counts.planned)}
-        style={
-          approximate
-            ? { backgroundImage: PLANNED_HATCH }
-            : { backgroundColor: 'var(--color-neutral-400)' }
-        }
+        style={{ backgroundColor: 'var(--color-neutral-400)' }}
       />
     </div>
   );

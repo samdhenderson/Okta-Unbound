@@ -2,7 +2,7 @@ import type { MessageRequest, MessageResponse, OperationCallbacks } from './type
 import type { RequestResult, RequestPriority } from '@/shared/scheduler/types';
 import { runBatch, type BatchProgress, type BatchOutcome } from '@/shared/scheduler/runBatch';
 import type { PlanEstimate, PlanLegInput } from '@/shared/scheduler/plan';
-import { fanOutEstimate, atLeastFanOutEstimate } from '@/shared/scheduler/planEstimate';
+import { fanOutEstimate } from '@/shared/scheduler/planEstimate';
 import type { OperationPlanUpdate } from '@/shared/types';
 import { createLogger } from '@/shared/utils/logger';
 import { currentUserSchema } from '@/shared/schemas/okta';
@@ -53,7 +53,6 @@ export interface RunOperationOptions<T> {
     endpoint: string;
     method?: string;
     requestsPerItem?: number;
-    approximate?: boolean;
   };
 }
 
@@ -246,9 +245,7 @@ export function createCoreApi(
           {
             endpoint: plan.endpoint,
             method: plan.method,
-            estimate: plan.approximate
-              ? atLeastFanOutEstimate(items.length, plan.requestsPerItem)
-              : fanOutEstimate(items.length, plan.requestsPerItem),
+            estimate: fanOutEstimate(items.length, plan.requestsPerItem),
           },
         ],
         (handle) => drive(handle.planId),
