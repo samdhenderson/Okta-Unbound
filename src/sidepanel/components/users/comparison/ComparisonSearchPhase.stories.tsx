@@ -15,13 +15,12 @@ const meta = {
       description: {
         component:
           'Phase 1 of the comparison modal: search for and pick the second user to compare against.\n\n' +
-          'Renders an intro naming the context user, a controlled search box, and the matching results (the context user is filtered out so users can\'t compare with themselves). Shows a "Start typing to search" prompt when idle, a "Searching directory…" indicator while a search is in flight, and an empty state when a query returns no matches. Fully prop-driven; the parent hook owns the search.',
+          'Renders a controlled search box and the matching results (the context user is filtered out so users can\'t compare with themselves), and nothing else — the screen carries no intro card and no idle prompt. Shows a "Searching directory…" indicator while a search is in flight, and an empty state when a query returns no matches. Fully prop-driven; the parent hook owns the search.',
       },
     },
   },
   args: {
     contextUser,
-    contextName: 'First1 Last1',
     searchQuery: '',
     setSearchQuery: fn(),
     isSearching: false,
@@ -33,7 +32,6 @@ const meta = {
       description:
         "The context user; excluded from results so users can't compare with themselves.",
     },
-    contextName: { description: 'Display name of the context user, shown in the intro copy.' },
     searchQuery: { description: 'Current search text (controlled).' },
     setSearchQuery: { description: 'Updates the search text.' },
     isSearching: { description: 'When true, shows the "Searching directory…" indicator.' },

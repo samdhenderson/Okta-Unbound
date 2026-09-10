@@ -72,7 +72,6 @@ const CompositionReports: React.FC<CompositionReportsProps> = ({
     <CollapsibleSection title="Composition" defaultOpen={false}>
       <div className="space-y-(--sp-rung)">
         <Tabs
-          variant="segmented"
           tabs={tabs}
           activeKey={tab}
           onChange={(key) => setTab(key as 'attributes' | 'mfa')}
