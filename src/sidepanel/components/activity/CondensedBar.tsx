@@ -8,7 +8,7 @@ export interface CondensedBarProps {
 }
 
 const CondensedBar: React.FC<CondensedBarProps> = ({ view, actions }) => (
-  <div className="flex items-center gap-(--sp-inline) px-(--sp-gutter) py-2.5 text-xs">
+  <div className="flex items-center gap-(--sp-inline) px-(--sp-gutter) py-1 text-xs">
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <StatusDot busy={view.busy} colorVar={view.statusColorVar} />
       {view.operationActive && view.operationName ? (

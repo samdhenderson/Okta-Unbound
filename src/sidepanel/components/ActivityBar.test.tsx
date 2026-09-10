@@ -13,10 +13,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 
 const sendMessage = chrome.runtime.sendMessage as ReturnType<typeof vi.fn>;
 
-function setWidth(px: number): void {
-  Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: px });
-}
-
 beforeEach(() => {
   sendMessage.mockReset();
   sendMessage.mockImplementation((msg: { action: string }) => {
@@ -43,8 +39,7 @@ beforeEach(() => {
 });
 
 describe('ActivityBar', () => {
-  it('condenses on a narrow panel and expands when the chevron is clicked', async () => {
-    setWidth(400);
+  it('boots condensed and expands when the chevron is clicked', async () => {
     render(<ActivityBar />, { wrapper });
 
     await waitFor(() => expect(screen.getByTestId('activity-rate-compact')).toBeInTheDocument());
@@ -56,21 +51,19 @@ describe('ActivityBar', () => {
     expect(screen.getByRole('button', { name: /hide extra activity stats/i })).toBeInTheDocument();
   });
 
-  it('shows the full row with no collapse toggle on a wide panel', async () => {
-    setWidth(1200);
+  it('re-collapses on a second chevron click', async () => {
     render(<ActivityBar />, { wrapper });
 
-    await waitFor(() =>
-      expect(
-        within(screen.getByTestId('activity-actions')).getByRole('button', { name: /cancel/i }),
-      ).toBeEnabled(),
-    );
+    await waitFor(() => expect(screen.getByTestId('activity-rate-compact')).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /show all activity stats/i }));
     expect(screen.getByTestId('activity-standing')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /activity stats/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /hide extra activity stats/i }));
+    expect(screen.queryByTestId('activity-standing')).not.toBeInTheDocument();
+    expect(screen.getByTestId('activity-rate-compact')).toBeInTheDocument();
   });
 
   it('confirms then drains the queue on Cancel', async () => {
-    setWidth(1200);
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     render(<ActivityBar />, { wrapper });
 
@@ -90,7 +83,6 @@ describe('ActivityBar', () => {
   });
 
   it('does not cancel when the confirm is dismissed', async () => {
-    setWidth(1200);
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     render(<ActivityBar />, { wrapper });
 
