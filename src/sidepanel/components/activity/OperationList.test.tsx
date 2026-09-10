@@ -30,13 +30,13 @@ function plan(overrides: Partial<PlanSummary> & { id: string; name: string }): P
 }
 
 describe('budgetLabel', () => {
-  it('marks an approximate total with a tilde', () => {
+  it('states the declared total plainly when the plan calls it a floor', () => {
     expect(budgetLabel(plan({ id: 'p', name: 'Export', spent: 12, approximate: true }))).toBe(
-      '12 / ~50',
+      '12 / 50',
     );
   });
 
-  it('drops the tilde once every leg is exact', () => {
+  it('states the declared total plainly when every leg is exact', () => {
     expect(budgetLabel(plan({ id: 'p', name: 'Export', spent: 12 }))).toBe('12 / 50');
   });
 

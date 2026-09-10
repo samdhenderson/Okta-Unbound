@@ -32,13 +32,13 @@ export interface RuleEffect {
   readonly status?: GroupRuleStatus;
 }
 
-export type GroupEffectKind = 'likely-added' | 'likely-removed' | 'not-predicted';
+export type GroupEffectKind = 'added' | 'removed' | 'not-predicted';
 
 export type WithheldReason =
   | 'rule-unevaluable-after'
   | 'another-active-rule-still-matches'
   | 'membership-not-credited-to-rule'
-  | 'membership-attribution-hedged'
+  | 'membership-attribution-deduced'
   | 'rule-inactive'
   | 'app-mastered-group';
 

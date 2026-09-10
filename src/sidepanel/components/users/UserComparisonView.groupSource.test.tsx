@@ -142,7 +142,7 @@ describe('UserComparisonView — the groups tab says how a membership was grante
     const row = rowFor('Finance Approvers');
 
     expect(
-      within(row).getByText('Possible rule: Legacy A, Legacy B (2 candidates, unresolved)'),
+      within(row).getByText('Rule: Legacy A, Legacy B (2 candidates, unresolved)'),
     ).toBeInTheDocument();
     expect(row.textContent).not.toMatch(/Added by Rule/);
   });
@@ -176,7 +176,7 @@ describe('UserComparisonView — the groups tab says how a membership was grante
 
     expect(within(row).queryByText('Added directly')).not.toBeInTheDocument();
     expect(row.querySelector('span[title]')?.textContent).toBe('All Employees');
-    expect(row.textContent).not.toMatch(/Added|Likely|Possible|Managed|Source/);
+    expect(row.textContent).not.toMatch(/Added|Rule:|Managed|Source/);
   });
 });
 
@@ -189,7 +189,7 @@ describe('UserComparisonView — the apps tab is unchanged by the groups source 
     expect(within(rowFor('Slack')).getByText('Source not compared')).toBeInTheDocument();
 
     const text = container.textContent ?? '';
-    expect(text).not.toMatch(/Added by Rule|Likely added by rule|Possible rule/);
+    expect(text).not.toMatch(/Added by Rule:|Added by rule:|Rule:/);
     expect(text).not.toMatch(/Added directly|Source not determined/);
   });
 });

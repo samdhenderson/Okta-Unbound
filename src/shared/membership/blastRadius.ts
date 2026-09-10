@@ -7,8 +7,8 @@ import { explainRuleExpression, type ClauseGroupReference } from '../rules/expla
 import { groupContextOf } from './groupContext';
 import { conditionExpressionOf } from './ruleExpression';
 import {
+  isMembershipAttributionDeduced,
   membershipBucket,
-  membershipVerdict,
 } from '../../sidepanel/components/users/membershipVerdict';
 import type { GroupMembership, MembershipRule, OktaUser } from '../types';
 import type {
@@ -131,7 +131,7 @@ function predicted(
   groupId: string,
   candidates: readonly RuleEvaluation[],
   context: GroupPassContext,
-  kind: Extract<GroupEffectKind, 'likely-added' | 'likely-removed'>,
+  kind: Extract<GroupEffectKind, 'added' | 'removed'>,
 ): GroupEffect {
   return { ...baseEffect(groupId, candidates, context), kind };
 }
@@ -146,7 +146,7 @@ function additionEffect(
   const active = candidates.filter((candidate) => candidate.effect.active);
   if (active.length === 0) return withheld(groupId, candidates, context, 'rule-inactive');
 
-  return predicted(groupId, active, context, 'likely-added');
+  return predicted(groupId, active, context, 'added');
 }
 
 function removalEffect(
@@ -165,7 +165,7 @@ function removalEffect(
 
   if (held.group.type === 'APP_GROUP') return decline('app-mastered-group');
   if (membershipBucket(held) !== 'rule') return decline('membership-not-credited-to-rule');
-  if (membershipVerdict(held).label !== 'Rule') return decline('membership-attribution-hedged');
+  if (isMembershipAttributionDeduced(held)) return decline('membership-attribution-deduced');
 
   const stopping = new Set(active.map((candidate) => candidate.effect.ruleId));
   const others = context.evaluations.filter(
@@ -183,7 +183,7 @@ function removalEffect(
     return decline('rule-unevaluable-after');
   }
 
-  return predicted(groupId, active, context, 'likely-removed');
+  return predicted(groupId, active, context, 'removed');
 }
 
 interface AffectedGroup {
@@ -234,8 +234,8 @@ function secondOrderScan(
 }
 
 const KIND_ORDER: Record<GroupEffectKind, number> = {
-  'likely-added': 0,
-  'likely-removed': 1,
+  added: 0,
+  removed: 1,
   'not-predicted': 2,
 };
 
@@ -362,8 +362,8 @@ export function analyzeBlastRadius(input: BlastRadiusInput): BlastRadiusReport {
     groups,
     rules,
     counts: {
-      added: countKind('likely-added'),
-      removed: countKind('likely-removed'),
+      added: countKind('added'),
+      removed: countKind('removed'),
       notPredicted: countKind('not-predicted'),
       starts: countTransition('starts-matching'),
       stops: countTransition('stops-matching'),

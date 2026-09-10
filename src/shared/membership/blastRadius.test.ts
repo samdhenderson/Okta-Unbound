@@ -131,7 +131,7 @@ describe('a second rule that still matches withholds the removal', () => {
 
     expect(onlyGroup(report)).toMatchObject({
       groupId: ENGINEERING.id,
-      kind: 'likely-removed',
+      kind: 'removed',
       ruleId: ENG_FEEDER.id,
       ruleName: ENG_FEEDER.name,
     });
@@ -163,12 +163,27 @@ describe('a membership not credited to a rule withholds the removal', () => {
     });
     const report = analyze({ rules: [ENG_FEEDER], memberships: [membership] });
 
-    expect(onlyGroup(report)).toMatchObject({ kind: 'likely-removed', currentBucket: 'rule' });
+    expect(onlyGroup(report)).toMatchObject({ kind: 'removed', currentBucket: 'rule' });
     expect(report.counts.removed).toBe(1);
   });
 });
 
-describe('a hedged attribution withholds the removal', () => {
+describe('a deduced attribution withholds the removal', () => {
+  it('declines when the classifier merely inferred which rule fed it', () => {
+    const membership = membershipOf(ENGINEERING, {
+      rules: [ENG_FEEDER],
+      attribution: 'inferred',
+    });
+    const report = analyze({ rules: [ENG_FEEDER], memberships: [membership] });
+
+    expect(onlyGroup(report)).toMatchObject({
+      kind: 'not-predicted',
+      withheldReason: 'membership-attribution-deduced',
+      currentBucket: 'rule',
+    });
+    expect(report.counts.removed).toBe(0);
+  });
+
   it('declines while the classifier is only guessing which rule fed it', () => {
     const membership = membershipOf(ENGINEERING, {
       rules: [ENG_FEEDER, STAFF_FEEDER],
@@ -178,7 +193,7 @@ describe('a hedged attribution withholds the removal', () => {
 
     expect(onlyGroup(report)).toMatchObject({
       kind: 'not-predicted',
-      withheldReason: 'membership-attribution-hedged',
+      withheldReason: 'membership-attribution-deduced',
       currentBucket: 'rule',
     });
     expect(report.counts.removed).toBe(0);
@@ -191,7 +206,7 @@ describe('a hedged attribution withholds the removal', () => {
     });
     const report = analyze({ rules: [ENG_FEEDER], memberships: [membership] });
 
-    expect(onlyGroup(report)).toMatchObject({ kind: 'likely-removed' });
+    expect(onlyGroup(report)).toMatchObject({ kind: 'removed' });
     expect(report.counts.removed).toBe(1);
   });
 });
@@ -201,7 +216,7 @@ describe('an unevaluable sibling rule is never read as a no (ADR-0020)', () => {
     const report = analyze({ rules: [ENG_FEEDER, REGEX_FEEDER] });
 
     const effect = onlyGroup(report);
-    expect(effect.kind).not.toBe('likely-removed');
+    expect(effect.kind).not.toBe('removed');
     expect(effect).toMatchObject({
       kind: 'not-predicted',
       withheldReason: 'rule-unevaluable-after',
@@ -220,7 +235,7 @@ describe('an unevaluable sibling rule is never read as a no (ADR-0020)', () => {
   it('MIRROR: without the unevaluable rule, the same fixture loses the group', () => {
     const report = analyze({ rules: [ENG_FEEDER] });
 
-    expect(onlyGroup(report)).toMatchObject({ kind: 'likely-removed' });
+    expect(onlyGroup(report)).toMatchObject({ kind: 'removed' });
     expect(report.counts.removed).toBe(1);
   });
 });
@@ -359,7 +374,7 @@ describe('second-order cascades are reported, not resolved', () => {
       rules: [newHireFeeder, cascadeRule('isMemberOfGroupName("New Hires")')],
     });
 
-    expect(report.groups.map((g) => [g.groupId, g.kind])).toEqual([[NEW_HIRES.id, 'likely-added']]);
+    expect(report.groups.map((g) => [g.groupId, g.kind])).toEqual([[NEW_HIRES.id, 'added']]);
     expect(report.secondOrderPossible).toBe(true);
     expect(report.secondOrderRuleNames).toEqual(['Downstream feeder']);
   });
@@ -403,9 +418,9 @@ describe('report order is total and deterministic', () => {
     });
 
     expect(report.groups.map((g) => [g.kind, g.groupName])).toEqual([
-      ['likely-added', 'Alpha Access'],
-      ['likely-added', 'Zebra Access'],
-      ['likely-removed', 'Engineering'],
+      ['added', 'Alpha Access'],
+      ['added', 'Zebra Access'],
+      ['removed', 'Engineering'],
       ['not-predicted', 'Finance'],
     ]);
     expect(report.counts).toMatchObject({ added: 2, removed: 1, notPredicted: 1 });
@@ -477,7 +492,7 @@ describe('the rule inventory state decides the report status', () => {
     const report = analyze({ rules: asLocal });
 
     expect(report.status).toBe('computed');
-    expect(onlyGroup(report)).toMatchObject({ kind: 'likely-removed' });
+    expect(onlyGroup(report)).toMatchObject({ kind: 'removed' });
   });
 });
 

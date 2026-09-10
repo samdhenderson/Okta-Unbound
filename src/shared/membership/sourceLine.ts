@@ -3,8 +3,8 @@ import type { GroupMembership, MembershipAttribution, MembershipProvenance } fro
 
 const attributionCaption: Record<MembershipAttribution, string> = {
   exact: 'Added by Rule:',
-  inferred: 'Likely added by rule:',
-  ambiguous: 'Possible rule:',
+  inferred: 'Added by rule:',
+  ambiguous: 'Rule:',
 };
 
 export interface MembershipSourceLine {
@@ -23,7 +23,7 @@ function ruleDescription(namesRules: boolean, deduced: boolean): string {
     return 'The classifier could not resolve which rule granted this membership, so everything listed is a candidate rather than the answer, and none of them is credited.';
   }
   if (deduced) {
-    return 'Not every rule condition could be evaluated against this user, so the rules listed are the plausible source rather than a confirmed one. Okta does not record which rule added a member.';
+    return 'Not every rule condition could be evaluated against this user. The rules listed are the source of this membership; Okta does not record which rule added a member.';
   }
   return 'Every rule listed provably matches this user. Okta does not record which rule added a member, so this is the classifier evaluating rule conditions, not an Okta assertion.';
 }
@@ -68,10 +68,10 @@ export function membershipSourceLine(membership: GroupMembership): MembershipSou
 
   if (membershipType === 'DIRECT') {
     return {
-      caption: deduced ? 'Likely added directly' : 'Added directly',
+      caption: 'Added directly',
       detail: '',
       description: deduced
-        ? 'No rule was matched, but not every rule condition could be evaluated, so a manual add is the likely explanation rather than a confirmed one.'
+        ? 'No rule was matched, though not every rule condition could be evaluated. The user was added to the group by hand.'
         : 'No active group rule explains this membership, so the user was added to the group by hand.',
       proven: !deduced,
     };

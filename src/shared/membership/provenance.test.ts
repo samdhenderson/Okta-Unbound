@@ -110,14 +110,22 @@ describe('membershipSourceLine — a membership Okta answered about', () => {
   });
 
   it('outranks the classifier: Okta’s answer wins over the deduction it contradicts', () => {
-    expect(sourceLineLabel(lineFor({ state: 'no-rules' }))).not.toMatch(/Contractors/);
-    expect(sourceLineLabel(membershipSourceLine(guessed))).toMatch(/^Possible rule:/);
+    const answered = lineFor({ state: 'no-rules' });
+    const deduced = membershipSourceLine(guessed);
+
+    expect(sourceLineLabel(answered)).not.toMatch(/Contractors/);
+
+    expect(sourceLineLabel(deduced)).toMatch(/Contractors/);
+    expect(sourceLineLabel(deduced)).not.toMatch(/Okta confirms/);
+    expect(deduced.proven).toBe(false);
+    expect(answered.proven).toBe(true);
   });
 
-  it('leaves the hedged line in place when Okta said nothing', () => {
+  it('leaves the classifier’s own line in place when Okta said nothing', () => {
     const line = lineFor({ state: 'unknown' });
 
-    expect(sourceLineLabel(line)).toBe('Possible rule: Contractors → VPN');
+    expect(sourceLineLabel(line)).toBe('Rule: Contractors → VPN');
+    expect(sourceLineLabel(line)).toBe(sourceLineLabel(membershipSourceLine(guessed)));
     expect(line.proven).toBe(false);
   });
 

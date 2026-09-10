@@ -40,16 +40,23 @@ describe('GroupSourceIndicator — attribution captions', () => {
     expect(shown({})).toHaveTextContent(/^Added by Rule: Contractors → VPN Access$/);
   });
 
-  it('hedges the same single rule for an `inferred` attribution', () => {
-    expect(shown({ attribution: 'inferred' })).toHaveTextContent(
-      /^Likely added by rule: Contractors → VPN Access$/,
-    );
+  it('gives the same single rule its own caption for an `inferred` attribution', () => {
+    const el = shown({ attribution: 'inferred' });
+
+    expect(el).toHaveTextContent(/^Added by rule: Contractors → VPN Access$/);
+    expect(wording(el)).toMatch(/Not every rule condition could be evaluated/i);
   });
 
-  it('offers the rule only as a possibility for an `ambiguous` attribution', () => {
-    expect(shown({ attribution: 'ambiguous' })).toHaveTextContent(
-      /^Possible rule: Contractors → VPN Access$/,
-    );
+  it('does not tell an `exact` reader that anything went unevaluated', () => {
+    expect(wording(shown({}))).not.toMatch(/Not every rule condition could be evaluated/i);
+    expect(wording(shown({}))).toMatch(/provably matches this user/i);
+  });
+
+  it('gives the rule its own caption for an `ambiguous` attribution', () => {
+    const el = shown({ attribution: 'ambiguous' });
+
+    expect(el).toHaveTextContent(/^Rule: Contractors → VPN Access$/);
+    expect(wording(el)).toMatch(/candidate rather than the answer/i);
   });
 
   it('gives each attribution its own caption, so none reads as another', () => {
@@ -154,10 +161,15 @@ describe('GroupSourceIndicator — the three ways of not having a rule', () => {
     expect(marker(undefined)).toBeNull();
   });
 
-  it('softens DIRECT when the classification was a deduction', () => {
-    expect(
-      shown({ membershipType: 'DIRECT', rules: [], attribution: 'inferred' }),
-    ).toHaveTextContent(/^Likely added directly$/);
+  it('discloses on hover that a deduced DIRECT was not fully evaluated', () => {
+    const deduced = shown({ membershipType: 'DIRECT', rules: [], attribution: 'inferred' });
+    const proven = shown({ membershipType: 'DIRECT', rules: [] });
+
+    expect(deduced).toHaveTextContent(/^Added directly$/);
+    expect(proven).toHaveTextContent(/^Added directly$/);
+
+    expect(wording(deduced)).toMatch(/not every rule condition could be evaluated/i);
+    expect(wording(proven)).not.toMatch(/not every rule condition could be evaluated/i);
   });
 
   it('names an APP_GROUP as application-managed rather than as a nameless rule', () => {
@@ -201,7 +213,7 @@ describe('GroupSourceIndicator — caption parity with GroupMembershipsList', ()
     const { unmount } = render(
       <GroupMembershipsList memberships={[membership({ attribution })]} isLoading={false} />,
     );
-    const caption = ['Added by Rule:', 'Likely added by rule:', 'Possible rule:'].find(
+    const caption = ['Added by Rule:', 'Added by rule:', 'Rule:'].find(
       (text) => screen.queryByText(text) !== null,
     );
     unmount();

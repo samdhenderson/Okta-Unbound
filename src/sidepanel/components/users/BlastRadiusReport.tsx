@@ -47,21 +47,13 @@ const RuleSection: React.FC<{ title: string; effects: readonly RuleEffect[] }> =
     </section>
   );
 
-const Footnote: React.FC = () => (
-  <p className="text-xs text-neutral-500">
-    Predictions are likely, not certain: this panel cannot see a rule&rsquo;s exclusion list,
-    evaluates conditions with its own implementation of Okta&rsquo;s expression language, and Okta
-    applies rules asynchronously.
-  </p>
-);
-
 const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({ report, className = '' }) => {
   const [view, setView] = useState<ReportView>('groups');
 
   const { added, removed, notPredicted } = useMemo(
     () => ({
-      added: report.groups.filter((effect) => effect.kind === 'likely-added'),
-      removed: report.groups.filter((effect) => effect.kind === 'likely-removed'),
+      added: report.groups.filter((effect) => effect.kind === 'added'),
+      removed: report.groups.filter((effect) => effect.kind === 'removed'),
       notPredicted: report.groups.filter((effect) => effect.kind === 'not-predicted'),
     }),
     [report.groups],
@@ -103,7 +95,6 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({ report, className
           title="No group changes predicted"
           description="No group rule's verdict about this user moves under this edit, so no membership is predicted to change."
         />
-        <Footnote />
       </div>
     );
   }
@@ -131,8 +122,8 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({ report, className
             </p>
           ) : (
             <>
-              <GroupSection title="Likely added" effects={added} />
-              <GroupSection title="Likely removed" effects={removed} />
+              <GroupSection title="Added" effects={added} />
+              <GroupSection title="Removed" effects={removed} />
               <GroupSection title="Not predicted" effects={notPredicted} />
             </>
           )}
@@ -168,8 +159,6 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({ report, className
           What they do next is not predicted here.
         </p>
       )}
-
-      <Footnote />
     </div>
   );
 };

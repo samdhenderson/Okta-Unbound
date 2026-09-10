@@ -108,7 +108,7 @@ async function resolveGrantingGroups({
       ),
     {
       message: ({ completed, total }) => `Naming granting groups (${completed}/${total})`,
-      plan: { endpoint: '/api/v1/apps', method: 'GET', approximate: true },
+      plan: { endpoint: '/api/v1/apps', method: 'GET' },
     },
   );
 

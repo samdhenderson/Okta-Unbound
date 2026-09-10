@@ -64,7 +64,7 @@ const GROUPS: GroupEffect[] = [
   {
     groupId: '00gFAKE00000000000001',
     groupName: 'Sales-All',
-    kind: 'likely-added',
+    kind: 'added',
     ruleId: SALES_RULE,
     ruleName: 'Sales auto-add',
     contributingRuleIds: [SALES_RULE],
@@ -73,7 +73,7 @@ const GROUPS: GroupEffect[] = [
   {
     groupId: '00gFAKE00000000000002',
     groupName: 'Engineering-All',
-    kind: 'likely-removed',
+    kind: 'removed',
     ruleId: ENG_RULE,
     ruleName: 'Eng auto-add',
     contributingRuleIds: [ENG_RULE],
@@ -262,8 +262,8 @@ export const Analyzed: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.queryByRole('button', { name: 'Analyze blast radius' })).toBeNull();
-    await expect(canvas.getByRole('heading', { name: 'Likely added' })).toBeInTheDocument();
-    await expect(canvas.getByRole('heading', { name: 'Likely removed' })).toBeInTheDocument();
+    await expect(canvas.getByRole('heading', { name: 'Added' })).toBeInTheDocument();
+    await expect(canvas.getByRole('heading', { name: 'Removed' })).toBeInTheDocument();
     await expect(canvas.getByText('Sales-All')).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole('button', { name: 'Rules 2' }));

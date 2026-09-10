@@ -106,13 +106,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'One membership, reduced to two statements: a **verdict badge** (`Rule`, `Rule?`, ' +
-          '`Rule · n?`, `Direct`, `Direct?`, `App`, `Unresolved` — from `membershipVerdict`) and ' +
+          'One membership, reduced to two statements: a **verdict badge** (`Rule`, ' +
+          '`Rule · n`, `Direct`, `App`, `Unresolved` — from `membershipVerdict`) and ' +
           'one **source line** worded by `shared/membership/sourceLine`.\n\n' +
           'The row this replaced stacked the raw membership enum, a second group-type badge, a ' +
-          'hedged caption and a "Prove it" strip on top of each other, and left the reader to ' +
+          'qualified caption and a "Prove it" strip on top of each other, and left the reader to ' +
           'decide which to believe. Everything past the two statements now lives behind the ' +
-          'disclosure, in one order: the full caveat, a card per attributed rule, any apps the ' +
+          'disclosure, in one order: the full explanation, a card per attributed rule, any apps the ' +
           'group also grants, the **Ask Okta** proof action (ADR-0031), and the Okta deep link.\n\n' +
           'The disclosure is closed by default and held `inert` while closed, which is what keeps ' +
           'the proof action — one API call per press — off a row nobody has opened. Expansion is ' +
@@ -303,7 +303,7 @@ export const LongGroupName: Story = {
     const name = canvas.getByText(longName.group.profile.name);
     await expect(name).toBeInTheDocument();
     await expect(name).toHaveAttribute('title', longName.group.profile.name);
-    await expect(canvas.getByText('Rule · 2?')).toBeInTheDocument();
+    await expect(canvas.getByText('Rule · 2')).toBeInTheDocument();
     await expect(canvas.getByText('On page')).toBeInTheDocument();
   },
 };
