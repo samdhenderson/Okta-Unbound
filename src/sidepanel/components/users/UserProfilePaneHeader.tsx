@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button, IconButton } from '../shared';
+import { Badge, Button, IconButton } from '../shared';
 import Icon from '../shared/Icon';
+import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
 
 export interface ProfileEditControls {
   canEdit: boolean;
@@ -12,11 +13,18 @@ export interface ProfileEditControls {
   onSave: () => void;
 }
 
+export interface ProfileDisplayCustomizeControls {
+  isCustomizing: boolean;
+  onBegin: () => void;
+  onCommit: (config: ProfileDisplayConfig) => void;
+  onCancel: () => void;
+}
+
 export interface UserProfilePaneHeaderProps {
   shown: number;
   total: number;
   ruleReadCount: number;
-  onConfigure: () => void;
+  customize?: ProfileDisplayCustomizeControls;
   edit?: ProfileEditControls;
 }
 
@@ -42,7 +50,7 @@ const UserProfilePaneHeader: React.FC<UserProfilePaneHeaderProps> = ({
   shown,
   total,
   ruleReadCount,
-  onConfigure,
+  customize,
   edit,
 }) => (
   <div className="flex flex-wrap items-start justify-between gap-(--sp-inline) p-(--sp-card)">
@@ -51,37 +59,45 @@ const UserProfilePaneHeader: React.FC<UserProfilePaneHeaderProps> = ({
     </p>
 
     <div className="flex shrink-0 items-center gap-(--sp-field)">
-      {edit?.isEditing ? (
-        <>
-          <EditStatus changeCount={edit.changeCount} hasInvalid={edit.hasInvalid} />
-          <Button size="sm" variant="secondary" onClick={edit.onCancelEdit}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={edit.onSave}
-            disabled={edit.changeCount === 0 || edit.hasInvalid}
-          >
-            Save
-          </Button>
-        </>
+      {customize?.isCustomizing ? (
+        <Badge variant="neutral">Customizing display</Badge>
       ) : (
-        edit?.canEdit && (
-          <Button size="sm" variant="secondary" onClick={edit.onBeginEdit}>
-            Edit
-          </Button>
-        )
-      )}
+        <>
+          {edit?.isEditing ? (
+            <>
+              <EditStatus changeCount={edit.changeCount} hasInvalid={edit.hasInvalid} />
+              <Button size="sm" variant="secondary" onClick={edit.onCancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={edit.onSave}
+                disabled={edit.changeCount === 0 || edit.hasInvalid}
+              >
+                Save
+              </Button>
+            </>
+          ) : (
+            edit?.canEdit && (
+              <Button size="sm" variant="secondary" onClick={edit.onBeginEdit}>
+                Edit
+              </Button>
+            )
+          )}
 
-      <IconButton
-        label="Configure attribute display"
-        variant="subtle"
-        size="md"
-        onClick={onConfigure}
-      >
-        <Icon type="settings" size="sm" />
-      </IconButton>
+          {customize && !edit?.isEditing && (
+            <IconButton
+              label="Configure attribute display"
+              variant="subtle"
+              size="md"
+              onClick={customize.onBegin}
+            >
+              <Icon type="settings" size="sm" />
+            </IconButton>
+          )}
+        </>
+      )}
     </div>
   </div>
 );

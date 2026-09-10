@@ -15,6 +15,10 @@ interface IconButtonProps {
   active?: boolean;
   expanded?: boolean;
   controls?: string;
+  onPointerDown?: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  describedBy?: string;
+  buttonRef?: React.Ref<HTMLButtonElement>;
   className?: string;
 }
 
@@ -41,16 +45,24 @@ const IconButton: React.FC<IconButtonProps> = ({
   active,
   expanded,
   controls,
+  onPointerDown,
+  onKeyDown,
+  describedBy,
+  buttonRef,
   className = '',
 }) => (
   <button
+    ref={buttonRef}
     type={type}
     onClick={onClick}
+    onPointerDown={onPointerDown}
+    onKeyDown={onKeyDown}
     disabled={disabled}
     aria-label={label}
     aria-pressed={active}
     aria-expanded={expanded}
     aria-controls={controls}
+    aria-describedby={describedBy}
     title={title ?? label}
     className={`inline-flex items-center justify-center rounded-md press active:brightness-90 focus:outline-2 focus:outline-offset-2 focus:outline-primary disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
   >

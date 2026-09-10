@@ -3,7 +3,6 @@ import { Tabs, type TabItem } from '../shared';
 import GroupMembershipsList from './GroupMembershipsList';
 import UserAppsList from './UserAppsList';
 import UserProfilePane from './UserProfilePane';
-import ProfileDisplayModal from './ProfileDisplayModal';
 import ProfileSaveModal from './ProfileSaveModal';
 import { userDisplayName } from '../../../shared/utils/userDisplay';
 import type { AttributeDescriptor } from './profileAttributes';
@@ -39,7 +38,6 @@ export interface UserDetailPanelProps {
   isLoadingProfile: boolean;
   profileConfig: ProfileDisplayConfig;
   onProfileConfigChange: (patch: Partial<ProfileDisplayConfig>) => void;
-  onProfileConfigReset: () => void;
   ruleReads: Record<string, string[]>;
   profileEdit?: UserProfileEditing;
 }
@@ -64,11 +62,10 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
   isLoadingProfile,
   profileConfig,
   onProfileConfigChange,
-  onProfileConfigReset,
   ruleReads,
   profileEdit,
 }) => {
-  const [isConfiguringProfile, setIsConfiguringProfile] = useState(false);
+  const [isCustomizingDisplay, setIsCustomizingDisplay] = useState(false);
 
   const tabs: TabItem[] = [
     {
@@ -136,22 +133,20 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
             config={profileConfig}
             ruleReads={ruleReads}
             isLoading={isLoadingProfile}
-            onConfigure={() => setIsConfiguringProfile(true)}
+            customize={{
+              isCustomizing: isCustomizingDisplay,
+              onBegin: () => setIsCustomizingDisplay(true),
+              onCommit: (next) => {
+                onProfileConfigChange(next);
+                setIsCustomizingDisplay(false);
+              },
+              onCancel: () => setIsCustomizingDisplay(false),
+            }}
             edit={profileEdit?.controls}
             cells={profileEdit?.cells}
           />
         </div>
       </div>
-
-      <ProfileDisplayModal
-        isOpen={isConfiguringProfile}
-        onClose={() => setIsConfiguringProfile(false)}
-        attributes={attributes}
-        config={profileConfig}
-        onChange={onProfileConfigChange}
-        onReset={onProfileConfigReset}
-        ruleReads={ruleReads}
-      />
 
       {profileEdit && <ProfileSaveModal {...profileEdit.save} userName={userDisplayName(user)} />}
     </div>
