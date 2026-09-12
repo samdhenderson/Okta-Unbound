@@ -5,6 +5,7 @@ import {
 } from '../ruleEvaluator';
 import {
   explainRuleExpression,
+  userAttributeNamesRead,
   type ClauseGroupMatch,
   type ClauseGroupReference,
   type ClauseGroupRequirement,
@@ -37,8 +38,15 @@ function targetGroupIdsOf(rule: MembershipRule): readonly string[] {
   return rule.groupIds || rule.actions?.assignUserToGroups?.groupIds || [];
 }
 
-function draftedUser(user: OktaUser, draft: Readonly<Record<string, unknown>>): OktaUser {
+export function draftedUser(user: OktaUser, draft: Readonly<Record<string, unknown>>): OktaUser {
   return { ...user, profile: { ...user.profile, ...draft } as OktaUser['profile'] };
+}
+
+function draftCouldMove(expression: string, draftKeys: ReadonlySet<string>): boolean {
+  const reads = userAttributeNamesRead(expression);
+  if (reads === undefined) return true;
+  for (const name of reads) if (draftKeys.has(name)) return true;
+  return false;
 }
 
 const USER_ATTRIBUTE_PATTERN = /\buser\.([A-Za-z_$][A-Za-z0-9_$]*)/g;
@@ -53,8 +61,14 @@ function touchedAttributesOf(
   return [...named].filter((name) => draftKeys.has(name)).sort();
 }
 
-function transitionOf(before: RuleMatchResult, after: RuleMatchResult): RuleTransition {
-  if (before.outcome === 'unevaluable' || after.outcome === 'unevaluable') return 'undetermined';
+function transitionOf(
+  before: RuleMatchResult,
+  after: RuleMatchResult,
+  movable: boolean,
+): RuleTransition {
+  if (before.outcome === 'unevaluable' || after.outcome === 'unevaluable') {
+    return movable ? 'undetermined' : 'unchanged-unevaluable';
+  }
   if (before.outcome === after.outcome) {
     return before.outcome === 'match' ? 'unchanged-match' : 'unchanged-no-match';
   }
@@ -87,7 +101,7 @@ function evaluateRule(
       ruleId: rule.id,
       ruleName: rule.name,
       expression,
-      transition: transitionOf(before, after),
+      transition: transitionOf(before, after, draftCouldMove(expression, draftKeys)),
       ...(before.outcome === 'unevaluable' ? { beforeReason: before.reasonCode } : {}),
       ...(after.outcome === 'unevaluable' ? { afterReason: after.reasonCode } : {}),
       targetGroupIds,
@@ -237,6 +251,7 @@ const SECOND_ORDER_TRANSITIONS: ReadonlySet<RuleTransition> = new Set<RuleTransi
   'unchanged-match',
   'unchanged-no-match',
   'undetermined',
+  'unchanged-unevaluable',
 ]);
 
 function cascadeScan(
@@ -321,6 +336,7 @@ const TRANSITION_ORDER: Record<RuleTransition, number> = {
   undetermined: 2,
   'unchanged-match': 3,
   'unchanged-no-match': 4,
+  'unchanged-unevaluable': 5,
 };
 
 interface Ranked {

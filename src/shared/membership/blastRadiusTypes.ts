@@ -17,7 +17,12 @@ export interface BlastRadiusInput {
 }
 
 export type RuleTransition =
-  'starts-matching' | 'stops-matching' | 'unchanged-match' | 'unchanged-no-match' | 'undetermined';
+  | 'starts-matching'
+  | 'stops-matching'
+  | 'unchanged-match'
+  | 'unchanged-no-match'
+  | 'unchanged-unevaluable'
+  | 'undetermined';
 
 export interface RuleEffect {
   readonly ruleId: string;

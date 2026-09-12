@@ -9,6 +9,7 @@ import type {
   RuleInventoryState,
 } from '../../shared/membership/blastRadiusTypes';
 import type { GroupMembership, OktaUser } from '../../shared/types';
+import type { RuleGroupContext } from '../../shared/ruleEvaluator';
 
 export type ComparisonEditSideKey = 'context' | 'compared';
 
@@ -40,6 +41,8 @@ export interface ComparisonPendingSave {
   readonly report: BlastRadiusReport;
   readonly isAnalyzing: boolean;
   readonly resolveGroupName: (groupId: string) => string | undefined;
+  readonly drafted?: OktaUser;
+  readonly groupContext: RuleGroupContext;
   readonly error?: string;
   readonly analyze: () => void;
   readonly cancel: () => void;
@@ -226,6 +229,8 @@ function useComparisonEditSide({
             report: blast.report,
             isAnalyzing: blast.isAnalyzing,
             resolveGroupName: blast.resolveGroupName,
+            drafted: blast.drafted ?? undefined,
+            groupContext: blast.groupContext,
             ...(message?.type === 'danger' ? { error: message.text } : {}),
             analyze: analyzeSide,
             cancel: dismiss,
@@ -239,6 +244,8 @@ function useComparisonEditSide({
       blast.report,
       blast.isAnalyzing,
       blast.resolveGroupName,
+      blast.drafted,
+      blast.groupContext,
       message,
       analyzeSide,
       dismiss,

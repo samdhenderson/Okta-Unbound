@@ -2,6 +2,8 @@ import React from 'react';
 import { AlertMessage, Badge, Button, Eyebrow, Modal, type GroupNameResolver } from '../shared';
 import BlastRadiusReport from './BlastRadiusReport';
 import type { BlastRadiusReport as BlastRadiusReportData } from '../../../shared/membership/blastRadiusTypes';
+import type { OktaUser } from '../../../shared/types';
+import type { RuleGroupContext } from '../../../shared/ruleEvaluator';
 import type { DraftChange } from './profileDraft';
 
 export interface ProfileSaveModalProps {
@@ -14,6 +16,8 @@ export interface ProfileSaveModalProps {
   onAnalyze: () => void;
   isAnalyzing: boolean;
   resolveGroupName?: GroupNameResolver;
+  drafted?: OktaUser;
+  groupContext?: RuleGroupContext;
   error?: string;
 }
 
@@ -54,6 +58,8 @@ const ProfileSaveModal: React.FC<ProfileSaveModalProps> = ({
   onAnalyze,
   isAnalyzing,
   resolveGroupName,
+  drafted,
+  groupContext,
   error,
 }) => {
   const items = changes ?? [];
@@ -122,7 +128,12 @@ const ProfileSaveModal: React.FC<ProfileSaveModalProps> = ({
               Analyze blast radius
             </Button>
           )}
-          <BlastRadiusReport report={report} resolveGroupName={resolveGroupName} />
+          <BlastRadiusReport
+            report={report}
+            resolveGroupName={resolveGroupName}
+            drafted={drafted}
+            groupContext={groupContext}
+          />
         </section>
       </div>
     </Modal>

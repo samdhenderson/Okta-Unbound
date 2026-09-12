@@ -139,7 +139,7 @@ const Button: React.FC<ButtonProps> = ({
         </svg>
       )}
       {!loading && icon && iconPosition === 'left' && <Icon type={icon} size={iconSize(size)} />}
-      <span>{children}</span>
+      <span className="contents">{children}</span>
       {!loading && icon && iconPosition === 'right' && <Icon type={icon} size={iconSize(size)} />}
       {badge && (
         <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold bg-danger text-white">

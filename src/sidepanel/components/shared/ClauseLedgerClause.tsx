@@ -7,7 +7,6 @@ import ClausePhrase from './ClausePhrase';
 import { formatRuleValue } from './ruleValueText';
 import { UNEVALUABLE_REASON_TEXT } from '../../../shared/rules/unevaluableReasonText';
 import {
-  ATTRIBUTE_ABSENT,
   type AttributeRead,
   type ClauseStatus,
   type LeafClauseNode,
@@ -81,7 +80,7 @@ const GroupClauseLabel: React.FC<{ leaf: LeafClauseNode }> = ({ leaf }) => {
 const AttributeReadLine: React.FC<{ read: AttributeRead }> = ({ read }) => (
   <p className="text-xs text-neutral-500">
     <span className="font-mono">{read.path}</span> →{' '}
-    {read.value === ATTRIBUTE_ABSENT ? (
+    {read.value === null ? (
       <span>not set</span>
     ) : (
       <span className="font-mono text-xs text-neutral-700">{formatRuleValue(read.value)}</span>

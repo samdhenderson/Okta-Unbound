@@ -91,7 +91,15 @@ export function useUsersTabProfileEdit({
   const { getUserRaw } = useOktaApi({ targetTabId: targetTabId ?? null });
 
   const { draftPatch, pendingSave, confirmSave } = edit;
-  const { reset: resetReport, analyze, report, isAnalyzing, resolveGroupName } = blast;
+  const {
+    reset: resetReport,
+    analyze,
+    report,
+    isAnalyzing,
+    resolveGroupName,
+    drafted,
+    groupContext,
+  } = blast;
 
   useEffect(() => {
     resetReport();
@@ -207,6 +215,8 @@ export function useUsersTabProfileEdit({
         onAnalyze: () => analyze(draftPatch),
         isAnalyzing,
         resolveGroupName,
+        drafted: drafted ?? undefined,
+        groupContext,
       },
     }),
     [
@@ -227,6 +237,8 @@ export function useUsersTabProfileEdit({
       draftPatch,
       isAnalyzing,
       resolveGroupName,
+      drafted,
+      groupContext,
     ],
   );
 }

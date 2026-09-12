@@ -17,6 +17,7 @@ const user: OktaUser = {
     department: 'Engineering',
     title: 'Intern',
     projectCode: null,
+    blank: '',
   },
 };
 
@@ -89,7 +90,7 @@ describe('ClauseLedger', () => {
     expect(screen.queryByText('—')).not.toBeInTheDocument();
   });
 
-  it('renders an explicit null attribute as the word "null", distinct from absent', () => {
+  it('renders an explicit null attribute as "not set" too — it is the same fact', () => {
     render(
       <ClauseLedger
         expression='user.projectCode == "Platform"'
@@ -98,7 +99,13 @@ describe('ClauseLedger', () => {
       />,
     );
 
-    expect(screen.getByText('null')).toBeInTheDocument();
+    expect(screen.getByText('not set')).toBeInTheDocument();
+  });
+
+  it('keeps a blank attribute distinct from one holding no value', () => {
+    render(<ClauseLedger expression='user.blank == "CC-9"' user={user} groupContext={groups} />);
+
+    expect(screen.getByText('""')).toBeInTheDocument();
     expect(screen.queryByText('not set')).not.toBeInTheDocument();
   });
 
