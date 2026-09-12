@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useId } from 'react';
 import {
   Badge,
+  Button,
   ListRow,
   RuleExpressionText,
   type BadgeVariant,
   type GroupNameResolver,
 } from '../shared';
+import BlastRadiusCascade, { type CascadeGroupBlock } from './BlastRadiusCascade';
 import Icon, { type IconType } from '../shared/Icon';
 import { unevaluableReasonText } from '../../../shared/rules/unevaluableReasonText';
 import { ruleStatusBadge } from '../../../shared/ruleUtils';
@@ -14,6 +16,9 @@ import type { RuleEffect, RuleTransition } from '../../../shared/membership/blas
 export interface BlastRadiusRuleRowProps {
   effect: RuleEffect;
   resolveGroupName?: GroupNameResolver;
+  cascadeBlocks?: readonly CascadeGroupBlock[];
+  expanded?: boolean;
+  onToggle?: (ruleId: string) => void;
 }
 
 interface TransitionPresentation {
@@ -63,7 +68,13 @@ const MetaLine: React.FC<{ label: string; value: string }> = ({ label, value }) 
   </p>
 );
 
-const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect, resolveGroupName }) => {
+const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({
+  effect,
+  resolveGroupName,
+  cascadeBlocks,
+  expanded = false,
+  onToggle,
+}) => {
   const presentation = transitionPresentation[effect.transition];
   const undeterminedReason =
     effect.transition === 'undetermined'
@@ -71,8 +82,33 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect, resolve
       : null;
   const broken = effect.status === 'INVALID' ? ruleStatusBadge('INVALID') : null;
 
+  const disclosureId = useId();
+  const blocks = cascadeBlocks ?? [];
+  const discloses = blocks.length > 0 && onToggle !== undefined;
+  const triggerLabel =
+    blocks.length === 1 ? `Rules that use ${blocks[0].groupName}` : 'Rules that use these groups';
+
   return (
-    <ListRow as="li" density="compact">
+    <ListRow
+      as="li"
+      density="compact"
+      body={
+        discloses ? (
+          <div
+            id={disclosureId}
+            className="disclose"
+            data-open={expanded}
+            inert={!expanded || undefined}
+          >
+            <div>
+              <div className="border-t border-neutral-200 px-(--sp-row-x) pt-2 pb-3">
+                <BlastRadiusCascade groups={blocks} />
+              </div>
+            </div>
+          </div>
+        ) : undefined
+      }
+    >
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
           {presentation.icon && (
@@ -118,6 +154,23 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({ effect, resolve
               resolveGroupName={resolveGroupName}
             />
           </div>
+        )}
+        {discloses && (
+          <Button
+            variant="ghost"
+            size="xs"
+            expanded={expanded}
+            controls={disclosureId}
+            onClick={() => onToggle?.(effect.ruleId)}
+            className="self-start"
+          >
+            {triggerLabel}
+            <Icon
+              type="chevron-right"
+              size="sm"
+              className={`transition-transform duration-(--dur-quick) ${expanded ? 'rotate-90' : ''}`}
+            />
+          </Button>
         )}
       </div>
     </ListRow>

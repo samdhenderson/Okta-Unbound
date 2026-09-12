@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import BlastRadiusGroupRow from './BlastRadiusGroupRow';
 import type { GroupEffect } from '../../../shared/membership/blastRadiusTypes';
 
@@ -55,6 +55,7 @@ const meta = {
     },
   },
   args: {
+    onToggle: fn(),
     effect: effect({
       groupId: '00gFAKE00000000000001',
       groupName: 'Sales-All',
@@ -231,5 +232,75 @@ export const Compact: Story = {
       currentlyHeld: true,
       currentBucket: 'rule',
     }),
+  },
+};
+
+export const WithCascade: Story = {
+  args: {
+    effect: effect({
+      groupId: '00gFAKE00000000000011',
+      groupName: 'New Hires',
+      kind: 'added',
+      ruleId: RULE_ID,
+      ruleName: 'Sales onboarding',
+    }),
+    expanded: false,
+    cascade: [
+      {
+        ruleId: '0prFAKErule00021',
+        ruleName: 'Downstream feeder',
+        direction: 'toward-match',
+        matchedBy: 'name',
+        targetGroupNames: ['Finance'],
+      },
+      {
+        ruleId: '0prFAKErule00022',
+        ruleName: 'Contractor guard',
+        direction: 'away-from-match',
+        matchedBy: 'nameStartsWith',
+        targetGroupNames: ['Vendors', 'Temp Access'],
+      },
+    ],
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole('button', { name: /Rules that use this group/ });
+
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    trigger.click();
+    await expect(args.onToggle).toHaveBeenCalledWith('00gFAKE00000000000011');
+  },
+};
+
+export const CascadeOpen: Story = {
+  args: { ...WithCascade.args, expanded: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole('button', { name: /Rules that use this group/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await expect(canvas.getByText('Downstream feeder')).toBeInTheDocument();
+    await expect(canvas.getByText(/Finance/)).toBeInTheDocument();
+    await expect(canvas.getByText('Toward matching')).toBeInTheDocument();
+    await expect(canvas.getByText(/Matched by name pattern/)).toBeInTheDocument();
+    await expect(canvas.getByText(/prediction stops at one hop/i)).toBeInTheDocument();
+  },
+};
+
+export const NoCascade: Story = {
+  args: {
+    effect: effect({
+      groupId: '00gFAKE00000000000012',
+      groupName: 'Sales-All',
+      kind: 'added',
+      ruleId: RULE_ID,
+      ruleName: 'Sales onboarding',
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /Rules that use/ })).toBeNull();
   },
 };

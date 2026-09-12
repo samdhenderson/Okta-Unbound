@@ -1,11 +1,16 @@
-import React from 'react';
-import { Badge, ListRow } from '../shared';
+import React, { useId } from 'react';
+import { Badge, Button, ListRow } from '../shared';
+import BlastRadiusCascade from './BlastRadiusCascade';
+import type { CascadeLine } from './cascadeLines';
 import Icon, { type IconType } from '../shared/Icon';
 import { BUCKET_PILL_LABELS, type MembershipBucket } from './membershipVerdict';
 import type { GroupEffect, GroupEffectKind } from '../../../shared/membership/blastRadiusTypes';
 
 export interface BlastRadiusGroupRowProps {
   effect: GroupEffect;
+  cascade?: readonly CascadeLine[];
+  expanded?: boolean;
+  onToggle?: (groupId: string) => void;
 }
 
 interface KindPresentation {
@@ -78,12 +83,47 @@ function effectSentence(effect: GroupEffect): string {
   }
 }
 
-const BlastRadiusGroupRow: React.FC<BlastRadiusGroupRowProps> = ({ effect }) => {
+const BlastRadiusGroupRow: React.FC<BlastRadiusGroupRowProps> = ({
+  effect,
+  cascade,
+  expanded = false,
+  onToggle,
+}) => {
   const presentation = kindPresentation[effect.kind];
   const bucket = effect.kind === 'not-predicted' ? effect.currentBucket : undefined;
 
+  const disclosureId = useId();
+  const discloses = Boolean(cascade?.length) && onToggle !== undefined;
+
   return (
-    <ListRow as="li" density="compact">
+    <ListRow
+      as="li"
+      density="compact"
+      body={
+        discloses ? (
+          <div
+            id={disclosureId}
+            className="disclose"
+            data-open={expanded}
+            inert={!expanded || undefined}
+          >
+            <div>
+              <div className="border-t border-neutral-200 px-(--sp-row-x) pt-2 pb-3">
+                <BlastRadiusCascade
+                  groups={[
+                    {
+                      groupId: effect.groupId,
+                      groupName: effect.groupName,
+                      lines: cascade ?? [],
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          </div>
+        ) : undefined
+      }
+    >
       <div className="flex min-w-0 items-start gap-2">
         <span
           role="img"
@@ -112,6 +152,23 @@ const BlastRadiusGroupRow: React.FC<BlastRadiusGroupRowProps> = ({ effect }) => 
             )}
           </span>
           <span className="text-xs break-words text-neutral-600">{effectSentence(effect)}</span>
+          {discloses && (
+            <Button
+              variant="ghost"
+              size="xs"
+              expanded={expanded}
+              controls={disclosureId}
+              onClick={() => onToggle?.(effect.groupId)}
+              className="self-start"
+            >
+              Rules that use this group
+              <Icon
+                type="chevron-right"
+                size="sm"
+                className={`transition-transform duration-(--dur-quick) ${expanded ? 'rotate-90' : ''}`}
+              />
+            </Button>
+          )}
         </div>
       </div>
     </ListRow>

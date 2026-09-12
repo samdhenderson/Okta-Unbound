@@ -5,8 +5,11 @@ import {
 } from '../ruleEvaluator';
 import {
   explainRuleExpression,
+  type ClauseGroupMatch,
   type ClauseGroupReference,
+  type ClauseGroupRequirement,
   type ClauseTreeNode,
+  type LeafClauseNode,
 } from '../rules/explainExpression';
 import { matchSafeRegex } from '../rules/safeRegex';
 import { groupContextOf } from './groupContext';
@@ -20,6 +23,9 @@ import type {
   BlastRadiusCounts,
   BlastRadiusInput,
   BlastRadiusReport,
+  CascadeDirection,
+  GroupCascade,
+  GroupCascadeRule,
   GroupEffect,
   GroupEffectKind,
   RuleEffect,
@@ -194,6 +200,7 @@ function removalEffect(
 interface AffectedGroup {
   readonly id: string;
   readonly name: string;
+  readonly kind: 'added' | 'removed';
 }
 
 function referenceNames(reference: ClauseGroupReference, group: AffectedGroup): boolean {
@@ -213,9 +220,17 @@ function referenceNames(reference: ClauseGroupReference, group: AffectedGroup): 
   }
 }
 
-function groupReferencesUnder(node: ClauseTreeNode): readonly ClauseGroupReference[] {
-  if (node.node === 'leaf') return node.groupReferences ?? [];
-  return node.children.flatMap(groupReferencesUnder);
+function membershipLeavesUnder(node: ClauseTreeNode): readonly LeafClauseNode[] {
+  if (node.node === 'leaf') return node.groupReferences?.length ? [node] : [];
+  return node.children.flatMap(membershipLeavesUnder);
+}
+
+function directionOf(
+  kind: AffectedGroup['kind'],
+  requirement: ClauseGroupRequirement | undefined,
+): CascadeDirection {
+  if (!requirement) return 'undetermined';
+  return (kind === 'added') === (requirement === 'member') ? 'toward-match' : 'away-from-match';
 }
 
 const SECOND_ORDER_TRANSITIONS: ReadonlySet<RuleTransition> = new Set<RuleTransition>([
@@ -224,26 +239,74 @@ const SECOND_ORDER_TRANSITIONS: ReadonlySet<RuleTransition> = new Set<RuleTransi
   'undetermined',
 ]);
 
-function secondOrderScan(
+function cascadeScan(
   evaluations: readonly RuleEvaluation[],
   affected: readonly AffectedGroup[],
   drafted: OktaUser,
   context: RuleGroupContext,
-): string[] {
+): GroupCascade[] {
   if (affected.length === 0) return [];
 
-  const names = new Set<string>();
+  const found = new Map<
+    string,
+    Map<string, { direction: CascadeDirection; matchedBy: ClauseGroupMatch }>
+  >();
+
   for (const evaluation of evaluations) {
     if (!SECOND_ORDER_TRANSITIONS.has(evaluation.effect.transition)) continue;
+    if (!evaluation.effect.active) continue;
+
     const { tree } = explainRuleExpression(evaluation.effect.expression, drafted, {
       groups: context,
     });
-    const touches = groupReferencesUnder(tree).some((reference) =>
-      affected.some((group) => referenceNames(reference, group)),
-    );
-    if (touches) names.add(evaluation.effect.ruleName);
+
+    for (const leaf of membershipLeavesUnder(tree)) {
+      for (const reference of leaf.groupReferences ?? []) {
+        for (const group of affected) {
+          if (!referenceNames(reference, group)) continue;
+
+          const direction = directionOf(group.kind, leaf.groupRequirement);
+          let perRule = found.get(group.id);
+          if (!perRule) {
+            perRule = new Map();
+            found.set(group.id, perRule);
+          }
+          const existing = perRule.get(evaluation.effect.ruleId);
+          if (!existing) {
+            perRule.set(evaluation.effect.ruleId, { direction, matchedBy: reference.match });
+            continue;
+          }
+          if (existing.direction !== direction) {
+            perRule.set(evaluation.effect.ruleId, {
+              direction: 'undetermined',
+              matchedBy: existing.matchedBy,
+            });
+          }
+        }
+      }
+    }
   }
-  return [...names].sort((a, b) => a.localeCompare(b));
+
+  const ruleNames = new Map(
+    evaluations.map((evaluation) => [evaluation.effect.ruleId, evaluation.effect.ruleName]),
+  );
+
+  const cascades: GroupCascade[] = [];
+  for (const group of affected) {
+    const perRule = found.get(group.id);
+    if (!perRule || perRule.size === 0) continue;
+
+    const rules: GroupCascadeRule[] = [...perRule.entries()]
+      .map(([ruleId, pair]) => ({ ruleId, ...pair }))
+      .sort((a, b) =>
+        compareRanked(
+          { rank: 0, name: ruleNames.get(a.ruleId) ?? '', id: a.ruleId },
+          { rank: 0, name: ruleNames.get(b.ruleId) ?? '', id: b.ruleId },
+        ),
+      );
+    cascades.push({ groupId: group.id, rules });
+  }
+  return cascades;
 }
 
 const KIND_ORDER: Record<GroupEffectKind, number> = {
@@ -285,8 +348,7 @@ function emptyReport(status: 'not-computed' | 'unavailable'): BlastRadiusReport 
     groups: [],
     rules: [],
     counts: NO_COUNTS,
-    secondOrderPossible: false,
-    secondOrderRuleNames: [],
+    cascades: [],
   };
 }
 
@@ -361,9 +423,12 @@ export function analyzeBlastRadius(input: BlastRadiusInput): BlastRadiusReport {
     .sort((a, b) => compareRanked(ruleRank(a), ruleRank(b)));
 
   const affected: AffectedGroup[] = groups
-    .filter((group) => group.kind !== 'not-predicted')
-    .map((group) => ({ id: group.groupId, name: group.groupName }));
-  const secondOrderRuleNames = secondOrderScan(evaluations, affected, drafted, groupContext);
+    .filter(
+      (group): group is GroupEffect & { kind: 'added' | 'removed' } =>
+        group.kind !== 'not-predicted',
+    )
+    .map((group) => ({ id: group.groupId, name: group.groupName, kind: group.kind }));
+  const cascades = cascadeScan(evaluations, affected, drafted, groupContext);
 
   const countKind = (kind: GroupEffectKind): number =>
     groups.filter((group) => group.kind === kind).length;
@@ -382,7 +447,6 @@ export function analyzeBlastRadius(input: BlastRadiusInput): BlastRadiusReport {
       stops: countTransition('stops-matching'),
       undetermined: countTransition('undetermined'),
     },
-    secondOrderPossible: secondOrderRuleNames.length > 0,
-    secondOrderRuleNames,
+    cascades,
   };
 }

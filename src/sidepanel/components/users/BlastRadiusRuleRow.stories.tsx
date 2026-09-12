@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import BlastRadiusRuleRow from './BlastRadiusRuleRow';
 import type { RuleEffect } from '../../../shared/membership/blastRadiusTypes';
 
@@ -57,6 +57,7 @@ const meta = {
     },
   },
   args: {
+    onToggle: fn(),
     effect: effect({
       ruleId: '0prFAKErule00001',
       ruleName: 'Sales auto-add',
@@ -212,5 +213,107 @@ export const Compact: Story = {
       expression:
         'user.department == "Sales" && user.countryCode in {"GB", "IE", "FR", "DE"} && user.employeeType != "CONTRACTOR"',
     }),
+  },
+};
+
+export const CascadeSingleGroup: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00031',
+      ruleName: 'Sales onboarding',
+      transition: 'starts-matching',
+      targetGroupIds: ['00gFAKEnewhires1'],
+      targetGroupNames: ['New Hires'],
+    }),
+    expanded: true,
+    cascadeBlocks: [
+      {
+        groupId: '00gFAKEnewhires1',
+        groupName: 'New Hires',
+        lines: [
+          {
+            ruleId: '0prFAKErule00032',
+            ruleName: 'Downstream feeder',
+            direction: 'toward-match',
+            matchedBy: 'name',
+            targetGroupNames: ['Finance'],
+          },
+        ],
+      },
+    ],
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole('button', { name: /Rules that use New Hires/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    await expect(canvas.getByText('Downstream feeder')).toBeInTheDocument();
+    const panel = canvasElement.querySelector('.disclose');
+    await expect(panel?.textContent).not.toMatch(/New Hires/);
+  },
+};
+
+export const CascadeAcrossTwoGroups: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00041',
+      ruleName: 'Regional onboarding',
+      transition: 'starts-matching',
+      targetGroupIds: ['00gFAKEnewhires1', '00gFAKEemea00001'],
+      targetGroupNames: ['New Hires', 'EMEA'],
+    }),
+    expanded: false,
+    cascadeBlocks: [
+      {
+        groupId: '00gFAKEnewhires1',
+        groupName: 'New Hires',
+        lines: [
+          {
+            ruleId: '0prFAKErule00042',
+            ruleName: 'Downstream feeder',
+            direction: 'toward-match',
+            matchedBy: 'name',
+            targetGroupNames: ['Finance'],
+          },
+        ],
+      },
+      {
+        groupId: '00gFAKEemea00001',
+        groupName: 'EMEA',
+        lines: [
+          {
+            ruleId: '0prFAKErule00043',
+            ruleName: 'EMEA tooling',
+            direction: 'toward-match',
+            matchedBy: 'nameContains',
+            targetGroupNames: ['EMEA-Tools'],
+          },
+        ],
+      },
+    ],
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole('button', { name: /Rules that use these groups/ });
+
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    trigger.click();
+    await expect(args.onToggle).toHaveBeenCalledWith('0prFAKErule00041');
+  },
+};
+
+export const NoCascade: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00051',
+      ruleName: 'Sales auto-add',
+      transition: 'starts-matching',
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /Rules that use/ })).toBeNull();
   },
 };
