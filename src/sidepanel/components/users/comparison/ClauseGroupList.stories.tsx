@@ -28,10 +28,10 @@ const meta = {
           'A **negated** clause (`!isMemberOfAnyGroup(…)`) failed because one *did* match. A real rule may ' +
           'exclude twenty groups of which the user is in one, so only the memberships they actually hold are ' +
           'shown; the rest are counted, never listed.\n\n' +
-          'Group ids are labelled through `resolveGroupName` with the id kept underneath as evidence, via the ' +
-          'shared `CopyableId` — an id is unreadable but it is the thing you paste into Okta, so it stays a ' +
-          'one-click copy rather than a raw string to select by hand. An id with no known name appears once, ' +
-          'as itself, with no separate copy row.\n\n' +
+          'Each entry is the shared `GroupReferenceChip` — the same chip `ClauseLedgerClause` renders beneath a ' +
+          'leaf clause on the full checklist, so a group named here reads identically there. An id is unreadable ' +
+          'but it is the thing you paste into Okta, so it stays a one-click copy on the chip rather than a raw ' +
+          'string to select by hand; an id with no known name is the chip label itself, appearing once.\n\n' +
           'Every state is stated in words (`already in`, `blocking`); colour never carries a meaning alone.',
       },
     },

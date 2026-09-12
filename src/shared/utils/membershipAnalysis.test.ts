@@ -333,6 +333,17 @@ describe('analyzeMemberships — condition evaluation', () => {
     expect(m.attribution).toBe('inferred');
   });
 
+  it('attributes a matching String.stringSwitch rule exactly, not by the unevaluable fallback', () => {
+    const stringSwitchRule = ruleWith(
+      'String.stringSwitch(user.department, "Other", "Engineering", "yes") == "yes"',
+      { id: 'string-switch' },
+    );
+    const [m] = analyzeMemberships([group()], [stringSwitchRule], engUser);
+    expect(m.membershipType).toBe('RULE_BASED');
+    expect(m.rules.map((r) => r.id)).toEqual(['string-switch']);
+    expect(m.attribution).toBe('exact');
+  });
+
   it('ignores a non-matching rule the user is excluded from', () => {
     const excluded = ruleWith('user.department == "Engineering"', {
       id: 'excluded',
@@ -394,6 +405,24 @@ describe("analyzeMemberships — with the user's complete group list", () => {
     });
     expect(m.membershipType).toBe('DIRECT');
     expect(m.attribution).toBe('exact');
+  });
+
+  it('attributes a matching isMemberOfGroupNameRegex rule exactly, not by the unevaluable fallback', () => {
+    const r = membershipRule('isMemberOfGroupNameRegex("Contr.*")');
+    const [m] = analyzeMemberships(memberOf, [r], user, {
+      groups: groupContextOfGroups(memberOf),
+    });
+    expect(m.membershipType).toBe('RULE_BASED');
+    expect(m.rules.map((rr) => rr.id)).toEqual(['rMember']);
+    expect(m.attribution).toBe('exact');
+  });
+
+  it('leaves a rule whose pattern the safe engine declines unproven', () => {
+    const r = membershipRule('isMemberOfGroupNameRegex("(?=Contr).*")');
+    const [m] = analyzeMemberships(memberOf, [r], user, {
+      groups: groupContextOfGroups(memberOf),
+    });
+    expect(m.attribution).toBe('inferred');
   });
 
   it('matches isMemberOfGroupName by name, case-sensitively', () => {

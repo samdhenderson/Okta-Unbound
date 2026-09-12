@@ -1,18 +1,11 @@
 import React, { useState } from 'react';
-import { Button, CopyableId } from '../../shared';
+import { Button, GroupReferenceChip } from '../../shared';
 import type {
   ClauseGroupReference,
   ClauseGroupRequirement,
 } from '../../../../shared/rules/explainExpression';
 
 const CANDIDATE_PREVIEW_LIMIT = 5;
-
-const groupMatchLabel: Record<ClauseGroupReference['match'], (value: string) => string> = {
-  id: (value) => value,
-  name: (value) => value,
-  nameStartsWith: (value) => `any group whose name starts with “${value}”`,
-  nameContains: (value) => `any group whose name contains “${value}”`,
-};
 
 export interface ClauseGroupListProps {
   references: readonly ClauseGroupReference[];
@@ -103,12 +96,6 @@ const GroupEntry: React.FC<{
   resolveGroupName?: (groupId: string) => string | undefined;
   renderGroupAction?: (reference: ClauseGroupReference) => React.ReactNode;
 }> = ({ reference, requirement, resolveGroupName, renderGroupAction }) => {
-  const resolvedName =
-    reference.matchedGroupName ??
-    (reference.match === 'id' ? resolveGroupName?.(reference.value) : undefined);
-  const label = resolvedName ?? groupMatchLabel[reference.match](reference.value);
-  const showId = reference.match === 'id' && resolvedName !== undefined;
-
   const actionable = requirement === 'non-member' ? reference.satisfied : !reference.satisfied;
   const blocking = requirement === 'non-member' && reference.satisfied;
 
@@ -118,20 +105,13 @@ const GroupEntry: React.FC<{
         blocking ? 'border border-danger-light bg-danger-light' : 'bg-neutral-50'
       }`}
     >
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-xs text-neutral-900" title={label}>
-            {label}
-          </span>
-          {blocking && (
-            <span className="shrink-0 text-xs font-medium text-danger-text">blocking</span>
-          )}
-          {requirement === 'member' && reference.satisfied && (
-            <span className="shrink-0 text-xs font-medium text-success-text">already in</span>
-          )}
-        </span>
-        {showId && (
-          <CopyableId value={reference.value} label={`Copy group id ${reference.value}`} />
+      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+        <GroupReferenceChip reference={reference} hasContext resolveGroupName={resolveGroupName} />
+        {blocking && (
+          <span className="shrink-0 text-xs font-medium text-danger-text">blocking</span>
+        )}
+        {requirement === 'member' && reference.satisfied && (
+          <span className="shrink-0 text-xs font-medium text-success-text">already in</span>
         )}
       </span>
       {actionable && <span className="shrink-0">{renderGroupAction?.(reference)}</span>}

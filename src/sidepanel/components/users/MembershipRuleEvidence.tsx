@@ -1,7 +1,6 @@
 import React from 'react';
 import type jsep from 'jsep';
-import { Badge, EntityLink, Eyebrow, type GroupNameResolver } from '../shared';
-import ClauseChecklist from '../groups/detail/ClauseChecklist';
+import { Badge, ClauseLedger, EntityLink, Eyebrow, type GroupNameResolver } from '../shared';
 import { parseRuleExpression, type RuleGroupContext } from '../../../shared/ruleEvaluator';
 import { conditionExpressionOf } from '../../../shared/membership/ruleExpression';
 import type { MembershipRule, OktaUser } from '../../../shared/types';
@@ -96,7 +95,7 @@ const MembershipRuleEvidence: React.FC<RuleEvidenceProps> = ({
       <div className="mt-2">
         <Eyebrow className="mb-1 block">Condition</Eyebrow>
         {user ? (
-          <ClauseChecklist
+          <ClauseLedger
             expression={expression}
             user={user}
             groupContext={groupContext}

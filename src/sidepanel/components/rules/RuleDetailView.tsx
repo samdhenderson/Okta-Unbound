@@ -3,7 +3,7 @@ import {
   CopyableId,
   DetailSection,
   EntityLink,
-  RuleExpressionText,
+  RawExpressionWell,
   type GroupNameResolver,
 } from '../shared';
 import Icon from '../shared/Icon';
@@ -84,12 +84,10 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
         title="When"
         description="The condition Okta evaluates against every user in the org."
       >
-        <div className="rounded-md border border-neutral-200 bg-white p-(--sp-card)">
-          <RuleExpressionText
-            text={rule.conditionExpression || rule.condition}
-            resolveGroupName={resolveGroupName}
-          />
-        </div>
+        <RawExpressionWell
+          expression={rule.conditionExpression || rule.condition}
+          resolveGroupName={resolveGroupName}
+        />
 
         {rule.userAttributes.length > 0 && (
           <div className="mt-(--sp-card)">

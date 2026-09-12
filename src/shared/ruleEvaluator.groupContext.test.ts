@@ -77,20 +77,26 @@ describe('isMemberOf* without a group context', () => {
   });
 });
 
-describe('isMemberOfGroupNameRegex is never run', () => {
-  it('stays unevaluable even with a group list, under its own reason', () => {
+describe('isMemberOfGroupNameRegex is answered like its siblings', () => {
+  it('resolves against the group list instead of refusing', () => {
     expect(
       tryEvaluateRuleExpressionDetailed('isMemberOfGroupNameRegex(".*")', user, groups),
-    ).toEqual({ outcome: 'unevaluable', reasonCode: 'group-name-regex' });
+    ).toEqual({ outcome: 'match' });
   });
 
-  it('makes the whole condition unevaluable rather than guessing around it', () => {
+  it('resolves the whole condition it sits in', () => {
     expect(
       tryEvaluateRuleExpression(
         'user.department == "Engineering" && isMemberOfGroupNameRegex("Eng.*")',
         user,
         groups,
       ),
-    ).toBe('unevaluable');
+    ).toBe('match');
+  });
+
+  it('still declines a pattern the safe engine will not run', () => {
+    expect(
+      tryEvaluateRuleExpressionDetailed('isMemberOfGroupNameRegex("(?<=x)Eng")', user, groups),
+    ).toEqual({ outcome: 'unevaluable', reasonCode: 'regex-unsupported-syntax' });
   });
 });
