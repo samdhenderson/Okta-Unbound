@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { AlertMessage, EmptyState, Eyebrow, FilterPill, type GroupNameResolver } from '../shared';
 import BlastRadiusGroupRow from './BlastRadiusGroupRow';
+import { cascadeLinesByGroupId, type CascadeLine } from './cascadeLines';
+import type { CascadeGroupBlock } from './BlastRadiusCascade';
 import BlastRadiusRuleRow from './BlastRadiusRuleRow';
 import type {
   BlastRadiusReport as BlastRadiusReportData,
@@ -18,16 +20,25 @@ type ReportView = 'groups' | 'rules';
 
 const AFFECTED_TRANSITIONS = new Set(['starts-matching', 'stops-matching', 'undetermined']);
 
-const GroupSection: React.FC<{ title: string; effects: readonly GroupEffect[] }> = ({
-  title,
-  effects,
-}) =>
+const GroupSection: React.FC<{
+  title: string;
+  effects: readonly GroupEffect[];
+  cascadeLines: ReadonlyMap<string, readonly CascadeLine[]>;
+  openRowIds: ReadonlySet<string>;
+  onToggle: (rowId: string) => void;
+}> = ({ title, effects, cascadeLines, openRowIds, onToggle }) =>
   effects.length === 0 ? null : (
     <section className="flex flex-col gap-2">
       <Eyebrow as="h3">{title}</Eyebrow>
       <ul className="space-y-(--sp-rung)">
         {effects.map((effect) => (
-          <BlastRadiusGroupRow key={effect.groupId} effect={effect} />
+          <BlastRadiusGroupRow
+            key={effect.groupId}
+            effect={effect}
+            cascade={cascadeLines.get(effect.groupId)}
+            expanded={openRowIds.has(effect.groupId)}
+            onToggle={onToggle}
+          />
         ))}
       </ul>
     </section>
@@ -37,7 +48,10 @@ const RuleSection: React.FC<{
   title: string;
   effects: readonly RuleEffect[];
   resolveGroupName?: GroupNameResolver;
-}> = ({ title, effects, resolveGroupName }) =>
+  cascadeLines: ReadonlyMap<string, readonly CascadeLine[]>;
+  openRowIds: ReadonlySet<string>;
+  onToggle: (rowId: string) => void;
+}> = ({ title, effects, resolveGroupName, cascadeLines, openRowIds, onToggle }) =>
   effects.length === 0 ? null : (
     <section className="flex flex-col gap-2">
       <Eyebrow as="h3">{title}</Eyebrow>
@@ -47,11 +61,27 @@ const RuleSection: React.FC<{
             key={effect.ruleId}
             effect={effect}
             resolveGroupName={resolveGroupName}
+            cascadeBlocks={blocksFor(effect, cascadeLines)}
+            expanded={openRowIds.has(effect.ruleId)}
+            onToggle={onToggle}
           />
         ))}
       </ul>
     </section>
   );
+
+function blocksFor(
+  effect: RuleEffect,
+  cascadeLines: ReadonlyMap<string, readonly CascadeLine[]>,
+): CascadeGroupBlock[] {
+  return effect.targetGroupIds
+    .map((groupId, index) => ({
+      groupId,
+      groupName: effect.targetGroupNames[index] ?? groupId,
+      lines: cascadeLines.get(groupId),
+    }))
+    .filter((block): block is CascadeGroupBlock => block.lines !== undefined);
+}
 
 const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
   report,
@@ -59,6 +89,15 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
   resolveGroupName,
 }) => {
   const [view, setView] = useState<ReportView>('groups');
+  const [openRowIds, setOpenRowIds] = useState<ReadonlySet<string>>(() => new Set());
+  const toggleRow = React.useCallback((rowId: string) => {
+    setOpenRowIds((open) => {
+      const next = new Set(open);
+      if (!next.delete(rowId)) next.add(rowId);
+      return next;
+    });
+  }, []);
+  const cascadeLines = useMemo(() => cascadeLinesByGroupId(report), [report]);
 
   const { added, removed, notPredicted } = useMemo(
     () => ({
@@ -132,9 +171,27 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
             </p>
           ) : (
             <>
-              <GroupSection title="Added" effects={added} />
-              <GroupSection title="Removed" effects={removed} />
-              <GroupSection title="Not predicted" effects={notPredicted} />
+              <GroupSection
+                title="Added"
+                effects={added}
+                cascadeLines={cascadeLines}
+                openRowIds={openRowIds}
+                onToggle={toggleRow}
+              />
+              <GroupSection
+                title="Removed"
+                effects={removed}
+                cascadeLines={cascadeLines}
+                openRowIds={openRowIds}
+                onToggle={toggleRow}
+              />
+              <GroupSection
+                title="Not predicted"
+                effects={notPredicted}
+                cascadeLines={cascadeLines}
+                openRowIds={openRowIds}
+                onToggle={toggleRow}
+              />
             </>
           )}
         </div>
@@ -150,16 +207,25 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
                 title="Starts matching"
                 effects={starts}
                 resolveGroupName={resolveGroupName}
+                cascadeLines={cascadeLines}
+                openRowIds={openRowIds}
+                onToggle={toggleRow}
               />
               <RuleSection
                 title="Stops matching"
                 effects={stops}
                 resolveGroupName={resolveGroupName}
+                cascadeLines={cascadeLines}
+                openRowIds={openRowIds}
+                onToggle={toggleRow}
               />
               <RuleSection
                 title="Could not be evaluated"
                 effects={undetermined}
                 resolveGroupName={resolveGroupName}
+                cascadeLines={cascadeLines}
+                openRowIds={openRowIds}
+                onToggle={toggleRow}
               />
             </>
           )}
@@ -171,15 +237,6 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
             </p>
           )}
         </div>
-      )}
-
-      {report.secondOrderPossible && (
-        <p className="text-xs text-neutral-600" title={report.secondOrderRuleNames.join(', ')}>
-          {report.secondOrderRuleNames.length === 1
-            ? '1 rule tests membership of a group this change would affect.'
-            : `${report.secondOrderRuleNames.length} rules test membership of a group this change would affect.`}{' '}
-          What they do next is not predicted here.
-        </p>
       )}
     </div>
   );

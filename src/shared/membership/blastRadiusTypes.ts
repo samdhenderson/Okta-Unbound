@@ -1,4 +1,5 @@
 import type { RuleUnevaluableReason } from '../ruleEvaluator';
+import type { ClauseGroupMatch } from '../rules/explainExpression';
 import type { GroupMembership, GroupRuleStatus, MembershipRule, OktaUser } from '../types';
 import type { MembershipBucket } from '../../sidepanel/components/users/membershipVerdict';
 
@@ -42,6 +43,19 @@ export type WithheldReason =
   | 'rule-inactive'
   | 'app-mastered-group';
 
+export type CascadeDirection = 'toward-match' | 'away-from-match' | 'undetermined';
+
+export interface GroupCascadeRule {
+  readonly ruleId: string;
+  readonly direction: CascadeDirection;
+  readonly matchedBy: ClauseGroupMatch;
+}
+
+export interface GroupCascade {
+  readonly groupId: string;
+  readonly rules: readonly GroupCascadeRule[];
+}
+
 export interface GroupEffect {
   readonly groupId: string;
   readonly groupName: string;
@@ -69,6 +83,5 @@ export interface BlastRadiusReport {
   readonly groups: readonly GroupEffect[];
   readonly rules: readonly RuleEffect[];
   readonly counts: BlastRadiusCounts;
-  readonly secondOrderPossible: boolean;
-  readonly secondOrderRuleNames: readonly string[];
+  readonly cascades: readonly GroupCascade[];
 }

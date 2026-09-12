@@ -103,7 +103,7 @@ export const Default: Story = {};
 export const EvaluatedAgainstUser: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('department')).toBeInTheDocument();
+    await expect(canvas.getAllByText('department')).toHaveLength(2);
     await expect(canvas.getByText('Pass')).toBeInTheDocument();
   },
 };
@@ -129,7 +129,7 @@ export const AttributeTheUserLacks: Story = {
   args: { rule: missingAttribute },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText('costCenter')).toBeInTheDocument();
+    await expect(canvas.getAllByText('costCenter')).toHaveLength(2);
   },
 };
 
