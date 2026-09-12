@@ -277,6 +277,7 @@ export function memberMatchesMfaValue(result: MemberMfaResult | undefined, value
   if (!result) return false;
   if (value === 'none') return result.factorCount === 0;
   if (value === 'enrolled') return result.enrolled;
+  if (value === 'single') return result.factorCount === 1;
   if (value === 'multiple') return result.factorCount >= 2;
   if (value.startsWith('has:')) return result.factorLabels.includes(value.slice(4));
   return false;
@@ -328,6 +329,113 @@ export function getObservedFactorLabels(mfaResults: Map<string, MemberMfaResult>
   const labels = new Set<string>();
   mfaResults.forEach((r) => r.factorLabels.forEach((l) => labels.add(l)));
   return Array.from(labels).sort();
+}
+
+export interface MfaEnrollmentSummary {
+  scanned: number;
+  total: number;
+  rows: BreakdownRow[];
+}
+
+export function computeMfaEnrollment(
+  members: OktaUser[],
+  mfaResults: Map<string, MemberMfaResult> | null,
+): MfaEnrollmentSummary | null {
+  if (!mfaResults) return null;
+
+  let none = 0;
+  let single = 0;
+  let multiple = 0;
+  let scanned = 0;
+
+  for (const member of members) {
+    const result = mfaResults.get(member.id);
+    if (!result) continue;
+    scanned++;
+    if (result.factorCount === 0) none++;
+    else if (result.factorCount === 1) single++;
+    else multiple++;
+  }
+
+  const pct = (n: number) => (scanned > 0 ? (n / scanned) * 100 : 0);
+
+  return {
+    scanned,
+    total: members.length,
+    rows: [
+      { value: 'none', label: 'No factors enrolled', count: none, pct: pct(none) },
+      { value: 'single', label: 'One factor', count: single, pct: pct(single) },
+      { value: 'multiple', label: 'Two or more factors', count: multiple, pct: pct(multiple) },
+    ],
+  };
+}
+
+export type MfaSignalKind = 'unprotected' | 'single-factor' | 'partial-scan';
+
+export interface MfaSignal {
+  kind: MfaSignalKind;
+  label: string;
+  description: string;
+}
+
+export function mfaSignals(summary: MfaEnrollmentSummary): MfaSignal[] {
+  const signals: MfaSignal[] = [];
+  const none = summary.rows.find((row) => row.value === 'none')?.count ?? 0;
+  const single = summary.rows.find((row) => row.value === 'single')?.count ?? 0;
+
+  if (none > 0) {
+    signals.push({
+      kind: 'unprotected',
+      label: `${none.toLocaleString()} with no factor`,
+      description: `${none.toLocaleString()} of the ${summary.scanned.toLocaleString()} members scanned have no active MFA factor enrolled, so a password is all that stands in front of their account.`,
+    });
+  }
+
+  if (single > 0) {
+    signals.push({
+      kind: 'single-factor',
+      label: `${single.toLocaleString()} on a single factor`,
+      description: `${single.toLocaleString()} members hold exactly one active factor. Losing it locks them out; phishing it gets past them.`,
+    });
+  }
+
+  if (summary.scanned < summary.total) {
+    signals.push({
+      kind: 'partial-scan',
+      label: `${summary.scanned.toLocaleString()} of ${summary.total.toLocaleString()} scanned`,
+      description: `Every figure on this card is over the ${summary.scanned.toLocaleString()} members the scan reached, not the full roster. Rescan to cover the rest.`,
+    });
+  }
+
+  return signals;
+}
+
+export function computeMfaFactorTypes(
+  members: OktaUser[],
+  mfaResults: Map<string, MemberMfaResult> | null,
+): BreakdownRow[] | null {
+  if (!mfaResults) return null;
+
+  let scanned = 0;
+  const labelCounts = new Map<string, number>();
+
+  for (const member of members) {
+    const result = mfaResults.get(member.id);
+    if (!result) continue;
+    scanned++;
+    for (const label of result.factorLabels) {
+      labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+    }
+  }
+
+  return Array.from(labelCounts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([label, count]) => ({
+      value: `has:${label}`,
+      label,
+      count,
+      pct: scanned > 0 ? (count / scanned) * 100 : 0,
+    }));
 }
 
 function matchesQuery(user: OktaUser, lowerQuery: string): boolean {

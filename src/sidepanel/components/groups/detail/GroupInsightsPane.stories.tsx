@@ -127,6 +127,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const openSection = async (canvas: ReturnType<typeof within>, name: RegExp): Promise<void> => {
+  await userEvent.click(canvas.getByRole('button', { name }));
+};
+
 export const RosterNotLoaded: Story = {};
 
 export const RosterLoading: Story = { args: { memberStatus: 'loading' } };
@@ -137,11 +141,43 @@ export const RosterError: Story = {
 
 export const AttributeCards: Story = {
   args: { members, memberStatus: 'done' },
+  play: async ({ canvas }) => {
+    await openSection(canvas, /Attribute spread/);
+    await expect(canvas.getByText('department')).toBeVisible();
+  },
+};
+
+export const AllSectionsClosed: Story = {
+  args: { members, memberStatus: 'done', scanStatus: 'complete', mfaResults },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('2 attributes · 2 flagged')).toBeVisible();
+    await expect(
+      canvas.getByText('3 of 12 members scanned have no MFA factor enrolled.'),
+    ).toBeVisible();
+
+    await expect(canvas.getByRole('button', { name: /Attribute spread/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+    await expect(canvas.getByRole('button', { name: /MFA coverage/ })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  },
+};
+
+export const ClosedSummariesWithoutARoster: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText('Not analyzed yet.')).toBeVisible();
+    await expect(canvas.getByText('Load members first.')).toBeVisible();
+    await expect(canvas.queryByText(/0 attributes/)).toBeNull();
+  },
 };
 
 export const NoDependentAttributes: Story = {
   args: { members, memberStatus: 'done', feedingRules: [] },
   play: async ({ canvas }) => {
+    await openSection(canvas, /Attribute spread/);
     await expect(canvas.getByText('department')).toBeVisible();
     await expect(canvas.queryByText(/Depended on by/)).toBeNull();
   },
@@ -169,27 +205,33 @@ export const MfaError: Story = {
 
 export const Disabled: Story = { args: { canAnalyze: false } };
 
-export const CompositionJumpsToMembers: Story = {
+export const ValueJumpsToMembersFromCard: Story = {
   args: { members, memberStatus: 'done', onFilterMembers: fn() },
-  play: async ({ args, canvas, canvasElement }) => {
-    const disclosure = canvas.getByRole('button', { name: /Composition/ });
-    await userEvent.click(disclosure);
-    await expect(canvas.getByText('Pick a value to open the Members tab filtered by it.'));
+  play: async ({ args, canvas }) => {
+    await openSection(canvas, /Attribute spread/);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show the value breakdown for department' }),
+    );
 
-    const regionId = disclosure.getAttribute('aria-controls')!;
-    const composition = within(canvasElement.querySelector(`#${regionId}`) as HTMLElement);
-
-    await userEvent.click(composition.getByRole('button', { name: /^Engineering/ }));
+    await userEvent.click(
+      canvas.getByRole('button', { name: /^Open Members filtered by Department: Engineering/ }),
+    );
     await expect(args.onFilterMembers).toHaveBeenCalledWith(
       expect.objectContaining({ dimension: 'department', value: 'Engineering' }),
     );
   },
 };
 
-export const CompositionOmittedWithNowhereToGo: Story = {
+export const ValueRowsInertWithNowhereToGo: Story = {
   args: { members, memberStatus: 'done' },
   play: async ({ canvas }) => {
-    await expect(canvas.queryByRole('button', { name: /Composition/ })).toBeNull();
+    await openSection(canvas, /Attribute spread/);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Show the value breakdown for department' }),
+    );
+
+    await expect(canvas.getByText('Engineering')).toBeVisible();
+    await expect(canvas.queryByRole('button', { name: /Open Members filtered by/ })).toBeNull();
   },
 };
 
@@ -210,6 +252,7 @@ export const HiddenTailRevealedInThreeStages: Story = {
   args: { members: wideMembers, memberCount: wideMembers.length, memberStatus: 'done' },
   play: async ({ canvas, canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
+    await openSection(canvas, /Attribute spread/);
 
     await expect(canvas.getByText('costCenter')).toBeVisible();
     await expect(canvas.getByText('30% hidden in the tail')).toBeVisible();
