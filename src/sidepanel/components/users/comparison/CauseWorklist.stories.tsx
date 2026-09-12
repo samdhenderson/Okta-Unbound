@@ -2,12 +2,14 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import CauseWorklist from './CauseWorklist';
 import type { AccessCause } from './accessCause';
-import type { ClauseExplanation } from '../../../../shared/rules/explainExpression';
+import type { LeafClauseNode } from '../../../../shared/rules/explainExpression';
 
-const failing = (expressionText: string, resolvedValue: string): ClauseExplanation => ({
+const failing = (expressionText: string, resolvedValue: string, path: string): LeafClauseNode => ({
+  node: 'leaf',
   expressionText,
   resolvedValue,
   status: 'fail',
+  reads: [{ path, value: resolvedValue }],
 });
 
 const blocked: AccessCause = {
@@ -17,8 +19,8 @@ const blocked: AccessCause = {
   ruleId: '0prFAKE001',
   ruleName: 'Platform engineers',
   failingClauses: [
-    failing('user.department == "Platform"', 'Support'),
-    failing('user.title != "Contractor"', 'Contractor'),
+    failing('user.department == "Platform"', 'Support', 'user.department'),
+    failing('user.title != "Contractor"', 'Contractor', 'user.title'),
   ],
 };
 

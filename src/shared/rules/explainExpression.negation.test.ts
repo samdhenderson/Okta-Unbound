@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { explainRuleExpression } from './explainExpression';
+import {
+  explainRuleExpression,
+  type ClauseTreeNode,
+  type LeafClauseNode,
+} from './explainExpression';
 import type { RuleGroupContext } from '../ruleEvaluator';
 import type { OktaUser } from '../types';
 
@@ -23,15 +27,19 @@ const groups: RuleGroupContext = [
   { id: '00gFAKEEVERYONE0001', name: 'Everyone' },
 ];
 
+function leafOf(node: ClauseTreeNode): LeafClauseNode {
+  if (node.node !== 'leaf') throw new Error(`expected a leaf, got a ${node.kind} group`);
+  return node;
+}
+
 describe('a negated membership clause is understood as an exclusion', () => {
   it('THE BUG: reports the groups of a negated call instead of nothing at all', () => {
-    const { clauses } = explainRuleExpression(`!isMemberOfAnyGroup("${CONTRACTORS}")`, user, {
+    const { tree } = explainRuleExpression(`!isMemberOfAnyGroup("${CONTRACTORS}")`, user, {
       groups,
     });
 
-    expect(clauses).toHaveLength(1);
-    expect(clauses[0].groupRequirement).toBe('non-member');
-    expect(clauses[0].groupReferences).toEqual([
+    expect(leafOf(tree).groupRequirement).toBe('non-member');
+    expect(leafOf(tree).groupReferences).toEqual([
       {
         match: 'id',
         value: CONTRACTORS,
@@ -42,66 +50,67 @@ describe('a negated membership clause is understood as an exclusion', () => {
   });
 
   it('fails the clause when the user IS in an excluded group', () => {
-    const { clauses } = explainRuleExpression(
+    const { tree } = explainRuleExpression(
       `!isMemberOfAnyGroup("${CONTRACTORS}", "${VENDORS}")`,
       user,
       { groups },
     );
 
-    expect(clauses[0].status).toBe('fail');
-    expect(clauses[0].groupReferences?.map((r) => r.satisfied)).toEqual([true, false]);
+    expect(leafOf(tree).status).toBe('fail');
+    expect(leafOf(tree).groupReferences?.map((r) => r.satisfied)).toEqual([true, false]);
   });
 
   it('passes the clause when the user is in none of the excluded groups', () => {
-    const { clauses } = explainRuleExpression(`!isMemberOfAnyGroup("${VENDORS}")`, user, {
+    const { tree } = explainRuleExpression(`!isMemberOfAnyGroup("${VENDORS}")`, user, {
       groups,
     });
 
-    expect(clauses[0].status).toBe('pass');
-    expect(clauses[0].groupRequirement).toBe('non-member');
+    expect(leafOf(tree).status).toBe('pass');
+    expect(leafOf(tree).groupRequirement).toBe('non-member');
   });
 
   it('marks an un-negated call as `member`, the opposite requirement', () => {
-    const { clauses } = explainRuleExpression(`isMemberOfAnyGroup("${VENDORS}")`, user, { groups });
+    const { tree } = explainRuleExpression(`isMemberOfAnyGroup("${VENDORS}")`, user, { groups });
 
-    expect(clauses[0].groupRequirement).toBe('member');
-    expect(clauses[0].status).toBe('fail');
+    expect(leafOf(tree).groupRequirement).toBe('member');
+    expect(leafOf(tree).status).toBe('fail');
   });
 
   it('still reports nothing without a group list, negated or not', () => {
-    const { clauses } = explainRuleExpression(`!isMemberOfAnyGroup("${CONTRACTORS}")`, user);
+    const { tree } = explainRuleExpression(`!isMemberOfAnyGroup("${CONTRACTORS}")`, user);
 
-    expect(clauses[0].status).toBe('not-evaluated');
-    expect(clauses[0].groupReferences).toBeUndefined();
-    expect(clauses[0].groupRequirement).toBeUndefined();
+    expect(leafOf(tree).status).toBe('not-evaluated');
+    expect(leafOf(tree).groupReferences).toBeUndefined();
+    expect(leafOf(tree).groupRequirement).toBeUndefined();
   });
 
   it('declines a double negation rather than guessing its polarity', () => {
-    const { clauses } = explainRuleExpression(`!!isMemberOfGroup("${CONTRACTORS}")`, user, {
+    const { tree } = explainRuleExpression(`!!isMemberOfGroup("${CONTRACTORS}")`, user, {
       groups,
     });
 
-    expect(clauses[0].groupReferences).toBeUndefined();
+    expect(leafOf(tree).groupReferences).toBeUndefined();
   });
 
   it('keeps a negated COMBINATION as one clause with no group references', () => {
-    const { clauses } = explainRuleExpression(
+    const { tree } = explainRuleExpression(
       `!(isMemberOfGroup("${CONTRACTORS}") && user.department == "Sales")`,
       user,
       { groups },
     );
 
-    expect(clauses).toHaveLength(1);
-    expect(clauses[0].groupReferences).toBeUndefined();
+    expect(tree.node).toBe('leaf');
+    expect(leafOf(tree).groupReferences).toBeUndefined();
   });
 
   it('carries polarity per clause when both directions appear in one rule', () => {
-    const { clauses } = explainRuleExpression(
+    const { tree } = explainRuleExpression(
       `isMemberOfGroup("${VENDORS}") && !isMemberOfGroup("${CONTRACTORS}")`,
       user,
       { groups },
     );
 
-    expect(clauses.map((c) => c.groupRequirement)).toEqual(['member', 'non-member']);
+    const conjuncts = tree.node === 'connective' ? tree.children : [tree];
+    expect(conjuncts.map((c) => leafOf(c).groupRequirement)).toEqual(['member', 'non-member']);
   });
 });

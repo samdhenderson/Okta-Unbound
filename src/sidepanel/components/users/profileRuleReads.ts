@@ -1,17 +1,31 @@
 import type { FormattedRule, GroupMembership, OktaUser } from '../../../shared/types';
-import { explainRuleExpression } from '../../../shared/rules/explainExpression';
+import {
+  explainRuleExpression,
+  type ClauseTreeNode,
+} from '../../../shared/rules/explainExpression';
 import { isExcludedProfileField } from '../../../shared/utils/profileFields';
 
-const DOT_REFERENCE = /\buser\.([A-Za-z_$][A-Za-z0-9_$]*)/g;
+function attributeNameOf(path: string): string | undefined {
+  if (path.startsWith('user.')) return path.slice('user.'.length) || undefined;
+  if (path.startsWith('user["') && path.endsWith('"]')) {
+    try {
+      const parsed: unknown = JSON.parse(path.slice('user['.length, -1));
+      return typeof parsed === 'string' && parsed !== '' ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
 
-const BRACKET_REFERENCE = /\buser\[(['"])([^'"]*)\1\]/g;
-
-const STRING_LITERAL = /(['"])(?:\\.|(?!\1)[^\\])*\1/g;
-
-function collectReferences(text: string, into: Set<string>): void {
-  for (const match of text.matchAll(BRACKET_REFERENCE)) into.add(match[2]);
-  for (const match of text.replace(STRING_LITERAL, '""').matchAll(DOT_REFERENCE)) {
-    into.add(match[1]);
+function collectReads(node: ClauseTreeNode, into: Set<string>): void {
+  if (node.node === 'connective') {
+    for (const child of node.children) collectReads(child, into);
+    return;
+  }
+  for (const read of node.reads) {
+    const name = attributeNameOf(read.path);
+    if (name !== undefined) into.add(name);
   }
 }
 
@@ -20,9 +34,7 @@ function attributesReadBy(rule: FormattedRule, user: OktaUser): Set<string> {
 
   const expression = rule.conditionExpression ?? '';
   if (expression !== '') {
-    for (const clause of explainRuleExpression(expression, user).clauses) {
-      collectReferences(clause.expressionText, names);
-    }
+    collectReads(explainRuleExpression(expression, user).tree, names);
   }
 
   for (const name of rule.userAttributes ?? []) names.add(name);

@@ -1,8 +1,9 @@
 import {
   explainRuleExpression,
-  type ClauseExplanation,
   type ClauseGroupReference,
   type ClauseGroupRequirement,
+  type ClauseTreeNode,
+  type LeafClauseNode,
 } from '../../../../shared/rules/explainExpression';
 import type { RuleGroupContext } from '../../../../shared/ruleEvaluator';
 import { groupContextOf } from '../../../../shared/membership/groupContext';
@@ -33,7 +34,7 @@ export interface AccessCause {
   readonly undeterminedReason?: UndeterminedReason;
   readonly ruleId?: string;
   readonly ruleName?: string;
-  readonly failingClauses: readonly ClauseExplanation[];
+  readonly failingClauses: readonly LeafClauseNode[];
   readonly requiredGroups?: readonly ClauseGroupReference[];
   readonly blockingGroups?: readonly ClauseGroupReference[];
 }
@@ -66,7 +67,7 @@ type RuleAssessment =
   | {
       readonly kind: 'blocked';
       readonly rule: MembershipRule;
-      readonly failingClauses: readonly ClauseExplanation[];
+      readonly failingClauses: readonly LeafClauseNode[];
       readonly onlyGroupClausesFailed: boolean;
       readonly requiredGroups: readonly ClauseGroupReference[];
       readonly blockingGroups: readonly ClauseGroupReference[];
@@ -88,12 +89,12 @@ function assessRule(
   const expression = conditionExpressionOf(rule);
   if (expression.trim() === '') return { kind: 'unknown', rule, reason: 'no-condition' };
 
-  const { clauses, summary } = explainRuleExpression(expression, contextUser, {
+  const { tree, summary } = explainRuleExpression(expression, contextUser, {
     groups: groupContext,
   });
   if (summary.result.outcome === 'match') return { kind: 'grants', rule };
 
-  const failingClauses = clauses.filter((clause) => clause.status === 'fail');
+  const failingClauses = collectFailingLeaves(tree);
   if (summary.result.outcome === 'no-match' && failingClauses.length > 0) {
     return {
       kind: 'blocked',
@@ -121,8 +122,14 @@ function assessRule(
   };
 }
 
+function collectFailingLeaves(node: ClauseTreeNode): readonly LeafClauseNode[] {
+  if (node.node === 'leaf') return node.status === 'fail' ? [node] : [];
+  if (node.verdict !== 'fail') return [];
+  return node.children.flatMap(collectFailingLeaves);
+}
+
 function groupsFromClauses(
-  clauses: readonly ClauseExplanation[],
+  clauses: readonly LeafClauseNode[],
   requirement: ClauseGroupRequirement,
   keep: (reference: ClauseGroupReference) => boolean,
 ): readonly ClauseGroupReference[] {

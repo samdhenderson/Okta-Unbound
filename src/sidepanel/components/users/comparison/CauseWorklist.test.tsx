@@ -3,12 +3,18 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CauseWorklist from './CauseWorklist';
 import type { AccessCause, UndeterminedReason } from './accessCause';
-import type { ClauseExplanation } from '../../../../shared/rules/explainExpression';
+import type { LeafClauseNode } from '../../../../shared/rules/explainExpression';
 
-const failing = (expressionText: string, resolvedValue: string): ClauseExplanation => ({
+const failing = (
+  expressionText: string,
+  resolvedValue: string,
+  path = 'user.department',
+): LeafClauseNode => ({
+  node: 'leaf',
   expressionText,
   resolvedValue,
   status: 'fail',
+  reads: [{ path, value: resolvedValue }],
 });
 
 const blocked = (id: string, name: string): AccessCause => ({
@@ -158,12 +164,13 @@ describe('CauseWorklist — absent vs empty causes', () => {
 });
 
 describe('CauseWorklist — rows', () => {
-  it('previews the failing clauses with the value that drove them', () => {
+  it('previews the failing clauses with the evidence that drove them', () => {
     render(<CauseWorklist {...names} causes={[blocked('00gFAKE1', 'Engineering')]} />);
 
     expect(screen.getByText('1 failing clause')).toBeInTheDocument();
     expect(screen.getByText('user.department == "Platform"')).toBeInTheDocument();
-    expect(screen.getByText(/Resolved value: "Support"/)).toBeInTheDocument();
+    expect(screen.getByText('user.department')).toBeInTheDocument();
+    expect(screen.getByText('"Support"')).toBeInTheDocument();
   });
 
   it('caps the clause preview and says how many more there are', () => {

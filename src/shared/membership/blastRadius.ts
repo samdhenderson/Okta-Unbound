@@ -3,7 +3,12 @@ import {
   type RuleGroupContext,
   type RuleMatchResult,
 } from '../ruleEvaluator';
-import { explainRuleExpression, type ClauseGroupReference } from '../rules/explainExpression';
+import {
+  explainRuleExpression,
+  type ClauseGroupReference,
+  type ClauseTreeNode,
+} from '../rules/explainExpression';
+import { matchSafeRegex } from '../rules/safeRegex';
 import { groupContextOf } from './groupContext';
 import { conditionExpressionOf } from './ruleExpression';
 import {
@@ -201,7 +206,16 @@ function referenceNames(reference: ClauseGroupReference, group: AffectedGroup): 
       return group.name.startsWith(reference.value);
     case 'nameContains':
       return group.name.includes(reference.value);
+    case 'nameRegex': {
+      const result = matchSafeRegex(reference.value, group.name);
+      return result.kind === 'match' && result.matched;
+    }
   }
+}
+
+function groupReferencesUnder(node: ClauseTreeNode): readonly ClauseGroupReference[] {
+  if (node.node === 'leaf') return node.groupReferences ?? [];
+  return node.children.flatMap(groupReferencesUnder);
 }
 
 const SECOND_ORDER_TRANSITIONS: ReadonlySet<RuleTransition> = new Set<RuleTransition>([
@@ -221,11 +235,10 @@ function secondOrderScan(
   const names = new Set<string>();
   for (const evaluation of evaluations) {
     if (!SECOND_ORDER_TRANSITIONS.has(evaluation.effect.transition)) continue;
-    const { clauses } = explainRuleExpression(evaluation.effect.expression, drafted, {
+    const { tree } = explainRuleExpression(evaluation.effect.expression, drafted, {
       groups: context,
     });
-    const references = clauses.flatMap((clause) => clause.groupReferences ?? []);
-    const touches = references.some((reference) =>
+    const touches = groupReferencesUnder(tree).some((reference) =>
       affected.some((group) => referenceNames(reference, group)),
     );
     if (touches) names.add(evaluation.effect.ruleName);

@@ -1,5 +1,6 @@
 import jsep from 'jsep';
 import { createLogger } from './utils/logger';
+import { compileSafeRegex, matchCompiled, type SafeRegexDeclineReason } from './rules/safeRegex';
 import type { OktaUser } from './types';
 
 const log = createLogger('RuleEvaluator');
@@ -23,7 +24,9 @@ for (const operator of WORD_UNARY_OPERATORS) {
   jsep.addUnaryOp(operator);
 }
 
-const NEGATION_OPERATORS: ReadonlySet<string> = new Set(['!', ...WORD_UNARY_OPERATORS]);
+export const RULE_NEGATION_OPERATORS: ReadonlySet<string> = new Set(['!', ...WORD_UNARY_OPERATORS]);
+
+const NEGATION_OPERATORS = RULE_NEGATION_OPERATORS;
 
 const MAX_EXPRESSION_LENGTH = 4096;
 
@@ -39,7 +42,8 @@ export type RuleUnevaluableReason =
   | 'parse-error'
   | 'unsupported-operator'
   | 'group-membership-fn'
-  | 'group-name-regex'
+  | 'regex-unsupported-syntax'
+  | 'regex-too-complex'
   | 'unknown-fn'
   | 'fn-arity'
   | 'unsupported-node'
@@ -101,9 +105,20 @@ const SUPPORTED_BINARY_OPERATORS: ReadonlySet<string> = new Set([
   ...OR_OPERATORS,
 ]);
 
+interface VariadicPairsArity {
+  readonly minArgs: number;
+  readonly pairsFrom: number;
+}
+
 interface SupportedFunction {
-  arity: number;
+  arity: number | VariadicPairsArity;
   evaluate: (args: readonly ExprValue[]) => EvalResult;
+}
+
+function arityMatches(fn: SupportedFunction, argCount: number): boolean {
+  if (typeof fn.arity === 'number') return argCount === fn.arity;
+  const { minArgs, pairsFrom } = fn.arity;
+  return argCount >= minArgs && (argCount - pairsFrom) % 2 === 0;
 }
 
 function asString(value: ExprValue | undefined): string | Unresolved {
@@ -185,6 +200,19 @@ function substringBefore(source: string, separator: string): ExprValue | Unresol
   return at === -1 ? UNRESOLVED : source.slice(0, at);
 }
 
+function evaluateStringSwitch(args: readonly ExprValue[]): EvalResult {
+  const input = asString(args[0]);
+  const fallback = asString(args[1]);
+  if (isUnresolved(input) || isUnresolved(fallback)) return UNRESOLVED;
+  for (let i = 2; i + 1 < args.length; i += 2) {
+    const key = asString(args[i]);
+    const value = asString(args[i + 1]);
+    if (isUnresolved(key) || isUnresolved(value)) return UNRESOLVED;
+    if (input.includes(key)) return value;
+  }
+  return fallback;
+}
+
 export const SUPPORTED_FUNCTIONS: ReadonlyMap<string, SupportedFunction> = new Map<
   string,
   SupportedFunction
@@ -212,6 +240,13 @@ export const SUPPORTED_FUNCTIONS: ReadonlyMap<string, SupportedFunction> = new M
   ],
   ['String.replace', { arity: 3, evaluate: (a) => evaluateReplace(a) }],
   ['String.substring', { arity: 3, evaluate: (a) => evaluateSubstring(a) }],
+  [
+    'String.stringSwitch',
+    {
+      arity: { minArgs: 2, pairsFrom: 2 },
+      evaluate: (a) => evaluateStringSwitch(a),
+    },
+  ],
   [
     'String.substringAfter',
     { arity: 2, evaluate: (a) => withTwoStrings(a, (s, sep) => substringAfter(s, sep)) },
@@ -242,20 +277,62 @@ export const GROUP_MEMBERSHIP_FUNCTIONS: ReadonlySet<string> = new Set([
   'isMemberOfGroupNameRegex',
 ]);
 
-const GROUP_NAME_REGEX_FUNCTION = 'isMemberOfGroupNameRegex';
+type GroupArgumentVerdict =
+  | { readonly kind: 'answer'; readonly matched: boolean }
+  | { readonly kind: 'declined'; readonly reason: RuleUnevaluableReason };
 
 interface GroupMembershipFunction {
-  readonly matches: (group: RuleGroupContextEntry, argument: string) => boolean;
+  readonly matchesAny: (groups: RuleGroupContext, argument: string) => GroupArgumentVerdict;
   readonly variadic: boolean;
 }
 
+function groupAnswer(matched: boolean): GroupArgumentVerdict {
+  return { kind: 'answer', matched };
+}
+
+function byField(
+  matches: (group: RuleGroupContextEntry, argument: string) => boolean,
+): GroupMembershipFunction['matchesAny'] {
+  return (groups, argument) => groupAnswer(groups.some((group) => matches(group, argument)));
+}
+
+function regexDeclineReason(reason: SafeRegexDeclineReason): RuleUnevaluableReason {
+  return reason === 'unsupported-syntax' || reason === 'parse-error'
+    ? 'regex-unsupported-syntax'
+    : 'regex-too-complex';
+}
+
+function matchesAnyByRegex(groups: RuleGroupContext, pattern: string): GroupArgumentVerdict {
+  const program = compileSafeRegex(pattern);
+  if (program.kind === 'declined') {
+    return { kind: 'declined', reason: regexDeclineReason(program.reason) };
+  }
+  let declined: RuleUnevaluableReason | undefined;
+  for (const group of groups) {
+    const result = matchCompiled(program, group.name);
+    if (result.kind === 'declined') {
+      declined ??= regexDeclineReason(result.reason);
+      continue;
+    }
+    if (result.matched) return groupAnswer(true);
+  }
+  return declined === undefined ? groupAnswer(false) : { kind: 'declined', reason: declined };
+}
+
 const GROUP_MEMBERSHIP_IMPLEMENTATIONS: ReadonlyMap<string, GroupMembershipFunction> = new Map([
-  ['isMemberOfGroup', { matches: (g, a) => g.id === a, variadic: false }],
-  ['isMemberOfAnyGroup', { matches: (g, a) => g.id === a, variadic: true }],
-  ['isMemberOfGroupName', { matches: (g, a) => g.name === a, variadic: false }],
-  ['isMemberOfAnyGroupName', { matches: (g, a) => g.name === a, variadic: true }],
-  ['isMemberOfGroupNameStartsWith', { matches: (g, a) => g.name.startsWith(a), variadic: false }],
-  ['isMemberOfGroupNameContains', { matches: (g, a) => g.name.includes(a), variadic: false }],
+  ['isMemberOfGroup', { matchesAny: byField((g, a) => g.id === a), variadic: false }],
+  ['isMemberOfAnyGroup', { matchesAny: byField((g, a) => g.id === a), variadic: true }],
+  ['isMemberOfGroupName', { matchesAny: byField((g, a) => g.name === a), variadic: false }],
+  ['isMemberOfAnyGroupName', { matchesAny: byField((g, a) => g.name === a), variadic: true }],
+  [
+    'isMemberOfGroupNameStartsWith',
+    { matchesAny: byField((g, a) => g.name.startsWith(a)), variadic: false },
+  ],
+  [
+    'isMemberOfGroupNameContains',
+    { matchesAny: byField((g, a) => g.name.includes(a)), variadic: false },
+  ],
+  ['isMemberOfGroupNameRegex', { matchesAny: matchesAnyByRegex, variadic: false }],
 ]);
 
 function isLiteral(node: jsep.Expression): node is jsep.Literal {
@@ -280,6 +357,10 @@ function isUnaryExpression(node: jsep.Expression): node is jsep.UnaryExpression 
 
 function isBinaryExpression(node: jsep.Expression): node is jsep.BinaryExpression {
   return node.type === 'BinaryExpression';
+}
+
+function isConditionalExpression(node: jsep.Expression): node is jsep.ConditionalExpression {
+  return node.type === 'ConditionalExpression';
 }
 
 function calleeName(node: jsep.CallExpression): string | undefined {
@@ -373,17 +454,26 @@ function asOperand(raw: unknown, options: EvaluationWalkOptions): EvalResult {
 }
 
 function resolveMember(node: jsep.MemberExpression, options: EvaluationWalkOptions): EvalResult {
-  if (node.computed) return giveUp('unsupported-node', options);
   const { object, property } = node;
   if (!isIdentifier(object) || object.name !== 'user') return giveUp('unsupported-node', options);
-  if (!isIdentifier(property)) return giveUp('unsupported-node', options);
+
+  let attributeName: string;
+  if (node.computed) {
+    if (!isLiteral(property) || typeof property.value !== 'string') {
+      return giveUp('unsupported-node', options);
+    }
+    attributeName = property.value;
+  } else {
+    if (!isIdentifier(property)) return giveUp('unsupported-node', options);
+    attributeName = property.name;
+  }
 
   const profile = options.user.profile as Record<string, unknown>;
-  if (Object.prototype.hasOwnProperty.call(profile, property.name)) {
-    return asOperand(profile[property.name], options);
+  if (Object.prototype.hasOwnProperty.call(profile, attributeName)) {
+    return asOperand(profile[attributeName], options);
   }
-  if (USER_TOP_LEVEL_FIELDS.has(property.name)) {
-    const raw = (options.user as unknown as Record<string, unknown>)[property.name];
+  if (USER_TOP_LEVEL_FIELDS.has(attributeName)) {
+    const raw = (options.user as unknown as Record<string, unknown>)[attributeName];
     if (raw === undefined) return giveUp('attribute-absent', options);
     return asOperand(raw, options);
   }
@@ -455,8 +545,6 @@ function evaluateGroupMembershipCall(
   name: string,
   options: EvaluationWalkOptions,
 ): EvalResult {
-  if (name === GROUP_NAME_REGEX_FUNCTION) return giveUpLogged('group-name-regex', options);
-
   const { groups } = options;
   if (!groups) return giveUpLogged('group-membership-fn', options);
 
@@ -474,7 +562,16 @@ function evaluateGroupMembershipCall(
     targets.push(value);
   }
 
-  return targets.some((target) => groups.some((group) => fn.matches(group, target)));
+  let declined: RuleUnevaluableReason | undefined;
+  for (const target of targets) {
+    const verdict = fn.matchesAny(groups, target);
+    if (verdict.kind === 'declined') {
+      declined ??= verdict.reason;
+      continue;
+    }
+    if (verdict.matched) return true;
+  }
+  return declined === undefined ? false : giveUpLogged(declined, options);
 }
 
 function evaluateCall(node: jsep.CallExpression, options: EvaluationWalkOptions): EvalResult {
@@ -486,7 +583,7 @@ function evaluateCall(node: jsep.CallExpression, options: EvaluationWalkOptions)
     }
     return giveUpLogged('unknown-fn', options);
   }
-  if (node.arguments.length !== fn.arity) {
+  if (!arityMatches(fn, node.arguments.length)) {
     return giveUpLogged('fn-arity', options);
   }
 
@@ -498,6 +595,25 @@ function evaluateCall(node: jsep.CallExpression, options: EvaluationWalkOptions)
   }
   const result = fn.evaluate(args);
   return isUnresolved(result) ? giveUp('operand-type', options) : result;
+}
+
+function isSameValue(left: ExprValue, right: ExprValue): boolean {
+  if (Array.isArray(left) || Array.isArray(right)) return false;
+  return left === right;
+}
+
+function evaluateConditional(
+  node: jsep.ConditionalExpression,
+  options: EvaluationWalkOptions,
+): EvalResult {
+  const test = truthiness(evaluateNode(node.test, options));
+  if (!isUnresolved(test)) {
+    return evaluateNode(test ? node.consequent : node.alternate, options);
+  }
+  const consequent = evaluateNode(node.consequent, options);
+  const alternate = evaluateNode(node.alternate, options);
+  if (isUnresolved(consequent) || isUnresolved(alternate)) return UNRESOLVED;
+  return isSameValue(consequent, alternate) ? consequent : UNRESOLVED;
 }
 
 function evaluateNode(node: jsep.Expression, options: EvaluationWalkOptions): EvalResult {
@@ -512,7 +628,15 @@ function evaluateNode(node: jsep.Expression, options: EvaluationWalkOptions): Ev
   if (isMemberExpression(node)) return resolveMember(node, options);
   if (isCallExpression(node)) return evaluateCall(node, options);
   if (isBinaryExpression(node)) return evaluateBinary(node, options);
+  if (isConditionalExpression(node)) return evaluateConditional(node, options);
   if (isUnaryExpression(node)) {
+    if (node.operator === '-') {
+      const { argument } = node;
+      if (isLiteral(argument) && typeof argument.value === 'number') {
+        return -argument.value;
+      }
+      return giveUp('unsupported-operator', options);
+    }
     if (!NEGATION_OPERATORS.has(node.operator)) return giveUp('unsupported-node', options);
     const argument = truthiness(evaluateNode(node.argument, options));
     return isUnresolved(argument) ? UNRESOLVED : !argument;
@@ -561,11 +685,12 @@ function isSupportedNode(node: jsep.Expression, options: GrammarWalkOptions = {}
     return supported || reject('unsupported-node', options);
   }
   if (isMemberExpression(node)) {
+    const isUserObject = isIdentifier(node.object) && node.object.name === 'user';
     const supported =
-      !node.computed &&
-      isIdentifier(node.object) &&
-      node.object.name === 'user' &&
-      isIdentifier(node.property);
+      isUserObject &&
+      (node.computed
+        ? isLiteral(node.property) && typeof node.property.value === 'string'
+        : isIdentifier(node.property));
     return supported || reject('unsupported-node', options);
   }
   if (isCallExpression(node)) {
@@ -573,7 +698,6 @@ function isSupportedNode(node: jsep.Expression, options: GrammarWalkOptions = {}
     const fn = name ? SUPPORTED_FUNCTIONS.get(name) : undefined;
     if (!fn) {
       if (!name || !GROUP_MEMBERSHIP_FUNCTIONS.has(name)) return reject('unknown-fn', options);
-      if (name === GROUP_NAME_REGEX_FUNCTION) return reject('group-name-regex', options);
       if (!options.hasGroupContext) return reject('group-membership-fn', options);
       const membershipFn = GROUP_MEMBERSHIP_IMPLEMENTATIONS.get(name);
       if (!membershipFn) return reject('group-membership-fn', options);
@@ -583,10 +707,14 @@ function isSupportedNode(node: jsep.Expression, options: GrammarWalkOptions = {}
       if (wrongArity) return reject('fn-arity', options);
       return node.arguments.every((argument) => isSupportedNode(argument, options));
     }
-    if (node.arguments.length !== fn.arity) return reject('fn-arity', options);
+    if (!arityMatches(fn, node.arguments.length)) return reject('fn-arity', options);
     return node.arguments.every((argument) => isSupportedNode(argument, options));
   }
   if (isUnaryExpression(node)) {
+    if (node.operator === '-') {
+      const supported = isLiteral(node.argument) && typeof node.argument.value === 'number';
+      return supported || reject('unsupported-operator', options);
+    }
     if (!NEGATION_OPERATORS.has(node.operator)) return reject('unsupported-node', options);
     return isSupportedNode(node.argument, options);
   }
@@ -595,6 +723,13 @@ function isSupportedNode(node: jsep.Expression, options: GrammarWalkOptions = {}
       return reject('unsupported-operator', options);
     }
     return isSupportedNode(node.left, options) && isSupportedNode(node.right, options);
+  }
+  if (isConditionalExpression(node)) {
+    return (
+      isSupportedNode(node.test, options) &&
+      isSupportedNode(node.consequent, options) &&
+      isSupportedNode(node.alternate, options)
+    );
   }
   return reject('unsupported-node', options);
 }

@@ -66,8 +66,8 @@ const meta = {
           '`user.department == "user.title"` names **one** attribute, and any pattern match over the ' +
           'expression reports two. An **unparseable** condition therefore yields no chips at all ' +
           'rather than an empty `Reads` row, which would state as fact that the rule reads nothing.\n\n' +
-          'With a `user`, the condition is rendered by `ClauseChecklist` — one row per clause, with ' +
-          'the profile value that drove it. Without one there is nothing to evaluate against, so the ' +
+          'With a `user`, the condition is rendered by `ClauseLedger` — the tree the tenant actually ' +
+          'wrote, with the profile value that drove each clause. Without one there is nothing to evaluate against, so the ' +
           'raw condition is shown instead of an explanation nobody could trust.\n\n' +
           '**Related internals:** [Shared](?path=/docs/internals-shared--docs)',
       },

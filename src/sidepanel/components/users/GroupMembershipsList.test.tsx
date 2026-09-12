@@ -41,6 +41,17 @@ const base = { memberships: [formattedRuleMembership], isLoading: false };
 const openRow = (groupName: string) =>
   userEvent.click(screen.getByRole('button', { name: `Show how ${groupName} was granted` }));
 
+const clauseSentences = (): string[] =>
+  Array.from(document.querySelectorAll('b')).map((bold) =>
+    (bold.parentElement?.textContent ?? '').replace(/\s+/g, ' ').trim(),
+  );
+
+const readsSection = (): HTMLElement => {
+  const section = screen.getByText('Reads').parentElement;
+  if (!section) throw new Error('no Reads section rendered');
+  return section;
+};
+
 const rowFor = (groupId: string): HTMLElement => {
   const row = document.querySelector<HTMLElement>(`[data-group-id="${groupId}"]`);
   if (!row) throw new Error(`no row rendered for group ${groupId}`);
@@ -52,7 +63,7 @@ describe('GroupMembershipsList', () => {
     render(<GroupMembershipsList {...base} user={user} />);
     await openRow('Engineering');
 
-    expect(screen.getByText('user.department == "Engineering"')).toBeInTheDocument();
+    expect(clauseSentences()).toContain('department equals "Engineering"');
     expect(screen.getByText('Pass')).toBeInTheDocument();
   });
 
@@ -61,7 +72,7 @@ describe('GroupMembershipsList', () => {
     await openRow('Engineering');
 
     expect(screen.getByText('Reads')).toBeInTheDocument();
-    expect(screen.getByText('department')).toBeInTheDocument();
+    expect(within(readsSection()).getByText('department')).toBeInTheDocument();
   });
 
   it('reads an attribute named inside a string literal as text, not as an attribute', async () => {
@@ -84,8 +95,9 @@ describe('GroupMembershipsList', () => {
     );
     await openRow('Engineering');
 
-    expect(screen.getByText('department')).toBeInTheDocument();
-    expect(screen.queryByText('title')).not.toBeInTheDocument();
+    expect(within(readsSection()).getByText('department')).toBeInTheDocument();
+    expect(within(readsSection()).queryByText('title')).not.toBeInTheDocument();
+    expect(clauseSentences()).toContain('department equals "user.title"');
   });
 
   it('explains an unevaluable condition neutrally rather than as a failure', async () => {
@@ -99,7 +111,7 @@ describe('GroupMembershipsList', () => {
             rules: [
               {
                 ...formattedRuleMembership.rules[0],
-                conditionExpression: 'isMemberOfGroupNameRegex("^Eng.*")',
+                conditionExpression: 'isMemberOfGroupNameRegex("(?=Eng)Eng.*")',
               },
             ],
           },
@@ -159,7 +171,7 @@ describe('GroupMembershipsList', () => {
     );
     await openRow('Engineering');
 
-    expect(screen.getByText('user.title == "Intern"')).toBeInTheDocument();
+    expect(clauseSentences()).toContain('title equals "Intern"');
     expect(screen.getByText('Pass')).toBeInTheDocument();
   });
 
@@ -183,7 +195,7 @@ describe('GroupMembershipsList', () => {
                 id: '0prFAKE2',
                 name: 'On-call rotation',
                 status: 'ACTIVE',
-                conditionExpression: 'isMemberOfGroupNameRegex("^On-call.*")',
+                conditionExpression: 'isMemberOfGroupNameRegex("(?=On-call).*")',
               },
             ],
           },
@@ -302,7 +314,7 @@ describe('GroupMembershipsList — isMemberOf* resolves against the loaded membe
         rules: [
           {
             ...formattedRuleMembership.rules[0],
-            conditionExpression: 'isMemberOfGroupNameRegex("^Ops.*")',
+            conditionExpression: 'isMemberOfGroupNameRegex("(?=Ops).*")',
           },
         ],
       },
@@ -619,7 +631,7 @@ describe('GroupMembershipsList — proving one membership against Okta', () => {
     await userEvent.click(askOkta()[0]);
     await screen.findByText(/Okta confirms/);
 
-    expect(screen.getByText('user.department == "Engineering"')).toBeInTheDocument();
+    expect(clauseSentences()).toContain('department equals "Engineering"');
     expect(screen.getByText('Rule:')).toBeInTheDocument();
   });
 

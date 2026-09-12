@@ -1,13 +1,12 @@
 import React from 'react';
-import { Button, RuleExpressionText, type GroupNameResolver } from '../../shared';
+import { Button, ClauseLedgerClause, type GroupNameResolver } from '../../shared';
 import ClauseGroupList from './ClauseGroupList';
 import type { AccessCause, UndeterminedReason } from './accessCause';
 import type {
-  ClauseExplanation,
   ClauseGroupReference,
   ClauseGroupRequirement,
+  LeafClauseNode,
 } from '../../../../shared/rules/explainExpression';
-import type { RuleExprValue } from '../../../../shared/ruleEvaluator';
 
 const undeterminedReasonText: Record<UndeterminedReason, string> = {
   'unevaluable-clause':
@@ -103,13 +102,8 @@ const CauseWorklistRow: React.FC<CauseWorklistRowProps> = ({
   </li>
 );
 
-const formatResolvedValue = (value: RuleExprValue): string => {
-  if (Array.isArray(value)) return `[${value.map(formatResolvedValue).join(', ')}]`;
-  return typeof value === 'string' ? JSON.stringify(value) : String(value);
-};
-
 const clauseGroupNames =
-  (clause: ClauseExplanation, resolveGroupName?: GroupNameResolver): GroupNameResolver =>
+  (clause: LeafClauseNode, resolveGroupName?: GroupNameResolver): GroupNameResolver =>
   (groupId) =>
     resolveGroupName?.(groupId) ??
     clause.groupReferences?.find(
@@ -117,7 +111,7 @@ const clauseGroupNames =
     )?.matchedGroupName;
 
 const FailingClauses: React.FC<{
-  clauses: readonly ClauseExplanation[];
+  clauses: readonly LeafClauseNode[];
   resolveGroupName?: GroupNameResolver;
 }> = ({ clauses, resolveGroupName }) => {
   if (clauses.length === 0) return null;
@@ -130,22 +124,11 @@ const FailingClauses: React.FC<{
       </p>
       <ul className="mt-1 space-y-1">
         {clauses.slice(0, CLAUSE_PREVIEW_LIMIT).map((clause, index) => (
-          <li
-            key={`${index}-${clause.expressionText}`}
-            className="rounded-md bg-neutral-50 px-2 py-1"
-          >
-            <RuleExpressionText
-              text={clause.expressionText}
+          <li key={`${index}-${clause.expressionText}`}>
+            <ClauseLedgerClause
+              leaf={clause}
               resolveGroupName={clauseGroupNames(clause, resolveGroupName)}
             />
-            {clause.groupReferences === undefined && (
-              <span className="mt-0.5 block text-xs text-neutral-600">
-                Resolved value:{' '}
-                {clause.resolvedValue === undefined
-                  ? 'no value could be read for this clause'
-                  : formatResolvedValue(clause.resolvedValue)}
-              </span>
-            )}
           </li>
         ))}
       </ul>

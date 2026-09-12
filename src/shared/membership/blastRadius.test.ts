@@ -81,7 +81,7 @@ const REGEX_FEEDER = ruleOf({
   id: '0prFAKEregex',
   name: 'Regex feeder',
   groupIds: [ENGINEERING.id],
-  conditionExpression: 'isMemberOfGroupNameRegex("^Eng")',
+  conditionExpression: 'isMemberOfGroupNameRegex("(?=Eng).*")',
 });
 
 const ENG_BY_RULE = membershipOf(ENGINEERING, { rules: [ENG_FEEDER], attribution: 'exact' });
@@ -226,8 +226,8 @@ describe('an unevaluable sibling rule is never read as a no (ADR-0020)', () => {
     const regexRow = report.rules.find((rule) => rule.ruleId === REGEX_FEEDER.id);
     expect(regexRow).toMatchObject({
       transition: 'undetermined',
-      beforeReason: 'group-name-regex',
-      afterReason: 'group-name-regex',
+      beforeReason: 'regex-unsupported-syntax',
+      afterReason: 'regex-unsupported-syntax',
     });
     expect(report.counts.undetermined).toBe(1);
   });

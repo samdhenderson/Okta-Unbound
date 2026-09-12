@@ -31,6 +31,8 @@ const user: OktaUser = {
     andy: null,
     orbit: null,
     notes: null,
+    floor: -1,
+    'cost center': 'CC-9',
   },
 };
 
@@ -380,6 +382,32 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
     expected: 'no-match',
   },
   {
+    name: 'String.stringSwitch matching (substring containment, not equality)',
+    expression: 'String.stringSwitch(user.department, "Other", "Eng", "yes") == "yes"',
+    expected: 'match',
+  },
+  {
+    name: 'String.stringSwitch non-matching (no key contained, falls through to default)',
+    expression: 'String.stringSwitch(user.department, "Other", "Sales", "yes") == "yes"',
+    expected: 'no-match',
+  },
+  {
+    name: 'String.stringSwitch falls through to the required default',
+    expression: 'String.stringSwitch(user.department, "Other", "Sales", "yes") == "Other"',
+    expected: 'match',
+  },
+  {
+    name: 'String.stringSwitch picks the first pair listed, not the first occurring',
+    expression:
+      'String.stringSwitch(user.department, "Other", "Eng", "first", "Engineering", "second") == "first"',
+    expected: 'match',
+  },
+  {
+    name: 'String.stringSwitch rejects a lone trailing key as fn-arity',
+    expression: 'String.stringSwitch(user.department, "Other", "Eng")',
+    expected: 'unevaluable',
+  },
+  {
     name: 'Arrays.contains matching',
     expression: 'Arrays.contains(user.roles, "admin")',
     expected: 'match',
@@ -570,8 +598,8 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
     expected: 'unevaluable',
   },
   {
-    name: 'unsupported reference: computed member access',
-    expression: 'user["department"] == "Engineering"',
+    name: 'unsupported reference: non-literal computed member access',
+    expression: 'user[user.department] == "Engineering"',
     expected: 'unevaluable',
   },
   {
@@ -595,8 +623,43 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
     expected: 'unevaluable',
   },
   {
-    name: 'reason unsupported-node: conditional expression',
+    name: 'conditional: a true test takes the consequent',
     expression: 'user.isContractor ? true : false',
+    expected: 'match',
+  },
+  {
+    name: 'conditional: a false test takes the alternate',
+    expression: 'user.department == "Sales" ? true : false',
+    expected: 'no-match',
+  },
+  {
+    name: 'conditional producing a value, compared',
+    expression: '(user.department == "Engineering" ? "Eng" : "Other") == "Eng"',
+    expected: 'match',
+  },
+  {
+    name: 'conditional whose chosen branch does not resolve',
+    expression: `user.isContractor ? ${UNRESOLVED_CLAUSE} : true`,
+    expected: 'unevaluable',
+  },
+  {
+    name: 'conditional whose UNCHOSEN branch does not resolve still answers',
+    expression: `user.isContractor ? true : ${UNRESOLVED_CLAUSE}`,
+    expected: 'match',
+  },
+  {
+    name: 'conditional with an unresolved test and identical branches resolves',
+    expression: `(${UNRESOLVED_CLAUSE} ? "X" : "X") == "X"`,
+    expected: 'match',
+  },
+  {
+    name: 'conditional with an unresolved test and differing branches stays unevaluable',
+    expression: `(${UNRESOLVED_CLAUSE} ? "X" : "Y") == "X"`,
+    expected: 'unevaluable',
+  },
+  {
+    name: 'conditional with an unsupported branch stays unevaluable',
+    expression: 'user.isContractor ? true : department',
     expected: 'unevaluable',
   },
   {
@@ -639,6 +702,48 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
     name: 'a bare false literal reduces to no-match',
     expression: 'false',
     expected: 'no-match',
+  },
+
+  {
+    name: 'unary minus on a numeric literal, matching',
+    expression: 'user.floor == -1',
+    expected: 'match',
+  },
+  {
+    name: 'unary minus on a numeric literal, non-matching',
+    expression: 'user.floor == -2',
+    expected: 'no-match',
+  },
+  {
+    name: 'unary minus on a fractional literal',
+    expression: 'user.headcount >= -0.5',
+    expected: 'match',
+  },
+  {
+    name: 'unary minus on a non-literal operand stays unevaluable',
+    expression: 'user.headcount == -user.floor',
+    expected: 'unevaluable',
+  },
+
+  {
+    name: 'computed member access, matching',
+    expression: 'user["cost center"] == "CC-9"',
+    expected: 'match',
+  },
+  {
+    name: 'computed member access, non-matching',
+    expression: 'user["cost center"] == "CC-1"',
+    expected: 'no-match',
+  },
+  {
+    name: 'computed member access, attribute the profile does not carry',
+    expression: 'user["cost centre"] == "CC-9"',
+    expected: 'unevaluable',
+  },
+  {
+    name: 'computed member access with a non-literal key stays unevaluable',
+    expression: 'user[user.department] == "Engineering"',
+    expected: 'unevaluable',
   },
 ];
 
@@ -814,7 +919,16 @@ const GATE_CASES: readonly GateCase[] = [
     expression: 'user.department + "x" == "y"',
     expected: false,
   },
-  { name: 'rejects a unary minus', expression: '-user.headcount == -42', expected: false },
+  {
+    name: 'rejects a unary minus applied to a non-literal',
+    expression: '-user.headcount == -42',
+    expected: false,
+  },
+  {
+    name: 'accepts a unary minus applied to a numeric literal',
+    expression: 'user.headcount == -42',
+    expected: true,
+  },
   {
     name: 'rejects isMemberOfGroup',
     expression: 'isMemberOfGroup("00gFAKE0000000000000")',
@@ -889,9 +1003,14 @@ const GATE_CASES: readonly GateCase[] = [
   { name: 'rejects app context', expression: 'app.id == "0oaFAKE"', expected: false },
   { name: 'rejects session context', expression: 'session.amr == "pwd"', expected: false },
   {
-    name: 'rejects computed member access',
-    expression: 'user["department"] == "Engineering"',
+    name: 'rejects a non-literal computed member access',
+    expression: 'user[user.department] == "Engineering"',
     expected: false,
+  },
+  {
+    name: 'accepts computed member access with a string-literal key',
+    expression: 'user["department"] == "Engineering"',
+    expected: true,
   },
   {
     name: 'rejects nested member access',
@@ -910,8 +1029,28 @@ const GATE_CASES: readonly GateCase[] = [
     expected: false,
   },
   {
-    name: 'rejects a conditional expression',
+    name: 'accepts a conditional expression whose three parts are all supported',
     expression: 'user.isContractor ? true : false',
+    expected: true,
+  },
+  {
+    name: 'accepts a nested conditional',
+    expression: 'user.isContractor ? (user.department == "Engineering" ? "a" : "b") : "c"',
+    expected: true,
+  },
+  {
+    name: 'rejects a conditional with an unsupported test',
+    expression: '["a"] ? "a" : "b"',
+    expected: false,
+  },
+  {
+    name: 'rejects a conditional with an unsupported consequent',
+    expression: 'user.isContractor ? department : "b"',
+    expected: false,
+  },
+  {
+    name: 'rejects a conditional with an unsupported alternate',
+    expression: 'user.isContractor ? "a" : this.department',
     expected: false,
   },
   {
@@ -942,6 +1081,119 @@ describe('ruleEvaluator parity — grammar gate table', () => {
     for (const { name, expression, expected } of GATE_CASES) {
       if (expected) continue;
       expect(tryEvaluateRuleExpression(expression, user), name).toBe('unevaluable');
+    }
+  });
+});
+
+const CONTEXT_GROUPS = [
+  { id: '00gFAKE0000000000000', name: 'SecOps-Alpha' },
+  { id: '00gFAKE1111111111111', name: 'Engineering' },
+];
+
+interface RegexCase {
+  readonly name: string;
+  readonly expression: string;
+  readonly expected: RuleMatchOutcome;
+  readonly gated?: false;
+}
+
+const REGEX_CASES: readonly RegexCase[] = [
+  {
+    name: 'full-match against one of the names',
+    expression: 'isMemberOfGroupNameRegex("^SecOps-.*")',
+    expected: 'match',
+  },
+  {
+    name: 'a substring match is not a match (Java matches() semantics)',
+    expression: 'isMemberOfGroupNameRegex("SecOps")',
+    expected: 'no-match',
+  },
+  {
+    name: 'no name satisfies the pattern',
+    expression: 'isMemberOfGroupNameRegex("^Finance-[0-9]+")',
+    expected: 'no-match',
+  },
+  {
+    name: 'alternation and character classes are inside the subset',
+    expression: 'isMemberOfGroupNameRegex("(SecOps|NetOps)-[A-Za-z]+")',
+    expected: 'match',
+  },
+  {
+    name: 'negated, answering the other way round',
+    expression: '!isMemberOfGroupNameRegex("^SecOps-.*")',
+    expected: 'no-match',
+  },
+  {
+    name: 'beside a clause that resolves, the conjunction resolves',
+    expression: 'user.department == "Engineering" && isMemberOfGroupNameRegex("^SecOps-.*")',
+    expected: 'match',
+  },
+  {
+    name: 'lookahead is declined, not approximated',
+    expression: 'isMemberOfGroupNameRegex("(?=Sec)SecOps-.*")',
+    expected: 'unevaluable',
+  },
+  {
+    name: 'a backreference is declined',
+    expression: 'isMemberOfGroupNameRegex("(Sec)\\\\1")',
+    expected: 'unevaluable',
+  },
+  {
+    name: 'bounded repetition is declined',
+    expression: 'isMemberOfGroupNameRegex("Sec{2,4}Ops")',
+    expected: 'unevaluable',
+  },
+  {
+    name: 'a malformed pattern is declined',
+    expression: 'isMemberOfGroupNameRegex("SecOps-(")',
+    expected: 'unevaluable',
+  },
+  {
+    name: 'a declined pattern poisons its conjunction rather than answering false',
+    expression: 'user.department == "Engineering" && isMemberOfGroupNameRegex("(?=Sec)")',
+    expected: 'unevaluable',
+  },
+  {
+    name: 'wrong arity — not variadic, unlike the `…Any…` forms',
+    expression: 'isMemberOfGroupNameRegex("^SecOps-.*", "^NetOps-.*")',
+    expected: 'unevaluable',
+    gated: false,
+  },
+];
+
+describe('ruleEvaluator parity — isMemberOfGroupNameRegex with a group context', () => {
+  it.each(REGEX_CASES)('$name', ({ expression, expected }) => {
+    expect(tryEvaluateRuleExpression(expression, user, CONTEXT_GROUPS)).toBe(expected);
+  });
+
+  it('is unevaluable for every row without a group context', () => {
+    for (const { name, expression } of REGEX_CASES) {
+      expect(tryEvaluateRuleExpression(expression, user), name).toBe('unevaluable');
+    }
+  });
+
+  it('agrees with the grammar gate: the gate needs the context, and never accepts what answers unevaluable for a grammar reason', () => {
+    for (const { name, expression, gated } of REGEX_CASES) {
+      const parsed = parseRuleExpression(expression);
+      expect(parsed.ok, name).toBe(true);
+      if (!parsed.ok) continue;
+      const ungated = checkRuleNodeSupport(parsed.ast);
+      expect(ungated.supported, name).toBe(false);
+      if (!ungated.supported) {
+        expect(ungated.reasonCode, name).toBe('group-membership-fn');
+      }
+      expect(checkRuleNodeSupport(parsed.ast, { hasGroupContext: true }).supported, name).toBe(
+        gated ?? true,
+      );
+    }
+  });
+
+  it('never answers match or no-match for a row the gate rejects', () => {
+    for (const { name, expression, expected } of REGEX_CASES) {
+      const parsed = parseRuleExpression(expression);
+      if (!parsed.ok) continue;
+      if (checkRuleNodeSupport(parsed.ast, { hasGroupContext: true }).supported) continue;
+      expect(expected, name).toBe('unevaluable');
     }
   });
 });
