@@ -2,6 +2,20 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, within } from 'storybook/test';
 import BlastRadiusRuleRow from './BlastRadiusRuleRow';
 import type { RuleEffect } from '../../../shared/membership/blastRadiusTypes';
+import type { OktaUser } from '../../../shared/types';
+
+const DRAFTED = {
+  id: '00uFAKEstory00000001',
+  status: 'ACTIVE',
+  profile: {
+    login: 'ada@example.com',
+    email: 'ada@example.com',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    department: 'Sales',
+    title: 'Account Executive',
+  },
+} as unknown as OktaUser;
 
 const effect = (
   over: Partial<RuleEffect> & Pick<RuleEffect, 'ruleId' | 'ruleName' | 'transition'>,
@@ -185,6 +199,20 @@ export const UnchangedNoMatch: Story = {
   },
 };
 
+export const UnchangedUnevaluable: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00009',
+      ruleName: 'Contractor pattern',
+      transition: 'unchanged-unevaluable',
+      expression: 'isMemberOfGroupNameRegex("(?=contractor).*")',
+      beforeReason: 'regex-unsupported-syntax',
+      afterReason: 'regex-unsupported-syntax',
+      touchedAttributes: [],
+    }),
+  },
+};
+
 export const ManyTargets: Story = {
   args: {
     effect: effect({
@@ -315,5 +343,35 @@ export const NoCascade: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole('button', { name: /Rules that use/ })).toBeNull();
+  },
+};
+
+export const WithClauseLedger: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00010',
+      ruleName: 'Sales enablement',
+      transition: 'starts-matching',
+      expression: 'user.department == "Sales" && user.title == "Account Executive"',
+      touchedAttributes: ['department'],
+    }),
+    drafted: DRAFTED,
+    groupContext: [],
+  },
+};
+
+export const ClauseLedgerWithUnreadableClause: Story = {
+  args: {
+    effect: effect({
+      ruleId: '0prFAKErule00011',
+      ruleName: 'Regional enablement',
+      transition: 'undetermined',
+      expression: 'user.department == "Sales" && isMemberOfGroupNameRegex("(?=EMEA).*")',
+      beforeReason: 'regex-unsupported-syntax',
+      afterReason: 'regex-unsupported-syntax',
+      touchedAttributes: ['department'],
+    }),
+    drafted: DRAFTED,
+    groupContext: [],
   },
 };

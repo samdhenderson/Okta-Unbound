@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import BlastRadiusReport from './BlastRadiusReport';
+import type { OktaUser } from '../../../shared/types';
 import type {
   BlastRadiusReport as BlastRadiusReportData,
   GroupEffect,
@@ -32,6 +33,18 @@ const groups: GroupEffect[] = [
     currentBucket: 'rule',
   },
 ];
+
+const user = {
+  id: '00uFAKEreport0000001',
+  status: 'ACTIVE',
+  profile: {
+    login: 'ada@example.com',
+    email: 'ada@example.com',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    department: 'Engineering',
+  },
+} as unknown as OktaUser;
 
 const rules: RuleEffect[] = [
   {
@@ -108,6 +121,59 @@ describe('BlastRadiusReport', () => {
 
     await userEvent.click(groupsPill);
     expect(screen.getByRole('heading', { name: 'Added' })).toBeInTheDocument();
+  });
+
+  it('breaks a rule condition into clauses against the DRAFTED user, not the current one', async () => {
+    render(
+      <BlastRadiusReport
+        report={computed}
+        drafted={{ ...user, profile: { ...user.profile, department: 'Sales' } }}
+        groupContext={[]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^Rules \d+$/ }));
+
+    expect(screen.getByText('Rule matches this user')).toBeInTheDocument();
+    expect(screen.queryByText('Rule does not match')).not.toBeInTheDocument();
+    expect(screen.getByText(/user\.department/)).toBeInTheDocument();
+    expect(screen.getAllByText('"Sales"').length).toBeGreaterThan(0);
+  });
+
+  it('renders the condition as flat text when no drafted user is supplied', async () => {
+    render(<BlastRadiusReport report={computed} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Rules \d+$/ }));
+
+    expect(screen.queryByText('Rule matches this user')).not.toBeInTheDocument();
+    expect(screen.getByText(/user\.department == "Sales"/)).toBeInTheDocument();
+  });
+
+  it('says how many of the unaffected rules were never read', async () => {
+    const outOfReach: RuleEffect = {
+      ruleId: '0prFAKErule00006',
+      ruleName: 'Contractor pattern',
+      expression: 'isMemberOfGroupNameRegex("(?=contractor).*")',
+      transition: 'unchanged-unevaluable',
+      beforeReason: 'regex-unsupported-syntax',
+      afterReason: 'regex-unsupported-syntax',
+      targetGroupIds: ['00gFAKE00000000000007'],
+      targetGroupNames: ['Contractors'],
+      touchedAttributes: [],
+      active: true,
+    };
+
+    render(<BlastRadiusReport report={{ ...computed, rules: [...rules, outOfReach] }} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Rules \d+$/ }));
+
+    expect(screen.getByText(/And 3 rules are unaffected by this edit\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /1 of those could not be read, but it reads no attribute this edit changes\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Contractor pattern')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Could not be evaluated' }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps an open cascade across a switch, and hedges nothing else', async () => {

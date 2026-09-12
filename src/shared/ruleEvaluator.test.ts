@@ -37,8 +37,72 @@ describe('tryEvaluateRuleExpression', () => {
       city: 'San Francisco',
       employeeNumber: 42,
       nullable: null,
+      blank: '',
     },
   } as unknown as OktaUser;
+
+  describe('an absent profile attribute is null', () => {
+    it('answers no-match for an equality against an attribute the profile lacks', () => {
+      expect(tryEvaluateRuleExpression('user.costCenter == "1234"', user)).toBe('no-match');
+    });
+
+    it('answers match for an inequality against it — the direction SpEL gives', () => {
+      expect(tryEvaluateRuleExpression('user.costCenter != "1234"', user)).toBe('match');
+    });
+
+    it('compares equal to null, exactly as a present-and-null attribute does', () => {
+      expect(tryEvaluateRuleExpression('user.division == null', user)).toBe('match');
+      expect(tryEvaluateRuleExpression('user.nullable == null', user)).toBe('match');
+    });
+
+    it('still declines an ordering comparison, which SpEL cannot answer on null', () => {
+      expect(tryEvaluateRuleExpression('user.costCenter > "A"', user)).toBe('unevaluable');
+    });
+
+    it('keeps a blank attribute a value of its own, never folded into "no value"', () => {
+      expect(tryEvaluateRuleExpression('user.blank == ""', user)).toBe('match');
+      expect(tryEvaluateRuleExpression('user.blank == null', user)).toBe('no-match');
+      expect(tryEvaluateRuleExpression('user.costCenter == ""', user)).toBe('no-match');
+    });
+  });
+
+  describe('a string predicate over an attribute with no value', () => {
+    it('answers no-match for containment, prefix and suffix', () => {
+      expect(tryEvaluateRuleExpression('String.stringContains(user.costCenter, "CC")', user)).toBe(
+        'no-match',
+      );
+      expect(tryEvaluateRuleExpression('String.startsWith(user.costCenter, "CC")', user)).toBe(
+        'no-match',
+      );
+      expect(tryEvaluateRuleExpression('String.endsWith(user.costCenter, "CC")', user)).toBe(
+        'no-match',
+      );
+    });
+
+    it('answers match under negation, which is the honest consequence of answering', () => {
+      expect(tryEvaluateRuleExpression('!String.stringContains(user.costCenter, "CC")', user)).toBe(
+        'match',
+      );
+    });
+
+    it('still declines when the needle itself has no value', () => {
+      expect(
+        tryEvaluateRuleExpression('String.stringContains(user.department, user.costCenter)', user),
+      ).toBe('unevaluable');
+    });
+
+    it('still declines a value-returning function, which would have to invent one', () => {
+      expect(tryEvaluateRuleExpression('String.len(user.costCenter) == 0', user)).toBe(
+        'unevaluable',
+      );
+      expect(tryEvaluateRuleExpression('String.toUpperCase(user.costCenter) == ""', user)).toBe(
+        'unevaluable',
+      );
+      expect(tryEvaluateRuleExpression('String.substring(user.costCenter, 0, 1) == ""', user)).toBe(
+        'unevaluable',
+      );
+    });
+  });
 
   describe('match', () => {
     it('returns match for a satisfied equality', () => {
@@ -167,9 +231,11 @@ describe('tryEvaluateRuleExpression', () => {
       expect(tryEvaluateRuleExpression('app.clientId == "x"', user)).toBe('unevaluable');
     });
 
-    it('is unevaluable for an attribute the profile does not carry', () => {
-      expect(tryEvaluateRuleExpression('user.costCenter == "1234"', user)).toBe('unevaluable');
-      expect(tryEvaluateRuleExpression('user.division == null', user)).toBe('unevaluable');
+    it('is unevaluable for a top-level user field this response did not carry', () => {
+      const neverSignedIn = { ...user, lastLogin: undefined };
+      expect(tryEvaluateRuleExpression('user.lastLogin == "2026-01-01"', neverSignedIn)).toBe(
+        'unevaluable',
+      );
     });
 
     it('is unevaluable for a function outside the allow-list', () => {
@@ -437,8 +503,9 @@ describe('supported subset', () => {
       expect(tryEvaluateRuleExpression('user["cost center"] == "CC-1"', user)).toBe('no-match');
     });
 
-    it('reports attribute-absent for a computed key the profile does not carry', () => {
-      expect(tryEvaluateRuleExpression('user["cost centre"] == "CC-9"', user)).toBe('unevaluable');
+    it('resolves a computed key the profile does not carry to null, like the dotted form', () => {
+      expect(tryEvaluateRuleExpression('user["cost centre"] == "CC-9"', user)).toBe('no-match');
+      expect(tryEvaluateRuleExpression('user["cost centre"] != "CC-9"', user)).toBe('match');
     });
 
     it('stays unevaluable for a non-literal or nested computed key', () => {
@@ -651,7 +718,7 @@ describe('tryEvaluateRuleExpressionDetailed', () => {
     { expression: 'isMemberOfGroupName("Eng")', reasonCode: 'group-membership-fn' },
     { expression: 'Arrays.flatten(user.roles)', reasonCode: 'unknown-fn' },
     { expression: 'Arrays.contains(user.department, "Eng")', reasonCode: 'operand-type' },
-    { expression: 'user.costCenter == "1234"', reasonCode: 'attribute-absent' },
+    { expression: 'user.roles == null', reasonCode: 'operand-type' },
     { expression: 'user.roles == "admin,dev"', reasonCode: 'operand-type' },
     { expression: 'String.startsWith(user.firstName)', reasonCode: 'fn-arity' },
     { expression: 'app.clientId == "x"', reasonCode: 'unsupported-node' },
@@ -816,24 +883,22 @@ describe('conditional expressions', () => {
 
   describe('an unresolved test', () => {
     it('still resolves when both branches are the same value', () => {
-      expect(tryEvaluateRuleExpression('(user.missingAttr ? "X" : "X") == "X"', user)).toBe(
-        'match',
-      );
+      expect(tryEvaluateRuleExpression('(user.roles ? "X" : "X") == "X"', user)).toBe('match');
     });
 
     it('stays unevaluable when the branches differ', () => {
-      expect(tryEvaluateRuleExpression('(user.missingAttr ? "X" : "Y") == "X"', user)).toBe(
+      expect(tryEvaluateRuleExpression('(user.roles ? "X" : "Y") == "X"', user)).toBe(
         'unevaluable',
       );
     });
 
     it('stays unevaluable for array branches, which are never the same value', () => {
-      expect(walkUngated('user.missingAttr ? user.roles : user.roles', user).resolved).toBe(false);
+      expect(walkUngated('user.roles ? user.roles : user.roles', user).resolved).toBe(false);
     });
 
     it('stays unevaluable when a branch is itself unresolved', () => {
       expect(
-        walkUngated('user.missingAttr ? user.department : user.alsoMissing', user).resolved,
+        walkUngated('user.roles ? user.department : Arrays.flatten(user.roles)', user).resolved,
       ).toBe(false);
     });
   });

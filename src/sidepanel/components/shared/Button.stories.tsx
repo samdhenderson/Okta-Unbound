@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import Button from './Button';
+import Icon from './Icon';
 
 const meta = {
   title: 'Shared/Button',
@@ -136,4 +137,19 @@ export const Disclosure: Story = {
     </div>
   ),
   args: { variant: 'ghost', size: 'sm' },
+};
+
+export const LabelWithElementChild: Story = {
+  render: (args) => (
+    <div className="w-48">
+      <Button {...args} expanded controls="button-element-child-region">
+        Rules that use this group
+        <Icon type="chevron-right" size="sm" className="rotate-90" />
+      </Button>
+      <div id="button-element-child-region" className="sr-only">
+        The region this button shows and hides.
+      </div>
+    </div>
+  ),
+  args: { variant: 'ghost', size: 'xs' },
 };

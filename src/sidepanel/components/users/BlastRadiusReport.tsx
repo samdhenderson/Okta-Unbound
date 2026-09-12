@@ -8,17 +8,26 @@ import type {
   BlastRadiusReport as BlastRadiusReportData,
   GroupEffect,
   RuleEffect,
+  RuleTransition,
 } from '../../../shared/membership/blastRadiusTypes';
+import type { OktaUser } from '../../../shared/types';
+import type { RuleGroupContext } from '../../../shared/ruleEvaluator';
 
 export interface BlastRadiusReportProps {
   report: BlastRadiusReportData;
   className?: string;
   resolveGroupName?: GroupNameResolver;
+  drafted?: OktaUser;
+  groupContext?: RuleGroupContext;
 }
 
 type ReportView = 'groups' | 'rules';
 
-const AFFECTED_TRANSITIONS = new Set(['starts-matching', 'stops-matching', 'undetermined']);
+const AFFECTED_TRANSITIONS: ReadonlySet<RuleTransition> = new Set<RuleTransition>([
+  'starts-matching',
+  'stops-matching',
+  'undetermined',
+]);
 
 const GroupSection: React.FC<{
   title: string;
@@ -51,7 +60,18 @@ const RuleSection: React.FC<{
   cascadeLines: ReadonlyMap<string, readonly CascadeLine[]>;
   openRowIds: ReadonlySet<string>;
   onToggle: (rowId: string) => void;
-}> = ({ title, effects, resolveGroupName, cascadeLines, openRowIds, onToggle }) =>
+  drafted?: OktaUser;
+  groupContext?: RuleGroupContext;
+}> = ({
+  title,
+  effects,
+  resolveGroupName,
+  cascadeLines,
+  openRowIds,
+  onToggle,
+  drafted,
+  groupContext,
+}) =>
   effects.length === 0 ? null : (
     <section className="flex flex-col gap-2">
       <Eyebrow as="h3">{title}</Eyebrow>
@@ -64,6 +84,8 @@ const RuleSection: React.FC<{
             cascadeBlocks={blocksFor(effect, cascadeLines)}
             expanded={openRowIds.has(effect.ruleId)}
             onToggle={onToggle}
+            drafted={drafted}
+            groupContext={groupContext}
           />
         ))}
       </ul>
@@ -87,6 +109,8 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
   report,
   className = '',
   resolveGroupName,
+  drafted,
+  groupContext,
 }) => {
   const [view, setView] = useState<ReportView>('groups');
   const [openRowIds, setOpenRowIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -108,13 +132,16 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
     [report.groups],
   );
 
-  const { starts, stops, undetermined, unaffectedCount } = useMemo(() => {
+  const { starts, stops, undetermined, unaffectedCount, outOfReachCount } = useMemo(() => {
     const affected = report.rules.filter((effect) => AFFECTED_TRANSITIONS.has(effect.transition));
     return {
       starts: affected.filter((effect) => effect.transition === 'starts-matching'),
       stops: affected.filter((effect) => effect.transition === 'stops-matching'),
       undetermined: affected.filter((effect) => effect.transition === 'undetermined'),
       unaffectedCount: report.rules.length - affected.length,
+      outOfReachCount: report.rules.filter(
+        (effect) => effect.transition === 'unchanged-unevaluable',
+      ).length,
     };
   }, [report.rules]);
 
@@ -210,6 +237,8 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
                 cascadeLines={cascadeLines}
                 openRowIds={openRowIds}
                 onToggle={toggleRow}
+                drafted={drafted}
+                groupContext={groupContext}
               />
               <RuleSection
                 title="Stops matching"
@@ -218,6 +247,8 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
                 cascadeLines={cascadeLines}
                 openRowIds={openRowIds}
                 onToggle={toggleRow}
+                drafted={drafted}
+                groupContext={groupContext}
               />
               <RuleSection
                 title="Could not be evaluated"
@@ -226,6 +257,8 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
                 cascadeLines={cascadeLines}
                 openRowIds={openRowIds}
                 onToggle={toggleRow}
+                drafted={drafted}
+                groupContext={groupContext}
               />
             </>
           )}
@@ -233,7 +266,11 @@ const BlastRadiusReport: React.FC<BlastRadiusReportProps> = ({
             <p className="text-xs text-neutral-500">
               {unaffectedCount === 1
                 ? 'And 1 rule is unaffected by this edit.'
-                : `And ${unaffectedCount} rules are unaffected by this edit.`}
+                : `And ${unaffectedCount} rules are unaffected by this edit.`}{' '}
+              {outOfReachCount > 0 &&
+                (outOfReachCount === 1
+                  ? '1 of those could not be read, but it reads no attribute this edit changes.'
+                  : `${outOfReachCount} of those could not be read, but none reads an attribute this edit changes.`)}
             </p>
           )}
         </div>

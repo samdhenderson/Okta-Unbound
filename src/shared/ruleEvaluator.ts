@@ -48,7 +48,7 @@ export type RuleUnevaluableReason =
   | 'fn-arity'
   | 'unsupported-node'
   | 'operand-type'
-  | 'attribute-absent'
+  | 'field-not-fetched'
   | 'not-a-boolean'
   | 'walk-failed';
 
@@ -143,6 +143,17 @@ function withTwoStrings(
   return fn(first, second);
 }
 
+function withStringPredicate(
+  args: readonly ExprValue[],
+  fn: (subject: string, needle: string) => boolean,
+): EvalResult {
+  const needle = asString(args[1]);
+  if (isUnresolved(needle)) return UNRESOLVED;
+  if (args[0] === null) return false;
+  const subject = asString(args[0]);
+  return isUnresolved(subject) ? UNRESOLVED : fn(subject, needle);
+}
+
 function withOneString(args: readonly ExprValue[], fn: (a: string) => EvalResult): EvalResult {
   const first = asString(args[0]);
   return isUnresolved(first) ? UNRESOLVED : fn(first);
@@ -222,15 +233,15 @@ export const SUPPORTED_FUNCTIONS: ReadonlyMap<string, SupportedFunction> = new M
   ['String.len', { arity: 1, evaluate: (a) => withOneString(a, (s) => s.length) }],
   [
     'String.stringContains',
-    { arity: 2, evaluate: (a) => withTwoStrings(a, (s, search) => s.includes(search)) },
+    { arity: 2, evaluate: (a) => withStringPredicate(a, (s, search) => s.includes(search)) },
   ],
   [
     'String.startsWith',
-    { arity: 2, evaluate: (a) => withTwoStrings(a, (s, prefix) => s.startsWith(prefix)) },
+    { arity: 2, evaluate: (a) => withStringPredicate(a, (s, prefix) => s.startsWith(prefix)) },
   ],
   [
     'String.endsWith',
-    { arity: 2, evaluate: (a) => withTwoStrings(a, (s, suffix) => s.endsWith(suffix)) },
+    { arity: 2, evaluate: (a) => withStringPredicate(a, (s, suffix) => s.endsWith(suffix)) },
   ],
   ['String.append', { arity: 2, evaluate: (a) => withTwoStrings(a, (s, suffix) => s + suffix) }],
   ['String.join', { arity: 3, evaluate: (a) => evaluateJoin(a) }],
@@ -430,8 +441,17 @@ const USER_TOP_LEVEL_FIELDS: ReadonlySet<string> = new Set([
   'passwordChanged',
 ]);
 
+const USER_FIELDS_NOT_FETCHED: ReadonlySet<string> = new Set([
+  'credentials',
+  'profile',
+  'type',
+  'transitioningToStatus',
+  '_links',
+  '_embedded',
+]);
+
 function asOperand(raw: unknown, options: EvaluationWalkOptions): EvalResult {
-  if (raw === null) return null;
+  if (raw === null || raw === undefined) return null;
   if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') return raw;
   if (Array.isArray(raw)) {
     const scalars: ExprScalar[] = [];
@@ -474,10 +494,13 @@ function resolveMember(node: jsep.MemberExpression, options: EvaluationWalkOptio
   }
   if (USER_TOP_LEVEL_FIELDS.has(attributeName)) {
     const raw = (options.user as unknown as Record<string, unknown>)[attributeName];
-    if (raw === undefined) return giveUp('attribute-absent', options);
+    if (raw === undefined) return giveUp('field-not-fetched', options);
     return asOperand(raw, options);
   }
-  return giveUp('attribute-absent', options);
+  if (USER_FIELDS_NOT_FETCHED.has(attributeName)) {
+    return giveUp('field-not-fetched', options);
+  }
+  return null;
 }
 
 function evaluateAnd(left: EvalResult, right: EvalResult): EvalResult {

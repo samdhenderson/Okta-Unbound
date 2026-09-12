@@ -87,13 +87,33 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
     expected: 'no-match',
   },
   {
-    name: 'absent attribute is not null — it is unevaluable',
+    name: 'absent attribute compares equal to null',
     expression: 'user.division == null',
+    expected: 'match',
+  },
+  {
+    name: 'absent attribute is not equal to a string',
+    expression: 'user.division == "Platform"',
+    expected: 'no-match',
+  },
+  {
+    name: 'absent attribute is unequal to a string — the direction SpEL gives',
+    expression: 'user.division != "Platform"',
+    expected: 'match',
+  },
+  {
+    name: 'absent attribute still cannot be ordered',
+    expression: 'user.division > "Platform"',
     expected: 'unevaluable',
   },
   {
-    name: 'absent attribute yields no verdict against a string either',
-    expression: 'user.division == "Platform"',
+    name: 'a string predicate over an absent attribute is false',
+    expression: 'String.stringContains(user.division, "Plat")',
+    expected: 'no-match',
+  },
+  {
+    name: 'a value-returning string function over an absent attribute still declines',
+    expression: 'String.len(user.division) == 0',
     expected: 'unevaluable',
   },
   {
@@ -112,7 +132,7 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
     expected: 'no-match',
   },
   {
-    name: 'a user field outside the addressable set stays unevaluable',
+    name: 'a user field this panel does not carry stays unevaluable, never null',
     expression: 'user.credentials == null',
     expected: 'unevaluable',
   },
@@ -738,7 +758,7 @@ const OUTCOME_CASES: readonly OutcomeCase[] = [
   {
     name: 'computed member access, attribute the profile does not carry',
     expression: 'user["cost centre"] == "CC-9"',
-    expected: 'unevaluable',
+    expected: 'no-match',
   },
   {
     name: 'computed member access with a non-literal key stays unevaluable',

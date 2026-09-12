@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { analyzeBlastRadius } from '../../shared/membership/blastRadius';
+import { analyzeBlastRadius, draftedUser } from '../../shared/membership/blastRadius';
+import { groupContextOf } from '../../shared/membership/groupContext';
+import type { RuleGroupContext } from '../../shared/ruleEvaluator';
 import type {
   BlastRadiusReport,
   RuleInventoryState,
@@ -22,9 +24,17 @@ interface ReportState {
   readonly userId: string | null;
   readonly report: BlastRadiusReport;
   readonly groupNames: ReadonlyMap<string, string>;
+  readonly drafted: OktaUser | null;
+  readonly groupContext: RuleGroupContext;
 }
 
-const IDLE: ReportState = { userId: null, report: NOT_COMPUTED, groupNames: new Map() };
+const IDLE: ReportState = {
+  userId: null,
+  report: NOT_COMPUTED,
+  groupNames: new Map(),
+  drafted: null,
+  groupContext: [],
+};
 
 export interface UseBlastRadiusOptions {
   user: OktaUser | null;
@@ -39,6 +49,8 @@ export interface UseBlastRadiusReturn {
   reset: () => void;
   isAnalyzing: boolean;
   resolveGroupName: (groupId: string) => string | undefined;
+  drafted: OktaUser | null;
+  groupContext: RuleGroupContext;
 }
 
 export function useBlastRadius({
@@ -74,6 +86,8 @@ export function useBlastRadius({
   const report = state.userId === currentUserId ? state.report : NOT_COMPUTED;
 
   const committedNames = state.userId === currentUserId ? state.groupNames : undefined;
+  const drafted = state.userId === currentUserId ? state.drafted : null;
+  const groupContext = state.userId === currentUserId ? state.groupContext : [];
   const resolveGroupName = useCallback(
     (groupId: string) => committedNames?.get(groupId),
     [committedNames],
@@ -100,7 +114,13 @@ export function useBlastRadius({
         if (!mountedRef.current || runIdRef.current !== runId) return;
 
         const next = analyzeBlastRadius({ user, draft, memberships, rules, groupNames });
-        setState({ userId: user.id, report: next, groupNames });
+        setState({
+          userId: user.id,
+          report: next,
+          groupNames,
+          drafted: draftedUser(user, draft),
+          groupContext: groupContextOf(memberships),
+        });
         setIsAnalyzing(false);
         log.debug('Analyzed', next.status, next.counts);
       })();
@@ -108,5 +128,5 @@ export function useBlastRadius({
     [user, memberships, rules, oktaOrigin, reset],
   );
 
-  return { report, analyze, reset, isAnalyzing, resolveGroupName };
+  return { report, analyze, reset, isAnalyzing, resolveGroupName, drafted, groupContext };
 }

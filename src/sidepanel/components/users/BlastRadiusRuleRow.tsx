@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import {
   Badge,
   Button,
+  ClauseLedger,
   ListRow,
   RuleExpressionText,
   type BadgeVariant,
@@ -12,6 +13,8 @@ import Icon, { type IconType } from '../shared/Icon';
 import { unevaluableReasonText } from '../../../shared/rules/unevaluableReasonText';
 import { ruleStatusBadge } from '../../../shared/ruleUtils';
 import type { RuleEffect, RuleTransition } from '../../../shared/membership/blastRadiusTypes';
+import type { OktaUser } from '../../../shared/types';
+import type { RuleGroupContext } from '../../../shared/ruleEvaluator';
 
 export interface BlastRadiusRuleRowProps {
   effect: RuleEffect;
@@ -19,6 +22,8 @@ export interface BlastRadiusRuleRowProps {
   cascadeBlocks?: readonly CascadeGroupBlock[];
   expanded?: boolean;
   onToggle?: (ruleId: string) => void;
+  drafted?: OktaUser;
+  groupContext?: RuleGroupContext;
 }
 
 interface TransitionPresentation {
@@ -59,6 +64,12 @@ const transitionPresentation: Record<RuleTransition, TransitionPresentation> = {
     icon: null,
     iconClass: 'text-neutral-500',
   },
+  'unchanged-unevaluable': {
+    label: 'Unaffected by this edit',
+    variant: 'neutral',
+    icon: null,
+    iconClass: 'text-neutral-500',
+  },
 };
 
 const MetaLine: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -74,6 +85,8 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({
   cascadeBlocks,
   expanded = false,
   onToggle,
+  drafted,
+  groupContext,
 }) => {
   const presentation = transitionPresentation[effect.transition];
   const undeterminedReason =
@@ -81,6 +94,7 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({
       ? unevaluableReasonText(effect.afterReason ?? effect.beforeReason)
       : null;
   const broken = effect.status === 'INVALID' ? ruleStatusBadge('INVALID') : null;
+  const ledgerUser = drafted;
 
   const disclosureId = useId();
   const blocks = cascadeBlocks ?? [];
@@ -144,17 +158,27 @@ const BlastRadiusRuleRow: React.FC<BlastRadiusRuleRowProps> = ({
         {effect.touchedAttributes.length > 0 && (
           <MetaLine label="Reads" value={effect.touchedAttributes.join(', ')} />
         )}
-        {undeterminedReason && <p className="text-xs text-neutral-600">{undeterminedReason}</p>}
+        {undeterminedReason && !ledgerUser && (
+          <p className="text-xs text-neutral-600">{undeterminedReason}</p>
+        )}
 
-        {effect.expression !== '' && (
-          <div className="rounded-md bg-neutral-50 px-2 py-1">
-            <RuleExpressionText
-              text={effect.expression}
-              tone="subdued"
+        {effect.expression !== '' &&
+          (ledgerUser ? (
+            <ClauseLedger
+              expression={effect.expression}
+              user={ledgerUser}
+              groupContext={groupContext}
               resolveGroupName={resolveGroupName}
             />
-          </div>
-        )}
+          ) : (
+            <div className="rounded-md bg-neutral-50 px-2 py-1">
+              <RuleExpressionText
+                text={effect.expression}
+                tone="subdued"
+                resolveGroupName={resolveGroupName}
+              />
+            </div>
+          ))}
         {discloses && (
           <Button
             variant="ghost"

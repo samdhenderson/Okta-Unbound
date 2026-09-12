@@ -2,11 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import ClauseLedgerClause from './ClauseLedgerClause';
 import { NavigationProvider } from '../../contexts/NavigationContext';
-import {
-  ATTRIBUTE_ABSENT,
-  type LeafClauseNode,
-  type LeafPredicate,
-} from '../../../shared/rules/explainExpression';
+import { type LeafClauseNode, type LeafPredicate } from '../../../shared/rules/explainExpression';
 
 const resolveGroupName = (groupId: string): string | undefined =>
   ({ '00gFAKECLAUSE1': 'Engineering — Platform' })[groupId];
@@ -158,16 +154,16 @@ export const CompactPanel: Story = {
   parameters: { viewport: { value: 'sidepanelCompact' } },
 };
 
-export const NullVersusAbsentAttribute: Story = {
+export const AttributeWithNoValue: Story = {
   args: {
     leaf: {
       node: 'leaf',
       expressionText: 'user.projectCode == "Platform" && user.costCenter == "CC-9"',
-      resolvedValue: null,
+      resolvedValue: false,
       status: 'fail',
       reads: [
         { path: 'user.projectCode', value: null },
-        { path: 'user.costCenter', value: ATTRIBUTE_ABSENT },
+        { path: 'user.costCenter', value: '' },
       ],
     },
   },

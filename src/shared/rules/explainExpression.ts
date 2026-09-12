@@ -32,11 +32,9 @@ export interface ClauseGroupReference {
   readonly matchedGroupName?: string;
 }
 
-export const ATTRIBUTE_ABSENT: unique symbol = Symbol('attribute-absent');
-
 export interface AttributeRead {
   readonly path: string;
-  readonly value: RuleExprValue | typeof ATTRIBUTE_ABSENT;
+  readonly value: RuleExprValue;
 }
 
 export type SubjectTransform =
@@ -628,6 +626,43 @@ function attributePathOf(node: jsep.Expression): string | undefined {
   return property ? `user.${property.name}` : undefined;
 }
 
+function attributeNameOf(node: jsep.Expression): string | undefined {
+  const member = asMemberExpression(node);
+  if (!member) return undefined;
+  if (asIdentifier(member.object)?.name !== 'user') return undefined;
+
+  if (member.computed) {
+    const key = asLiteral(member.property)?.value;
+    return typeof key === 'string' ? key : undefined;
+  }
+  return asIdentifier(member.property)?.name;
+}
+
+export function userAttributeNamesRead(expression: string): ReadonlySet<string> | undefined {
+  const parsed = parseRuleExpression(expression);
+  if (!parsed.ok) return undefined;
+
+  const names = new Set<string>();
+  let enumerable = true;
+
+  const visit = (node: jsep.Expression): void => {
+    const member = asMemberExpression(node);
+    if (member && asIdentifier(member.object)?.name === 'user') {
+      const name = attributeNameOf(node);
+      if (name === undefined) {
+        enumerable = false;
+      } else {
+        names.add(name);
+        return;
+      }
+    }
+    for (const child of childExpressions(node)) visit(child);
+  };
+
+  visit(parsed.ast);
+  return enumerable ? names : undefined;
+}
+
 function collectAttributeReads(
   node: jsep.Expression,
   ctx: ExplainContext,
@@ -643,9 +678,6 @@ function collectAttributeReads(
       if (evaluation.resolved) {
         seen.add(path);
         reads.push({ path, value: evaluation.value });
-      } else if (evaluation.reasonCode === 'attribute-absent') {
-        seen.add(path);
-        reads.push({ path, value: ATTRIBUTE_ABSENT });
       }
       return;
     }
