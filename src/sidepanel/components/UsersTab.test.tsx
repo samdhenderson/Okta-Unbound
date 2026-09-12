@@ -139,7 +139,15 @@ async function flush() {
   });
 }
 
-const userSearchInput = () => screen.getByPlaceholderText('Search by email, name, or login...');
+const userSearchInput = () => {
+  const outside = screen
+    .getAllByPlaceholderText('Search users...')
+    .filter((el) => !el.closest('[data-testid="user-comparison-view"]'));
+  if (outside.length !== 1) {
+    throw new Error(`expected exactly one Users tab search box, found ${outside.length}`);
+  }
+  return outside[0] as HTMLElement;
+};
 const groupSearchInput = () => screen.getByPlaceholderText('Type to search by group name...');
 
 const MEMBERSHIP_ROW_TIMEOUT_MS = 5000;

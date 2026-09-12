@@ -226,9 +226,7 @@ describe('App tab lifetime', () => {
     const uev = userEvent.setup();
     renderApp();
 
-    expect(
-      screen.queryByPlaceholderText(/Search by name, description, ID/),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search groups...')).not.toBeInTheDocument();
 
     await openTab(uev, 'Groups');
     expect(await groupRow('Engineering')).toBeInTheDocument();
@@ -255,10 +253,7 @@ describe('App tab lifetime', () => {
     await openTab(uev, 'Groups');
     await groupRow('Engineering');
 
-    await uev.type(
-      screen.getByPlaceholderText('Search by name, description, ID — or /regex/'),
-      'Engin',
-    );
+    await uev.type(screen.getByPlaceholderText('Search groups...'), 'Engin');
     await uev.click(screen.getByLabelText('Select Engineering'));
     await drillInto(uev, 'Engineering');
     expect(screen.getByTestId('group-detail-view')).toBeInTheDocument();
@@ -278,9 +273,7 @@ describe('App tab lifetime', () => {
     expect(screen.getByRole('button', { name: 'Back to groups' })).toBeVisible();
 
     await uev.click(screen.getByRole('button', { name: 'Back to groups' }));
-    expect(screen.getByPlaceholderText('Search by name, description, ID — or /regex/')).toHaveValue(
-      'Engin',
-    );
+    expect(screen.getByPlaceholderText('Search groups...')).toHaveValue('Engin');
     expect(screen.getByLabelText('Select Engineering')).toBeChecked();
   });
 
