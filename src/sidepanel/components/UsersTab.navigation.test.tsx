@@ -140,13 +140,21 @@ beforeEach(() => {
   });
 });
 
-const tabSearchInput = () => screen.getByPlaceholderText('Search by email, name, or login...');
-const compareSearchInput = () => screen.getByPlaceholderText('Search by email, name, or login…');
+const tabSearchInput = () => {
+  const outside = screen
+    .getAllByPlaceholderText('Search users...')
+    .filter((el) => !el.closest('[data-testid="user-comparison-view"]'));
+  if (outside.length !== 1) {
+    throw new Error(`expected exactly one Users tab search box, found ${outside.length}`);
+  }
+  return outside[0] as HTMLElement;
+};
+const compareSearchInput = () => compareView().getByPlaceholderText('Search users...');
 
 const compareView = () => within(screen.getByTestId('user-comparison-view'));
 
 async function selectAda(uev: ReturnType<typeof userEvent.setup>) {
-  await uev.type(screen.getByPlaceholderText('Search by email, name, or login...'), 'ada');
+  await uev.type(tabSearchInput(), 'ada');
   await uev.click(await screen.findByText('Ada Lovelace', {}, { timeout: 3000 }));
   await screen.findByRole('heading', { name: 'Ada Lovelace' });
 }
