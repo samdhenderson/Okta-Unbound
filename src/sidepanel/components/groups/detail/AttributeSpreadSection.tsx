@@ -4,6 +4,7 @@ import AttributeHealthCard from './AttributeHealthCard';
 import {
   discoverAttributeBreakdowns,
   rankAttributes,
+  type BreakdownRow,
   type RankedAttribute,
 } from '../../members/memberAnalytics';
 import {
@@ -23,6 +24,9 @@ export interface AttributeSpreadSectionProps {
   feedingRules: readonly AttributeReferencingRule[];
   onNavigateToRule?: (ruleId: string) => void;
   onShowAll: (attributeKey: string) => void;
+  onSelectValue?: (attributeKey: string, row: BreakdownRow) => void;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
 }
 
 const AttributeSpreadSection: React.FC<AttributeSpreadSectionProps> = ({
@@ -35,6 +39,9 @@ const AttributeSpreadSection: React.FC<AttributeSpreadSectionProps> = ({
   feedingRules,
   onNavigateToRule,
   onShowAll,
+  onSelectValue,
+  collapsible = false,
+  defaultOpen = true,
 }) => {
   const quietLabelId = useId();
 
@@ -58,15 +65,35 @@ const AttributeSpreadSection: React.FC<AttributeSpreadSectionProps> = ({
           rules={ruleIndex.get(summary.key) ?? []}
           onNavigateToRule={onNavigateToRule}
           onShowOther={() => onShowAll(summary.key)}
+          onSelectValue={onSelectValue ? (row) => onSelectValue(summary.key, row) : undefined}
         />
       ))}
     </div>
   );
 
+  const summary =
+    memberCount === 0
+      ? 'No members to profile.'
+      : memberStatus === 'idle'
+        ? 'Not analyzed yet.'
+        : memberStatus === 'loading'
+          ? 'Analyzing members…'
+          : memberStatus === 'error'
+            ? 'Analysis failed.'
+            : ranked.length === 0
+              ? 'No attribute here has a meaningful spread.'
+              : `${ranked.length.toLocaleString()} attribute${ranked.length === 1 ? '' : 's'} · ${
+                  flagged.length === 0 ? 'nothing flagged' : `${flagged.length} flagged`
+                }`;
+
   return (
     <DetailSection
       title="Attribute spread"
       description="How each profile attribute is populated across this group's members. Flagged first: drift, a hidden long tail, or a rule that depends on it."
+      collapsible={collapsible}
+      defaultOpen={defaultOpen}
+      itemCount={ranked.length > 0 ? ranked.length : undefined}
+      summary={<p className="text-sm text-neutral-600">{summary}</p>}
       actions={
         memberStatus === 'idle' && memberCount > 0 ? (
           <Button

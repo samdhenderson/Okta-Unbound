@@ -1,4 +1,5 @@
 import React from 'react';
+import { SpreadBar } from '../../shared';
 import { spreadSegments } from './attributeSpread';
 import type { BreakdownRow } from '../../members/memberAnalytics';
 
@@ -7,29 +8,18 @@ export interface AttributeSpreadBarProps {
   className?: string;
 }
 
-const AttributeSpreadBar: React.FC<AttributeSpreadBarProps> = ({ rows, className = '' }) => {
-  const segments = spreadSegments(rows);
-  if (segments.length === 0) return null;
-
-  return (
-    <div
-      aria-hidden="true"
-      className={`flex h-3 w-full gap-px overflow-hidden rounded-full bg-neutral-100 ${className}`}
-    >
-      {segments.map((segment) => (
-        <div
-          key={segment.row.value}
-          title={
-            segment.isTail
-              ? `${segment.row.label} — ${segment.row.count.toLocaleString()} members`
-              : `${segment.row.label} — ${segment.row.count.toLocaleString()} (${Math.round(segment.row.pct)}%)`
-          }
-          style={{ background: segment.background, flexGrow: segment.row.count, flexBasis: 0 }}
-          className="min-w-1"
-        />
-      ))}
-    </div>
-  );
-};
+const AttributeSpreadBar: React.FC<AttributeSpreadBarProps> = ({ rows, className = '' }) => (
+  <SpreadBar
+    className={className}
+    segments={spreadSegments(rows).map(({ row, background, isTail }) => ({
+      key: row.value,
+      background,
+      count: row.count,
+      title: isTail
+        ? `${row.label} — ${row.count.toLocaleString()} members`
+        : `${row.label} — ${row.count.toLocaleString()} (${Math.round(row.pct)}%)`,
+    }))}
+  />
+);
 
 export default AttributeSpreadBar;

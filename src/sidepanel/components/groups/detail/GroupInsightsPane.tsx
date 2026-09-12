@@ -1,16 +1,14 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Button, CollapsibleSection, DetailSection } from '../../shared';
+import { Button, DetailSection } from '../../shared';
 import GroupMetadataSection from './GroupMetadataSection';
 import AttributeSpreadSection from './AttributeSpreadSection';
 import GroupMfaCoverageSection from './GroupMfaCoverageSection';
 import BreakdownDetailsModal from '../../members/BreakdownDetailsModal';
-import CompositionReports from '../../members/CompositionReports';
-import { mfaScanNeedsConfirm } from '../../../hooks/useMemberMfaScan';
 import {
   computeDimensionBreakdown,
-  computeMfaBreakdown,
+  computeMfaEnrollment,
   dimensionTitle,
-  discoverAttributeBreakdowns,
+  type BreakdownRow,
   type MemberFilter,
 } from '../../members/memberAnalytics';
 import type { AttributeReferencingRule } from '../../../../shared/rules/groupAttributeIndex';
@@ -43,8 +41,6 @@ interface GroupInsightsPaneProps {
 
 const EMPTY_ACTIVE_VALUES: Set<string> = new Set();
 
-const NO_ACTIVE_FILTERS: MemberFilter[] = [];
-
 const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
   groupId,
   memberCount,
@@ -74,15 +70,6 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
     [detailKey, members],
   );
 
-  const attributes = useMemo(
-    () => (members ? discoverAttributeBreakdowns(members) : []),
-    [members],
-  );
-  const mfaRows = useMemo(
-    () => computeMfaBreakdown(members ?? [], mfaResults),
-    [members, mfaResults],
-  );
-
   const jumpToMembers = useCallback(
     (dimension: string, value: string, label: string) => {
       onFilterMembers?.({ dimension, value, label });
@@ -90,10 +77,22 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
     [onFilterMembers],
   );
 
-  const handleScanClick = useCallback(() => {
-    if (mfaScanNeedsConfirm(memberCount)) onRequestConfirm();
-    else onRunScan();
-  }, [memberCount, onRequestConfirm, onRunScan]);
+  const selectAttributeValue = useCallback(
+    (attributeKey: string, row: BreakdownRow) =>
+      jumpToMembers(attributeKey, row.value, `${dimensionTitle(attributeKey)}: ${row.label}`),
+    [jumpToMembers],
+  );
+
+  const enrollment = useMemo(
+    () => (rosterReady ? computeMfaEnrollment(members, mfaResults) : null),
+    [rosterReady, members, mfaResults],
+  );
+  const noFactors = enrollment?.rows.find((row) => row.value === 'none');
+  const mfaSummary = !rosterReady
+    ? 'Load members first.'
+    : scanStatus === 'complete' && enrollment && noFactors
+      ? `${noFactors.count.toLocaleString()} of ${enrollment.scanned.toLocaleString()} members scanned have no MFA factor enrolled.`
+      : 'Not scanned.';
 
   return (
     <div className="space-y-(--sp-rung)">
@@ -107,11 +106,17 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
         feedingRules={feedingRules}
         onNavigateToRule={onNavigateToRule}
         onShowAll={setDetailKey}
+        onSelectValue={onFilterMembers ? selectAttributeValue : undefined}
+        collapsible
+        defaultOpen={false}
       />
 
       <DetailSection
         title="MFA coverage"
         description="Opt-in scan of each member's enrolled MFA factors. Never runs automatically."
+        collapsible
+        defaultOpen={false}
+        summary={<p className="text-sm text-neutral-600">{mfaSummary}</p>}
       >
         {!rosterReady ? (
           <div className="space-y-2">
@@ -136,26 +141,20 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
             onRunScan={onRunScan}
             onRequestConfirm={onRequestConfirm}
             onCancelConfirm={onCancelConfirm}
+            onFilterMembers={onFilterMembers}
           />
         )}
       </DetailSection>
 
-      {rosterReady && onFilterMembers && (
-        <CompositionReports
-          attributes={attributes}
-          filters={NO_ACTIVE_FILTERS}
-          onToggle={(dimension, row) =>
-            jumpToMembers(dimension, row.value, `${dimensionTitle(dimension)}: ${row.label}`)
-          }
-          onExpand={setDetailKey}
-          mfaRows={mfaRows}
-          mfaResults={mfaResults}
-          scanStatus={scanStatus}
-          memberCount={memberCount}
-          onToggleMfa={(row) => jumpToMembers('mfa', row.value, row.label)}
-          onRunScanClick={handleScanClick}
+      <DetailSection title="About this group" collapsible defaultOpen={false}>
+        <GroupMetadataSection
+          groupId={groupId}
+          description={description}
+          created={created}
+          lastUpdated={lastUpdated}
+          lastMembershipUpdated={lastMembershipUpdated}
         />
-      )}
+      </DetailSection>
 
       <BreakdownDetailsModal
         isOpen={detailKey !== null}
@@ -177,16 +176,6 @@ const GroupInsightsPane: React.FC<GroupInsightsPaneProps> = ({
             : undefined
         }
       />
-
-      <CollapsibleSection title="About this group" defaultOpen={false}>
-        <GroupMetadataSection
-          groupId={groupId}
-          description={description}
-          created={created}
-          lastUpdated={lastUpdated}
-          lastMembershipUpdated={lastMembershipUpdated}
-        />
-      </CollapsibleSection>
     </div>
   );
 };

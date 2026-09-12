@@ -13,3 +13,9 @@ export const CHART_OTHER_COLOR = '#e5e5e5'; // chart-only — a hair lighter tha
 
 export const CHART_TAIL_HATCH =
   'repeating-linear-gradient(45deg, var(--color-neutral-300) 0 3px, var(--color-neutral-100) 3px 6px)';
+
+export const MFA_ENROLLMENT_PAINT: Readonly<Record<string, string>> = {
+  none: 'var(--color-warning)',
+  single: 'var(--color-neutral-300)',
+  multiple: 'var(--color-primary)',
+};
