@@ -15,13 +15,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Top-of-view header bar rendered at the top of a tab/view — title with optional subtitle, status badge, leading slot, breadcrumb trail, and trailing actions.\n\n' +
-          'The optional badge renders through the shared `Badge` primitive, so it speaks the canonical vocabulary — `danger`, never `error` (ADR-0002). Actions are right-aligned.\n\n' +
-          'For an entity-identity rung, the badge column is reserved for `danger` only — a deactivated or locked entity should shout. Every calmer status is demoted to a dot-marked `status` fact inside the identity region instead ("demoted to facts"), which is what keeps the header a constant height regardless of how many statuses an entity carries. `groupIdentity`/`userIdentity` make that call; list-rung callers passing `badge` for a plain count (`GroupsTab`, `AppsTab`) are unaffected.\n\n' +
-          'The leading-slot props (`onBack`, `leading`, `breadcrumbs`) are additive and optional — omitting them renders the original layout unchanged. They exist so a tab driven by `useViewStack` keeps **one** header mounted whose contents swap in place as views are pushed and popped, rather than each view rendering its own header.\n\n' +
-          '`identity` extends that downward: an expanding region describing the entity you are browsing, so a detail view no longer opens with a card repeating the title. Changing `identityKey` crossfades it; the `<h1>` and its badge never do.\n\n' +
-          '`cornerAction` parks a small control in the bottom-right corner, below the actions — a different weight of thing from a page verb, kept out of `actions` so it does not read as one. It is in flow, not absolutely positioned, so it cannot land on top of a long identity region at 360px.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'The one header a tab keeps mounted: title with optional subtitle, status badge, leading slot (back button or breadcrumbs), trailing actions, and an `identity` region describing the entity being browsed. A tab driven by `useViewStack` swaps its contents in place rather than rendering a header per view; changing `identityKey` crossfades the region, while the `<h1>` and its badge never do.\n\n' +
+          'On an entity rung the badge column is reserved for `danger` — a locked or deactivated entity should shout — and every calmer status is demoted to a dot-marked `status` fact inside the identity region, which is what holds the header to a constant height.',
       },
     },
   },

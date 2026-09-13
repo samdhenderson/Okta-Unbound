@@ -1,5 +1,6 @@
+import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ActivityBarView from './ActivityBarView';
 import type { ActivityView } from '../hooks/useActivityBar';
 import { inSidePanelFrame } from '../../../.storybook/decorators';
@@ -14,9 +15,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Pure presentation of the unified activity bar — a fixed bottom bar with a deliberately stable layout.\n\n' +
-          'The status region, the one-line summary (queue · rate · ETA) and the action area stay mounted, so values coming and going swap text in place instead of reflowing the row. Four boxed metric tiles used to sit where the summary line is; **Active** is gone from them entirely, because the in-flight count changes several times a second and the bucket rack below already draws it.\n\n' +
-          'Beneath the row sits the rack: one lane per rate-limit family that has been exercised, with badges and cooldown hatching folded onto the lane. Behind a chevron toggle — offered at **every** panel width, because the bar is docked over the content whatever the width — it collapses to a 36px condensed line: status + rate + a processed/progress tally, and **no bars at all**. That condensed line is the state the bar boots into. All state arrives as an already-merged `ActivityView`; timers and context wiring live in `useActivityBar`.',
+          'Pure presentation of the unified activity bar: a fixed bottom bar whose status region, one-line summary (queue · rate · ETA) and action area stay mounted, so values coming and going swap text in place instead of reflowing the row. Beneath it sits the bucket rack, one lane per rate-limit family the scheduler has exercised. A chevron condenses the whole thing to a 36px line — status, rate and a processed/progress tally — which is the state the bar boots into.\n\n' +
+          'Every figure arrives as an already-merged `ActivityView`; timers and context wiring live in `useActivityBar`.',
       },
     },
   },
@@ -29,10 +29,7 @@ const meta = {
     onCancelOperation: {
       description: 'Stops one declared operation, leaving every other one running.',
     },
-    collapsed: {
-      description:
-        'Whether the bar is currently condensed to its essentials. The chevron that toggles it is always rendered — there is no width or prop that withdraws it.',
-    },
+    collapsed: { description: 'Whether the bar is condensed to its essentials.' },
     onToggleCollapse: { description: 'Toggles between the condensed and full layouts.' },
   },
   args: {
@@ -546,5 +543,77 @@ export const GatedWithLedger: Story = {
         },
       ],
     },
+  },
+};
+
+const CollapsibleHarness = (args: React.ComponentProps<typeof ActivityBarView>) => {
+  const [collapsed, setCollapsed] = React.useState(true);
+  return (
+    <ActivityBarView
+      {...args}
+      collapsed={collapsed}
+      onToggleCollapse={() => setCollapsed((c) => !c)}
+    />
+  );
+};
+
+export const ToggleCollapse: Story = {
+  args: {
+    view: {
+      ...idleView,
+      statusLabel: 'Processing',
+      statusColorVar: 'var(--color-info)',
+      busy: true,
+      operationActive: true,
+      operationName: 'Removing members',
+      current: 42,
+      total: 120,
+      percentage: 35,
+      eta: { kind: 'point', lowerMs: 34_000, label: '~0:34 left' },
+      opCompleted: 40,
+      opActive: 2,
+      queueLength: 6,
+      activeRequests: 2,
+      rateLimit: { remaining: 90, limit: 600, low: false },
+      canCancel: true,
+      buckets: [bucket({ bucket: '/api/v1/users', remaining: 90, active: 2, queued: 6 })],
+    },
+  },
+  render: (args) => <CollapsibleHarness {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Show all activity stats' }));
+    await expect(await canvas.findByTestId('activity-operation-name')).toHaveTextContent(
+      'Removing members',
+    );
+
+    await userEvent.click(await canvas.findByRole('button', { name: 'Hide extra activity stats' }));
+    await expect(
+      await canvas.findByRole('button', { name: 'Show all activity stats' }),
+    ).toBeInTheDocument();
+  },
+};
+
+export const CancelRunningWork: Story = {
+  args: {
+    view: {
+      ...idleView,
+      statusLabel: 'Processing',
+      statusColorVar: 'var(--color-info)',
+      busy: true,
+      operationActive: true,
+      operationName: 'Removing members',
+      current: 10,
+      total: 50,
+      percentage: 20,
+      opCompleted: 10,
+      queueLength: 3,
+      canCancel: true,
+    },
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Cancel' }));
+    await expect(args.onCancel).toHaveBeenCalled();
   },
 };

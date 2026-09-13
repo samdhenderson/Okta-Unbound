@@ -34,19 +34,13 @@ const meta = {
     docs: {
       description: {
         component:
-          "Everything above the comparison's attribute list: the three filter pills, the search field, the " +
-          'hidden-differences disclosure, and — one per user — the Edit / Cancel / Save controls.\n\n' +
-          '**Both edit affordances name their user.** The tab writes to a *profile*, and there are two profiles ' +
-          'on screen, so an unqualified "Edit" would be a live write to whichever user the admin was not ' +
-          'thinking about. `Edit` states the name visibly; `Cancel` and `Save` shorten it once the column is ' +
-          'unambiguously in edit mode and keep the name in their **accessible** names, so the two columns never ' +
-          'present two identically-named buttons to a screen reader. At 360px the two columns stack.\n\n' +
-          '**A column with no host to publish a save shows nothing at all** rather than a disabled control: ' +
-          '`canEdit` is false when the surface is hidden, when there is no user, or when nothing can lift the ' +
-          'saved result — and a disabled button would invite a hunt for the condition that enables it.\n\n' +
-          'The save outcome lands here only when there is no confirmation left to carry it: `danger` for a ' +
-          'rejected write, `warning` for one whose result could not be confirmed.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          "Everything above the comparison's attribute list: the three filter pills, the search " +
+          'field, the hidden-differences disclosure, and — one per user — the Edit / Cancel / ' +
+          'Save controls.\n\n' +
+          'Both edit affordances name their user, because two profiles are on screen and an ' +
+          'unqualified "Edit" would write to whichever one the admin was not thinking about. A ' +
+          'column whose host cannot publish a save (`canEdit: false`) shows nothing at all ' +
+          'rather than a disabled control.',
       },
     },
   },

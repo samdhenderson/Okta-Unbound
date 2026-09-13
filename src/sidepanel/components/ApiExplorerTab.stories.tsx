@@ -14,13 +14,9 @@ const meta = {
       description: {
         component:
           "A dev-tool surface for discovering what an Okta endpoint's response actually " +
-          'contains. GET-only by design: it reuses `makeApiRequest` exactly as every other ' +
-          'feature does (same same-origin-path guard, same method allow-list, same scheduler), ' +
-          'with no new message action and no write surface.\n\n' +
-          'The response viewer defaults to the values-free Shape view; Redacted and Raw are ' +
-          'one click away.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          'contains. It is GET-only and goes through the same scheduler path as every other ' +
+          'feature, so it adds no write surface. The response viewer defaults to the ' +
+          'values-free Shape view; Redacted and Raw are one click away.',
       },
     },
   },

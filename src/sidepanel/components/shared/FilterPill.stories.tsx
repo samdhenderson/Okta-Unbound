@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { useState } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import FilterPill from './FilterPill';
 
 const meta = {
@@ -84,4 +85,26 @@ export const ActiveInactivePair: Story = {
 export const Hover: Story = {
   args: { active: false },
   parameters: { pseudo: { hover: true } },
+};
+
+export const Toggling: Story = {
+  args: { active: false },
+  render: (args) => {
+    const Harness = () => {
+      const [active, setActive] = useState(false);
+      return (
+        <FilterPill {...args} active={active} onClick={() => setActive((prev) => !prev)}>
+          Active rules only
+        </FilterPill>
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const pill = canvas.getByRole('button', { name: 'Active rules only' });
+    await expect(pill).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(pill);
+    await expect(pill).toHaveAttribute('aria-pressed', 'true');
+  },
 };

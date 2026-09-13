@@ -12,7 +12,7 @@ const meta = {
       description: {
         component:
           'Grip, label, Okta name, a truncated value preview, and the eye that hides the attribute from the pane.\n\n' +
-          '**A hidden attribute keeps its row here, struck through, with the value still shown.** Removing the row of an attribute you just hid is how an attribute becomes unfindable: the only control that could bring it back would have left the screen with it. An attribute with no value on this user says so in italics rather than rendering a blank line.',
+          'A hidden attribute keeps its row here, struck through and still showing its value, so it can be restored. An attribute with no value on this user says so in italics rather than rendering a blank line.',
       },
     },
   },

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupMembersSection from './GroupMembersSection';
 import type { MembershipRule, OktaUser } from '../../../../shared/types';
 import {
@@ -72,26 +72,13 @@ const meta = {
       description: {
         component:
           "The Group Detail view's roster: who is in the group, why, and — per row — a " +
-          'confirm-gated remove.\n\n' +
-          'One gate, one read: `useGroupSource`\u2019s member analysis fetches the roster and classifies ' +
-          'it in the same pass. Before it has run this shows a gated prompt, never an empty list: an ' +
-          'empty list would read as "this group has no members," a different fact.\n\n' +
-          'There used to be a second card above this one (`GroupMembershipSourceSection`) with its own ' +
-          'gate and its own idle/loading/error ladder over the *same* state — so a reader could load the ' +
-          'roster and still be looking at an un-analyzed meter. Its readout is the strip inside the ' +
-          'roster now; its two notes are `MemberSourceNotes`.\n\n' +
-          "Adding a member lives in the action bar's Add-member modal, not here — see `AddGroupMemberModal`.\n\n" +
-          '`APP_GROUP` and `BUILT_IN` groups reject membership writes at the Okta API, so the per-row remove ' +
-          'control is hidden entirely and replaced with a one-line explanation — see `AppGroupReadOnly` ' +
-          'and `BuiltInReadOnly` below.\n\n' +
-          '**The roster itself is `MemberExplorer`**, the same component the Overview tab mounts: search, ' +
-          'faceted filters, MFA scanning, composition reports and windowed paging. What stays in this ' +
-          'component is the part the explorer must not learn — the `SourceStatus` gate, the read-only ' +
-          'reason, and the remove confirmation (which outlives the row that opened it).\n\n' +
-          'Pass `breakdown` **and** `memberSourceIndex` and the explorer gains a membership-source meter ' +
-          'whose segments are also filters — see `WithSourceMeter`. Pass neither and it has no meter and ' +
-          'no source pills, which is the honest rendering for a roster nothing has classified, not a ' +
-          'degraded one.',
+          'confirm-gated remove. Before the shared member analysis has run it shows a gated ' +
+          'prompt, never an empty list: an empty list would read as "this group has no ' +
+          'members," a different fact.\n\n' +
+          'The roster itself is `MemberExplorer`. What stays here is the part the explorer must ' +
+          'not learn: the `SourceStatus` gate, the read-only reason for an `APP_GROUP`/`BUILT_IN` ' +
+          'group, and the remove confirmation. Pass `breakdown` **and** `memberSourceIndex` to ' +
+          'get the membership-source meter whose segments double as filters.',
       },
     },
   },
@@ -130,7 +117,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Load members' }));
+    await expect(args.onAnalyze).toHaveBeenCalledTimes(1);
+  },
+};
 
 export const Loading: Story = { args: { status: 'loading' } };
 
@@ -144,6 +137,12 @@ export const Loaded: Story = { args: { status: 'done', members } };
 
 export const RemoveConfirm: Story = {
   args: { status: 'done', members, removeTarget: members[0] },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(await canvas.findByRole('dialog')).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
+    await expect(args.onCancelRemove).toHaveBeenCalledTimes(1);
+  },
 };
 
 export const AppGroupReadOnly: Story = {

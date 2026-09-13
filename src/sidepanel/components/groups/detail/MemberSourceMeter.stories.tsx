@@ -40,13 +40,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'Stacked bar + legend answering "where did this group\'s members come from?", with **one segment per attributing rule**.\n\n' +
-          'Segments are mutually exclusive by construction, so they always sum to the analyzed member count: a member two rules ' +
-          'both claim is counted once in `Matched by 2+ rules`, never in either rule. Rule colours come from the sanctioned chart ' +
-          'ramp (`theme/chartPalette`), whose six stops are the hard cap on named rules — past it the tail aggregates into ' +
-          '`Other rules` and prints how many rules it folded in. A zero-count segment is dropped entirely; a one-member segment ' +
-          'keeps a minimum width so it stays visible.\n\n' +
-          'The bar is `aria-hidden`: every number it encodes is printed in the legend as text.',
+          'Stacked bar + legend answering "where did this group\'s members come from?", with one ' +
+          'segment per attributing rule. Segments are mutually exclusive by construction: a ' +
+          'member two rules both claim is counted once in `Matched by 2+ rules`, never in either ' +
+          'rule.\n\n' +
+          "The chart ramp's six stops cap the named rules — past that the tail aggregates into " +
+          '`Other rules` and prints how many it folded in. The bar is `aria-hidden`; every number ' +
+          'it encodes is printed in the legend as text.',
       },
     },
   },

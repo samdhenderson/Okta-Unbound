@@ -14,10 +14,14 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Users tab\'s "find a user" surface: the search box, the manual-load detected-user banner, the search results and the pre-search empty state.\n\n' +
-          "The debounced query, the banner's visibility and the results are all owned by `useUsersTabState`, so this panel renders without touching Okta. Its parts render as siblings of the tab body (a fragment), and the `alerts` slot carries the tab's merged error / result banners between the search box and the results.\n\n" +
-          "The one thing the panel owns itself is this rung's tie to the selection basket (`useRungSelection`), which backs the results' checkbox column. `searchUsers` returns at most twenty rows and cannot be filtered by profile attribute, so a cohort is assembled here **across** searches, one person at a time — nothing clears the basket when a new query replaces the rows, and the readout above the results counts the basket rather than the ticked rows on screen, because most of a growing cohort is off-screen by construction.\n\n" +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'The Users tab\'s "find a user" surface: the search box, the detected-user banner, the ' +
+          'search results and the pre-search empty state. The debounced query, the banner and the ' +
+          'results belong to `useUsersTabState`, so this panel renders without touching Okta, and ' +
+          "the `alerts` slot carries the tab's banners between the box and the results.\n\n" +
+          "The panel owns this rung's tie to the selection basket (`useRungSelection`), which backs " +
+          'the checkbox column. A search returns at most twenty rows, so a cohort is assembled ' +
+          'across searches: nothing clears the basket when a new query replaces the rows, and the ' +
+          'readout counts the basket rather than the ticked rows on screen.',
       },
     },
   },
@@ -73,6 +77,14 @@ export const Searching: Story = {
 
 export const WithResults: Story = {
   args: { searchQuery: 'ada', searchResults: mockUsers.slice(10, 14) },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'View user details', description: /First11 Last11/ }),
+    );
+    await expect(args.onSelectUser).toHaveBeenCalledWith(mockUsers[10]);
+  },
 };
 
 export const WithError: Story = {

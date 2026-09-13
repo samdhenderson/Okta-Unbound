@@ -96,22 +96,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'One app assignment: which app, how Okta says it was granted, and — once known — which ' +
-          'group grants it.\n\n' +
-          '**A `Direct` badge and a `Through {group}` line are not in tension.** Okta reports a ' +
-          'single scope per app-user and prefers `USER` when a user is both directly assigned *and* ' +
-          'in an assigned group, so `Direct` can only mean "there is a direct assignment" — never ' +
-          '"direct only". A row carrying both states both, which is the thing the comparison view ' +
-          'could never express (ADR-0020).\n\n' +
-          '**An absent source is spelled out.** With no group known the second line is not blank: ' +
-          'it is the caveat `AppScopeIndicator` owns for that state, rendered *italic*, so a stated ' +
-          'absence never reads with the weight of a stated fact.\n\n' +
-          'The row takes an `AppSourceRow` and owns no I/O at all, which is the structural guarantee ' +
-          'that scrolling a long list cannot start work.\n\n' +
-          "Three of `AppScopeIndicator`'s four states are reachable here — `notCompared` is " +
-          'comparison-only (two users, one loaded scope) and is excluded from `AppSourceState` at ' +
-          'the type level rather than left as an unreachable branch.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          'One app assignment: which app, how Okta says it was granted, and — once known — which group grants it. The row takes an `AppSourceRow` and owns no I/O at all, so scrolling a long list cannot start work.\n\n' +
+          'A `Direct` badge and a `Through {group}` line are not in tension: Okta reports one scope per app-user and prefers `USER`, so `Direct` means "there is a direct assignment", never "direct only". With no group known the second line states the absence in italic rather than going blank.',
       },
     },
   },

@@ -17,11 +17,9 @@ npm run lint:cited-paths     # every cited src/ path still exists (see below)
 
 Docs and `.claude/` skills/agents cite `src/…` paths as evidence — "see
 `shared/utils/oktaUrl.ts`" — so a reader, human or agent, can go check. Deleting or
-renaming the file doesn't delete the citation; nothing forced the two to stay in
-sync. A one-week audit found 5 of 44 cited paths pointing at files that no longer
-existed — 4 from the dead-code deletions above, 1 from a plain rename
-(`src/test/mocks/fixtures.ts`, formerly `handlers.ts`). That is worse than a missing doc: it
-sends the next reader looking for something that was deliberately removed.
+renaming the file doesn't delete the citation, and a doc naming a file that no longer
+exists is worse than a missing doc: it sends the next reader looking for something
+that was deliberately removed.
 
 `scripts/check-cited-paths.mjs` fails CI on any backticked or markdown-linked
 `src/…` citation, in a tracked `.md` file under `docs/` or `.claude/` (plus root
@@ -33,20 +31,15 @@ place) rather than keep naming a location that no longer exists.
 
 ## Why `lint:control-chars` sits with the dead-code tools
 
-`src/sidepanel/hooks/useAppsData.ts` contained a **literal NUL byte** inside a
-template string, used as a separator in a `(tabId, origin)` guard key. It ran
-correctly, and it was invisible in every editor and diff. But a raw control byte
-makes a file **binary** as far as `grep(1)` is concerned, and grep skips binary
-files _silently_ — no warning, no non-zero exit, just no matches.
+A raw control byte in a source file — a literal NUL used as a separator in a key,
+say — makes the file **binary** as far as `grep(1)` is concerned, and grep skips
+binary files _silently_: no warning, no non-zero exit, just no matches. Every
+grep-based scan then has a blind spot on that file, which is this doc's failure mode
+one layer down — a tool reporting "nothing here" when it never looked.
 
-Every grep-based scan therefore had a blind spot on that file: `git grep`,
-ripgrep, and any human or agent searching the tree would report "no matches" for
-symbols plainly present. It is exactly the failure mode this doc exists to
-prevent, one layer down — a tool reporting "nothing here" when it never looked.
-
-The escape sequence compiles to the same runtime string and keeps the file text.
-`scripts/check-control-chars.mjs` fails CI on any tracked text file carrying a raw
-control byte other than tab, newline, or carriage return.
+Write the escape sequence instead; it compiles to the same runtime string and keeps
+the file text. `scripts/check-control-chars.mjs` fails CI on any tracked text file
+carrying a raw control byte other than tab, newline, or carriage return.
 
 ## Two configs, two different questions
 
@@ -61,10 +54,8 @@ from the project entirely.
 
 The second config exists because the first one **structurally cannot** find the most
 expensive class of dead code in this repo: a module with no production callers that
-stays "referenced" purely because its own test file imports it.
-`statusNormalizer.ts` was exactly that — 396 LOC, 6 exports, zero production callers,
-524 LOC of tests — invisible to `npm run knip` and sitting at the top of
-`npm run knip:production` until it was deleted (see the baseline below).
+stays "referenced" purely because its own test file imports it. Such a module is
+invisible to `npm run knip` and sits at the top of `npm run knip:production`.
 
 Dependency and duplicate-export checks are switched off in the production config;
 they are the default config's job and would otherwise report every test-only
@@ -119,43 +110,13 @@ no cycles, and there should not be a first one).
 **`npm run knip` becomes a hard gate once the backlog below reaches zero** — drop its
 `continue-on-error` at that point. `knip:production` stays advisory permanently.
 
-## Baseline — 2026-08-13
+## The standing backlog
 
-Recorded when the tooling landed, so later runs have something to diff against.
+Both configs report **zero unused files**. What remains is unused exports and unused
+exported types — that is the backlog `npm run knip` becomes a hard gate against.
 
-| Check                  | `npm run knip` | `npm run knip:production` |
-| ---------------------- | -------------- | ------------------------- |
-| Unused files           | 3              | **4**                     |
-| Unused exports         | 31             | 44                        |
-| Unused exported types  | 27             | 27                        |
-| Unused devDependencies | 1 (`esbuild`)  | n/a                       |
-| Duplicate exports      | 14             | n/a                       |
-| Circular dependencies  | 0              | 0                         |
+Two standing configuration notes, so a run's output is not re-investigated each time:
 
-**Update — the four unused files are gone** (1,450 LOC removed). Both configs now
-report zero unused files; the export and type counts are unchanged and are the
-remaining backlog.
-
-The four unreachable files (1,450 LOC including their tests):
-
-| File (deleted)                        | LOC | Note                                                                                                      |
-| ------------------------------------- | --- | --------------------------------------------------------------------------------------------------------- |
-| src/shared/utils/statusNormalizer.ts  | 396 | 6 exports, no production callers; only importer is its own 524-LOC test. Invisible to the default config. |
-| src/shared/utils/validation.ts        | 303 | 11 validators, no references, no test file                                                                |
-| src/sidepanel/hooks/useValidation.tsx | 130 | no references anywhere; sole importer of `validation.ts`                                                  |
-| src/shared/cache.ts                   | 97  | no mentions in `src/`                                                                                     |
-
-Also worth noting from the baseline run:
-
-- `esbuild` is an unused devDependency — vite provides it transitively.
-- `msw` did not appear as unused only because `src/test/mocks/fixtures.ts` (then
-  named `handlers.ts`) imported it. **Resolved:** the `handlers` export had no
-  consumer and no test used MSW, so both it and the `msw` dependency are gone; the
-  file was renamed to `fixtures.ts` in the process.
-- Three `ruleEvaluator.ts` exports — `evaluateRuleExpression`,
-  `canEvaluateClientSide`, `tryEvaluateRuleExpressionDetailed` — were reachable only
-  from tests. **Resolved:** the boolean-returning first two are deleted in favour of
-  the parse-then-evaluate pair; the third is kept and is now a permanent accepted
-  finding (see above).
+- `esbuild` reports as an unused devDependency; vite provides it transitively.
 - `package.json`'s `"main": "index.js"` points at a file that does not exist (this is
   an extension, not a library) — knip reports it as a configuration hint.

@@ -54,21 +54,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "The gated, opt-in MFA-coverage scan for GroupInsightsPane's Insights tab. Never " +
-          'auto-runs — `MfaScanButton` starts (or confirms) the scan, and above ' +
-          '`MFA_AUTO_THRESHOLD` (500) members a `Modal` confirmation gate stands between the ' +
-          'trigger and the scan, since it costs one API call per member.\n\n' +
-          '**Why two cards and not one bar.** The scan used to report a single sentence, which ' +
-          'was the whole of what a per-member scan bought. The obvious fix — one card over ' +
-          '`computeMfaBreakdown` — is not available, because those rows *overlap*: a member ' +
-          'holding Okta Verify and SMS is counted in `multiple` and again in each `has:` row, so ' +
-          'they sum past the group and a spread bar over them would picture a partition that is ' +
-          'not one. **Enrollment** is a real partition and earns a bar; **Factor types** is not, ' +
-          'and gets none — it says so in words rather than leaving a reader to work it out from ' +
-          'arithmetic that does not close.\n\n' +
-          '**The denominator is the scan, not the group.** Every figure is over the members the ' +
-          'scan actually reached. A cancelled scan has learned nothing about the rest, and ' +
-          'dividing by the roster would report their absence as coverage — see `PartialScan`.',
+          "The gated, opt-in MFA-coverage scan for the group's Insights tab. It never auto-runs: it costs one API call per member, and above `MFA_AUTO_THRESHOLD` (500) members a confirmation `Modal` stands between the trigger and the scan.\n\n" +
+          'Every figure is over the members the scan actually reached, not the roster — a partial scan says so on the card rather than reporting an unreached member as uncovered.',
       },
     },
   },

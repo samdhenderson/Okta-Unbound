@@ -11,9 +11,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Users tab: search users and analyse their group memberships.\n\n' +
-          'The tab shell that composes the search bar, results, detected-user banner, profile card, membership list, and the lifecycle/add-to-group/comparison modals. Search results and the selected user come from live Okta search via the scheduler path, so with no query the shell starts empty; when no Okta tab is connected, search and lifecycle actions are unavailable.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          'The tab shell composing the user search bar, results, detected-user banner, profile ' +
+          'card, membership list, and the lifecycle/add-to-group/comparison modals. Results come ' +
+          'from live Okta search, so with no query the shell starts empty and with no connected ' +
+          'tab search and lifecycle actions are unavailable.',
       },
     },
   },

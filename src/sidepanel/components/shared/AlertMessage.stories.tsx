@@ -13,7 +13,7 @@ const meta = {
       description: {
         component:
           'Inline alert/notification banner with a status icon and optional dismiss (×) button and inline action.\n\n' +
-          'Colour and icon are driven by the canonical `StatusType` vocabulary (`success | warning | danger | info` — ADR-0002). Renders with `role="alert"`. A `danger` message forces its action button into destructive styling regardless of the action’s own `variant`.',
+          'Colour and icon are driven by the canonical `StatusType` vocabulary (`success | warning | danger | info`), and it renders with `role="alert"`. A `danger` message forces its action button into destructive styling regardless of the action’s own `variant`.',
       },
     },
   },

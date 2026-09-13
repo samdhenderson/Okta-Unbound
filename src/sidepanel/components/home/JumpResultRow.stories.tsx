@@ -1,24 +1,20 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import JumpResultRow from './JumpResultRow';
 
 const meta = {
   title: 'Home/JumpResultRow',
   component: JumpResultRow,
+  tags: ['autodocs'],
   parameters: {
     docs: {
       description: {
         component:
-          'One row in the Home tab’s jump-bar results. The results list mixes kinds — a group, the ' +
-          'rules that feed it, the user you searched for — so **every row names its destination on the ' +
-          'right edge**. Pressing one is never a surprise.\n\n' +
-          'A kind this build cannot navigate to does **not** render as a disabled row. A control that ' +
-          'exists only to refuse is worse than no control (ADR-0039, "no verb without a wire"), so the ' +
-          'row falls back to an `OpenInOktaLink` — a real, working route to the same entity. Today that ' +
-          'is every app result, because `App.tsx` registers no `app` navigation handler. When one lands, ' +
-          'the row upgrades itself with no change to this component.\n\n' +
-          'A rule has no admin-console route of its own (it is only viewable inside its group), so an ' +
-          'unreachable rule row shows no link rather than a fabricated one.',
+          'One row in the Home tab’s jump-bar results. The list mixes kinds, so every row names ' +
+          'its destination on the right edge and pressing one is never a surprise.\n\n' +
+          'A kind this build cannot navigate to is never a disabled row: it falls back to an ' +
+          '`OpenInOktaLink`, a real route to the same entity. A rule has no admin-console route ' +
+          'of its own, so an unreachable rule row shows no link rather than a fabricated one.',
       },
     },
   },
@@ -40,7 +36,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Group: Story = {};
+export const Group: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Engineering — open in Groups' }));
+    await expect(args.onSelect).toHaveBeenCalledTimes(1);
+  },
+};
 
 export const User: Story = {
   args: {
@@ -67,7 +69,17 @@ export const PausedRule: Story = {
 export const UnreachableApp: Story = {
   args: {
     onSelect: undefined,
-    result: { kind: 'app', id: '0oaFAKE0000000000001', name: 'Datadog' },
+    result: {
+      kind: 'app',
+      id: '0oaFAKE0000000000001',
+      name: 'Datadog',
+      appName: 'datadog_app',
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button')).not.toBeInTheDocument();
+    await expect(canvas.getByRole('link')).toHaveAttribute('rel', 'noopener noreferrer');
   },
 };
 
@@ -91,5 +103,17 @@ export const LongName: Story = {
       name: 'Engineering — Platform — Identity and Access Management — On-call rotation',
       secondary: 'Every engineer carrying the identity pager, across all regions and time zones',
     },
+  },
+};
+
+export const UnreachableAppWithoutTypeKey: Story = {
+  args: {
+    onSelect: undefined,
+    result: { kind: 'app', id: '0oaFAKE0000000000001', name: 'Datadog' },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Datadog')).toBeInTheDocument();
+    await expect(canvas.queryByRole('link')).not.toBeInTheDocument();
   },
 };

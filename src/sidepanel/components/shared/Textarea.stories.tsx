@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { useState } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import Textarea from './Textarea';
 
 const meta = {
@@ -11,8 +12,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Controlled multi-line text field with label, hint, and error state; vertically resizable.\n\n' +
-          'The multi-line sibling of `Input`. `onChange` receives the string value (not the event); when `error` is set the field turns red and the message replaces the hint. Supports labeled, hinted, error, disabled, and custom-row states. Prefer this over a raw `<textarea>`.',
+          'Controlled multi-line text field with label, hint, and error state; vertically ' +
+          'resizable. The multi-line sibling of `Input`: `onChange` receives the string ' +
+          'value, not the event, and when `error` is set the message replaces the hint. ' +
+          'Prefer this over a raw `<textarea>`.',
       },
     },
   },
@@ -77,5 +80,34 @@ export const ConstrainedWidth: Story = {
     label: 'Comment',
     fullWidth: false,
     placeholder: 'Type a comment...',
+  },
+};
+
+const ControlledTextarea = () => {
+  const [value, setValue] = useState('');
+  return (
+    <div className="w-[360px] space-y-2">
+      <Textarea
+        label="Notes"
+        hint="Saved with the group"
+        value={value}
+        onChange={setValue}
+        placeholder="Type your notes..."
+      />
+      <p className="text-xs text-neutral-600">{value.length} characters</p>
+    </div>
+  );
+};
+
+export const Typing: Story = {
+  render: () => <ControlledTextarea />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole('textbox');
+
+    await userEvent.type(field, 'Owned by Platform');
+
+    await expect(field).toHaveValue('Owned by Platform');
+    await expect(canvas.getByText('17 characters')).toBeInTheDocument();
   },
 };

@@ -43,21 +43,15 @@ the header, and scroll offset does not carry that.
 }
 ```
 
-### The post-mortem: it never actually ran
+### The `timeline-scope` hoist is load-bearing
 
-**None of this ran for its first several revisions, and the way it failed is the thing
-to learn from.** A named timeline is referenceable by the declaring element and its
-_descendants_ — not by its following siblings, which is what this doc and
-`tailwind.css` both claimed. `--dock-progress` resolved to `null` on the band's
-`::before`, and a null timeline with `fill: both` holds the animation on its `to`
-keyframe forever: the strip rendered permanently merged and full-bleed at
-`scrollTop: 0`.
-
-It was not failing to merge, it was failing to _un_-merge — which is why it read as a
-styling choice rather than a bug, and survived review. Check anything you add here
-with `getAnimations()`: a resolved timeline is not the default outcome.
-
-The fix is the `timeline-scope` hoist above, onto the sentinel's parent.
+A named timeline is referenceable by the declaring element and its _descendants_ —
+**not** by its following siblings. Without the hoist onto the sentinel's parent,
+`--dock-progress` resolves to `null` on the band's `::before`, and a null timeline
+with `fill: both` holds the animation on its `to` keyframe forever: the strip renders
+permanently merged and full-bleed at `scrollTop: 0`. That failure mode reads as a
+styling choice rather than a bug, so **check anything you add here with
+`getAnimations()`** — a resolved timeline is not the default outcome.
 
 ### Tuning the range
 
@@ -78,10 +72,8 @@ its rung and the sentinel floats, so **nothing collects a step and the measured 
 is `0px`**. It earns its keep the day a page renders something above the strip inside
 the rung.
 
-There was briefly a second animation, `dock-more`, translating the **More** cluster out
-to the docked edge as the chrome widened. It went when the strip became a card: a
-card's disclosure is already at the trailing edge, and moving it during the merge would
-break the rule that nothing in flow is on this timeline.
+Nothing in flow goes on this timeline — a card's disclosure already sits at the
+trailing edge, so the **More** cluster is not animated as the chrome widens.
 
 ### Four things to know before adding another one
 

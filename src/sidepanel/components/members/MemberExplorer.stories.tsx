@@ -27,24 +27,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Orchestrator for in-group member search, faceting, MFA, and listing.\n\n' +
-          '**One control line, one drawer.** The tab used to stack seven surfaces above its ' +
-          'first member row; now a single band carries search, the drawer trigger, the active ' +
-          'filters as chips, and how much of the roster survived them, and every remaining ' +
-          'control is in `MemberFilterDrawer`.\n\n' +
-          "Owns the explorer's client-side state — debounced search, sort field/direction, and " +
-          'the paged visible window — and derives the filtered/sorted list via the pure ' +
-          '`memberAnalytics` helpers. The facet filter set itself lives in `useMemberFilters`, ' +
-          'which also takes the one-shot `pendingFilter` request the Insights tab uses to hand ' +
-          'a value over. MFA scan results are owned by the caller, so the scan lifecycle ' +
-          '(idle → confirming → scanning → complete) is driven by props.\n\n' +
-          '**Selection.** Rows carry a checkbox backed by the panel-wide selection basket, ' +
-          'and the control line offers *Select all* over the **filtered** cohort — narrowing ' +
-          'the list is how a reader says who they mean. Ids resolve against the full roster, ' +
-          "so a pick survives the filter that hid its row. *Select all* replaces the basket's " +
-          "user partition rather than adding to it, and a batch the basket's cap refuses adds " +
-          'nothing at all and says so in an alert.\n\n' +
-          '**Related internals:** [Types](?path=/docs/internals-types--docs)',
+          'Orchestrator for in-group member search, faceting, MFA, and listing. One control band carries search, the filter-drawer trigger, the active filters as chips, and how much of the roster survived them; every other control lives in `MemberFilterDrawer`.\n\n' +
+          "It owns the client-side state (debounced search, sort, the paged window), but MFA scan results belong to the caller, so the scan lifecycle is driven by props. Row checkboxes write to the panel-wide selection basket, and *Select all* replaces the basket's user partition with the **filtered** cohort — ids resolve against the full roster, and a batch the cap refuses adds nothing and says so.",
       },
     },
   },

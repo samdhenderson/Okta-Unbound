@@ -30,11 +30,13 @@ const meta = {
     docs: {
       description: {
         component:
-          "Apps this group's membership is pushed out to, and the target group each push writes into.\n\n" +
-          '**No activation status, deliberately.** `GET /api/v1/apps/{appId}/groups` returns none, so an ACTIVE/INACTIVE pill here would be an inference dressed up as an Okta fact. `priority` is the real returned field and is labelled as a priority, never as a state.\n\n' +
-          '**Unknown is not zero.** "Not pushed anywhere" (an empty array — a loaded fact) and "push mappings were never loaded" (`undefined` — the enrichment is non-fatal and can be skipped) are two different sentences; see `Empty` versus `NotLoaded`.\n\n' +
-          "**A push target is named, or its name is stated as missing.** A mapping's `appName` is optional, and this section used to fall back to printing the raw `appId` in the name's own slot — an opaque `0oa…` that read as though it *were* the app's name. A named app is now a shared `EntityLink` (opens the app, copies its id); an un-named one says \"App name not loaded\" beside the raw id in the identifier register.\n\n" +
-          '**Related internals:** [EntityLink](?path=/docs/shared-entitylink--docs)',
+          "Apps this group's membership is pushed out to, and the target group each push " +
+          'writes into. No activation status: the apps-groups endpoint returns none, so a pill ' +
+          'here would be an inference dressed as an Okta fact — `priority` is the real field ' +
+          'and is labelled as one.\n\n' +
+          'Unknown is not zero: an empty array (pushed nowhere) and `undefined` (the enrichment ' +
+          'never ran) are different sentences. A target is either named through an `EntityLink` ' +
+          'or says "App name not loaded" beside its raw id.',
       },
     },
   },

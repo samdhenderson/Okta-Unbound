@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import AppsListPanel from './AppsListPanel';
 import type { OktaAppListItem } from '../../../shared/schemas/okta';
 
@@ -40,11 +40,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'The scrollable Applications list plus its empty states.\n\n' +
-          'Renders an `AppListItem` per filtered app, forwarding the org origin and the ' +
-          'lazy assignment-count fetcher. Shows a spinner during the inventory load, and ' +
-          'two distinct empty states: "nothing loaded" (offering a reload) versus ' +
-          '"nothing matches" (offering a filter reset, only when a filter or search is active).',
+          'Renders an `AppListItem` per filtered app, forwarding the org origin and the lazy ' +
+          'assignment-count fetcher, and a row skeleton while the inventory loads. The two ' +
+          'empty states are distinct: "nothing loaded" offers a reload, "nothing matches" ' +
+          'offers a filter reset — and only when a filter or search is actually active.',
       },
     },
   },
@@ -94,16 +93,38 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+export const ExpandingARowFetchesCounts: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText('128 users')).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Expand Salesforce' }));
+
+    await expect(canvas.getByRole('button', { name: 'Collapse Salesforce' })).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getByText('128 users')).toBeInTheDocument());
+  },
+};
+
 export const Loading: Story = {
   args: { loading: true, apps: [] },
 };
 
 export const NoMatches: Story = {
   args: { apps: [], hasApps: true, activeFilterCount: 1, hasSearchQuery: true },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear filters' }));
+    await expect(args.onClearFilters).toHaveBeenCalled();
+  },
 };
 
 export const NothingLoaded: Story = {
   args: { apps: [], hasApps: false },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Load applications' }));
+    await expect(args.onReload).toHaveBeenCalled();
+  },
 };
 
 export const WithSelection: Story = {

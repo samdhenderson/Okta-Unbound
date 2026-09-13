@@ -275,7 +275,7 @@ describe('GroupDetailView', () => {
     ]);
   });
 
-  it('omits Export members from the action bar when onExportGroup is not provided (ADR-0039)', () => {
+  it('omits Export members from the action bar when onExportGroup is not provided', () => {
     render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
     expect(screen.queryByRole('button', { name: /export members/i })).not.toBeInTheDocument();
   });

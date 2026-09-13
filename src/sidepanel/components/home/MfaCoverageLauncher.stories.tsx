@@ -17,14 +17,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "Home's third report row, and the only one that is not free.\n\n" +
-          'The two rows above it are joins over rows already on disk, so they state a number for ' +
-          'the whole org at no cost. MFA coverage cannot be — it is a factor read per member — so ' +
-          'this row inverts the shape: **scope first**. Choose a group from the snapshot (zero ' +
-          'requests, no search per keystroke), then land on that group’s Insights pane with the ' +
-          'scan armed and deliberately *not* started.\n\n' +
-          'The cost is stated on the way in rather than discovered on arrival, and the read state ' +
-          'of the group collection decides whether a chooser is offered at all.',
+          "Home's third report row, and the only one that is not free: MFA coverage is a factor read per member, so this row asks for scope first. Pick a group from the snapshot and land on its Insights pane with the scan armed and deliberately not started.\n\n" +
+          'The read state of the group collection decides whether a chooser is offered at all.',
       },
     },
   },

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import RuleExpressionText from './RuleExpressionText';
 import { NavigationProvider } from '../../contexts/NavigationContext';
 
@@ -10,6 +10,8 @@ const names: Record<string, string> = {
 
 const resolveGroupName = (groupId: string): string | undefined => names[groupId];
 
+const navigateToGroup = fn();
+
 const meta = {
   title: 'Shared/RuleExpressionText',
   component: RuleExpressionText,
@@ -19,17 +21,19 @@ const meta = {
     docs: {
       description: {
         component:
-          'Rule-condition text with its group-id literals resolved to named badges, so `isMemberOfAnyGroup("00gFAKEGROUP0001")` reads as the group rather than as an opaque id.\n\n' +
-          'It resolves **nothing it was not already given**: the only names available are the ones the host already holds, through the same `resolveGroupName` shape `ClauseGroupList` takes. There is no fetch here, and an id with no known name renders exactly as it did before — quoted, in mono, inside the expression.\n\n' +
-          'A literal becomes a badge only when it resolves to a name. The tokeniser never guesses which quoted literal is a group id; it offers each one to the resolver and badges what comes back named, which is why `user.department == "Engineering"` still prints as itself.\n\n' +
-          'The **type treatment is fixed** — mono, `text-xs`, wrapping. Every host used to restate that recipe through `className`, which is a recipe free to drift; the only axis a host picks is `tone`, and `className` takes layout and spacing only.\n\n' +
-          'Expression text and group names are untrusted tenant data. The text is **split**, never parsed into markup — every piece is React text and every badge takes its id and name as props.',
+          'Rule-condition text with its group-id literals resolved to named badges, so ' +
+          '`isMemberOfAnyGroup("00gFAKEGROUP0001")` reads as the group rather than an opaque ' +
+          'id. It fetches nothing: a literal becomes a badge only when the host’s ' +
+          '`resolveGroupName` returns a name for it, so a non-group literal prints as source.\n\n' +
+          'The type treatment is fixed — the only axis a host picks is `tone`, and `className` ' +
+          'takes layout and spacing only. Expression text is untrusted tenant data and is split ' +
+          'into React text, never parsed into markup.',
       },
     },
   },
   decorators: [
     (Story) => (
-      <NavigationProvider handlers={{ group: fn() }}>
+      <NavigationProvider handlers={{ group: navigateToGroup }}>
         <Story />
       </NavigationProvider>
     ),
@@ -60,7 +64,15 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ResolvedGroupId: Story = {};
+export const ResolvedGroupId: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Open group Engineering — Platform' }),
+    );
+    await expect(navigateToGroup).toHaveBeenCalledWith('00gFAKEGROUP0001');
+  },
+};
 
 export const NoResolver: Story = {
   args: { resolveGroupName: undefined },

@@ -33,30 +33,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'All of this was the expanded body of `RuleCard`, which ADR-0030’s inventory named as one ' +
-          'of the five layout dialects the app had for what is conceptually one thing — eyebrow ' +
-          'blocks on `bg-neutral-50`, `tracking-wider`, a hand-laid action row. It was the last of ' +
-          'the five never converted. Three things follow from converting it:\n\n' +
-          '- **The verbs get a strip.** Four of them were flex-wrapped at the bottom of a card body, ' +
-          'which is exactly the "the page’s main verb read as a section’s property" failure ' +
-          'ADR-0030 §2 exists to stop. They are ' +
-          '[RuleActionBar](?path=/docs/rules-ruleactionbar--docs) now, split by the consequence test ' +
-          'rather than by what fitted.\n' +
-          '- **The sections get the shared primitive.** `DetailSection`’s `tracking-wide` eyebrow is ' +
-          'the survivor of the `tracking-wide`/`tracking-wider` split this body was on the wrong ' +
-          'side of.\n' +
-          '- **There is room.** Feature H — the clause-level rule explainer — names "a rule’s card in ' +
-          'the Rules tab" as its surface, and a per-clause pass/fail breakdown against a picked user ' +
-          'does not fit in a list row’s disclosure.\n\n' +
-          'A `DetailSection` **stack**, not tabbed panes: `docs/components.md` reserves the tabbed ' +
-          'shape for a rung answering several questions about one entity, and a rule has one ' +
-          'condition and three facts about it, all already in hand.\n\n' +
-          '**There is no header here.** `RulesTab` keeps one `PageHeader` and feeds it ' +
-          '`ruleIdentity` (ADR-0032), so this view never repeats the rule’s name, status, id or ' +
-          'counts. In the explorer that header is simply absent — these stories start at the strip.\n\n' +
-          '**It fetches nothing.** Everything shown is already on the `FormattedRule` the list was ' +
-          'rendering, which is what lets the tab push the rung straight from a row with no loading ' +
-          'state.',
+          "One rule's condition, targets, conflicts and provenance, as a stack of " +
+          '`DetailSection`s with a `RuleActionBar` above them. It fetches nothing — everything ' +
+          'shown is already on the `FormattedRule` the list was rendering, which is what lets ' +
+          'the tab push this rung straight from a row with no loading state.\n\n' +
+          'There is no header here: `RulesTab` keeps one `PageHeader` and feeds it ' +
+          '`ruleIdentity`, so this view never repeats the rule’s name, status, id or counts. In ' +
+          'the explorer that header is absent and these stories start at the strip.',
       },
     },
   },

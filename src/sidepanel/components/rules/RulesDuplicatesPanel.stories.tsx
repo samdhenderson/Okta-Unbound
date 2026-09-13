@@ -63,9 +63,13 @@ const meta = {
     docs: {
       description: {
         component:
-          "The duplicate-condition panel, opened from the rules strip's **Duplicates (N)** verb (Feature A4).\n\n" +
-          'Rules that share a match expression but target different groups are redundant and can be folded into one rule carrying the union of their target groups, with no change to who is matched. Each cluster expands to reveal its shared condition and member rules, each with a "View" link that scrolls to the rule\'s card. Merging opens a non-destructive preview wizard — nothing is written until the admin confirms.\n\n' +
-          'It was `RulesMergeBanner`, a band that sat permanently above the list and started **collapsed**, putting the sets behind a *Review* pill and each set behind a second chevron — two presses to see one duplicate, on the most valuable read-only analysis the tab performs. The outer disclosure now belongs to the strip. Renders nothing when there are no mergeable clusters.',
+          "The duplicate-condition panel, opened from the rules strip's **Duplicates (N)** " +
+          'verb. Rules sharing a match expression but targeting different groups are redundant ' +
+          'and can be folded into one rule carrying the union of their targets, with no change ' +
+          'to who is matched.\n\n' +
+          'Each cluster expands to reveal its shared condition and member rules, each with a ' +
+          '"View" link that scrolls to the rule\'s card. Merging opens a non-destructive preview ' +
+          'wizard — nothing is written until the admin confirms. Renders nothing with no clusters.',
       },
     },
   },
@@ -86,7 +90,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getAllByRole('button', { name: /2 rules/ })[0]);
+    await expect(canvas.getByText('Engineering Auto-Assign')).toBeInTheDocument();
+
+    await userEvent.click(canvas.getAllByRole('button', { name: 'View' })[0]);
+    await expect(args.onFocusRule).toHaveBeenCalledWith('rul1');
+
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Review & merge' })[0]);
+    await expect(args.onMerge).toHaveBeenCalled();
+  },
+};
 
 export const SingleCluster: Story = {
   args: { clusters: [clusters[0]] },

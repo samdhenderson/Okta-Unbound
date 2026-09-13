@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn } from 'storybook/test';
 import JumpBar from './JumpBar';
 import type { JumpResult, UseJumpResolverResult } from '../../hooks/useJumpResolver';
 
@@ -38,24 +38,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Home tab’s first region: one input that **resolves** an id or **searches** names and ' +
-          'emails. The distinction is the whole point — an admin usually already has the id, and a name ' +
-          'search cannot match one.\n\n' +
+          "The Home tab's first region: one input that **resolves** an id or **searches** names and emails. The distinction is the whole point — an admin usually already has the id, and a name search cannot match one.\n\n" +
           '| Input | Before Enter | On Enter |\n' +
           '| --- | --- | --- |\n' +
           '| A well-formed id | nothing | one local lookup; a request only on a miss |\n' +
           '| 3+ characters of a name | one debounced search | re-runs it immediately |\n' +
           '| 0–2 characters | nothing | nothing |\n\n' +
-          'The footnote reports what the resolution **actually cost**. Groups, rules and apps are ' +
-          'already in the local org snapshot (ADR-0040), so those resolve at zero requests; users are ' +
-          'deliberately not stored (ADR-0040 §5), so a user id always costs one. The design specified a ' +
-          'fixed "1 request", which the snapshot makes untrue about half the time — a cost line that is ' +
-          'sometimes wrong is worse than none.\n\n' +
-          'There is no explanatory line under the field. It sat between the bar and its results, ' +
-          'pushing the rest of Home down to describe a distinction the placeholder states and the ' +
-          'bar demonstrates on first use.\n\n' +
-          'Rows rise in via `.rise-in-stagger`, the app’s existing CSS-only stagger. No raw `ms` or ' +
-          'inline `cubic-bezier()` reaches shipped code.',
+          'The footnote reports what the resolution actually cost: groups, rules and apps sit in the local org snapshot and resolve at zero requests, while users are never stored, so a user id always costs one.',
       },
     },
   },
@@ -119,6 +108,29 @@ export const ResolvedFromOkta: Story = {
 export const SearchResults: Story = {
   args: {
     jump: jumpState({ query: 'eng', mode: 'results', results: [GROUP, USER] }),
+  },
+};
+
+export const OpeningAResult: Story = {
+  args: {
+    jump: jumpState({ query: 'eng', mode: 'results', results: [GROUP, USER] }),
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /^Engineering — open in/ }));
+    await expect(args.onSelect).toHaveBeenCalledWith(GROUP);
+  },
+};
+
+export const ClearingTheField: Story = {
+  args: {
+    jump: jumpState({ query: 'eng', mode: 'results', results: [GROUP, USER] }),
+  },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear' }));
+    await expect(args.jump.clear).toHaveBeenCalled();
+    await expect(
+      canvas.getByRole('textbox', { name: 'Search groups, apps, users, rules' }),
+    ).toHaveFocus();
   },
 };
 

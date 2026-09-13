@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ExportContextBar from './ExportContextBar';
 import type { EntityContextOption } from '../../export/types';
 
@@ -22,14 +22,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Search-to-select context picker for the Export tab.\n\n' +
-          'For descriptors scoped to a parent entity (a group, an app), the admin first picks ' +
-          'that entity off-page. Composes `useSearchWithDropdown` (debounced type-ahead, ' +
-          'two-character minimum) with the shared `SearchDropdown`, cycling through an empty ' +
-          'input, a searching spinner, a results dropdown, and a selected-item summary. The ' +
-          'chosen option is handed up to the tab hook, which builds the list endpoint from its ' +
-          'id; clearing reports `null`.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'For descriptors scoped to a parent entity (a group, an app), the admin picks that ' +
+          'entity here before any rows are fetched. The type-ahead is debounced and needs two ' +
+          'characters; the chosen option goes to the tab hook, and clearing reports `null`.',
       },
     },
   },
@@ -55,11 +50,17 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const WithResults: Story = {
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const input = canvas.getByPlaceholderText('Search groups…');
     await userEvent.type(input, 'Eng');
-    await canvas.findByText('Engineering Managers');
+
+    const match = await canvas.findByText('Engineering Managers');
+    await userEvent.click(match);
+
+    await expect(args.onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: '00gFAKE002', label: 'Engineering Managers' }),
+    );
   },
 };
 

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import Icon from './Icon';
 import Tooltip from './Tooltip';
 
@@ -11,10 +12,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'Hover- and focus-triggered label chip for a control whose own rendering does not name it.\n\n' +
-          'Replaces the native `title` attribute, which cannot be styled, fires on an uncontrollable delay, and never appears for a keyboard user. This one opens on hover **and** on focus after `--dur-hover-intent` (400ms), carries `role="tooltip"` wired to its trigger with `aria-describedby`, and closes on Escape, blur, pointer-leave, or any scroll that would move the trigger out from under it. It traps no focus.\n\n' +
-          'A tooltip is **additive**: it describes, it does not name. An icon-only control still needs its own `aria-label`.\n\n' +
-          'It renders no wrapper element — the trigger is supplied by a render prop and the chip is portalled to `document.body`, so it is safe inside a `role="tablist"` (where an intervening `<span>` would fail `aria-required-children`) and inside a scroll container that clips its overflow.',
+          'Hover- and focus-triggered label chip for a control whose own rendering does not name ' +
+          'it. Opens on hover and on focus after `--dur-hover-intent`, carries `role="tooltip"` ' +
+          'wired to the trigger with `aria-describedby`, and closes on Escape, blur, ' +
+          'pointer-leave or a scroll that moves the trigger.\n\n' +
+          'A tooltip is additive: it describes, it does not name — an icon-only control still ' +
+          'needs its own `aria-label`. The trigger comes from a render prop and the chip is ' +
+          'portalled to `document.body`, so there is no wrapper element to break a `tablist`.',
       },
     },
   },
@@ -64,6 +68,47 @@ export const AccessibleName: Story = {
 export const Disabled: Story = {
   args: { disabled: true },
   render: Default.render,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.hover(canvas.getByRole('button', { name: 'Groups' }));
+    await expect(within(document.body).queryByRole('tooltip')).toBeNull();
+  },
+};
+
+export const Opening: Story = {
+  render: Default.render,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    const trigger = canvas.getByRole('button', { name: 'Groups' });
+
+    await expect(trigger).not.toHaveAttribute('aria-describedby');
+
+    await userEvent.hover(trigger);
+    const chip = await body.findByRole('tooltip', {}, { timeout: 2000 });
+    await expect(chip).toHaveTextContent('Groups');
+    await expect(trigger).toHaveAttribute('aria-describedby', chip.id);
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(body.queryByRole('tooltip')).toBeNull());
+  },
+};
+
+export const OpensOnFocus: Story = {
+  render: Default.render,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    const trigger = canvas.getByRole('button', { name: 'Groups' });
+
+    trigger.focus();
+    await expect(await body.findByRole('tooltip', {}, { timeout: 2000 })).toHaveTextContent(
+      'Groups',
+    );
+
+    trigger.blur();
+    await waitFor(() => expect(body.queryByRole('tooltip')).toBeNull());
+  },
 };
 
 export const InARow: Story = {

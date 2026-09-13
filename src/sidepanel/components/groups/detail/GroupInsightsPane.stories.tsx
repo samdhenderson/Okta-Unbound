@@ -63,23 +63,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "Group Detail's fifth tab: attribute-spread cards (blank rate, value distribution, " +
-          'and drift markers, from `discoverAttributeBreakdowns`), a gated opt-in MFA-coverage ' +
-          'scan (never auto-runs), and ' +
-          'the group\'s own reference facts folded into a closed "About this group" section. ' +
-          "Fully presentational — the caller owns every load (`useGroupSource`'s member " +
-          'analysis, `useMemberMfaScan`) and passes its state through, mirroring how every ' +
-          'other Group Detail section/pane is composed by `GroupDetailView`.\n\n' +
-          '**Not called "Health".** That names a verdict, and this pane delivers the material ' +
-          'a reader draws one from — and will hold more of it over time (staleness, orphaned ' +
-          'assignments, rule overlap). Naming it for the subject is what lets those land here ' +
-          'without the label going stale.\n\n' +
-          '**Every attribute gets a card; three signals only decide the order.** The rule index ' +
-          'used to be a *filter*, so a card existed only for attributes some feeding rule ' +
-          'referenced — which hid the drift worth catching most. It is now the *lightest* of ' +
-          'three ranking inputs, behind near-duplicate spellings and a hidden tail; see ' +
-          '`AttributeSpreadSection` for the weights.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'Group Detail\'s Insights tab: attribute-spread cards from `discoverAttributeBreakdowns`, a gated opt-in MFA-coverage scan that never auto-runs, and the group\'s own reference facts folded into a closed "About this group" section.\n\n' +
+          'Fully presentational — the caller owns every load and passes its state through. Every discovered attribute gets a card; the feeding rules only influence the order, never which cards exist.',
       },
     },
   },

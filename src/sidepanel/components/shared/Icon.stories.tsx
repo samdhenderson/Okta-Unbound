@@ -11,21 +11,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Inline SVG icon registry shared across the Overview tab components.\n\n' +
-          'A single stateless component that maps an icon name to a Tailwind-sized, ' +
-          '`currentColor`-stroked SVG, so stat cards, quick actions, and facets can ' +
-          'reference glyphs by name without an external icon library. Size is one of ' +
-          '`xs` (12px), `sm` (16px), `md` (20px), `lg` (24px), `xl` (32px); pass a color ' +
-          'token through `className`. See `AllIcons` for the full catalog.\n\n' +
-          '**Decorative by default.** Every glyph is `aria-hidden` unless `label` says it carries ' +
-          'meaning of its own, because an icon beside the label it illustrates announces a ' +
-          'duplicate of what the reader has already heard. None of the app’s ~214 call sites hid ' +
-          'its icon before this default (`D-041`), and defaulting the other way is what makes the ' +
-          'quiet case the cheap one: a call site has to *state* that its icon is the answer, ' +
-          'rather than remember that it is not.\n\n' +
-          '`label` is **not** how an icon-only control gets its name — that comes from the ' +
-          'control (`IconButton`’s `label`, or an `aria-label`), because the button is the thing ' +
-          'a reader activates.',
+          'Inline SVG icon registry: maps an icon name to a Tailwind-sized, `currentColor`-stroked SVG, so call sites reference glyphs by name with no external icon library. Sizes are `xs` (12px), `sm` (16px), `md` (20px), `lg` (24px), `xl` (32px); pass a colour token through `className`. See `AllIcons` for the catalog.\n\n' +
+          "Every glyph is `aria-hidden` unless `label` says it carries meaning of its own. `label` is **not** how an icon-only control gets its name — that comes from the control (`IconButton`'s `label`, or an `aria-label`).",
       },
     },
   },
@@ -48,7 +35,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).queryByRole('img')).not.toBeInTheDocument();
+  },
+};
 
 export const NamedWhenTheGlyphIsTheAnswer: Story = {
   args: { type: 'shield', label: 'MFA enrolled' },

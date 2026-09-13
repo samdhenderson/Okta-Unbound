@@ -12,11 +12,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Rules tab shell: browse, search, filter, and manage group rules.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Contexts](?path=/docs/internals-contexts--docs), ' +
-          '[Rules engine](?path=/docs/internals-rules-engine--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          'Rules tab shell: browse, search, filter, and manage group rules. ' +
+          'Nothing is fetched automatically — rules load on demand via “Load Rules”.',
       },
     },
   },

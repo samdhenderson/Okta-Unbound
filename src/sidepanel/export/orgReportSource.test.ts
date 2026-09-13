@@ -157,7 +157,7 @@ describe('readDormantAccessRows', () => {
     appGroups: complete([{ id: '00gFAKE9' }], [{ id: '0oaFAKE1::00gFAKE9' }]),
   });
 
-  it('carries the anchored caveat on every row (ADR-0067 §5)', () => {
+  it('carries the anchored caveat on every row', () => {
     const result = readDormantAccessRows(dormantView, WALK_AT + 2 * DAY);
 
     expect(result.rows).toHaveLength(1);

@@ -53,10 +53,9 @@ Status legend: `[ ]` todo · `[~]` partially done · `[x]` done.
 | Rule read + write                       | `getGroupRulesForGroup`; `ruleWrites` (create/delete/(de)activate) | `groupDiscovery.ts`, `hooks/useOktaApi/ruleWrites.ts`        |
 | Population diff (who gains/loses)       | `classifyGroupImpact`, `summarizeRuleImpact`                       | `shared/membership/ruleImpact.ts`                            |
 
-> `removeDeprovisioned` spent the interval after the Overview tab was deleted on the
-> facade with no call site at all. It is reachable again from the group-detail rung —
-> `GroupActionBar`'s **More** tier, behind a count-only confirm, wired by
-> `groups/detail/useRemoveDeprovisioned.ts` — and it stays the model for this pattern:
+> `removeDeprovisioned` is reached from the group-detail rung — `GroupActionBar`'s
+> **More** tier, behind a count-only confirm, wired by
+> `groups/detail/useRemoveDeprovisioned.ts` — and it is the model for this pattern:
 > one aggregate undo entry rather than one per user, an `AuditLogEntry`, an
 > `APP_GROUP` guard, and every DELETE paced through `runOperation`.
 
@@ -99,14 +98,13 @@ still shipped. The _why_ for those two is captured in the code's doc comments.
   export. Nothing replaced it; the classifier is gone, not parked.
 - **A2 — Membership-source insight** (`useGroupSource` +
   `shared/membership/groupSource.ts`): per-group "why does this exist / who feeds it" —
-  feeding rules, app-push targets, and a gated manual-vs-rule split. Read-only. Its
-  original `GroupSourceModal` shell has since been retired: the content now lives in the
-  Group Detail view pushed from the groups list.
+  feeding rules, app-push targets, and a gated manual-vs-rule split. Read-only, and it
+  lives in the Group Detail view pushed from the groups list.
 - **A3 — Group merge** — **withdrawn 2026-09-12.** The merge wizard, its hook and its
-  planner were deleted in the same cull: it was the only verb on the groups rung that
-  changed entity state with no symmetric undo, and the partial-failure hole `D-100`
-  recorded made "reversible" a claim the code could not keep. Nothing replaced it;
-  consolidating memberships is not an operation this extension offers.
+  planner were deleted: it was the only verb on the groups rung that changed entity
+  state with no symmetric undo, and the partial-failure hole `D-100` recorded made
+  "reversible" a claim the code could not keep. Consolidating memberships is not an
+  operation this extension offers.
 - **A4 — Rule consolidation** (`RuleConsolidationModal` + `useRuleConsolidation` +
   `useOktaApi/ruleWrites.ts` + `shared/rules/consolidation.ts`): new zod-validated
   create/delete rule writes to add a target group or merge identical-condition rules, via
@@ -126,8 +124,7 @@ rule targets + exclusions and labeled as such inline.
 not a flat clause list — an `&&`/`||` group is a node with its own Kleene verdict and
 `decidedByChildIndices`, not a leaf carrying "alternatives". The shared `ClauseLedger`
 family (`docs/components.md`) renders it; `MembershipRuleEvidence`, the comparison
-surfaces, and `rules/RuleDetailView.tsx` are the adopters, and `groups/detail/ClauseChecklist`
-— the pre-tree, flat-list renderer — is deleted. Group-membership functions, including
+surfaces, and `rules/RuleDetailView.tsx` are the adopters. Group-membership functions, including
 `isMemberOfGroupNameRegex`, resolve once a caller supplies the user's complete group
 list (ADR-0001, ADR-0002); a clause the evaluator still cannot resolve renders
 `not-evaluated` with a reason code, never a fail.
@@ -155,21 +152,21 @@ machinery. What exists today:
   `mutability`, per-attribute `master.type`, account-level
   `credentials.provider.type`, and a value-type gate, each lock naming its reason.
 - The prediction — `shared/membership/blastRadius.ts`, a pure zero-API engine
-  answering "what does this edit do to their group access?", hedged (`likely-*`) or
-  withheld with a named reason — a predicted access change is never asserted as fact.
+  answering "what does this edit do to their group access?": `added`, `removed`, or
+  `not-predicted` carrying a `WithheldReason`. It asserts or withholds, never hedges
+  ([claims.md](./claims.md)).
 - The capture and the restore — `logProfileUpdateAction` with PII caps, and
   `useUndoAction`, the repo's **first undo executor**: re-read, refuse on drift, write
   the prior values, record a linked entry of its own.
 - One hook, both surfaces — `useProfileEdit` drives the Profile pane and each column
   of the two-user Compare view.
 
-**Superseded:** the "curated **allow-list**, no login/email footguns" line below was the
-original plan; the shipped per-attribute gate replaces it. `login` is editable when Okta
-masters the account; the mastering signal locks exactly the accounts where a write would be
-overwritten or is not ours to make, which is a narrower and more accurate lock than a
-blanket deny.
+**The gate is per-attribute, never a curated allow-list.** `login` is editable when
+Okta masters the account; the mastering signal locks exactly the accounts where a write
+would be overwritten or is not ours to make, which is a narrower and more accurate lock
+than a blanket deny.
 
-**The cohort source has since landed too.** The Group Detail Members tab is now the
+**The cohort source exists.** The Group Detail Members tab is the
 shared member explorer with search, source pills and attribute/MFA filters, and the
 Insights tab reports the attribute spread over _every_ browseable attribute with
 outlier values marked. That gives the bulk editor a better cohort than paste-and-resolve
@@ -228,27 +225,20 @@ Carried forward from the A/B build (surfaced while working, none blocking):
   the repo and hasn't been exercised against a live tenant. Add a `useRuleConsolidation`
   hook test (mock the write ops) pinning the create → activate → retire sequencing and
   the abort-before-delete guarantee; consider a post-create verification read.
-- ~~**A4 audit attribution.**~~ Resolved (`D-013b`): it resolves the current admin
-  through `useOktaApi`'s `getCurrentUser()` facade, same as the rule lifecycle. An
-  unresolvable actor records `performedBy: null` with
-  `actorResolution: 'unavailable'` rather than a fabricated placeholder — see
-  `useRuleConsolidation.ts:237,312-313`. A3 carried the same fix and went with the
-  feature on 2026-09-12.
+- ~~**A4 audit attribution.**~~ Resolved (`D-013b`): the current admin is resolved
+  through `useOktaApi`'s `getCurrentUser()` facade. An unresolvable actor records
+  `performedBy: null` with `actorResolution: 'unavailable'` rather than a fabricated
+  placeholder.
 - **`RulesCache` stores `rawRules: []`.** Anything needing exclusion lists (the impact
   engine) must re-fetch raw rules. Populating `rawRules` once would let impact capture
   skip its rules fetch entirely.
-- **Rules tab fetches rules outside the scheduler** (`chrome.tabs.sendMessage` directly),
-  unlike the impact capture. Migrating the main rule fetch onto the scheduler path would
-  make rate-limiting uniform.
 - **`useGroupsLoader` mount-rehydrate races `loadAllGroups`** (characterized in its
   docstring) — relevant if A2 starts triggering loads.
-- **Finish the eyebrow migration.** `Eyebrow` (the layout contract's recipe, finally
-  extracted) is the single uppercase section label, but roughly eighteen files still hand-roll
-  `uppercase tracking-*` — `RuleCard`, `ContextBar`, `PolicyCard`, `StatCard`,
-  `ColumnPicker`, `PresetControls` and the rest of
+- **Finish the eyebrow migration.** `Eyebrow` is the single uppercase section label,
+  but nine files still hand-roll `uppercase tracking-*` — enumerate them with
   `grep -rl "uppercase tracking" src/sidepanel/components`. Mechanical and exempt from
-  the plan-and-approval gate, but do it as its own PR: it is the only thing that stops the
-  four-recipe drift returning, and each swap is a visual diff worth seeing on its own.
+  the plan-and-approval gate, but do it as its own PR: it is what stops the recipe drift
+  returning, and each swap is a visual diff worth seeing on its own.
 - **Dead-code pass over `src/shared/tabState/`.** `TabStateManager` writes
   `chrome.storage.local` directly, so the background's `saveTabState` / `loadTabState` /
   `clearTabState` message actions (`src/background/index.ts:244`–`300`) have no sender
@@ -298,12 +288,11 @@ Four detail-page surfaces still need the `DetailSection` / `ActionBar` /
 - **E. Group Push deploy** — the extension only **reads** push mappings
   (`getAppPushGroupMappings`); writing app group-push config is deep provisioning.
   High effort, parked.
-- **F. OEL Sandbox (full)** — _parking rationale superseded._ It was parked because "no Okta
-  evaluate-expression API means building a custom EL interpreter, high effort". That interpreter
-  now exists: `shared/ruleEvaluator.ts` parses with `jsep` and evaluates against an explicit
-  allow-list, returning `match` / `no-match` / `unevaluable`. What remains parked is only the
-  _full_ sandbox (arbitrary expression authoring against arbitrary users). **Feature H is the
-  affordable slice** of it, and Feature B still covers impact-before-toggling.
+- **F. OEL Sandbox (full)** — only the _full_ sandbox (arbitrary expression authoring
+  against arbitrary users) is parked. The interpreter it needed exists:
+  `shared/ruleEvaluator.ts` parses with `jsep` and evaluates against an explicit
+  allow-list, returning `match` / `no-match` / `unevaluable`. **Feature H is the
+  affordable slice** of it, and Feature B covers impact-before-toggling.
 - **G. Policy Migrator** — **rejected.** The single-tab session model cannot address two
   tenants at once, and policy ops are entirely absent. Would require a different
   transport plus persisted cross-tenant credentials, violating the never-persist-tokens

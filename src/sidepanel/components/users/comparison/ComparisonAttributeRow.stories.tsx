@@ -1,6 +1,6 @@
-import type { ComponentType } from 'react';
+import { useState, type ComponentType } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, waitFor, within } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import ComparisonAttributeRow from './ComparisonAttributeRow';
 import type { AttributeParityRow, AttributeVerdict } from './attributeParity';
 import type { AttributeEditCell } from '../../../hooks/useProfileEdit';
@@ -49,25 +49,15 @@ const meta = {
     docs: {
       description: {
         component:
-          "One row of the comparison's Attributes tab: the attribute's name and annotations, then the two " +
-          "users' **values** with an equality marker between them.\n\n" +
-          'The strip is a three-track grid (`minmax(0,1fr) 2rem minmax(0,1fr)`) with `min-h-9` cells rather than ' +
-          '`flex-1` boxes — under flex a padded cell keeps its own chrome before the free space is split, which ' +
-          'put the marker 9px off-centre and made the `=` column stagger down the list.\n\n' +
-          'The marker is **not a control**: a `role="img"` span showing `=` or `≠`. Two different glyphs, so the ' +
-          'state never depends on colour. Both sides are always named, and there is no arrow.\n\n' +
-          '**Values wrap; they never truncate.** A truncated value is actively dangerous in a diff — two values ' +
-          'differing only in their tails would render identically beside a `≠` nobody could explain. An unset ' +
-          'value is stated as `— not set` in the muted italic non-answer register `AppScopeIndicator` and ' +
-          '`GroupSourceIndicator` share.\n\n' +
-          '**Either side is editable.** Given a cell for a side, that side delegates to `ProfileEditCell` — the ' +
-          "same cell the Users tab's Profile pane renders, so an attribute locked in one surface is locked " +
-          'identically in the other, with the same sentence saying why.\n\n' +
-          '**The marker does not follow the typing.** `=` / `≠` is a statement about what Okta holds; flipping ' +
-          'it on an unsaved keystroke would claim two users now agree while the directory still says they ' +
-          'differ, and re-verdicting live would pull the row being typed in out from under the cursor (the ' +
-          'list is ordered differences-first). A dirty side is marked with an `Edited` badge whose tooltip ' +
-          'says what saving *would* make true.',
+          "One row of the comparison's Attributes tab: the attribute's name and annotations, " +
+          "then the two users' values with an equality marker between them. The marker is not " +
+          'a control — a `role="img"` span showing `=` or `≠`, two glyphs so the state never ' +
+          'rides on colour — and values wrap rather than truncate, because two values differing ' +
+          'only in their tails would render identically beside a `≠` nobody could explain.\n\n' +
+          'Either side is editable: given a cell for a side, that side delegates to ' +
+          '`ProfileEditCell`, so an attribute locked in the Profile pane is locked identically ' +
+          'here. The marker does not follow the typing — `=` / `≠` is a statement about what ' +
+          'Okta holds — and a dirty side carries an `Edited` badge instead.',
       },
     },
   },
@@ -210,4 +200,35 @@ export const EditingCompact: Story = {
     comparedCell: editCell('department', { draft: 'Engineering', dirty: true }),
   },
   parameters: { viewport: { value: 'sidepanelCompact' } },
+};
+
+export const TypingDoesNotMoveTheMarker: Story = {
+  render: function Live(args) {
+    const [draft, setDraft] = useState<string | undefined>(undefined);
+    return (
+      <ComparisonAttributeRow
+        {...args}
+        comparedCell={{
+          name: 'department',
+          editability: { editable: true, control: 'text', required: false },
+          draft,
+          dirty: draft !== undefined && draft !== args.row.comparedValue,
+          onChange: setDraft,
+        }}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = await canvas.findByLabelText('Department');
+
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Engineering');
+
+    await expect(field).toHaveValue('Engineering');
+    await expect(canvas.getByTitle(/Bo Compared has an unsaved change/)).toBeInTheDocument();
+    await expect(
+      canvas.getByRole('img', { name: 'The two users have different values' }),
+    ).toBeVisible();
+  },
 };

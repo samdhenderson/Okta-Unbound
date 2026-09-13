@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import AttributeFacet from './AttributeFacet';
 import { discoverAttributeBreakdowns, NONE_VALUE, OTHER_VALUE } from './memberAnalytics';
 import type { AttributeSummary } from './memberAnalytics';
@@ -34,12 +35,9 @@ const meta = {
     docs: {
       description: {
         component:
-          "Compact card visualizing one profile attribute's value distribution as " +
-          'clickable filters.\n\n' +
-          'Shows a segmented "spread bar" plus a short legend of the leading values; every ' +
-          'segment/legend entry toggles a member-list filter, and "View all" opens the full ' +
-          'distribution. Named values use an indigo ramp while "(none)"/"Other" use ' +
-          'neutrals; a low fill rate surfaces a "% set" suffix next to the value count.',
+          "Compact card visualizing one profile attribute's value distribution as clickable filters: " +
+          'a segmented spread bar plus a legend of the leading values. Every segment and legend entry ' +
+          'toggles a member-list filter; the value count opens the full distribution.',
       },
     },
   },
@@ -72,6 +70,40 @@ export const WithActiveFilter: Story = {
   args: {
     summary: manyValuesSummary,
     activeValues: new Set(['Product Manager']),
+  },
+};
+
+export const Filtering: Story = {
+  args: { summary: manyValuesSummary },
+  render: (args) => {
+    const Harness = () => {
+      const [active, setActive] = useState<Set<string>>(new Set());
+      return (
+        <AttributeFacet
+          {...args}
+          activeValues={active}
+          onToggleValue={(row) =>
+            setActive((prev) => {
+              const next = new Set(prev);
+              if (next.has(row.value)) next.delete(row.value);
+              else next.add(row.value);
+              return next;
+            })
+          }
+        />
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const legendEntry = canvas.getByRole('button', { name: /^Product Manager/ });
+    await expect(legendEntry).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(legendEntry);
+    await expect(canvas.getByRole('button', { name: /^Product Manager/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   },
 };
 

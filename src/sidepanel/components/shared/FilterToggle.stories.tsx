@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { useState } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import FilterToggle from './FilterToggle';
+import Input from './Input';
 
 const meta = {
   title: 'Shared/FilterToggle',
@@ -12,24 +14,23 @@ const meta = {
       description: {
         component:
           'Opens and closes a filter panel and carries a count badge of the currently ' +
-          'active filters.\n\n' +
-          'It takes on the active wash both when the panel is expanded **and** when any ' +
-          'filter is applied with the panel closed — that second state is the one where a ' +
-          'hidden filter is silently shortening the list beneath it, so it is the one that ' +
-          'most needs to be visible.\n\n' +
-          'The badge is hidden at zero: a `0` badge and an absent badge say the same thing, ' +
-          'and only one of them is quiet.',
+          'active filters. It takes the active wash both when the panel is expanded and ' +
+          'when any filter is applied with the panel closed, so a hidden filter shortening ' +
+          'the list below stays visible. The badge is hidden at zero.',
       },
     },
   },
   argTypes: {
-    open: {
-      description: 'Whether the filter panel is expanded. Drives the wash and `aria-pressed`.',
-    },
+    open: { description: 'Whether the filter panel is expanded.' },
     activeCount: { description: 'Number of filters applied. The badge is hidden at 0.' },
     onToggle: { description: 'Toggles the filter panel open/closed.' },
-    size: { description: 'Vertical scale, named to match the `Input` it stands beside.' },
+    size: { description: 'Vertical scale, matching the `Input` it stands beside.' },
     label: { description: 'Visible label. Defaults to `Filters`.' },
+    title: { description: 'Native tooltip. Defaults to `Toggle filters`.' },
+    controls: {
+      description:
+        'Id of the disclosed region; supplying it swaps `aria-pressed` for `aria-expanded`.',
+    },
   },
   args: {
     open: false,
@@ -66,15 +67,60 @@ export const Sizes: Story = {
 };
 
 export const BesideASearchField: Story = {
-  render: (args) => (
-    <div className="flex w-[420px] gap-2">
-      <input
-        type="search"
-        placeholder="Search…"
-        className="min-w-0 flex-1 rounded-md border border-neutral-200 px-4 py-3 text-sm"
-      />
-      <FilterToggle {...args} size="lg" />
-    </div>
-  ),
+  render: (args) => {
+    const SearchRow = () => {
+      const [query, setQuery] = useState('');
+      return (
+        <div className="flex w-[420px] items-start gap-2">
+          <Input
+            type="search"
+            size="lg"
+            value={query}
+            onChange={setQuery}
+            ariaLabel="Search groups"
+            placeholder="Search…"
+          />
+          <FilterToggle {...args} size="lg" />
+        </div>
+      );
+    };
+    return <SearchRow />;
+  },
   args: { activeCount: 1 },
+};
+
+const FilterDisclosure = () => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="w-[320px]">
+      <FilterToggle
+        open={open}
+        activeCount={2}
+        onToggle={() => setOpen((v) => !v)}
+        controls="filter-panel"
+      />
+      {open && (
+        <div id="filter-panel" className="mt-2 rounded-md border border-neutral-200 p-3 text-sm">
+          Status: Active · Type: Okta group
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const DisclosesAPanel: Story = {
+  render: () => <FilterDisclosure />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = canvas.getByRole('button', { name: /filters/i });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(canvas.getByText(/Status: Active/)).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(canvas.queryByText(/Status: Active/)).not.toBeInTheDocument();
+  },
 };

@@ -117,7 +117,7 @@ describe('useComparisonProfileEdit', () => {
     expect(result.current.context.isEditing).toBe(true);
   });
 
-  it('stays inert while the comparison is off screen (ADR-0018)', () => {
+  it('stays inert while the comparison is off screen', () => {
     const { result } = render({ enabled: false, onContextUserUpdated: vi.fn() });
 
     expect(result.current.compared.canEdit).toBe(false);

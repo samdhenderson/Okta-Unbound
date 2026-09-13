@@ -11,9 +11,9 @@
   (the panel's single mount of the org snapshot index). Add a fifth only when
   state is needed by distant, unrelated parts of the tree — or, as with the
   index, when a _cost_ must be paid once for parts of the tree that cannot share
-  a parent below the shell. Home and the ⌘K palette are siblings, and each
-  mounting its own copy of `useOrgEntityIndex` meant eight IndexedDB reads and
-  eight broadcast listeners for one org's four collections.
+  a parent below the shell — Home and the ⌘K palette are siblings, and a copy of
+  `useOrgEntityIndex` each would mean duplicate IndexedDB reads and broadcast
+  listeners for one org's collections.
 
   A context that owns a cost, rather than only a value, still answers to the
   visibility rule below: `OrgEntityIndexProvider` takes an `enabled` that `App`
@@ -46,10 +46,6 @@ If a component has more than ~8 `useState`s, that's a smell — extract a hook.
 
 ## God-component decomposition (how we decomposed)
 
-The overhaul broke up four files that concentrated risk and blocked testing —
-`UsersTab.tsx` (1364 → 237 lines), `GroupsTab.tsx` (935 → 509),
-`UserComparisonModal.tsx` (967 → 91), `content/index.ts` (1344 → 328).
-
 **~300 lines is the target, not a description of the current tree.** Over a dozen
 components are still above it, `GroupsTab.tsx` and `RulesTab.tsx` furthest; two are
 benign by construction (`Icon.tsx` is a flat glyph registry, `ActivityBarView.tsx`
@@ -57,8 +53,7 @@ a presentational shell). Count them with `wc -l` over
 `src/sidepanel/components/**/*.tsx` rather than trusting a number written here.
 Hold the line for new work, and prefer extracting a hook to letting one of these grow.
 
-The decomposition ran **tests-first and incrementally** (never a big-bang rewrite) —
-the same playbook for any future large component:
+Decompose **tests-first and incrementally**, never as a big-bang rewrite:
 
 1. **Pin behavior** — RTL tests around the component, mocked at the `useOktaApi`
    facade (see [testing.md](./testing.md)), so refactors are verifiable.
@@ -144,8 +139,8 @@ scheduler's budget on a screen nobody is looking at, and a new tab or mount effe
 is not done until it answers "what does this do while hidden?".
 
 **Gating lives at the hook or tab that owns the effect — never as a
-`useEntityQuery` option.** `visible` / `revalidateOnShow` were proposed and
-rejected: a show-time boolean cannot express work that happens on _hide_
+`useEntityQuery` option** such as `visible` / `revalidateOnShow`: a show-time
+boolean cannot express work that happens on _hide_
 (`useUserComparison` clears itself when its surface goes off-screen), and the
 identity worth latching on is not always the cache key — `useAppsData` latches on
 `(targetTabId, oktaOrigin)` while caching on origin alone, deliberately, so two
@@ -158,9 +153,9 @@ no second identity to select between one level up — so a second gate below tha
 buys nothing.
 
 `isActive` arrives at a hook as `enabled?: boolean` (default `true`, so standalone
-and story use are unaffected). An audit found **five** shapes; only the first two
+and story use are unaffected). There are **five** shapes; only the first two
 trigger loads, and anything generalising visibility behaviour has to account for
-the other three rather than rediscover them.
+the other three.
 
 | Pattern                    | Behaviour                                                                                                     | Sites                                                                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -170,7 +165,7 @@ the other three rather than rediscover them.
 | **Bookkeeping-on-arrival** | fires per arrival; no data, no cache, nothing to key                                                          | `RulesTab`'s `markTabVisited`                                                                                         |
 | **Dual-axis owed-resync**  | gated on `enabled` **and** `document.hidden`; a navigation observed while suppressed is owed on the next show | `useOktaTabContext`                                                                                                   |
 
-The latch was the one duplicated shape worth extracting:
+The latch is the one shape extracted:
 `useOwedLoad(identity, ready, run)` (`hooks/useOwedLoad.ts`) remembers which input
 it last acted on and acts again only when that input differs. Without it, "gate on
 `isActive`" silently turns every tab revisit into a refetch. The **deferred
@@ -185,30 +180,14 @@ engine, so it runs unconditionally and `enabled` stays fixed at its default.
 
 ## One skeleton per pane
 
-A **pane** is a tab's content region on a detail rung — the thing a tab switches to,
-whose parent owns the tab state. The rule does not reach a list row, a card, a
-section inside a pane, or the app shell.
-
-**A pane renders one `Skeleton` for its whole layout and swaps once.** There is no
-intermediate state where some tiles are real and others are placeholders — that
-state is the defect, drawn in grey — and it never returns to the skeleton for the
-same mount. The placeholder approximates the settled layout closely enough that
-the swap does not move what a reader is already looking at.
-
-**Only an in-flight query holds the skeleton.** Idle-by-design (gated on a user
-act), failed, and settled-empty all release it, and the tile owns its own idle
-affordance, error state or empty state. The three share one property: no work is
-running, so waiting cannot change the answer. A skeleton over a query nobody
-started is a lie; over one that already failed, it is a hang.
-
-**The settle set is an explicit opt-in list, never a scan**, named beside where the
-statuses are read. Forgetting to _add_ a query makes one tile pop in early;
-forgetting to _exclude_ a gated one makes the pane a permanent shimmer.
-
-**The predicate is `status === 'loading'`; `status !== 'done'` is banned** — it
-folds `idle` and `error` in with in-flight, which is the defect. A fact already in
-hand is not a query and never joins the set, and a secondary read inside an
-already-resolved tile is that tile's layout problem, not the pane's.
+A **pane** — a tab's content region on a detail rung, whose parent owns the tab
+state — renders one `Skeleton` for its whole layout and swaps once. The full rule,
+including which query states hold the skeleton, is in
+[ux-guidelines.md](./ux-guidelines.md). Two consequences for the hooks side: the
+settle set is an explicit opt-in list named beside where the statuses are read, and
+the predicate is `status === 'loading'` (`status !== 'done'` is banned). A fact
+already in hand is not a query and never joins the set, and a secondary read inside
+an already-resolved tile is that tile's layout problem, not the pane's.
 
 ## Effects & subscriptions
 

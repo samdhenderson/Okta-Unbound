@@ -23,28 +23,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "View-stack host for the two-user comparison — the Users tab's mount site.\n\n" +
-          'The Users-tab comparison host, and since the Overview dialog was retired the only ' +
-          'one: it owns the `useUserComparison` instance ' +
-          'and renders the shared `UserComparisonView` with **no dialog chrome**, because the ' +
-          "Users tab shows the comparison as a pushed view (ADR-0016). The tab's one " +
-          '`PageHeader` above it carries the title, the breadcrumb trail and the back ' +
-          'affordance, so this component renders only the surface.\n\n' +
-          'It stays mounted while the tab is at the root of its stack, which makes two props ' +
-          'load-bearing rather than cosmetic:\n\n' +
-          '- `isActive` is false while popped, and that is what drives the reset. A mounted ' +
-          'view with no reset would show the previous comparison on the next push.\n' +
-          '- `searchEnabled` is false while popped **or** while the whole tab is hidden, so a ' +
-          'mounted comparison never becomes a background caller of the user-search API ' +
-          '(ADR-0018). It also gates scroll preservation, because "pushed and the tab is ' +
-          'shown" is exactly "the comparison is the thing on screen": the panel keeps its ' +
-          'own offset on the app root scroller it shares with the detail rung, so a push ' +
-          'opens at the top and a return lands where you left it.\n\n' +
-          'Because state lives in the hook, these stories render the search phase: the ' +
-          'comparison phase is reached by picking a user, which needs a live Okta tab. See ' +
-          '`Users/UserComparisonView` for prop-driven stories of every phase.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Types](?path=/docs/internals-types--docs)',
+          'View-stack host for the two-user comparison: it owns the `useUserComparison` instance and renders the shared `UserComparisonView` with no dialog chrome, because the Users tab shows the comparison as a pushed view under its own `PageHeader`.\n\n' +
+          'It stays mounted while popped, so two props are load-bearing: `isActive` drives the reset, and `searchEnabled` keeps a mounted comparison from becoming a background caller of the user-search API. State lives in the hook, so these stories render the search phase — see `Users/UserComparisonView` for every phase.',
       },
     },
   },

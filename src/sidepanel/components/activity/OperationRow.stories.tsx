@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import OperationRow from './OperationRow';
 import type { PlanSummary } from '@/shared/scheduler/plan';
 
@@ -12,8 +12,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'One operation and its declared request budget.\n\n' +
-          'The budget reads `spent / estimated`, stated plainly — the number shown is the total the scheduler currently holds, with no qualifier attached. The meter beneath renders the same figures as solid fills. The ✕ stops this operation alone; requests it has already dispatched are left to settle, because they have spent their budget and killing them would cost the quota without saving anything.',
+          'One operation and its declared request budget. The budget reads `spent / estimated` ' +
+          'plainly — the total the scheduler currently holds, with no qualifier — and the meter ' +
+          'beneath renders the same figures. The ✕ stops this operation alone; requests already ' +
+          'dispatched are left to settle, because their budget is already spent.',
       },
     },
   },
@@ -110,5 +112,25 @@ export const NoCancelControl: Story = {
   args: {
     operation: plan({ id: 'export', name: 'Export all users', spent: 12, remaining: 38 }),
     onCancel: undefined,
+  },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).queryByRole('button')).toBeNull();
+  },
+};
+
+export const Stopping: Story = {
+  args: {
+    operation: plan({
+      id: 'export',
+      name: 'Export all users',
+      legs: [leg('/api/v1/users', 50, 12)],
+      spent: 12,
+      remaining: 38,
+    }),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Stop Export all users' }));
+    await expect(args.onCancel).toHaveBeenCalledWith('export');
   },
 };

@@ -17,26 +17,17 @@ const meta = {
     docs: {
       description: {
         component:
-          "The rule this enforces: **a verb whose object is the whole page belongs here; a verb scoped to one section's data belongs in that section's `DetailSection.actions` slot.**\n\n" +
-          'Before this existed, "Compare" sat in the group-memberships card header — structurally indistinguishable from "Add to group", which acts on that card alone — so the page\'s most important action read as a property of one section.\n\n' +
-          '**Actions are data, not children.** The strip takes `ActionDescriptor[]` rather than `Button` children, because a strip that cannot see what it holds cannot decide what fits. With descriptors it measures each action once and re-splits the row as the panel is dragged: everything on a wide panel, icons dropped when it tightens, the tail behind **More** when it tightens further. `shared/actionBarFit` does the arithmetic and `shared/useActionOverflow` does the measuring; this component only renders their answer. The price is that a descriptor can carry no JSX — an arbitrary node cannot be measured from a cached width, nor re-rendered into the tier with different chrome. Arbitrary UI goes in `expansion`, which is the whole point of that slot.\n\n' +
-          "**A card at rest, a band once docked.** The strip is the width of every other card on the rung — it spans the tab column and stops at its margins, so it lines up with the sections beneath it instead of reading as a different kind of object. Reaching its parking spot is not the same as looking parked, so over the last `--merge-range` (16px of travel) before it docks it grows *past* those margins to the panel edges, drops its radius and its top and side borders, covers the header's bottom seam and grows a shadow — header and strip end up one continuous pinned surface. Only the chrome moves: the merge animates a `::before` box, never the row, so every verb holds still and the overflow observer watches a band width that never churns. **More** sits at the trailing edge with a hairline immediately to its left, which is the boundary between the verbs and the way to reach the rest of them.\n\n" +
-          '**The cramped ladder: icons first, then overflow.** When the row tightens, every bar action drops its glyph — globally, never per action, because a row with some icons and some without reads as broken. Only when the bare labels still do not fit does the tail move into the tier, last-declared first. A `pinned` action never leaves the bar, and a `primary` action is pinned by default.\n\n' +
-          '**The tier is a region, not a menu.** What sits behind **More** is a second row inside the band: it stretches the strip downward through the shared `.disclose` grid instead of dropping a card into the flow beneath it, and it shares the strip\'s chrome and its merge. It holds two things, in order — the actions that did not fit, which the strip owns and the caller never sees, and then `expansion` verbatim, be that an account-state block, a form, or anything else. That second half is exactly why it is a disclosure region rather than a `role="menu"` popover: a menu may contain menu items and nothing else, which would forbid the arbitrary UI this slot exists for. Its children stay mounted while closed, held out of the tab order and the accessible tree with `inert`.\n\n' +
-          '**Why it sticks:** the side panel has exactly one scroller, the `overflow-y-auto` app root, which `TabPanel` shares and which the Users tab does not shadow with a scroll box of its own. The strip is the third band of the sticky stack (ADR-0032), parking below the tab rail and the page header rather than at the top of the scroller.\n\n' +
-          'The merge is driven by a CSS scroll-driven animation on a zero-size view-timeline sentinel rendered just before the strip, so it tracks *distance to the header* rather than raw scroll offset, with no per-frame JavaScript on the shared scroller. Anchoring it to scroll offset instead is visibly wrong: a strip that starts partway down a long rung finishes merging while it is still floating mid-page.\n\n' +
-          'Related internals: `shared/actionBarFit`, `shared/useActionOverflow`, `shared/DetailSection`, `shared/PageHeader`, `shared/CollapsibleSection`.',
+          'The page-level action strip of a detail view: the verbs whose object is the whole page, taken as `ActionDescriptor[]` data so the strip can measure them and re-split the row as the panel narrows — icons drop first, then the tail moves behind **More**.\n\n' +
+          "A verb scoped to one section's data belongs in that section's `DetailSection.actions` slot, not here. The tier behind **More** is a disclosure region rather than a menu, so `expansion` may hold arbitrary UI.",
       },
     },
   },
   argTypes: {
     actions: {
-      description:
-        'The page\'s verbs as data, ordered by weight. Exactly one `variant="primary"`; the rest `secondary`. Order matters twice: it is the reading order, and the tail is what overflows first. `priority` defaults to `flex` (`pinned` for a `primary` action); `tier` keeps an action behind **More** from the start.',
+      description: "The page's verbs as data, ordered by weight; the tail is what overflows first.",
     },
     ariaLabel: {
-      description:
-        'Accessible name for the group, e.g. `"Actions for Jane Doe"`. Required — a bare group of buttons announces nothing about what it acts on.',
+      description: 'Accessible name for the group, e.g. `"Actions for Jane Doe"`.',
     },
     subRow: {
       description:
@@ -45,22 +36,15 @@ const meta = {
     },
     register: {
       description:
-        'The **selection register** — a second measured row of selection-scoped verbs, rendered ' +
-        "below `subRow` on the band's own white surface: no border, no rule, no divider and no " +
-        'wash — what marks it as a different family is that its selection furniture is `link` at ' +
-        '`xs` while the page verbs above are buttons at `sm`. It shares rather than stacks (pass it whenever the rung has a ' +
-        'selection at all, so the first tick adds controls to a row that already exists instead ' +
-        'of pushing the list down), it overflows independently of the action row, and both rows ' +
-        'spill into the one tier behind the one **More**. Its leading descriptor must be a ' +
-        'selection control (ADR-0051 §2).',
+        'The selection register: a second measured row of selection-scoped verbs, whose leading control must be a selection control.',
     },
     sticky: {
       description:
-        'Pin below the tab rail and the page header while the page scrolls under it, merging into the header as it docks. Defaults to `true`; pass `false` in an already-fixed region, which also opts out of the merge (the strip then simply keeps its resting card).',
+        'Pin below the page header while the page scrolls under it, merging into it as it docks. Defaults to `true`.',
     },
     expansion: {
       description:
-        'Arbitrary caller UI for the tier, appended below anything that overflowed there. Inside the strip, not a sibling card — it shares the chrome and docks with it. A block that merely *follows* the strip on the page is a `DetailSection`, not this.',
+        'Arbitrary caller UI for the tier, appended below anything that overflowed there.',
     },
     tierOpen: {
       description:

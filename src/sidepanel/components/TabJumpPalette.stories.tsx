@@ -12,32 +12,24 @@ const meta = {
     docs: {
       description: {
         component:
-          "⌘K jump-to palette for the side panel's nine top-level sections.\n\n" +
-          'The primary nav is an icon rail, so inactive tabs are icon-only — compact, but it asks the user to aim at a small target. This palette is the keyboard route to the same destinations: it costs no horizontal space and no clicks. Filtering is a case-insensitive substring match on the section label; the section you are already on is marked `aria-current="page"` and labelled **Current**; choosing a result calls the same `onTabChange` the rail calls and then closes.\n\n' +
-          '**Two halves, one list.** Sections filter synchronously on every keystroke; org entities — groups, apps, rules, policies, users — arrive from `useJumpResolver` on their own debounced schedule, handed in by the `CommandPalette` container. A section jump must not get slower because the org is also being searched, so only one of the two waits. Section headings are a render-time partition over **one** flat rows array, which is what keeps the roving-focus arithmetic (wrapping Up/Down, Enter takes the top row) working unchanged across the boundary; the headings are `role="presentation"` so they can never land in the roving order.\n\n' +
-          '**Every entity prop is optional.** Omit them all — as the stories below that do not name them do — and this is exactly the sections-only palette it has always been. That is the property that keeps these stories free of API mocking.\n\n' +
-          '**Keyboard model — roving focus, not a combobox.** The shared `Input` does not spread arbitrary props, and bending a shared primitive with `role`/`aria-expanded`/`aria-controls`/`aria-activedescendant` for one consumer is the wrong trade. So: Down leaves the field for the first result, Up/Down move within the list (Up off the top returns to the field), Enter or Space activates, Escape closes. Exactly one row is in the tab order at a time.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs) — the ⌘K listener itself lives in `useCommandPalette`, called once by `App`, because every tab stays mounted (ADR-0018) and a `window` listener inside a tab would be registered once per tab.',
+          "⌘K jump-to palette for the side panel's nine top-level sections, and the " +
+          'keyboard route to the same destinations the icon rail offers. Sections filter synchronously ' +
+          'on a case-insensitive substring of the label; org entities — groups, apps, rules, ' +
+          'policies, users — are handed in by the `CommandPalette` container on their own ' +
+          'debounced schedule, so a section jump never waits on an org search.\n\n' +
+          'Navigation is roving focus, not a combobox: Down leaves the field for the first ' +
+          'result, Up/Down move within one flat row list (Up off the top returns to the ' +
+          'field), Enter or Space activates, Escape closes. Every entity prop is optional — ' +
+          'omit them and this is the sections-only palette, which is why these stories mock ' +
+          'nothing.',
       },
     },
   },
   argTypes: {
-    isOpen: {
-      description:
-        'When false the palette closes; the underlying `Modal` holds the panel for one exit animation, hidden from the accessible tree.',
-    },
-    onClose: {
-      description:
-        'Invoked on Escape, overlay click, the header close button, and after a result is chosen.',
-    },
-    activeTab: {
-      description:
-        'The section currently on screen — marked `aria-current="page"` and labelled "Current".',
-    },
-    onSelect: {
-      description:
-        'Called with the chosen section id. Must be the same handler the icon rail uses.',
-    },
+    isOpen: { description: 'When false the palette closes and leaves the accessible tree.' },
+    onClose: { description: 'Invoked on Escape, overlay click, close button, and after a pick.' },
+    activeTab: { description: 'The section on screen — marked `aria-current="page"`.' },
+    onSelect: { description: "Called with the chosen section id — the icon rail's own handler." },
   },
   args: {
     isOpen: true,
@@ -209,6 +201,21 @@ export const UnreachableKind: Story = {
     await expect(link.querySelector('a, button')).toBeNull();
 
     await expect(canvas.queryByRole('link', { name: /Feeds Engineering/ })).toBeNull();
+  },
+};
+
+export const KeyboardNavigation: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const field = await canvas.findByRole('searchbox', { name: 'Search sections' });
+    await userEvent.click(field);
+
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() => expect(field).not.toHaveFocus());
+
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onSelect).toHaveBeenCalledTimes(1);
+    await expect(args.onClose).toHaveBeenCalled();
   },
 };
 

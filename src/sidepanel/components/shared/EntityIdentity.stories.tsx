@@ -10,11 +10,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Renders the `rows` of an `EntityIdentityDescriptor` to the secondary-text contract in the design system: `text-xs text-neutral-600`, with a `metric`’s value emphasised so the number reads before its unit, and an `id` through the shared `CopyableId`.\n\n' +
-          'Facts inside a row wrap together and are separated by a middot. An **empty row is dropped** rather than rendered as blank space — that is how "Okta has not told us yet" collapses out of the layout instead of showing a zero.\n\n' +
-          "A `status` fact is a demoted badge: a small dot in the status colour, then the label at the same secondary-text weight as every other fact. `groupIdentity`/`userIdentity` reserve the header's loud trailing badge for `danger` only and route every calmer status here instead, so the header stops growing a third line at 360px just because an entity carries a status.\n\n" +
-          'It renders rows only. The entity’s name, badge and Okta link belong to the header’s title row, which is what keeps all three on screen when the header is pinned and this region is collapsed.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          "Renders the `rows` of an `EntityIdentityDescriptor` to the design system's secondary-text contract, with a `metric`'s value emphasised and an `id` through the shared `CopyableId`. Facts inside a row wrap together, separated by a middot.\n\n" +
+          "An **empty row is dropped** rather than rendered as blank space, and a `status` fact is a demoted dot-plus-label rather than the header's loud trailing badge — which stays reserved for `danger`. It renders rows only: the name, badge and Okta link belong to the header's title row.",
       },
     },
   },

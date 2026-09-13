@@ -17,14 +17,14 @@ components, zod, audit-every-mutation, TypeDoc) apply to everything below.
 
 Status legend: `[ ]` todo · `[~]` partial · `[x]` done.
 
-## Progress (updated 2026-07-20)
+## Progress
 
-**Phases 0–1 shipped.** The descriptor-driven Export Engine is live behind a new
-**Export** tab. Adding an export is now adding one self-contained descriptor file
-under `src/sidepanel/export/descriptors/` — they auto-register via `import.meta.glob`
-(no registry edit). The six open UX questions were resolved to their recommended
-defaults (inline column picker, named idb presets + last-used, raw filter passthrough
-with a live match count, row-capped preview, unified hub, search-to-select context).
+**Phases 0–1 shipped.** The descriptor-driven Export Engine is live behind the
+**Export** tab. Adding an export is adding one self-contained descriptor file under
+`src/sidepanel/export/descriptors/` — they auto-register via `import.meta.glob`, with
+no registry edit. The shipped shape is an inline column picker, named idb presets plus
+last-used, raw filter passthrough with a live match count, a row-capped preview, a
+unified hub, and search-to-select context.
 
 Ten entities export today: **Users, Groups (+stats), Group Rules, Group Memberships,
 Applications, App Users, App Groups, Network Zones, Devices, Identity Providers** —
@@ -49,7 +49,7 @@ Deliberately deferred (needs your input, not blocked):
 | Users/Apps column picker + query box                                                                                                         | Port               | Config on the export engine; persist choices in `idb`.                                                                                                                      |
 | Show SSO (decode SAMLResponse, pretty-print, highlight)                                                                                      | **Port**           | Signature feature → side-panel **SSO Inspector**.                                                                                                                           |
 | SAML IdP cert expiry (days left, <30d red)                                                                                                   | Port               | Falls out of the IdP reader.                                                                                                                                                |
-| Session expiry (minutes left)                                                                                                                | Port               | `/api/v1/sessions/me`; Overview badge.                                                                                                                                      |
+| Session expiry (minutes left)                                                                                                                | Port               | `/api/v1/sessions/me`; Home badge.                                                                                                                                          |
 | Show User (full profile dump)                                                                                                                | Port               | Users-tab detail (user already fetched).                                                                                                                                    |
 | Show AD (AD app assignments)                                                                                                                 | Port               | From app assignments we already read.                                                                                                                                       |
 | Show Linked Objects (manager/subordinate)                                                                                                    | Port               | `/users/{id}/linkedObjects/*`.                                                                                                                                              |
@@ -89,53 +89,9 @@ Console, Deleted-object browser). Both `TabType` additions in `TabNavigation`.
 
 ## Phase 0 — foundations `[x]` (shipped)
 
-Prove the export pattern end to end on the safest entities.
-
-- Export Engine + `EntityExport` descriptor type; paginated reader; `idb`-persisted
-  column selections; add `X-Okta-User-Agent-Extended: okta-unbound` on content fetches.
-- New **Export** tab shell.
-- Ship first descriptors: **Users**, **Groups (+`expand=stats`)**, **Group Rules**,
-  **Group Memberships** — each with column picker + query box.
-- Zod-validate every new list response at the content boundary. No new `any`.
-- Done when: an admin picks columns, previews, and downloads a correctly-escaped CSV for
-  those four entities, cancellable, with a progress bar — green + stories + docs.
-
-**UX / implementation ideas (3 per open question — pick when building):**
-
-_Column picker placement_
-
-1. **Inline collapsible panel** above the preview — columns as toggle chips grouped
-   base / profile / custom; always visible so the CSV shape is obvious. (Recommended:
-   fewest clicks, reuses `CollapsibleSection` + `FilterPill`.)
-2. **Modal "Configure export"** launched from a toolbar button — roomy for 40+ app/user
-   attributes, keeps the tab uncluttered; reuses shared `Modal`.
-3. **Two-pane transfer list** (available → selected, with reorder) — best when column
-   _order_ matters for the CSV; highest build cost.
-
-_Saved column sets_
-
-1. **Named presets in `idb`** ("Offboarding audit", "License review") with a dropdown +
-   save/overwrite/delete; auto-remember last-used per entity. (Recommended.)
-2. **Implicit last-used only** — no naming UI; just persist the most recent selection per
-   entity. Cheapest; loses multi-report reuse.
-3. **Export/import preset JSON** — shareable across admins; layer on top of (1) later.
-
-_Filter/query box syntax_
-
-1. **Raw Okta `search`/`filter` passthrough** with inline syntax help + example chips and
-   a live match-count. Powerful, matches rockstar's free-form box. (Recommended for v1.)
-2. **Guided builder** (attribute · operator · value rows → compiles to Okta filter) —
-   safer, discoverable, but more UI and never covers every operator.
-3. **Saved queries** alongside saved column sets — reuse the preset store from above.
-
-_Preview table density_
-
-1. **Virtualized compact table**, first ~100 rows, "N total will export" banner —
-   confirms shape without paging the whole set. (Recommended; reuse the paginated reader.)
-2. **Full paginated preview** with Next/Prev mirroring the export pagination — truer, but
-   more fetches before the user even downloads.
-3. **Count-only "dry run"** (fetch total, skip rows) → download — leanest for huge orgs
-   where preview isn't worth the calls.
+The Export Engine, the `EntityExport` descriptor type, the paginated reader, the
+`idb`-persisted column selections, the `X-Okta-User-Agent-Extended: okta-unbound`
+header on content fetches, and the Export tab shell.
 
 ## Phase 1 — reporting parity `[~]` (all descriptors + group regex search shipped; Admins deferred)
 
@@ -149,27 +105,6 @@ The point at which reports stop pulling you back to rockstar.
 - Done when: every "Port" export in the triage table is downloadable; group regex search
   returns links; all green.
 
-**UX / implementation ideas (3 per open question — pick when building):**
-
-_Entry flow_
-
-1. **Unified export hub** — one "Export" tab: pick entity from a list → shared
-   configure→preview→download flow. Consistent, one place to learn. (Recommended.)
-2. **Contextual export buttons** on each tab (Groups tab exports groups, Users tab
-   exports users) — zero navigation, but scatters the same UI five ways.
-3. **Command-palette launcher** ("Export…" → fuzzy-pick entity) opening the hub — power
-   users skip the list; layer on top of (1).
-
-_Surfacing entity context (apps / idp / device / zone)_
-
-1. **Search-to-select** inside the export config (type-ahead over the entity), independent
-   of the current Okta tab. Works even off-page. (Recommended; reuse `SearchDropdown`.)
-2. **Current-tab auto-detect** via `pageContext` — pre-fills the entity when you're on its
-   Okta page; falls back to search. Best of both, more content-script work.
-3. **"Whole org" default** — most exports (all apps, all devices) need no entity at all;
-   only assignment exports (App-Users) require a picker. Make the picker appear only when
-   the descriptor demands it.
-
 ---
 
 ## Later phases (committed direction; detail when Phase 1 lands)
@@ -177,7 +112,7 @@ _Surfacing entity context (apps / idp / device / zone)_
 - **Phase 2 — SSO & IdP diagnostics.** SSO Inspector (fetch SSO response → base64-decode
   `SAMLResponse` → **React-escaped** XML pretty-print + field highlight; no
   `dangerouslySetInnerHTML`, parse with `DOMParser`, treat as untrusted). IdP cert-expiry
-  view. Session-expiry badge on Overview.
+  view. Session-expiry badge on Home.
 - **Phase 3 — person deep-dive (reads).** Show User / Show AD / Show Linked Objects,
   folded into the Users-tab detail. Low risk, high daily value.
 - **Phase 4 — API Console + deleted-object browser** _(gated on a written decision,

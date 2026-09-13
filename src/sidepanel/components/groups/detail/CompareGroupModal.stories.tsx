@@ -36,17 +36,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'Comparing groups is not new — `GroupComparisonModal` and `api.compareGroups` already do ' +
-          'the overlap analysis, and the Groups list opens them by ticking 2–5 rows. A detail page ' +
-          'has no rows to tick, so this modal supplies the missing second operand and hands both ' +
-          'groups to that same modal.\n\n' +
-          'A pure view over `useGroupComparison`, the way `AddGroupMemberModal` is a pure view over ' +
-          '`useAddGroupMember`. Each hit shows its **member count**, which is not decoration: ' +
-          '`GroupComparisonModal` computes the unique/shared split against `memberCount`, so the ' +
-          "picker uses the Groups tab's `expand=stats` live search rather than the lightweight " +
-          '`searchGroups` that Add-to-Group uses and that returns no count.\n\n' +
+          "The second-operand picker behind the Group Detail rung's *Compare* action: a detail " +
+          'page has no rows to tick, so this modal supplies the missing group and hands both to ' +
+          '`GroupComparisonModal`. Each hit carries its member count, which the overlap split is ' +
+          'computed against.\n\n' +
           '*Compare* stays disabled until a group is chosen, and the group being viewed is never ' +
-          'among the hits — comparing it with itself is a tautology, not a result.',
+          'among the hits.',
       },
     },
   },

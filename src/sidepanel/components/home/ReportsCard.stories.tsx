@@ -88,22 +88,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'The questions on Home whose answer is a list of names rather than a number. Same row ' +
-          'idiom as the org card above it — a number column, a sentence, one bordered surface ' +
-          'with hairline separators — because they are two halves of the same reading.\n\n' +
-          'The difference is what pressing a row does. A finding sends you to a filtered list; a ' +
-          'report **opens in place**, because the dozen or so groups it names are the whole ' +
-          'answer. Both reports are joins over rows the org snapshot already holds, so opening ' +
-          'one costs nothing.\n\n' +
-          'A report that cannot state a number **names nobody**. The joins ran over whatever rows ' +
-          'happened to be on disk, and publishing those beside an em dash would present a ' +
-          'half-read collection’s leftovers as the answer — ADR-0040 §7’s defect, spelled with ' +
-          'names instead of a count. A report with *zero* findings is the opposite case and reads ' +
-          'as one: a real answer, with nothing to open.\n\n' +
-          'The caveat is not fine print. An admin reading "empty groups nothing fills" is one step ' +
-          'from deleting them, and this extension cannot see Okta Workflows, SCIM, an IdP sync, or ' +
-          'a direct API write. So the sentence saying so sits inside the opened row, above the ' +
-          'names, every time.',
+          'The questions on Home whose answer is a list of names rather than a number. A report ' +
+          'opens in place — the groups it names are the whole answer — and both reports are ' +
+          'joins over rows the org snapshot already holds, so opening one costs nothing.\n\n' +
+          'A report that cannot state a number names nobody, because its join ran over rows ' +
+          'known to be incomplete; a report with zero findings is the opposite, and reads as a ' +
+          'real answer. The caveat sits inside every opened row, above the names.',
       },
     },
   },

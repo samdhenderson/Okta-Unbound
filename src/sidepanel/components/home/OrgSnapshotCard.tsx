@@ -174,7 +174,7 @@ const OrgSnapshotCard: React.FC<OrgSnapshotCardProps> = ({
       <p className="text-xs text-neutral-600">
         {age
           ? `Counts as Okta reports them · read ${age}`
-          : // Not omitted, and not guessed. Saying why there is no age is the
+          : // Not omitted, and not guessed: say why there is no age.
             'Counts as Okta reports them. No age stated — not every collection has finished a read.'}
       </p>
     </section>

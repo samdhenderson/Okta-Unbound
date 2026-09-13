@@ -12,28 +12,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Rules rung was the last major list rung with no `ActionBar`. It stacked four ' +
-          'always-on cards between the header and the first rule, then a toolbar card, then the ' +
-          'list — and nothing docked, so all of it scrolled away together. The three analysis ' +
-          'cards are now panels this strip toggles, the search field is its `subRow`, and the ' +
-          'filter chips live behind that field.\n\n' +
-          '**Where `primary` goes (ADR-0068 §2).** This strip used to open with a **Load rules** ' +
-          '/ **Refresh** descriptor, which ADR-0061 made *the* reference example of a list ' +
-          "rung's `primary`. ADR-0069 deleted it — the tab fetches on open, and one chrome " +
-          'control beside the Pin re-fetches whatever the panel is showing — and ADR-0068 §2 ' +
-          'then excluded a fetch from `primary` absolutely. Enumerating what is left ' +
-          '(see the comment above the descriptor array) finds **no acting verb** on this rung, ' +
-          "so rule 2 applies and the rung's one whole-rung export, **Export rules**, holds " +
-          '`primary` and stays in the row. A host that does not wire the export gets rule 3: no ' +
-          '`primary` at all.\n\n' +
-          '**All three panel toggles start behind More**, on frequency — the bounded second ' +
-          'reason ADR-0051 §2 allows, which may move a verb down but never up. Nothing on this ' +
-          'strip fails the consequence test.\n\n' +
-          '**No verb without an object.** No duplicate clusters, no *Duplicates*; no loaded ' +
-          'rules, no *Stats*. *This group* is the careful case: its object is the **detected ' +
-          'group**, not the relation count, because "no loaded rule assigns users to this group" ' +
-          'is the most interesting answer the panel gives — so the verb appears whenever a group ' +
-          'is in context, and the count rides the label only when there is one.',
+          'The verb strip for the rules-list rung: the three analysis surfaces are panels this bar toggles, and the search row rides beneath it as the `subRow`. **Export rules** holds `primary`; no verb here fetches, and a host that leaves the export unwired gets no `primary` at all.\n\n' +
+          'No verb is ever shipped without an object — no duplicate clusters means no *Duplicates*, no loaded rules means no *Stats*. *This group* is gated on a **detected group** rather than on the relation count, because “no loaded rule assigns users to this group” is itself a finding.',
       },
     },
   },

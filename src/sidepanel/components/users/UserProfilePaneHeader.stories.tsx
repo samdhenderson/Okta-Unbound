@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import UserProfilePaneHeader, {
   type ProfileDisplayCustomizeControls,
   type ProfileEditControls,
@@ -32,25 +32,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "The Profile pane's top strip, extracted when the pane became editable — the pane was already " +
-          'at the ~300-line ceiling and the strip had grown from "a summary line and a gear" into a mode ' +
-          'switch with three states.\n\n' +
-          'The summary sentence is constant; the cluster beside it names the mode. Read mode is **Edit** ' +
-          '(when anything is editable) plus the gear; value-edit mode is **Cancel + Save** with a dirty ' +
-          'count; customize mode is a single `Customizing display` badge.\n\n' +
-          '**The Edit button is absent, not disabled, when a profile has nothing editable.** A disabled ' +
-          'Edit on a profile entirely mastered by Active Directory invites the reader to hunt for the ' +
-          'reason it will not press — and the per-attribute lock reasons, which only appear in edit mode, ' +
-          'would have nothing to explain.\n\n' +
-          '**The gear is absent, not disabled, mid-draft** — the same argument extended. Pressing it during ' +
-          'a value edit would switch modes and silently discard the draft. It is absent again while ' +
-          'customizing, where the verbs that matter (Reset to default, Cancel, Done) belong to the editor ' +
-          'that owns the draft and render in its own footer.\n\n' +
-          'Save refuses an edit with no changes and an edit with an invalid value, so the status line ' +
-          'beside it always says why: how many attributes would be written, that there is nothing to ' +
-          'write yet, or that a value needs fixing first. A disabled button that does not say why is a ' +
-          'dead end.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          "The Profile pane's top strip: a constant summary sentence, and beside it a cluster that names the mode — **Edit** plus the gear in read mode, **Cancel + Save** with a dirty count in value-edit mode, a `Customizing display` badge in customize mode.\n\n" +
+          'A verb that cannot act is **absent, not disabled**: no Edit when nothing is editable, no gear mid-draft or while customizing. Save refuses an empty or invalid edit, and the line beside it always says why.',
       },
     },
   },
@@ -103,9 +86,16 @@ export const NothingEditable: Story = {
 
 export const Editable: Story = {
   args: { edit: controls },
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole('button', { name: 'Edit' })).toBeEnabled();
+    const edit = canvas.getByRole('button', { name: 'Edit' });
+    await expect(edit).toBeEnabled();
+
+    await userEvent.click(edit);
+    await expect(args.edit?.onBeginEdit).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Configure attribute display' }));
+    await expect(args.customize?.onBegin).toHaveBeenCalledTimes(1);
   },
 };
 

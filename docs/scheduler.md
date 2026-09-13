@@ -187,8 +187,8 @@ row cap, no summary line, height bounded by scrolling rather than truncation.
 `PipelineMeter` is a different instrument: it shows where an operation's
 requests are (`spent / active / queued / planned`) as shares of that operation's
 own total, not of a budget; its `label` is required. **A displayed denominator
-may still grow mid-walk, and the bar no longer says so:** `budgetLabel` renders
-`12 / 50`, or the spent count alone when nothing has been estimated, and a floor
+may still grow mid-walk, and the bar does not say so:** `budgetLabel` renders
+`12 / 50`, or the spent count alone when nothing has been estimated, so a floor
 and a fact read identically. Two leftovers to clear rather than revive — the
 `approximate` flag on `PlanSummary`/`PlanLegSummary`
 (`shared/scheduler/plan.ts`) and `atLeastFanOutEstimate`

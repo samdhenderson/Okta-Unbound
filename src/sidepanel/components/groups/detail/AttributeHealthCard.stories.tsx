@@ -40,39 +40,20 @@ const meta = {
       description: {
         component:
           "One card in the Insights tab's attribute grid: how one profile attribute is " +
-          "actually populated across this group's members.\n\n" +
-          '**One anatomy, ranked.** Every attribute gets the same card. Severity is carried by ' +
-          '*order* and by *badges*, never by a second card shape for the bad ones — a reader ' +
-          'would otherwise have to learn two layouts and diff them, and the quiet attributes ' +
-          'would read as a different kind of thing when the only difference is that today ' +
-          'nothing is wrong with them.\n\n' +
-          '**Three stages.** Collapsed (title, badges, spread bar, value count) → expanded (the ' +
-          'value list, the blank line, the dependent rules) → the modal reveal over the full ' +
-          'distribution, via `onShowOther`.\n\n' +
-          '**The badges survive the collapse.** A collapsed card that hid its reasons would ' +
-          'leave the ranking looking arbitrary — an order with no visible cause. Each badge is ' +
-          'a phrase, never a bare number, and none of them needs its colour to be understood.\n\n' +
-          '**The disclosure is a real control.** The header is covered by a `StretchedButton` ' +
-          'carrying `aria-expanded`/`aria-controls`: a real `<button>`, focusable and ' +
-          'Enter/Space operable. The overlay is scoped to the header, so clicking inside the ' +
-          'body it just opened does not collapse it.\n\n' +
-          '**Outliers are marked, never corrected.** The value list flags what `outlierValues` ' +
-          'judges to be drift from a dominant house style — conservatively, and as a flag ' +
-          'rather than a claim the record is wrong. The marker is the word "Outlier:", not ' +
-          'colour alone. The drift **badge** is a wider claim: near-duplicate spellings ' +
-          'anywhere in the attribute, including inside the tail this card never names.\n\n' +
-          '**Storybook renders no Tailwind**, so no story here asserts the bar’s geometry, its ' +
-          'segment widths, or the hatch — those remain visual claims, checked by eye.',
+          "actually populated across this group's members. Every attribute gets the same " +
+          'card — severity is carried by order and by badges, never by a second card shape — ' +
+          'and the badges survive the collapse, so the ranking never looks arbitrary.\n\n' +
+          'Three stages: collapsed (title, badges, spread bar, value count), expanded (the ' +
+          'value list, the blank line, the dependent rules), and a modal reveal over the full ' +
+          'distribution via `onShowOther`. Outliers are marked with the word "Outlier:", ' +
+          'never corrected and never by colour alone.',
       },
     },
   },
   argTypes: {
     summary: { description: "The attribute's precomputed distribution." },
     signals: { description: 'Why this attribute ranks where it does. Rendered as badges.' },
-    rules: {
-      description:
-        'The feeding rules that reference this attribute. Empty is an answer — no block renders.',
-    },
+    rules: { description: 'Feeding rules referencing this attribute. Empty renders no block.' },
     onNavigateToRule: { description: 'Deep-links a dependent rule into the Rules tab.' },
     onShowOther: { description: 'Opens the full distribution, tail included.' },
     defaultExpanded: { description: 'Starts the card expanded. For stories and tests.' },

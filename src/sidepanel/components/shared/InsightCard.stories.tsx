@@ -12,40 +12,30 @@ const meta = {
     docs: {
       description: {
         component:
-          'The anatomy every card on an insights surface shares: a name, the badges saying why it ranks where it does, a headline that reads without a click, and one disclosure holding the detail.\n\n' +
-          'Extracted from `AttributeHealthCard`, which was the only card with this shape until the MFA coverage scan grew from one sentence into a pair of reports. The two now describe different subjects with the same anatomy, which is the point: a reader learns one card and reads the whole surface with it.\n\n' +
-          '**One anatomy, ranked.** Severity is carried by *order* and by *badges*, never by giving a flagged card a different shape. A second shape for "bad" cards would mean a reader learns two layouts and then has to diff them.\n\n' +
-          '**The badges survive the collapse.** They render in both stages. A collapsed card that hid its reasons would leave the ranking looking arbitrary — the reader sees an order with no visible cause and has to open cards to find out why.\n\n' +
-          '**The disclosure is a real control.** A `StretchedButton` scoped to the header carries `aria-expanded`/`aria-controls`; it is focusable and Enter/Space operable. Scoping it to the header (not the whole card) is what stops a click inside the body from collapsing the card it just opened. The body stays mounted and `inert` while closed, so nothing inside it resets.\n\n' +
-          "**The control's name carries its subject.** A surface renders a grid of these, and `aria-describedby` is a description rather than a name — so without the subject every card's control would be called the same thing in a list of names.",
+          'The anatomy every card on an insights surface shares: a name, the badges saying why it ranks where it does, a headline that reads without a click, and one disclosure holding the detail. Severity is carried by order and badges — never by giving a flagged card a different shape — and the badges render collapsed as well as expanded.\n\n' +
+          'The disclosure is a real `<button>` scoped to the header, carrying `aria-expanded`/`aria-controls`, and its accessible name includes `subject` so a grid of cards does not name every control identically.',
       },
     },
   },
   argTypes: {
     title: {
-      description:
-        "Render prop for the card's name, given the `titleId` the disclosure points at. A `<code>` for an attribute key, plain text for a report.",
+      description: "Render prop for the card's name, given the `titleId` the disclosure points at.",
     },
     subject: {
-      description:
-        "Plain-text subject for the disclosure's accessible name, e.g. `department`. Required — a grid of these otherwise names every control identically.",
+      description: "Plain-text subject folded into the disclosure's accessible name.",
     },
     revealName: {
-      description:
-        'What the disclosure reveals, as a noun phrase. Composed into "Show the {revealName} for {subject}".',
+      description: 'What the disclosure reveals, as a noun phrase.',
     },
     badges: {
-      description:
-        'Why this card ranks where it does. Rendered in every stage, collapsed included. Omit when nothing is flagged — an empty strip is an answer, and renders as no strip.',
+      description: 'Why this card ranks where it does; omit when nothing is flagged.',
     },
     headline: {
-      description:
-        'The always-visible summary under the badges — a spread bar, a count line, or both. This is what a collapsed card is read for.',
+      description: 'The always-visible summary under the badges.',
     },
     children: { description: 'The disclosed body.' },
     defaultExpanded: {
-      description:
-        'Starts the card expanded. For stories and tests; surfaces open cards on demand.',
+      description: 'Starts the card expanded.',
     },
   },
   args: {

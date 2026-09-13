@@ -33,12 +33,11 @@ better sentence — it is the feature telling you it does not yet know something
 needs to know. The work is to go and find out: fetch the field that was missing,
 call the endpoint that settles it, narrow the question until it is answerable.
 
-The disclaimer is the easy exit, and it is closed. It converts the app's unsolved
-problem into the admin's interpretation problem, and it does so silently — a
-shipped hedge looks like diligence, so nothing ever gets fixed. Every hedge in
-this codebase's history outlived the difficulty that produced it.
+The disclaimer is the easy exit, and it is closed: it converts the app's unsolved
+problem into the admin's interpretation problem, silently, because a shipped hedge
+looks like diligence.
 
-So when the certain answer is not available yet, the order of preference is:
+When the certain answer is not available yet, the order of preference is:
 
 1. **Make it certain.** Fetch, compute, or verify whatever is missing. This is
    the default and it is usually possible.
@@ -105,9 +104,8 @@ admin who had asked what one profile edit would change ([ADR-0004](adr/0004-abse
 
 The absence that is genuinely **ours** still withholds. A top-level Okta user field
 (`status`, `created`, `lastLogin`, …) resolves from the user root through an explicit
-allow-list, because it is real Okta EL and is not on the profile — reading `user.status`
-off the profile is how `user.status == "ACTIVE"` came to return `no-match` for every
-user in an org where it matches nearly everyone. A field on that allow-list but missing
+allow-list, because it is real Okta EL and is not on the profile; reading such a field
+off the profile would return `no-match` for every user. A field on that allow-list but missing
 from the response, or one we strip at the boundary (`credentials`) and therefore never
 see, declines under `field-not-fetched`: the org may well hold a value we cannot read,
 and `null` would assert otherwise.
@@ -127,12 +125,10 @@ produces a confident wrong answer, which is strictly worse than the
 reason for each refusal beside it, so a settled refusal stays distinguishable
 from a stale one.
 
-`isMemberOfGroupNameRegex` used to be refused outright on exactly those
-grounds: the pattern is tenant-authored and JS `RegExp` backtracking cannot be
-bounded. `shared/rules/safeRegex.ts` (ADR-0002) resolves it now, without ever
-constructing a `RegExp` from tenant text — a hand-written linear-time engine
-(Thompson NFA, no backtracking) evaluates the pattern under hard caps on
-length, state count, and step budget. A pattern outside its supported syntax
+`isMemberOfGroupNameRegex` resolves through `shared/rules/safeRegex.ts`
+(ADR-0002), which never constructs a `RegExp` from tenant text: a hand-written
+linear-time engine (Thompson NFA, no backtracking) evaluates the pattern under
+hard caps on length, state count, and step budget. A pattern outside its supported syntax
 subset, or over a cap, declines rather than guesses: `unevaluable` with reason
 `regex-unsupported-syntax` or `regex-too-complex`. The reason sentence still
 says the check was not performed. It never says the user failed it.
@@ -144,10 +140,8 @@ says the check was not performed. It never says the user failed it.
 This is the rule that keeps the one above safe. If the code branches on whether a
 label says `Rule` or `Rule?`, then the epistemics live in the copy — and the day
 someone edits the copy, the correctness changes silently and no test notices.
-That is not hypothetical; it is how `removalEffect` came to assert removals it was
-built to withhold.
 
-So evidence is carried in the type, next to the answer it qualifies:
+Evidence is carried in the type, next to the answer it qualifies:
 
 - `membershipVerdict()` returns a `deduced: boolean` alongside `label` and
   `variant`. `isMembershipAttributionDeduced()` is the predicate callers gate on.
@@ -237,9 +231,6 @@ members`. `Added`, not `Likely added`.
 - **Never bolt a disclaimer onto a number.** If a number needs a caveat to be
   honest, the caveat is the fact — show `Checked 3 of 12 apps`, not `12 apps
 (approximate)`.
-- **A qualifier is a bug report.** Wanting to write "probably" means the software
-  does not yet know something it should. Close the gap, or state the narrower
-  fact that is true. Do not ship the word.
 - **Say what happened, not what was attempted.** An unconfirmed write outcome is
   `unknown`, never `failed` — reporting a failure that did not happen is its own
   false claim.
@@ -261,30 +252,13 @@ of three, taken because the first two were not available _yet_ — so it comes w
 an obligation: file the gap, so that the feature gets refined into one that can
 guarantee its answer rather than sitting behind a reason code forever.
 
-Three of the gaps this section used to list are now closed, which is what the
-obligation is for:
-
-- Blast radius could not see a rule's exclusion list, because a cache-served
-  `FormattedRule` dropped `conditions.people`. `FormattedRule` now carries
-  `excludedGroupIds` beside `excludedUserIds`, and both routes are read.
-- A deduced membership attribution was established only on demand, behind a
-  per-row click. It is now the ladder's fourth rung and runs automatically for
-  anything the first three could not settle.
-- `isMemberOfGroupNameRegex` was withheld on security grounds, not scope —
-  evaluating a tenant regex safely was the missing capability, not missing
-  data. ADR-0002's linear-time engine closed it the same way: not by loosening
-  the rule, but by building the thing that lets the rule keep holding.
-
-What remains permanently withheld, on the same never-guess grounds as
-"Never guess a function's semantics" above, is Okta EL's `Time.*` and
+What remains permanently withheld, on the never-guess grounds above, is Okta EL's `Time.*` and
 `Convert.*` functions (rejected by Okta itself inside a group-rule condition),
 `Instant`/`DateTime` (the org's timezone is not readable from where the panel
 evaluates), `String.replaceFirst` (its target is a Java regex — the same
 tenant-pattern hazard ADR-0002 solved for `isMemberOfGroupNameRegex`, not yet
 extended to this function), and `Arrays.add`/`Arrays.flatten` (they return a
 collection, which is not an operand any comparison here accepts). Each reason
-is a stated limit, not an oversight — see ADR-0001 §3.
-
-Closing a gap is always the better answer than loosening a rule here. The rule is
-not the obstacle — it is the thing that keeps the gap visible until someone
-closes it.
+is a stated limit, not an oversight — see ADR-0001 §3. Closing a gap is always the
+better answer than loosening a rule here: the rule is what keeps the gap visible
+until someone closes it.

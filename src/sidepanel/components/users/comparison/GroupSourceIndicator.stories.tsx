@@ -28,19 +28,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'The per-row detail on a group diff row: how the membership was granted, and how far that may be trusted.\n\n' +
-          'Two visual registers, borrowed from its sibling `AppScopeIndicator`. A **chip** is an answer the ' +
-          'classifier proved (`Added by Rule: …`, `Added directly`, `Managed by app`); **muted italic text** is ' +
-          'anything a reader must not act on as proven — a deduction (`Added by rule: …`, `Rule: …`) or a ' +
-          'classification that never happened (`Source not determined`).\n\n' +
-          'The captions are `GroupMembershipsList`’s vocabulary verbatim — `exact` → "Added by Rule:", ' +
-          '`inferred` → "Added by rule:", `ambiguous` → "Rule:" — so the same evidence does not ' +
-          'read two different ways on two screens.\n\n' +
-          'What it refuses to do: credit one rule when the attribution is `ambiguous` (the list is a candidate ' +
-          'set, per `membershipAnalysis.attributionNamesRules`), collapse several attributed rules into one, or ' +
-          'render an `UNKNOWN` or absent membership as a manual add. No state is a warning or a danger — a ' +
-          'rule-granted membership is not a problem.\n\n' +
-          '**Related internals:** [membershipAnalysis](?path=/docs/internals-shared-utils--docs)',
+          'The per-row detail on a group diff row: how the membership was granted, and how far ' +
+          'that may be trusted. A chip is an answer the classifier proved (`Added by Rule: …`, ' +
+          '`Added directly`, `Managed by app`); muted italic text is anything a reader must not ' +
+          'act on as proven — a deduction, or a classification that never happened.\n\n' +
+          'It never credits one rule when the attribution is `ambiguous` (the list is a candidate ' +
+          'set), never collapses several attributed rules into one, and never renders an ' +
+          '`UNKNOWN` or absent membership as a manual add.',
       },
     },
   },

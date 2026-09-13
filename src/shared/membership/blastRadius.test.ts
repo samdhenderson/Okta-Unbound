@@ -211,7 +211,7 @@ describe('a deduced attribution withholds the removal', () => {
   });
 });
 
-describe('an unevaluable sibling rule is never read as a no (ADR-0020)', () => {
+describe('an unevaluable sibling rule is never read as a no', () => {
   it('withholds the removal rather than assuming the regex rule fails too', () => {
     const report = analyze({ rules: [ENG_FEEDER, REGEX_FEEDER] });
 

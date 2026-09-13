@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ExportFilterBox from './ExportFilterBox';
 
 const meta = {
@@ -11,12 +12,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Raw filter input for the Export tab with a debounced live match-count.\n\n' +
-          "Wraps the shared `Input` with the descriptor's inline help text and a live " +
-          '"N matching" readout driven by the tab hook\'s first-page probe. The readout has ' +
-          'three states: `Checking…` while a probe is in flight, `No matches` (warning tone) ' +
-          'for a zero-result query, and `N+ matching` when rows are found. Presentational ' +
-          'only — the filter text and match-count are owned by the hook.',
+          "The shared `Input` plus the descriptor's help text and a readout driven by the tab " +
+          "hook's first-page probe: `Checking…` while the probe is in flight, `No matches` for " +
+          'a zero-result query, `N+ matching` when rows are found. The filter text and the ' +
+          'count both belong to the hook.',
       },
     },
   },
@@ -59,4 +58,28 @@ export const NoMatches: Story = {
 
 export const Disabled: Story = {
   args: { disabled: true },
+};
+
+export const Typing: Story = {
+  render: (args) => {
+    const Harness = () => {
+      const [value, setValue] = useState('');
+      return (
+        <ExportFilterBox
+          {...args}
+          value={value}
+          onChange={setValue}
+          matchCount={value.trim() ? { count: 200, hasMore: true } : null}
+        />
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole('searchbox');
+    await userEvent.type(field, 'status eq "ACTIVE"');
+    await expect(field).toHaveValue('status eq "ACTIVE"');
+    await expect(canvas.getByText('200+ matching')).toBeInTheDocument();
+  },
 };

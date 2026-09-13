@@ -1,5 +1,5 @@
 /**
- * Push/pop sub-navigation tests for UsersTab (ADR-0016), mirroring
+ * Push/pop sub-navigation tests for UsersTab, mirroring
  * `GroupsTab.navigation.test.tsx`.
  *
  * These pin the contract the pushed comparison view depends on: the search +
@@ -7,26 +7,20 @@
  * sibling, focus moves in and comes back to the Compare button, and the cross-tab
  * deep-link still lands on a profile rather than being swallowed by a pushed view.
  *
- * Three of the cases below exist for one reason each — they are the load-bearing
- * quirks of moving this surface off `Modal`, and each was a silent regression
- * waiting to happen:
+ * Three cases below each pin one load-bearing quirk:
  *
- * 1. **The reset.** `useUserComparison`'s reset effect used to key on the dialog's
- *    `isOpen`. A pushed view has no `isOpen`, and both hosts keep the hook mounted
- *    while the surface is away, so that effect is still the *only* thing stopping a
- *    finished comparison from reappearing. It is now keyed on `isActive`, which the
+ * 1. **The reset.** `useUserComparison`'s reset effect is the only thing stopping a
+ *    finished comparison from reappearing; it is keyed on `isActive`, which the
  *    Users tab feeds from `!nav.isRoot`.
- * 2. **The search gate.** A mounted-but-popped comparison must issue nothing
- *    (ADR-0018). `useUserSearch`'s debounce is the one thing in it that reaches Okta
- *    without a click, so it is gated on `searchEnabled` — pushed *and* the tab shown.
+ * 2. **The search gate.** A mounted-but-popped comparison must issue nothing, so
+ *    `useUserSearch`'s debounce is gated on `searchEnabled` — pushed *and* the tab shown.
  * 3. **The dep arrays.** `useUserComparison`'s membership load and
  *    `useComparisonApps`' app load are keyed on `[comparedUser]` only, behind
- *    load-bearing eslint-disables. A pushed view re-renders on every `nav` change,
- *    which a dialog did not; widening those deps would turn each into a fan-out.
+ *    load-bearing eslint-disables; widening those deps would turn each into a fan-out.
  *
  * Message passing is chrome-based (not fetch), so MSW does not apply — the chrome
- * messaging surface is mocked exactly as `UsersTab.test.tsx` does, which keeps the
- * whole `useOktaApi` → scheduler stack real.
+ * messaging surface is mocked as in `UsersTab.test.tsx`, keeping the whole
+ * `useOktaApi` → scheduler stack real.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';

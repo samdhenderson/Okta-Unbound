@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import StretchedButton from './StretchedButton';
 import IconButton from './IconButton';
 import Checkbox from './Checkbox';
@@ -14,9 +14,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The "stretched link" pattern, as a real `<button>`: an empty, absolutely-positioned button that covers its positioned ancestor so clicking anywhere on a card opens it.\n\n' +
-          'It exists to avoid the two usual bad answers — `role="button"` on a `<div>` (which has to re-implement Enter/Space, focus and disabled semantics) and wrapping the card in a `<button>` (invalid content model, and an axe `nested-interactive` violation the moment the card has its own controls).\n\n' +
-          '**Layout contract:** the intended click target must be `relative`, and the card’s own controls must be `relative z-10` or they sit under the overlay. Because every card in a list shares one label, pass `describedBy` pointing at the element that names *this* card.',
+          'The "stretched link" pattern as a real `<button>`: an empty, absolutely-positioned button covering its positioned ancestor, so clicking anywhere on a card activates it without a `role="button"` div or a card wrapped in a button.\n\n' +
+          '**Layout contract:** the click target must be `relative`, and the card’s own controls `relative z-10` or they sit under the overlay. Every card in a list shares one label, so pass `describedBy` pointing at the element that names this card.',
       },
     },
   },
@@ -76,4 +75,17 @@ export const Disabled: Story = {
 export const Pressed: Story = {
   ...Default,
   parameters: { pseudo: { active: true } },
+};
+
+export const ActivatingTheCard: Story = {
+  ...Default,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Select Engineering' }));
+    await expect(args.onClick).not.toHaveBeenCalled();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'View group details' }));
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+  },
 };

@@ -411,7 +411,7 @@ describe('AuditStore', () => {
       expect(row.actorResolution).toBeUndefined();
       expect(row.performedBy).toBe('admin@example.com');
 
-      // @ts-expect-error `PersistedAuditLogEntry.actorResolution` is optional, so
+      // @ts-expect-error `PersistedAuditLogEntry.actorResolution` is optional,
       requireResolution(row.actorResolution);
     });
   });

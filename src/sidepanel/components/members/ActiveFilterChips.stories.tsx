@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { useState, type ReactElement } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ActiveFilterChips from './ActiveFilterChips';
 import type { MemberFilter } from './memberAnalytics';
 
@@ -17,10 +18,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Removable chips summarizing the member explorer's active facet filters.\n\n" +
-          'Renders one chip per active filter — each with an accessible remove button — ' +
-          'plus a "Clear all" action, wrapping across lines as filters accumulate. Renders ' +
-          'nothing when no filters are active.',
+          'Removable chips summarizing the member explorer\'s active facet filters: one chip per filter with its own remove button, plus a "Clear all" action. Renders nothing when no filters are active.',
       },
     },
   },
@@ -59,4 +57,35 @@ export const ManyFilters: Story = {
 
 export const Empty: Story = {
   args: { filters: [] },
+};
+
+const RemovableChips = (): ReactElement => {
+  const [filters, setFilters] = useState<MemberFilter[]>([
+    { dimension: 'status', value: 'ACTIVE', label: 'Status: Active' },
+    { dimension: 'department', value: 'Engineering', label: 'Department: Engineering' },
+    { dimension: 'city', value: 'Austin', label: 'City: Austin' },
+  ]);
+  return (
+    <ActiveFilterChips
+      filters={filters}
+      onRemove={(filter) => setFilters((current) => current.filter((f) => f !== filter))}
+      onClearAll={() => setFilters([])}
+    />
+  );
+};
+
+export const Removing: Story = {
+  render: () => <RemovableChips />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Remove Department: Engineering filter' }),
+    );
+    await expect(canvas.queryByText('Department: Engineering')).not.toBeInTheDocument();
+    await expect(canvas.getByText('Status: Active')).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear all' }));
+    await expect(canvas.queryByText('Status: Active')).not.toBeInTheDocument();
+  },
 };

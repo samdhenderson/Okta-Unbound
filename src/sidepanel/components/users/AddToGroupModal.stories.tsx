@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import AddToGroupModal from './AddToGroupModal';
 import type { GroupSearchResult } from '../../hooks/useAddToGroup';
 
@@ -18,9 +19,10 @@ const meta = {
     docs: {
       description: {
         component:
-          "The Users tab's Add-to-Group modal: a debounced group type-ahead over the shared Modal.\n\n" +
-          'Fully controlled: the parent (via useAddToGroup) owns the query, the debounced results, the open/searching flags, and the selected group. Renders the type-ahead dropdown, an inline search spinner, the chosen-group chip, and a confirm button that stays disabled until a group is picked and shows its own spinner while the add is in flight.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          "The Users tab's Add-to-Group modal: a debounced group type-ahead over the shared " +
+          'Modal. Fully controlled — `useAddToGroup` owns the query, the results, the ' +
+          'open/searching flags and the selection. Confirm stays disabled until a group is ' +
+          'picked, and carries its own spinner while the add is in flight.',
       },
     },
   },
@@ -97,5 +99,44 @@ export const Adding: Story = {
   args: {
     selectedGroup: groups[0],
     isAddingToGroup: true,
+  },
+};
+
+export const Interactive: Story = {
+  render: function InteractiveAddToGroup(args) {
+    const [query, setQuery] = useState('');
+    const [selected, setSelected] = useState<GroupSearchResult | null>(null);
+    const results = query
+      ? groups.filter((g) => g.name.toLowerCase().includes(query.toLowerCase()))
+      : [];
+
+    return (
+      <AddToGroupModal
+        {...args}
+        groupSearchQuery={query}
+        onGroupSearchQueryChange={setQuery}
+        groupSearchResults={results}
+        showGroupDropdown={results.length > 0}
+        selectedGroup={selected}
+        onSelectGroup={(group) => {
+          setSelected(group);
+          setQuery('');
+        }}
+        onClearSelectedGroup={() => setSelected(null)}
+      />
+    );
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+
+    const confirm = canvas.getByRole('button', { name: 'Add to Group' });
+    await expect(confirm).toBeDisabled();
+
+    await userEvent.type(canvas.getByRole('textbox'), 'Engineering');
+    await userEvent.click(await canvas.findByText('Engineering'));
+
+    await expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+    await expect(args.onConfirm).toHaveBeenCalledTimes(1);
   },
 };

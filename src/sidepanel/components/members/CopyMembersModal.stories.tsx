@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import CopyMembersModal from './CopyMembersModal';
 import { mockUsers } from '../../../test/mocks/fixtures';
 
@@ -12,11 +12,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Modal for copying the current member list as a chosen identifier, one per line.\n\n' +
-          'The user picks a format (full name, email, username, or `name <email>`); the ' +
-          'modal renders a live preview — truncated with an "…and N more" summary for long ' +
-          'lists — and copies the full list via the shared `CopyButton`. Blank identifiers ' +
-          'are dropped so the count reflects only copyable lines. Renders nothing while closed.',
+          'Modal for copying the current member list as a chosen identifier (full name, email, username, or `name <email>`), one per line, with a live preview truncated by an "…and N more" summary. Blank identifiers are dropped so the count reflects only copyable lines.',
       },
     },
   },
@@ -47,4 +43,18 @@ export const Empty: Story = {
 
 export const Closed: Story = {
   args: { isOpen: false },
+};
+
+export const SwitchingFormat: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    const email = canvas.getByRole('button', { name: /Email/ });
+    await expect(email).toHaveAttribute('aria-pressed', 'true');
+
+    const fullName = canvas.getByRole('button', { name: /Full name/ });
+    await userEvent.click(fullName);
+
+    await expect(fullName).toHaveAttribute('aria-pressed', 'true');
+    await expect(email).toHaveAttribute('aria-pressed', 'false');
+  },
 };

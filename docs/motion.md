@@ -26,10 +26,9 @@ Consume a token two ways:
   `duration-(--dur-instant)` (equivalent to `duration-[var(--dur-instant)]`) for a
   one-off utility site, e.g. `transition-colors duration-(--dur-instant)`.
 
-**There are no outstanding violations.** Every pre-existing `duration-*` utility has
-been retrofitted to the scale, so `src/` contains no raw `ms` literal and no
-`cubic-bezier()` outside `tailwind.css`. A raw literal in a diff is a regression, not
-legacy debt.
+**There are no outstanding violations.** `src/` contains no raw `ms` literal and no
+`cubic-bezier()` outside `tailwind.css`, so a raw literal in a diff is a regression,
+not legacy debt.
 
 ## Durations
 
@@ -75,11 +74,10 @@ hover. That half is Odyssey's own specification (`hover → PalettePrimaryDark`,
 reduced motion the transform collapses and the colour step is the only press feedback
 left.
 
-Response motion is allowed to be expressive **precisely because the user's own input
-caused it** — it cannot surprise them and cannot fire while they are reading.
-Enthusiasm on the input side, restraint on the ambient side. A change that animates
-without the user having done something is not part of this layer and does not get to
-borrow its permission.
+Response motion may be expressive **precisely because the user's own input caused
+it** — it cannot surprise them and cannot fire while they are reading. A change that
+animates without the user having done something is not part of this layer and does
+not get to borrow its permission.
 
 ## Four rules
 
@@ -147,16 +145,15 @@ Two related, non-`animate-*` primitives in `@layer components`:
 
   **Budget the total, never the row count.** The step is the preferred one when a
   batch can afford it and compressed when it can't, so the whole cascade lands within
-  `--dur-travel` whatever the viewport height. A fixed cap ("stagger the first N") is a
-  guess about how many rows fit on screen, and it is wrong on every display it was not
-  tuned for.
+  `--dur-travel` whatever the viewport height. A fixed cap ("stagger the first N") is
+  a guess about how many rows fit on screen.
 
-  The hook is safe by construction: it sets `data-stagger-reveal="on"` — the attribute
-  the CSS hold keys on — only _after_ its `IntersectionObserver` exists, so a missing
-  API, a disabled hook, or reduced motion falls back to the plain on-mount stagger and
-  no path leaves a row invisible. That `:nth-child` fallback is also the _correct_
-  behaviour for the two hookless consumers, `Skeleton`'s repeats and
-  `TabJumpPalette`'s results, both inside the eight-child cap.
+  The hook sets `data-stagger-reveal="on"` — the attribute the CSS hold keys on —
+  only _after_ its `IntersectionObserver` exists, so a missing API, a disabled hook,
+  or reduced motion falls back to the plain on-mount stagger and no path leaves a row
+  invisible. That `:nth-child` fallback is also correct for the two hookless
+  consumers, `Skeleton`'s repeats and `TabJumpPalette`'s results, both inside the
+  eight-child cap.
 
 A tenth keyframe, `skeleton-sweep` (`.skeleton`, 1.4s linear infinite), drives the
 shimmer surface behind loading placeholders — categorically different from the
@@ -229,11 +226,10 @@ is an **added option**, not a replacement for `LoadingSpinner`:
   Both are deliberate, not legacy debt to migrate away.
 
 **"Variable-height" is usually a claim about the expanded row, not the loading one.**
-The Rules tab spun for a while on the reasoning that a rule card has no fixed height.
-It does at the only moment that matters: cards load **collapsed**, and a collapsed row
-is a fixed-height header. The variable height arrives when a user expands one, which
-cannot happen before the list exists. Check which state the row is in while loading
-before reaching for a spinner on this basis.
+A rule card loads **collapsed**, and a collapsed row is a fixed-height header; the
+variable height arrives only when a user expands one, which cannot happen before the
+list exists. Check which state the row is in while loading before reaching for a
+spinner on this basis.
 
 **Match `size` to the row's own padding**, or the placeholder is the wrong height and
 the layout still jumps — the thing the skeleton exists to prevent. `lg` for

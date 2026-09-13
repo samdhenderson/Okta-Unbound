@@ -10,8 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Shared “Open in Okta” deep link that opens an entity’s Admin Console page in a new tab.\n\n' +
-          'A single, consistent affordance used by the context banner, group overview, and user profile card. Compact (`sm`) or standard (`md`) sizing. Renders nothing when the org origin or any part of the target is missing, so callers can drop it in unconditionally. The URL is built from the validated `oktaOrigin` plus the target and opened with `rel="noopener noreferrer"`.',
+          'Shared “Open in Okta” deep link that opens an entity’s Admin Console page in a new tab, used by the context banner, group overview and user profile card. It renders nothing when the org origin or any part of the target is missing, so callers can drop it in unconditionally; the URL is built from the validated `oktaOrigin` and opened with `rel="noopener noreferrer"`.',
       },
     },
   },
@@ -21,7 +20,7 @@ const meta = {
     },
     target: {
       description:
-        'What to deep-link to. An app target also carries the app *type* key (`name`), because its Admin Console route is `/admin/app/{name}/instance/{id}`.',
+        'What to deep-link to; an app target also carries the app type key (`name`), which its Admin Console route needs.',
     },
     label: { description: 'Link text. Defaults to `Open in Okta`.' },
     size: { description: 'Compact (`sm`) or standard (`md`) sizing. Defaults to `sm`.' },

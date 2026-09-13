@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ComparisonSearchPhase from './ComparisonSearchPhase';
 import { mockUsers } from '../../../../test/mocks/fixtures';
 
@@ -14,8 +14,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Phase 1 of the comparison modal: search for and pick the second user to compare against.\n\n' +
-          'Renders a controlled search box and the matching results (the context user is filtered out so users can\'t compare with themselves), and nothing else — the screen carries no intro card and no idle prompt. Shows a "Searching directory…" indicator while a search is in flight, and an empty state when a query returns no matches. Fully prop-driven; the parent hook owns the search.',
+          'Phase 1 of the comparison modal: a controlled search box and its matching results, ' +
+          'with the context user filtered out so nobody can compare with themselves. It shows ' +
+          'a "Searching directory…" indicator while a search is in flight and an empty state ' +
+          'when a query returns no matches. Fully prop-driven; the parent hook owns the search.',
       },
     },
   },
@@ -55,6 +57,18 @@ export const WithResults: Story = {
   args: {
     searchQuery: 'user',
     searchResults: mockUsers.slice(0, 8),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByText('First1 Last1')).toBeNull();
+    await userEvent.click(
+      canvas.getByRole('button', {
+        name: 'Compare with this user',
+        description: /First2 Last2/,
+      }),
+    );
+    await expect(args.onSelectUser).toHaveBeenCalledWith(mockUsers[1]);
   },
 };
 

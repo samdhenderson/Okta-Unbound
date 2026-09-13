@@ -54,8 +54,7 @@ const meta = {
       description: {
         component:
           'The two rule relationships a group can have, listed separately: rules that **assign members into** it, and rules that merely **consult** it in a condition. Those are opposite facts, so they never share a count.\n\n' +
-          'Each row is the same `RuleCard` the Rules tab renders, and pressing it deep-links to that rule’s detail rung. Under the row sits a read-only **When** line carrying the condition expression, so "what does that rule actually say?" is answered without leaving the Group tab (I-031). Group ids inside the expression resolve to named badges through the shared `RuleExpressionText`.\n\n' +
-          'The section wires **no write verb at all** — it cannot activate, deactivate or create a rule, and it renders no control that would pretend otherwise (ADR-0039). Each list carries its own loading, empty and error state.',
+          'Each row is the same `RuleCard` the Rules tab renders, with a read-only **When** line carrying the condition beneath it. The section wires no write verb at all, and renders no control that would pretend otherwise.',
       },
     },
   },
@@ -98,6 +97,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const OpeningARule: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    const rows = canvas.getAllByRole('button', { name: 'Open rule in the Rules tab' });
+    await userEvent.click(rows[0]);
+    await expect(args.onNavigateToRule).toHaveBeenCalledWith('0prFAKE1');
+  },
+};
 
 export const ConditionInPlace: Story = {
   args: {

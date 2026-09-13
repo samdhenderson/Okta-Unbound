@@ -60,13 +60,10 @@ contract and deliberately drops the other half:
 
 ### Verifying the sticky stack
 
-The page header and a detail view's `ActionBar` park below one another by publishing a
-measured height (`--header-h`), and the scroll root keeps clear of the docked
-`ActivityBar` the same way (`--activity-h`). The tab rail is not part of that stack — it
-sits outside the scroller entirely, so the scroller's top edge already begins beneath
-it.
-**None of this is checkable in jsdom or in a story** — neither has a scroller. It is a
-manual pass in the loaded extension:
+Sticky bands park below one another by publishing a measured height — the contract is
+in [page-shell.md](./page-shell.md). **None of it is checkable in jsdom or in a
+story**, since neither has a scroller, so it is a manual pass in the loaded
+extension:
 
 1. Drill into a group with a long member list and scroll. The header must collapse to
    one line and pin at the **top of the content region**, directly under the fixed rail,
@@ -127,9 +124,9 @@ Gated idle is a fourth state alongside loading/empty/error, and the three
 non-holding rows share one property: no further work is running, so waiting cannot
 change the answer. A skeleton is a promise that content is arriving — over a read
 nobody started it is a lie, and over a read that already failed it is a hang. A pane
-names the reads it waits on in an explicit opt-in list and waits on the in-flight
-state only; a "not yet done" predicate silently folds idle and error in with in
-flight and leaves a gated pane shimmering forever.
+names the reads it waits on in an **explicit opt-in list**, never a scan, and the
+predicate is `status === 'loading'`: `status !== 'done'` is banned, because it folds
+idle and error in with in-flight and leaves a gated pane shimmering forever.
 
 None of this fabricates a value the pane doesn't have: a tile with no answer still
 renders nothing rather than a zero or a dash. This governs when the pane appears,

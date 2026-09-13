@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import ContextBar from './ContextBar';
+import Button from './shared/Button';
 import { selectionStore } from '../selection/selectionStore';
 
 const meta = {
@@ -13,10 +14,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'One line of top chrome: what the live Okta tab is on, plus Refresh.\n\n' +
-          "One line of chrome: a hue-coded connection *wire* along the panel's top edge, the live tab's entity name, and the global Refresh control. It sits outside the panel's scroller and is therefore always on screen, which is why it carries no wordmark and no id chip — see the module note for what each of those was cut for. The wire costs no layout height at rest and thickens into a labelled strip with a real Reconnect control when the connection is down. Notable states: resolving (`Loading`) and a connection/context failure (`ErrorState`). Presentational — refresh behaviour is owned by the caller (App).\n\n" +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Shared utilities](?path=/docs/internals-shared-utilities--docs)',
+          "One line of top chrome: a hue-coded connection wire along the panel's top edge, the " +
+          "live Okta tab's entity name, and the session-chrome controls (the Selection count, " +
+          'then Refresh). The wire costs no layout height at rest and thickens into a labelled ' +
+          'strip with a real Reconnect control when the connection is down.\n\n' +
+          'It describes the **live tab**, never what the panel is browsing — the browsed ' +
+          "entity's name reaches Refresh's accessible name and tooltip only. Presentational: " +
+          'refresh and selection behaviour belong to the caller.',
       },
     },
   },
@@ -185,13 +189,13 @@ export const HandoffDismissAndReturn: Story = {
           handoff={live.id === dismissedId ? null : { kind: 'group', id: live.id, name: live.name }}
           onDismissHandoff={() => setDismissedId(live.id)}
         />
-        <button
-          type="button"
+        <Button
+          size="sm"
+          className="m-2"
           onClick={() => setLive({ id: '00gFAKE0002', name: 'Finance Team' })}
-          className="m-2 underline"
         >
           Move the live tab
-        </button>
+        </Button>
       </div>
     );
   },

@@ -41,21 +41,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "The Insights tab's ranked stack of attribute cards, and the gate in front of the " +
-          'roster it needs.\n\n' +
-          '**Rule coupling ranks, it does not partition.** Three signals order the stack: ' +
-          'near-duplicate spellings (weight 4), a hidden tail carrying a fifth of the group or ' +
-          'more (2), and rule coupling (1). Coupling is deliberately lightest — an attribute ' +
-          'spelled two ways outranks an immaculate one that merely feeds a rule, because the ' +
-          'drift is what will break the rule. The partition this replaced sorted the ' +
-          'mis-spelled attribute *last*, precisely because nobody had written a rule against ' +
-          'it yet.\n\n' +
-          '**One anatomy on both sides of the split.** Attributes with no signal render in the ' +
-          'identical card under a **Nothing flagged** rule. That rule is a label on the ' +
-          '*order*, not a second card shape: a reader learns one anatomy and reads top to ' +
-          'bottom.\n\n' +
-          '**Storybook renders no Tailwind**, so nothing here asserts the grid, the spread ' +
-          'bars, or the hatch — those are visual claims verified by eye.',
+          "The Insights tab's ranked stack of attribute cards, and the gate in front of the roster it needs. Three signals order the stack: near-duplicate spellings (weight 4), a hidden tail carrying a fifth of the group or more (2), and rule coupling (1) — coupling is lightest, because drift is what will break a rule.\n\n" +
+          'Attributes with no signal render in the identical card under a **Nothing flagged** rule: that rule labels the order, not a second card shape.',
       },
     },
   },
@@ -91,12 +78,33 @@ export const Ranked: Story = {
   },
 };
 
+export const OpenABreakdown: Story = {
+  play: async ({ canvas, userEvent }) => {
+    const toggle = canvas.getByRole('button', {
+      name: 'Show the value breakdown for department',
+    });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(toggle);
+    await expect(
+      canvas.getByRole('button', { name: 'Hide the value breakdown for department' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+  },
+};
+
 export const Idle: Story = {
   args: { members: null, memberStatus: 'idle' },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Analyze' }));
+    await expect(args.onAnalyzeMembers).toHaveBeenCalled();
+  },
 };
 
 export const IdleDisconnected: Story = {
   args: { members: null, memberStatus: 'idle', canAnalyze: false },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('button', { name: 'Analyze' })).toBeDisabled();
+  },
 };
 
 export const Loading: Story = {
@@ -105,6 +113,10 @@ export const Loading: Story = {
 
 export const LoadFailed: Story = {
   args: { members: null, memberStatus: 'error', error: 'Okta returned 429.' },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Retry' }));
+    await expect(args.onAnalyzeMembers).toHaveBeenCalled();
+  },
 };
 
 export const NoMembers: Story = {

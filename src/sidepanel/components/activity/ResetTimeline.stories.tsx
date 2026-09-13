@@ -11,8 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The reset timeline, shown **only while a gate is armed**.\n\n' +
-          'Each cooling-down bucket gets a mark on a shared axis, so their return order is a glance rather than a subtraction. The axis is at least sixty seconds wide, so a single short gate does not fill it and marks do not jump around as the furthest one ticks down. With nothing gated the component renders nothing at all — an idle bar must stay exactly as tall as it is (ADR-0008).',
+          'The reset timeline, shown only while a gate is armed. Each cooling-down bucket gets a mark on one axis, so their return order is a glance rather than a subtraction. The axis is at least sixty seconds wide, and with nothing gated the component renders nothing at all.',
       },
     },
   },

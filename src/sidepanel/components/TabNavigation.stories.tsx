@@ -11,11 +11,12 @@ const meta = {
     docs: {
       description: {
         component:
-          "Sticky top icon rail for switching between the side panel's main views.\n\n" +
-          'Renders `RAIL_TAB_DEFS` from the central `sidepanel/tabs` registry via the shared accessible `Tabs` strip (`rail` variant) and highlights the active one. Selection is reported via `onTabChange`; which tab is active is owned by the caller.\n\n' +
-          '**Seven seats, nine sections.** Explorer and History carry `railHidden` and are reached through the ⌘K palette instead (ADR-0063), so they have no glyph here. On either of them no tab matches `activeKey`: the strip shows no selection and no indicator, and the roving anchor falls back to the first tab so the tablist keeps exactly one tab stop — see the `RailHiddenSectionActive` story.\n\n' +
-          '**The ⌘K button closes that gap.** The chord alone left two shipped sections unreachable by anyone who did not already know it existed, so the trailing button opens the same palette (`useCommandPalette().open`). It sits beside the tablist, not inside it — it is not a ninth section. Its glyph follows the platform: `⌘K` on Apple, `Ctrl K` everywhere else (`ApplePlatform` / `NonApplePlatform`), and its accessible name spells the modifier out because `⌘` has no reliable pronunciation.\n\n' +
-          "Even seven text tabs need well past 450px of strip, but the panel opens at 480px and the user can drag it to 360px — so inactive tabs are icon-only and the active tab's label unfurls beside its glyph, with a tooltip naming any icon on hover or focus. What does not fit still scrolls, with edge fades marking the hidden side, the active tab scrolled into view, and a 2px underline sliding beneath. Compare the `Compact`, `Default` and `Wide` stories: the strip is complete at every width.\n\nThis `nav` is also the bottom of the top-chrome slab: `ContextBar` above it and a rung's `PageHeader` below are borderless, and the single rule closing the chrome lives here.",
+          "Sticky top icon rail for switching between the side panel's main views. Renders " +
+          '`RAIL_TAB_DEFS` through the shared `Tabs` strip (`rail` variant); the caller owns ' +
+          'which tab is active and hears selection through `onTabChange`.\n\n' +
+          'The rail seats fewer sections than the panel has: Explorer and History are ' +
+          '`railHidden` and reached through the ⌘K button at the trailing end, so on either of ' +
+          'them no tab is selected and no indicator is drawn.',
       },
     },
   },
@@ -43,7 +44,19 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole('tab', { name: 'Home' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+
+    await userEvent.click(canvas.getByRole('tab', { name: 'Groups' }));
+    await expect(args.onTabChange).toHaveBeenCalledWith('groups');
+  },
+};
 
 export const UsersActive: Story = {
   args: { activeTab: 'users' },
@@ -55,10 +68,6 @@ export const GroupsActive: Story = {
 
 export const RulesActive: Story = {
   args: { activeTab: 'rules' },
-};
-
-export const HistoryActive: Story = {
-  args: { activeTab: 'history' },
 };
 
 const atPanelWidth = (width: number): Story['render'] =>

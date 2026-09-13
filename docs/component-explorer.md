@@ -153,8 +153,8 @@ route each container to where it belongs:
 
 - **`Rules/`** — the rules tab, cards, and rule modals (`RulesTab`, `RuleCard`,
   `RuleImpactModal`, `RuleConsolidationModal`).
-- **`Groups/` · `Users/` · `Overview/`** — the corresponding tab and its feature
-  components (`GroupsTab`, `UsersTab`, `HomeTab`, …).
+- **`Groups/` · `Users/` · `Home/` · `Apps/` · `Policies/` · `Members/`** — the
+  corresponding tab and its feature components (`GroupsTab`, `UsersTab`, `HomeTab`, …).
 - **`Export/`** — the export flow.
 - **`Shared/`** — reusable primitives (`components/shared/`).
 - **`Sidepanel/`** — app-shell chrome that isn't feature-specific (`ActivityBar`,
@@ -163,7 +163,7 @@ route each container to where it belongs:
 - **`Demo/`** — the reel's stages. Rules in [reel.md](./reel.md).
 
 The `Introduction.mdx` landing page is titled **`Getting Started`** so it sorts
-as its own root rather than colliding with the `Overview/*` component group.
+as its own root rather than colliding with a feature component group.
 
 ## Why `useOktaApi`, not MSW
 

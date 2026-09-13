@@ -70,9 +70,7 @@ const sizeClasses: Record<FooSize, string> = { sm: '…', md: '…', lg: '…' }
 ### `ClauseLedger` family
 
 Renders {@link module:shared/rules/explainExpression.explainRuleExpression}'s
-**tree** — `&&`/`||` structure intact. It is the explainer's only projection; the
-flat row-per-clause list it sat beside during the migration is gone.
-It replaced `groups/detail/ClauseChecklist`, which no longer exists;
+**tree** — `&&`/`||` structure intact, and the explainer's only projection.
 `users/MembershipRuleEvidence` is the production adopter. `ClauseLedger` composes
 `ClauseLedgerBranch` (a connective group, indented under a rail, with the
 Kleene-shortcut sentence when the structured fields say one applies) and
@@ -135,10 +133,8 @@ than `items.length` ("Unknown is not zero", below). The panel composes and does 
 directions — `RuleDetailView` is a `DetailSection` stack because a rule has one condition and three
 facts about it, all already on the `FormattedRule` the list was rendering. Splitting four short
 sections across tabs would hide three of them to save a scroll that does not exist, and the rung
-fetches nothing, so there is no per-pane load to gate. It is also the rung that retired the last
-hand-rolled layout dialect: `RuleCard`'s expandable body, whose four write verbs flex-wrapped at the
-bottom of a card, is exactly the "page-level verb read as a section's property" failure the verb
-strip exists to stop ([action-bars.md](./action-bars.md)).
+fetches nothing, so there is no per-pane load to gate. Page-level verbs belong to the verb strip,
+never flex-wrapped at the bottom of a card ([action-bars.md](./action-bars.md)).
 
 ## Documented raw-control exceptions
 
@@ -151,12 +147,10 @@ an inline `§3 exception` (or `CHARACTERIZED:`) comment at the call site:
 - **Composites** where a shared primitive is not pixel-neutral: the Add-to-Group type-ahead
   (`AddToGroupModal`) and `UserComparisonModal`'s search field in `ComparisonSearchPhase` —
   leading-glyph search inputs with an absolutely positioned spinner/dropdown — plus
-  `shared/FilterToggle`. `SearchDropdown`, `UserSearchBar` and `GroupSearchBar` **left this list**:
-  they compose `Input` + `Icon` + `LoadingSpinner` like `MemberSearchBar`. Converging cost a few
-  pixels of field height (`py-3`/`py-2.5` → `py-2`), leading-icon size (20px → 16px) and the
-  reserved trailing padding the shared `Input` has no slot for — accepted as the price of not
-  maintaining a byte-identical copy of the input class string in two files. The two that remain have
-  a larger delta and need a design call, not a mechanical swap.
+  `shared/FilterToggle`. `SearchDropdown`, `UserSearchBar` and `GroupSearchBar` are not exceptions:
+  they compose `Input` + `Icon` + `LoadingSpinner` like `MemberSearchBar`, and a new search field
+  does the same. The two that remain have a larger delta and need a design call, not a mechanical
+  swap.
 - **Roving-focus rows:** `palette/PaletteRow`, the row the ⌘K palette renders for both its sections
   and its entity results — a left-aligned icon + label + trailing-mark row carrying a roving
   `tabIndex` and a ref for programmatic focus. **Neither** shared primitive can host that: `Button`

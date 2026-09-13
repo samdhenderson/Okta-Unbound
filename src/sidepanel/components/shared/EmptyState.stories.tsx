@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import EmptyState from './EmptyState';
 
 const meta = {
@@ -11,8 +11,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Centered “no content” placeholder — icon badge, title, description, and optional action buttons.\n\n' +
-          'Use for empty lists, no-search-results, first-run, error, and permission states. Each action renders as a shared `Button` (defaulting to `primary`), and actions are shown only when the list is non-empty.',
+          'Centered “no content” placeholder — icon badge, title, description, and optional ' +
+          'actions — for empty lists, no-results, first-run, error and permission states. Each ' +
+          'action renders as a shared `Button` (defaulting to `primary`); the row is omitted ' +
+          'entirely when `actions` is empty.',
       },
     },
   },
@@ -49,16 +51,16 @@ export const WithAction: Story = {
 export const WithMultipleActions: Story = {
   args: {
     actions: [
-      {
-        label: 'Clear Filters',
-        onClick: fn(),
-      },
-      {
-        label: 'Try Again',
-        onClick: fn(),
-        variant: 'secondary',
-      },
+      { label: 'Clear Filters', onClick: fn() },
+      { label: 'Try Again', onClick: fn(), variant: 'secondary' },
     ],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Try Again' }));
+    await expect(args.actions?.[1].onClick).toHaveBeenCalledTimes(1);
+    await expect(args.actions?.[0].onClick).not.toHaveBeenCalled();
   },
 };
 

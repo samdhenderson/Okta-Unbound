@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import { useState } from 'react';
 import Checkbox from './Checkbox';
 
@@ -12,8 +12,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Controlled checkbox primitive — renders bare or with a label + description.\n\n' +
-          'When no `label` is given it emits a bare styled `<input>` so the caller owns layout (in that case supply `aria-label`); with a `label` it wraps the box in a clickable `<label>` plus optional helper text. Supports checked, unchecked, and disabled states.',
+          'Controlled checkbox primitive. With no `label` it emits a bare styled `<input>` so ' +
+          'the caller owns layout — supply `aria-label` in that case; with a `label` it wraps ' +
+          'the box in a clickable `<label>` plus optional helper text.',
       },
     },
   },
@@ -85,7 +86,7 @@ export const DisabledChecked: Story = {
 const ControlledCheckbox = () => {
   const [checked, setChecked] = useState(false);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-4">
       <Checkbox
         checked={checked}
         onChange={setChecked}
@@ -99,4 +100,16 @@ const ControlledCheckbox = () => {
 
 export const ControlledDemo: Story = {
   render: () => <ControlledCheckbox />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const box = canvas.getByRole('checkbox', { name: /Toggle me/ });
+
+    await expect(box).not.toBeChecked();
+    await userEvent.click(canvas.getByText('Toggle me'));
+    await expect(box).toBeChecked();
+    await expect(canvas.getByText('Current state: checked')).toBeInTheDocument();
+
+    await userEvent.click(box);
+    await expect(box).not.toBeChecked();
+  },
 };

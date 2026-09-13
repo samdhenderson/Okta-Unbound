@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import { z } from 'zod';
 import EntityPicker from './EntityPicker';
 import type { EntityExport } from '../../export/types';
@@ -44,11 +44,9 @@ const meta = {
     docs: {
       description: {
         component:
-          "The Export tab's entity hub — a scrollable list of exportable entities.\n\n" +
-          'Purely descriptor-driven: renders one selectable card (icon + name + description) ' +
-          'per registered entity descriptor, inside a `ScrollableList`. Selecting a card hands ' +
-          'its id back to the tab, which enters the `configure` phase. With no descriptors it ' +
-          'renders the shared `EmptyState`.',
+          "The Export tab's entity hub: one selectable card (icon + name + description) per " +
+          'registered entity descriptor. Selecting a card hands its id back to the tab, which ' +
+          'enters the `configure` phase; with no descriptors it renders the shared `EmptyState`.',
       },
     },
   },
@@ -66,6 +64,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const Selecting: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getAllByRole('button')[0]);
+    await expect(args.onSelect).toHaveBeenCalledWith('users');
+  },
+};
 
 export const Empty: Story = {
   args: { descriptors: [] },

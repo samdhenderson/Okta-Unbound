@@ -29,17 +29,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Inside the filter drawer an attribute is a **route to a value**, not a report: ' +
-          'picking one opens the shared `BreakdownDetailsModal` over that attribute’s full ' +
-          'distribution, and picking a value there filters the member list.\n\n' +
-          'That is why this is one row per attribute rather than the grid of spread-bar cards ' +
-          '`CompositionReports` drew. The distribution is analysis and now lives on the ' +
-          'Insights tab; what a filtering surface needs is the name, the distinct-value count ' +
-          '(so a two-value attribute reads differently from a ninety-value one before it is ' +
-          'opened), and whether it is currently filtering.\n\n' +
-          'Each row is the shared `ListRow as="button"` and carries an accessible name saying ' +
-          'what activating it does — a list of rows whose only visible text is a noun offers a ' +
-          'screen-reader user no verb at all.',
+          'Inside the filter drawer an attribute is a route to a value, not a report: picking ' +
+          'one opens `BreakdownDetailsModal` over that attribute’s distribution, and picking a ' +
+          'value there filters the member list. Each row is the shared `ListRow as="button"` ' +
+          'and carries an accessible name saying what activating it does.',
       },
     },
   },

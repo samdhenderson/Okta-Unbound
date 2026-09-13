@@ -9,8 +9,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'A translucent follower carrying the dragged attribute or section name.\n\n' +
-          'It is deliberately 68% opaque: the drop indicator underneath it is the control that answers "where will this land", and a solid ghost sitting on that line hides the answer at the moment it matters. `aria-hidden`, because the editor\'s live region already says the same thing in words.',
+          'A translucent follower carrying the dragged attribute or section name. It stays ' +
+          'partly transparent so the drop indicator underneath — the thing that answers ' +
+          '"where will this land" — is never hidden, and it is `aria-hidden` because the ' +
+          "editor's live region already says the same thing in words.",
       },
     },
   },

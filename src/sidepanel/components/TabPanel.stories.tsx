@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import { useRef, useState } from 'react';
 import TabPanel from './TabPanel';
 import { Button } from './shared';
@@ -12,8 +13,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Wraps one top-level tab. Tabs mount on first activation and are hidden — never unmounted — thereafter (ADR-0018), so React state survives but DOM scroll state does not.\n\n' +
-          'Every root-scrolling tab shares a single scroll container (the `overflow-y-auto` root in `App`). Each panel runs its own `useScrollPreservation` against it, so returning to a tab restores *that tab’s* offset rather than whatever the tab you visited in between left behind. The panel also owns a private `Suspense` boundary, so a lazily-loaded tab cannot swap a fallback in over its already-mounted neighbours.',
+          'Wraps one top-level tab. Tabs mount on first activation and are hidden — never unmounted — thereafter, so React state survives but DOM scroll state does not.\n\n' +
+          "Every root-scrolling tab shares one scroll container, so each panel runs its own `useScrollPreservation` against it and returns to *that tab's* offset. The panel also owns a private `Suspense` boundary, so a lazily-loaded tab cannot swap a fallback in over its mounted neighbours.",
       },
     },
   },
@@ -89,5 +90,16 @@ export const SharedScrollContainer: Story = {
         </TabPanel>
       </div>
     );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Panel one — row 1')).toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Panel two' }));
+    await expect(canvas.getByText('Panel two — row 1')).toBeVisible();
+    await expect(canvas.getByText('Panel one — row 1')).not.toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Panel one' }));
+    await expect(canvas.getByText('Panel one — row 1')).toBeVisible();
   },
 };

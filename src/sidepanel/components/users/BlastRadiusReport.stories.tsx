@@ -128,32 +128,21 @@ const meta = {
     docs: {
       description: {
         component:
-          '**A report an admin opts into, and it costs zero API calls.** The engine behind it is pure and ' +
-          'synchronous — it reads the user, the draft, the complete membership list and the rule inventory ' +
-          'the panel already holds. Nothing here fetches, and nothing recomputes on a keystroke.\n\n' +
-          '**Three statuses, three different things to say.** `not-computed` renders *nothing* — the parent ' +
-          'owns the button that asks, and a report that renders before it was asked for is a report an admin ' +
-          'will read as an answer. `unavailable` says the org’s group rules could not be loaded, so no ' +
-          'prediction is possible — emphatically **not** “no changes”; collapsing an inability into a ' +
-          'negative is the one move ADR-0020 forbids and the one this surface is most tempted by. `computed` ' +
-          'renders the report, and a computed report with zero effects says so explicitly.\n\n' +
-          '**Two views of one answer.** *Groups* is the consequence, *Rules* is the cause. The pills switch ' +
-          'between them; nothing is recomputed by the switch. The rules view keeps the unaffected rules as a ' +
-          'count rather than dropping them, because “and 2 rules are unaffected” is a fact about how much of ' +
-          'the org was examined.\n\n' +
-          '**Second-order effects are named, not resolved.** Gaining or losing a group can flip an ' +
-          '`isMemberOf*` clause in some other rule. The engine makes a single pass and then says how many ' +
-          'rules could cascade, because iterating would consume a *likely* as a fact and leave no vocabulary ' +
-          'to carry the accumulated doubt.\n\n' +
-          'Related internals: `shared/membership/blastRadius`, `sidepanel/hooks/useBlastRadius`.',
+          'What a profile edit is predicted to do to a user’s group access. The engine ' +
+          'behind it is pure and synchronous — it reads the user, the draft, the membership ' +
+          'list and the rule inventory the panel already holds — so the report costs zero API ' +
+          'calls and recomputes on nothing.\n\n' +
+          'Three statuses say three different things: `not-computed` renders nothing, because ' +
+          'the parent owns the button that asks; `unavailable` says the rule inventory could ' +
+          'not be loaded, so no prediction is possible, which is never the same as "no ' +
+          'changes"; `computed` renders the report, and a computed report with zero effects ' +
+          'says so explicitly. The Groups and Rules pills are two views of the one answer — ' +
+          'nothing is recomputed by the switch.',
       },
     },
   },
   argTypes: {
-    report: {
-      description:
-        'The report from `useBlastRadius`. Every string on it — group names, rule names, condition expressions — is untrusted tenant data.',
-    },
+    report: { description: 'The report from `useBlastRadius`. Every string on it is untrusted.' },
     className: { description: 'Layout and spacing classes on the outer container.' },
   },
   args: { report: COMPUTED },

@@ -114,21 +114,14 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Users tab’s selected-user surface: **Groups**, **Apps** and **Profile** as three panes ' +
-          'of one card, the same three questions the native Okta admin console splits a user into — ' +
-          'but with source attribution on every row.\n\n' +
-          '**Panes are hidden, not unmounted** (ADR-0016/ADR-0018). Each pane owns its filter text, ' +
-          'source pills and open disclosures as plain local state, and all of it survives a pane ' +
-          'switch. The inactive panes carry the `hidden` *attribute* as well as the class, so they ' +
-          'leave the accessibility tree — without it, three panes of rows would answer a role query ' +
-          'at once.\n\n' +
-          '**A count it does not have is omitted, never zeroed** (ADR-0032 §2a). The Apps tab shows ' +
-          'no count until the pane has been visited and the list resolved: a user with no apps and a ' +
-          'user whose apps were never fetched are different answers, and only one of them is `0`.\n\n' +
-          '**Page-level verbs are deliberately elsewhere.** Compare, Add to Group and the ' +
-          'account-state verbs act on the whole user, so they live in `UserActionBar` above this card ' +
-          '(ADR-0030).\n\n' +
-          'Related internals: `sidepanel/hooks/useUserDetailPanes`, `sidepanel/hooks/useUserApps`.',
+          'The Users tab’s selected-user surface: Groups, Apps and Profile as three panes ' +
+          'of one card, with source attribution on every row. Panes are hidden, not ' +
+          'unmounted, so each keeps its own filter text, source pills and open disclosures ' +
+          'across a switch; the inactive ones carry the `hidden` attribute as well as the ' +
+          'class, so they leave the accessibility tree.\n\n' +
+          'A count the panel does not have is omitted, never zeroed: the Apps tab shows no ' +
+          'count until the pane has been visited and the list resolved. Page-level verbs live ' +
+          'in `UserActionBar` above this card, not here.',
       },
     },
   },
@@ -160,44 +153,42 @@ const meta = {
   },
   argTypes: {
     user: { description: 'The selected user to render.' },
-    oktaOrigin: {
-      description:
-        'Okta origin used to build admin-console deep links; links are hidden when absent.',
-    },
-    pane: {
-      description: 'Which pane is on screen. Lifted — the header and the strip read it too.',
-    },
-    onPaneChange: {
-      description: 'Selects a pane. The rung’s apps / schema loads are gated on it.',
-    },
+    oktaOrigin: { description: 'Okta origin for admin-console deep links; absent hides them.' },
+    pane: { description: 'Which pane is on screen. Lifted, because the header reads it too.' },
+    onPaneChange: { description: 'Selects a pane. The rung’s apps and schema loads gate on it.' },
     memberships: {
       description: 'The user’s memberships, each already classified as direct or rule-based.',
     },
     isLoadingMemberships: { description: 'True while the memberships are being loaded/analysed.' },
-    currentGroupId: {
-      description:
-        'Id of the currently detected group; highlights that group in the membership list.',
-    },
+    currentGroupId: { description: 'Id of the detected group, highlighted in the list.' },
     apps: { description: 'The user’s app assignments, granting group filled in where known.' },
     appsComplete: {
       description: 'False when the app pagination walk did not finish; the pane must say so.',
     },
     appsByGroupId: {
-      description:
-        'Applications each group grants, keyed by group id. **Absent is not empty** — a group with no entry renders no "Also grants" line.',
+      description: 'Applications each group grants, keyed by group id. Absent is not empty.',
     },
     attributes: { description: 'Every attribute of this user’s profile, empty ones included.' },
-    ruleReads: {
-      description:
-        'Attribute name → the rules that read it *and* currently grant this user access.',
-    },
+    ruleReads: { description: 'Attribute name → the rules that read it and grant access.' },
   },
 } satisfies Meta<typeof UserDetailPanel>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const GroupsPane: Story = {};
+export const GroupsPane: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const filter = canvas.getByLabelText('Filter group memberships');
+
+    await expect(canvas.getByText(mockGroup.profile.name)).toBeInTheDocument();
+
+    await userEvent.type(filter, 'Engineering');
+
+    await expect(canvas.queryByText(mockGroup.profile.name)).toBeNull();
+    await expect(canvas.getAllByText(/Engineering Team/).length).toBeGreaterThan(0);
+  },
+};
 
 export const AppsPane: Story = {
   args: { pane: 'apps' },

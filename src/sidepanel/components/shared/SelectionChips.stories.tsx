@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import SelectionChips from './SelectionChips';
 import type { OktaUser } from '../../../shared/types';
 import { mockUsers } from '../../../test/mocks/fixtures';
@@ -83,5 +84,32 @@ export const ManyItems: Story = {
   args: {
     items: mockUsers.slice(0, 10),
     onClearAll: fn(),
+  },
+};
+
+export const Removing: Story = {
+  args: { items: mockUsers.slice(0, 3), onClearAll: fn() },
+  render: (args) => {
+    const Harness = () => {
+      const [items, setItems] = useState<unknown[]>(args.items);
+      return (
+        <SelectionChips
+          {...args}
+          items={items}
+          onRemove={(item) => setItems((prev) => prev.filter((candidate) => candidate !== item))}
+          onClearAll={() => setItems([])}
+        />
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const first = asUser(mockUsers[0]);
+    const label = `${first.profile.firstName} ${first.profile.lastName}`;
+    await userEvent.click(canvas.getByRole('button', { name: `Remove ${label}` }));
+    await expect(canvas.queryByText(label)).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear all' }));
+    await expect(canvas.getByText('No items selected')).toBeInTheDocument();
   },
 };

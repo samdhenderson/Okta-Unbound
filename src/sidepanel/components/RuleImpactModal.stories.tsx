@@ -90,10 +90,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Read-only "what does this rule hold up?" preview for a group rule.\n\n' +
-          "Shows a rule's target groups with live member counts and, crucially, how many members are held by this rule **alone** — nobody else's rule explains their membership. Doubles as the confirmation gate for a deactivation: in `deactivate` mode its footer commits the change. Computation is read-only — see `shared/membership/ruleImpact`.\n\n" +
-          'It used to call that population "lose access" in both modes, which was wrong for the only verb it can perform (D-052): deactivating a rule removes nobody, it merely leaves those members unattributed. Removal exists only on delete, via `removeUsers`, irreversibly.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Shared utilities](?path=/docs/internals-shared-utilities--docs)',
+          'Read-only "what does this rule hold up?" preview for a group rule: its target groups with live member counts, and how many members are held by this rule **alone**.\n\n' +
+          'In `deactivate` mode it doubles as the confirmation gate for the deactivation. Deactivating removes nobody — it leaves those members unattributed — so the copy never says they lose access.',
       },
     },
   },
@@ -109,9 +107,7 @@ const meta = {
     onConfirmDeactivate: {
       description: 'Commit the deactivation (only used in `deactivate` mode).',
     },
-    onNavigateToGroup: {
-      description: "Jump to a target group in the Groups tab (reverse of A2's rule deep-link).",
-    },
+    onNavigateToGroup: { description: 'Jump to a target group in the Groups tab.' },
   },
   args: {
     isOpen: true,

@@ -19,8 +19,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'Top-level React error boundary for the side panel.\n\n' +
-          'Passes children through normally, and when a descendant throws during render it catches the error, logs it via the shared logger, and shows a recoverable fallback with expandable error details plus "Try Again" (reset the boundary) and "Reload Extension" actions.',
+          'Top-level React error boundary for the side panel. Children pass through normally; when a descendant throws during render it logs via the shared logger and shows a recoverable fallback with expandable details, "Try Again" and "Reload Extension".',
       },
     },
   },

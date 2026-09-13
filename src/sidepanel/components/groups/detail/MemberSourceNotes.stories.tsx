@@ -21,17 +21,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Commentary about one group’s membership split, rendered under the source strip in ' +
-          'the Members tab. Both pieces moved here verbatim from the deleted ' +
-          '`GroupMembershipSourceSection`.\n\n' +
-          '**The indeterminate note is text, never a tooltip.** The strip’s indeterminate slice ' +
-          'is members whose feeding rule’s condition the client-side evaluator could not ' +
-          'resolve — a limit of the evaluator, not a failed match and not a member who does not ' +
-          'belong. Demoting that correction to a segment `title` would make it invisible to ' +
-          'anyone not hovering.\n\n' +
-          '**A fact and a deduction do not read with the same weight.** A rule Okta itself ' +
-          'attributed carries a different chip from one the client-side heuristic inferred ' +
-          '(ADR-0020).',
+          'Commentary about one group’s membership split, rendered under the source strip in the Members tab: the per-rule accounting, plus the note explaining the indeterminate slice.\n\n' +
+          'The indeterminate note is text, never a tooltip — that slice is members whose rule condition the evaluator could not resolve, not members who do not belong. A rule Okta attributed carries a different chip from one the client-side heuristic inferred, because a deduction must not read as a fact.',
       },
     },
   },
@@ -94,7 +85,10 @@ export const OktaAttributedVersusInferred: Story = {
     const fact = canvas.getByText('Okta-attributed');
     const guess = canvas.getByText('Inferred');
     await expect(guess).toHaveAttribute('title', expect.stringContaining('deduction, not a fact'));
-    await expect(fact.className).not.toBe(guess.className);
+    await expect(fact).toHaveAttribute(
+      'title',
+      expect.stringContaining('Okta itself reports these members'),
+    );
   },
 };
 

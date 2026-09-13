@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn } from 'storybook/test';
 import Button from './Button';
 import Icon from './Icon';
 
@@ -21,11 +21,11 @@ const meta = {
     children: { description: 'Button label content.' },
     variant: {
       description:
-        'Visual treatment: `secondary` is the default; `danger`/`success` carry semantic colour; `ghost` is chromeless but still a box; `link` reads as running text, with no horizontal padding at all; `primary` is the page call to action.',
+        'Visual treatment; `secondary` is the default and `primary` is the page call to action.',
     },
     size: {
       description:
-        'Size scale (`xs` ≈ 24px, `sm` ≈ 36px, `md` ≈ 40px, `lg` ≈ 56px). Defaults to `md`. `xs` is the recessed step — selection-register furniture, not a page verb.',
+        'Size scale (`xs` ≈ 24px, `sm` ≈ 36px, `md` ≈ 40px, `lg` ≈ 56px); defaults to `md`.',
     },
     icon: {
       description: 'Optional icon glyph rendered alongside the label (hidden while `loading`).',
@@ -77,10 +77,26 @@ export const LinkDisabled: Story = {
 
 export const Disabled: Story = {
   args: { disabled: true },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Add group' }));
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
 };
 
 export const Loading: Story = {
   args: { variant: 'primary', loading: true },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Add group' }));
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
+};
+
+export const Clicked: Story = {
+  args: { variant: 'primary' },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Add group' }));
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+  },
 };
 
 export const WithBadge: Story = {

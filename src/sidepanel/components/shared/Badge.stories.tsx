@@ -10,26 +10,24 @@ const meta = {
     docs: {
       description: {
         component:
-          'A small status or type mark — the one place the recipe `px-2 py-0.5 rounded-md text-xs font-medium` plus a token background/border lives.\n\n' +
-          'Variants follow the shared status vocabulary (`success | warning | danger | info`, never `error` — ADR-0002), plus `neutral` for an uncolored mark and `primary` for entity type/identity. The set is a superset of `UserStatusVariant`, so `userStatusVariant(status)` drops straight into `variant` with no mapping layer.\n\n' +
-          '`solid` is for the one badge on screen that must outrank its siblings; two solid badges side by side both lose.\n\n' +
-          'A badge is a **label, not a control**. If it needs a click handler, use `FilterPill` or `Button`.',
+          'A small status or type mark. Variants follow the shared status vocabulary ' +
+          '(`success | warning | danger | info`, never `error`), plus `neutral` for an ' +
+          'uncolored mark and `primary` for entity type/identity. A badge is a label, not a ' +
+          'control — if it needs a click handler, use `FilterPill` or `Button`.',
       },
     },
   },
   argTypes: {
     children: {
-      description: 'Badge label. Keep it to a word or two — this is a mark, not a sentence.',
+      description: 'Badge label — a word or two.',
     },
     variant: {
-      description:
-        'Colour treatment: the canonical status severities plus `neutral` (no signal) and `primary` (entity type/identity). Defaults to `neutral`.',
+      description: 'Colour treatment. Defaults to `neutral`.',
     },
     solid: {
-      description:
-        'Render the filled treatment instead of the tinted one. Reserve it for the one mark that must win.',
+      description: 'Render the filled treatment instead of the tinted one.',
     },
-    title: { description: 'Native `title` tooltip, for a mark whose full meaning does not fit.' },
+    title: { description: 'Native `title` tooltip.' },
     className: { description: 'Extra classes merged after the variant classes.' },
     testId: { description: 'Optional test handle.' },
   },

@@ -22,11 +22,9 @@ A **gray canvas** with **white cards** floating on it.
 Elevation on a static card comes from the border. **A card that is not a click target
 gets no shadow.**
 
-The reason is density, not orthodoxy: this panel stacks cards at 360px, and a shadow
-on every surface turns the stack into noise. Do **not** justify this rule by claiming
-Okta does not shadow cards — Odyssey's own `Card` ships `DepthMedium` at rest and
-deepens to `DepthHigh` on `.isClickable:hover`. A shadow on a card is Odyssey
-behaviour; the narrow width is ours.
+The reason is density: this panel stacks cards at 360px, and a shadow on every surface
+turns the stack into noise. Odyssey's own `Card` does ship `DepthMedium` at rest — a
+shadow on a card is Odyssey behaviour; the narrow width is ours.
 
 ## An interactive card may lift
 

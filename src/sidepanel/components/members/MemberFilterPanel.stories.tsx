@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import type { MemberMfaResult } from '../../../shared/types';
 import MemberFilterPanel from './MemberFilterPanel';
 import type { BreakdownRow, MemberFilter } from './memberAnalytics';
@@ -38,12 +38,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Expandable panel of status, MFA-factor, and sort controls for the member list.\n\n' +
-          'Presentational: it reflects the active filter set into pressed pill states and ' +
-          'reports every change (status toggles, per-factor has/missing modes, quick MFA ' +
-          'counts, sort field/direction) via callbacks. Hosts the MFA scan trigger inline — ' +
-          'scanning lives next to the factor filters it enables — and the factor controls ' +
-          'stay hidden until scan results are supplied.',
+          'Status, MFA-factor and sort controls for the member list. Fully presentational: it ' +
+          'reflects the active filter set into pressed pill states and reports every change ' +
+          'through callbacks. The MFA scan trigger sits inline beside the factor filters it ' +
+          'enables, and those filters stay hidden until scan results exist.',
       },
     },
   },
@@ -88,7 +86,19 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const active = canvas.getByRole('button', { name: 'ACTIVE (240)' });
+    await expect(active).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(active);
+    await expect(args.onToggleStatus).toHaveBeenCalledWith(statusRows[0]);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Name' }));
+    await expect(args.onToggleSort).toHaveBeenCalledWith('name');
+  },
+};
 
 export const WithMfaResults: Story = {
   args: {
@@ -104,6 +114,17 @@ export const WithActiveFilters: Story = {
     mfaResults,
     factorLabels: ['Okta Verify (Fastpass)', 'SMS'],
     scanStatus: 'complete',
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'ACTIVE (240)' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(canvas.getByRole('button', { name: 'SUSPENDED (5)' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   },
 };
 

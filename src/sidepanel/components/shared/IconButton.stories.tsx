@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import Icon from '../shared/Icon';
 import IconButton from './IconButton';
 
@@ -12,8 +12,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Icon-only button primitive (close, remove, clear, expand) — the `label` prop is required and becomes the button’s accessible name (`aria-label`) plus default tooltip.\n\n' +
-          'Three low-emphasis variants (`ghost`, `subtle`, `danger`) and two sizes. Can act as a toggle via `active` (reflected as `aria-pressed`), and supports a disabled state. For text CTAs use `Button`; for filter chips use `FilterPill`.',
+          'Icon-only button primitive (close, remove, clear, expand). `label` is required and ' +
+          'becomes the accessible name plus default tooltip. Three low-emphasis variants ' +
+          '(`ghost`, `subtle`, `danger`), two sizes, and optional toggle (`active` → ' +
+          '`aria-pressed`) or disclosure (`expanded` + `controls`) semantics.',
       },
     },
   },
@@ -50,6 +52,11 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   args: { variant: 'ghost' },
+  play: async ({ args, canvasElement }) => {
+    const button = within(canvasElement).getByRole('button', { name: 'Close' });
+    await userEvent.click(button);
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+  },
 };
 
 export const AccessibleName: Story = {
@@ -71,6 +78,12 @@ export const Danger: Story = {
 
 export const Disabled: Story = {
   args: { disabled: true },
+  play: async ({ args, canvasElement }) => {
+    const button = within(canvasElement).getByRole('button', { name: 'Close' });
+    await expect(button).toBeDisabled();
+    await userEvent.click(button);
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
 };
 
 export const Active: Story = {
@@ -100,7 +113,7 @@ export const Medium: Story = {
 
 export const Sizes: Story = {
   render: (args) => (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+    <div className="flex items-center gap-3">
       <IconButton {...args} size="sm" label="Small">
         <Icon type="trash" size="sm" />
       </IconButton>
@@ -113,7 +126,7 @@ export const Sizes: Story = {
 
 export const Variants: Story = {
   render: (args) => (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+    <div className="flex items-center gap-3">
       <IconButton {...args} variant="ghost" label="Ghost">
         <Icon type="trash" />
       </IconButton>

@@ -10,33 +10,25 @@ const meta = {
     docs: {
       description: {
         component:
-          'A shimmering placeholder for content whose shape is already known.\n\n' +
-          'Three shapes — `text` (a single line), `row` (a list-row block matching ' +
-          '`GroupListItem`/`MemberRow`), and `card` (a stat/summary card block). The ' +
-          '`count` prop renders N repeated blocks without a loop at the call site; ' +
-          'repeats share a staggered `.rise-in-stagger` entrance (capped at the 8th) ' +
-          'rather than each animating independently. The visual bones are ' +
-          '`aria-hidden`; one hidden `role="status"` node carries the accessible name.',
+          'A shimmering placeholder for content whose shape is already known: `text` (a ' +
+          'single line), `row` (a list-row block), `card` (a stat/summary block). `count` ' +
+          'renders N repeats under one staggered entrance. The visual bones are ' +
+          '`aria-hidden`; a single `role="status"` node carries the accessible name. For ' +
+          'unknown-shape or unknown-duration work use `LoadingSpinner` instead.',
       },
     },
   },
   argTypes: {
     variant: { description: 'Placeholder shape. Defaults to `text`.' },
     size: {
-      description:
-        'Size scale — controls line thickness (`text`) or block padding (`row`/`card`). Defaults to `md`.',
+      description: 'Line thickness (`text`) or block padding (`row`/`card`). Defaults to `md`.',
     },
-    count: {
-      description:
-        'Number of repeated blocks to render, staggered via `.rise-in-stagger`. Defaults to `1`.',
-    },
+    count: { description: 'Number of repeated blocks. Defaults to `1`.' },
     width: {
-      description:
-        'Tailwind width class for the `text` variant’s line (e.g. `w-1/2`). Ignored for `row`/`card`. Defaults to `w-full`.',
+      description: 'Tailwind width class for the `text` line (e.g. `w-1/2`). Defaults to `w-full`.',
     },
     label: {
-      description:
-        'Accessible name for the single `role="status"` node announced to assistive tech. Defaults to `"Loading"`.',
+      description: 'Accessible name for the `role="status"` node. Defaults to `"Loading"`.',
     },
     className: { description: 'Extra classes merged onto the outer wrapper.' },
   },

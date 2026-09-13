@@ -224,7 +224,7 @@ describe('attribution parity between the group view and the user view', () => {
   });
 });
 
-describe('attribution parity after an explicit per-row proof (ADR-0031)', () => {
+describe('attribution parity after an explicit per-row proof', () => {
   function provenUserViewVerdict(
     identity: GroupIdentity,
     rules: MembershipRule[],

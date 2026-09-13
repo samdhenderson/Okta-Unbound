@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import SortPill from './SortPill';
 
 const meta = {
@@ -11,21 +12,18 @@ const meta = {
     docs: {
       description: {
         component:
-          'A sort-toggle pill: a `FilterPill` that shows a directional caret when its field is the active sort, rotating it 180° for descending order.\n\n' +
-          'Filter panels reuse this instead of hand-rolling a raw `<button>` + inline caret per sort field. Generic over the caller’s sort-field union so it stays type-safe. Inactive when a different field is active; filled with an up/down caret when it is the active field.',
+          'A sort-toggle pill: a `FilterPill` that shows a directional caret when its field is the ' +
+          'active sort, rotating it for descending order. Generic over the caller’s sort-field ' +
+          'union, so a filter panel gets a type-safe set of pills instead of hand-rolled buttons.',
       },
     },
   },
   argTypes: {
     field: { description: 'The sort field this pill selects.' },
-    label: { description: 'Human-readable label shown on the pill.' },
-    activeField: {
-      description: 'The currently active sort field (the pill fills when it matches `field`).',
-    },
-    descending: { description: 'Whether the active sort is descending — rotates the caret 180°.' },
-    onToggle: {
-      description: 'Toggle this field as the sort (or flip direction if already active).',
-    },
+    label: { description: 'Label shown on the pill.' },
+    activeField: { description: 'The currently active sort field.' },
+    descending: { description: 'Whether the active sort is descending.' },
+    onToggle: { description: 'Called with this pill’s field when clicked.' },
   },
   args: {
     field: 'name',
@@ -49,13 +47,64 @@ export const ActiveDescending: Story = {
   args: { activeField: 'name', descending: true },
 };
 
-export const Row: Story = {
+type SortField = 'name' | 'status' | 'factors';
+
+const FIELDS: { field: SortField; label: string }[] = [
+  { field: 'name', label: 'Name' },
+  { field: 'status', label: 'Status' },
+  { field: 'factors', label: 'Factor count' },
+];
+
+export const Interactive: Story = {
   args: { activeField: 'name', descending: false },
-  render: (args) => (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-      <SortPill {...args} field="name" label="Name" />
-      <SortPill {...args} field="status" label="Status" />
-      <SortPill {...args} field="factors" label="Factor count" />
-    </div>
-  ),
+  render: (args) => {
+    const Harness = () => {
+      const [activeField, setActiveField] = useState<SortField>('name');
+      const [descending, setDescending] = useState(false);
+      const toggle = (field: SortField) => {
+        args.onToggle(field);
+        if (field === activeField) setDescending((d) => !d);
+        else {
+          setActiveField(field);
+          setDescending(false);
+        }
+      };
+      return (
+        <div className="flex items-center gap-1.5">
+          {FIELDS.map(({ field, label }) => (
+            <SortPill
+              key={field}
+              field={field}
+              label={label}
+              activeField={activeField}
+              descending={descending}
+              onToggle={toggle}
+            />
+          ))}
+          <span data-testid="direction">{descending ? 'descending' : 'ascending'}</span>
+        </div>
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const status = canvas.getByRole('button', { name: /Status/ });
+
+    await expect(canvas.getByRole('button', { name: /Name/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    await userEvent.click(status);
+    await expect(status).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByRole('button', { name: /Name/ })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+    await expect(canvas.getByTestId('direction')).toHaveTextContent('ascending');
+
+    await userEvent.click(status);
+    await expect(canvas.getByTestId('direction')).toHaveTextContent('descending');
+  },
 };

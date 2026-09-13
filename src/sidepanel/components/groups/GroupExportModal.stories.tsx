@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn, userEvent, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupExportModal from './GroupExportModal';
 import type { GroupSummary } from '../../../shared/types';
 import { mockUsers } from '../../../test/mocks/fixtures';
@@ -58,15 +58,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Modal for exporting a set of groups (and optionally their members) to CSV.\n\n' +
-          'Exports either an ad-hoc selection or a saved collection (the latter names the ' +
-          'title/filename). Enabling "Include member list" fetches each group’s members ' +
-          'and, past ~20 groups, warns the run may take a while. Export is blocked when no ' +
-          'Okta tab is connected (`targetTabId` null), and the modal renders nothing when ' +
-          'closed.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs), ' +
-          '[Shared utilities](?path=/docs/internals-shared-utilities--docs)',
+          'Modal for exporting a set of groups (and optionally their members) to CSV, from either an ad-hoc selection or a saved collection — the latter names the title and filename.\n\n' +
+          'Export is blocked when no Okta tab is connected (`targetTabId` null), and the modal renders nothing when closed.',
       },
     },
   },
@@ -118,6 +111,13 @@ export const Disabled: Story = {
 
 export const LargeExport: Story = {
   args: { groups: manyGroups },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText(/may take a while/)).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('checkbox', { name: /Include member list/ }));
+    await expect(await canvas.findByText(/Exporting members for 25 groups/)).toBeInTheDocument();
+  },
 };
 
 export const Closed: Story = {

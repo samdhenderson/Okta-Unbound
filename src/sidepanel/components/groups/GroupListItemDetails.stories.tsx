@@ -44,8 +44,7 @@ const meta = {
         component:
           "The preview a group row reveals when its chevron is expanded — the untruncated description, the copyable group id, Okta's own timestamps, the push mappings, and the member-source legend *if* one is already cached.\n\n" +
           'Deliberately a preview and not a second detail view: nothing here fetches, and every field shown is already on the loaded `GroupSummary`. Anything that costs a request lives in the full Group Detail view, which the row body opens.\n\n' +
-          "**A push target is named, or its name is stated as missing.** A mapping's `appName` is optional, and this panel used to fall back to printing the raw `appId` in the name's own slot — an opaque `0oa…` that read as though it *were* the app's name. A named mapping is now a shared `EntityLink` (opens the app, copies its id); an un-named one says \"App name not loaded\" beside the raw id in the identifier register.\n\n" +
-          '**Related internals:** [EntityLink](?path=/docs/shared-entitylink--docs)',
+          'A push target is named, or its name is stated as missing: a named mapping renders as an `EntityLink`, an un-named one says "App name not loaded" beside its raw id. The id is never printed in the name\'s own slot.',
       },
     },
   },

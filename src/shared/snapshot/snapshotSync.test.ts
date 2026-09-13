@@ -691,7 +691,7 @@ describe('the freshness ladder', () => {
   });
 });
 
-describe('the parse version (ADR-0066)', () => {
+describe('the parse version', () => {
   it('serves a snapshot at the current version from cache, never re-walking it', async () => {
     await seedSyncedCollection([group('00g1', 'Eng')]);
     const { request, urls } = scriptedRequest({
@@ -966,7 +966,7 @@ describe('a sharded walk', () => {
   });
 });
 
-describe('the parse version, on a fan-out (ADR-0066)', () => {
+describe('the parse version, on a fan-out', () => {
   async function seedCompletedFanOut(parseVersion: number | null): Promise<void> {
     await orgSnapshotStore.patchMeta('apps', ORIGIN, {
       complete: true,

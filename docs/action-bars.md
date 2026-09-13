@@ -128,9 +128,9 @@ open state.
 nothing about where it sits.
 
 **Where a strip's set of verbs varies with state, the leading position must hold a
-control whose worst outcome is another click.** Ordering by weight once put _Merge_
-— which copies members into a survivor and empties the sources — directly under the
-pixel that had a moment earlier been _Select all_. On a rung with a selection,
+control whose worst outcome is another click.** Ordering by weight alone puts a
+destructive verb (_Merge_ copies members into a survivor and empties the sources)
+under the pixel that a moment earlier was _Select all_. On a rung with a selection,
 position one is always a selection control: `Deselect all` leads the moment anything
 is ticked, `Select all (M)` follows, and both are `pinned`.
 
@@ -157,13 +157,11 @@ rule, no divider, no wash.
 **What separates the two families is the controls, not the surface.** Selection
 furniture — `Select all (M)`, `Deselect all`: the things that say how many rows the
 filter matched and how to stop ticking them — takes `variant: 'link'`. A verb that
-acts on the ticked rows (`Compare (N)`) keeps `secondary`, however small. The
-register's old `bg-neutral-50` well carried that separation until 2026-09-10 and is
-gone: a wash says _different_ but never _subordinate_, says nothing to a reader who
-cannot see it, and its `mx-2 px-2` inset stacked on the band's own — pushing the
-row's first glyph 24px from the card edge while every row above it started at 8px.
-The band's left edge is one line now, top to bottom. Row height is unchanged: a
-`link` keeps the vertical half of its size scale.
+acts on the ticked rows (`Compare (N)`) keeps `secondary`, however small. Never give
+the register a wash: a wash says _different_ but never _subordinate_, says nothing to
+a reader who cannot see it, and its inset stacks on the band's own. The band's left
+edge is one line, top to bottom, and a `link` keeps the vertical half of its size
+scale, so row height is unchanged.
 
 **Pass it whenever the rung has a selection at all, not only once something is
 ticked.** The row holds its space in both states, so the first tick adds controls to

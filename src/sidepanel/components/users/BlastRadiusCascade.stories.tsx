@@ -21,18 +21,8 @@ const meta = {
     docs: {
       description: {
         component:
-          '**Every line is structure, not a prediction.** This rule reads this group; it named it this way; ' +
-          'it assigns these groups. None of it claims the rule will fire — that is the second hop ' +
-          '`docs/claims.md` forbids chasing, and the footer names that absence once rather than hedging ' +
-          'every line with a “may”.\n\n' +
-          '**No count, and no negative.** The trigger that opens this carries no tally, and a group with no ' +
-          'cascade renders nothing at all. The scan under-reports by design — a negated connective and a ' +
-          'regex pattern the safe engine declines both yield no group references — so a count or an ' +
-          'emptiness claim would assert a completeness the engine cannot back.\n\n' +
-          '**One component serves both row types.** A group row passes the single group it is about; a rule ' +
-          'row passes one block per affected group it assigns into. The per-group caption appears only with ' +
-          'more than one block, because with one the trigger already named it.\n\n' +
-          'Related internals: `shared/membership/blastRadius`, `sidepanel/components/users/cascadeLines`.',
+          '**Every line is structure, not a prediction.** This rule reads this group; it named it this way; it assigns these groups. Nothing here claims the rule will fire, and the footer names that absence once rather than hedging every line.\n\n' +
+          '**No count, and no negative.** The scan under-reports by design, so a group with no cascade renders nothing at all rather than asserting a completeness the engine cannot back. One component serves both row types: a group row passes the group it is about, a rule row one block per group it assigns into.',
       },
     },
   },

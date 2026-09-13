@@ -15,8 +15,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'The raw-condition view `ClauseLedger` shows behind its "Raw expression" toggle: the tenant\'s own EL text in a recessed well, plus a footer stating the whole-expression resolved value.\n\n' +
-          'The footer never rounds "cannot tell" to `false` — an `unevaluable` result states the reason sentence in place of a value.',
+          'The raw-condition view `ClauseLedger` shows behind its "Raw expression" toggle: ' +
+          "the tenant's own EL text in a recessed well, plus a footer stating the " +
+          'whole-expression resolved value. The footer never rounds "cannot tell" to ' +
+          '`false` — an `unevaluable` result states the reason in place of a value.',
       },
     },
   },

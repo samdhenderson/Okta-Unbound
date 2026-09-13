@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import CopyButton from './CopyButton';
 
 const meta = {
@@ -10,8 +11,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Copy-to-clipboard button that briefly confirms success by swapping its icon and label to `success` styling for ~1.5s.\n\n' +
-          'Wraps the shared `Button`. Text is produced lazily via `getText()` on click, so large lists aren’t built until needed, and clipboard failures (blocked permissions / insecure context) fail silently rather than throwing.',
+          'Copy-to-clipboard button that confirms success by swapping its icon and label to ' +
+          '`success` styling for ~1.5s. Text is produced lazily via `getText()` on click, so ' +
+          'large lists aren’t built until needed, and a blocked clipboard fails silently ' +
+          'rather than throwing.',
       },
     },
   },
@@ -78,9 +81,28 @@ export const WithTitle: Story = {
   },
 };
 
+export const Copying: Story = {
+  args: { copiedLabel: 'Copied 3 emails' },
+  play: async ({ canvasElement }) => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (text: string) => (written.push(text), Promise.resolve()) },
+    });
+
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Copy emails' }));
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Copied 3 emails' })).toBeInTheDocument(),
+    );
+    await expect(written).toEqual(['user1@example.com\nuser2@example.com\nuser3@example.com']);
+  },
+};
+
 export const AllSizes: Story = {
   render: (args) => (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+    <div className="flex items-center gap-3">
       <CopyButton {...args} size="sm" label="Small" />
       <CopyButton {...args} size="md" label="Medium" />
       <CopyButton {...args} size="lg" label="Large" />

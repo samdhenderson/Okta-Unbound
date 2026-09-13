@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import CompositionReports from './CompositionReports';
 import { discoverAttributeBreakdowns, NONE_VALUE, OTHER_VALUE } from './memberAnalytics';
 import type { AttributeSummary, BreakdownRow, MemberFilter } from './memberAnalytics';
@@ -51,6 +51,19 @@ const manyAttributes: AttributeSummary[] = [
     ],
   },
   {
+    key: 'location',
+    label: 'Location',
+    distinct: 3,
+    populated: 980,
+    total: 1000,
+    fillRate: 98,
+    rows: [
+      { value: 'HQ', label: 'HQ', count: 600, pct: 60 },
+      { value: 'Satellite', label: 'Satellite', count: 380, pct: 38 },
+      { value: NONE_VALUE, label: '(none)', count: 20, pct: 2 },
+    ],
+  },
+  {
     key: 'division',
     label: 'Division',
     distinct: 2,
@@ -86,14 +99,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'Collapsible "Composition" panel — what a group is made of.\n\n' +
-          'One section with a tab strip toggling between **Attributes** (an ' +
-          '{@link AttributeFacet} per discovered profile attribute) and **MFA factors** ' +
-          "(the scan's factor distribution). Above a threshold of attributes it adds a " +
-          '"Find attribute…" filter input. Value clicks bubble up as member-list facet ' +
-          'toggles; "View all" requests the full-distribution modal. The MFA tab prompts ' +
-          'to run the scan before results exist and shows the factor distribution after.\n\n' +
-          '**Related internals:** [Types](?path=/docs/internals-types--docs)',
+          'Collapsible "Composition" panel — what a group is made of. A tab strip toggles ' +
+          'between **Attributes** (one facet per discovered profile attribute) and **MFA ' +
+          "factors** (the scan's distribution); above a threshold of attributes it adds a " +
+          '"Find attribute…" filter.\n\n' +
+          'The section starts collapsed and owns both its open state and its active tab, so ' +
+          'every story here opens it before there is anything to see.',
       },
     },
   },
@@ -130,24 +141,62 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+const openSection = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement);
+  await userEvent.click(canvas.getByRole('button', { name: /Composition/ }));
+  return canvas;
+};
+
+export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = await openSection(canvasElement);
+    await expect(canvas.getByRole('tab', { name: /Attributes/ })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  },
+};
 
 export const Empty: Story = {
   args: { attributes: [] },
+  play: async ({ canvasElement }) => {
+    const canvas = await openSection(canvasElement);
+    await expect(canvas.getByText(/No profile attributes/)).toBeInTheDocument();
+  },
 };
 
 export const ManyAttributes: Story = {
   args: { attributes: manyAttributes },
+  play: async ({ canvasElement }) => {
+    const canvas = await openSection(canvasElement);
+
+    await userEvent.type(canvas.getByPlaceholderText('Find attribute…'), 'cost');
+    await expect(canvas.getByText('Cost center')).toBeInTheDocument();
+    await expect(canvas.queryByText('City')).not.toBeInTheDocument();
+  },
 };
 
 export const WithActiveFilter: Story = {
   args: { attributes: manyAttributes, filters: activeFilters },
+  play: async ({ canvasElement }) => {
+    await openSection(canvasElement);
+  },
 };
 
 export const MfaTabNotScanned: Story = {
   args: { mfaResults: null, scanStatus: 'idle' },
+  play: async ({ canvasElement }) => {
+    const canvas = await openSection(canvasElement);
+    await userEvent.click(canvas.getByRole('tab', { name: 'MFA factors' }));
+    await expect(canvas.getByText(/Scan the group to see the distribution/)).toBeInTheDocument();
+  },
 };
 
 export const MfaTabScanned: Story = {
   args: { mfaResults, scanStatus: 'complete', mfaRows },
+  play: async ({ canvasElement }) => {
+    const canvas = await openSection(canvasElement);
+    await userEvent.click(canvas.getByRole('tab', { name: 'MFA factors' }));
+    await expect(canvas.getByText('WebAuthn')).toBeInTheDocument();
+  },
 };

@@ -79,25 +79,14 @@ const meta = {
     docs: {
       description: {
         component:
-          '**The group is named on load, and it costs nothing extra.** An earlier cut of this design put a ' +
-          '"Name the group" button on every group-granted row, on the assumption that naming the grantor cost a ' +
-          'request per app. It does not: `getUserApps` already asks for `expand=user/{id}`, and Okta names the ' +
-          "granting group in that embed's `_links.group.href` — the panel was parsing it away. So there is no " +
-          'per-row button here at all.\n\n' +
-          '**A `Direct` badge and a `Through {group}` line are not in tension.** Okta reports a *single* scope ' +
-          'per app-user and prefers `USER` when a user is both directly assigned and in an assigned group. ' +
-          '`Direct` can therefore only mean "there is a direct assignment" — never "direct only", never "not via ' +
-          'a group". The first row below carries both statements at once, which is the thing the comparison ' +
-          "view's four-state indicator could never say, and the reason this pane exists.\n\n" +
-          '**An unknown source is spelled out, not left blank.** A row whose grantor is not known shows the ' +
-          'caveat `AppScopeIndicator` owns for that state, in italic, so a stated absence never carries the ' +
-          'weight of a stated fact. The vocabulary — `Direct`, `Via group`, `Source unknown` and their exact ' +
-          'caveats — is reused verbatim from that component; `appSourceSummary.test.ts` renders the real ' +
-          'indicator and fails if the two ever drift apart.\n\n' +
-          '**A partial walk never renders as a complete answer.** `complete: false` raises a standing, ' +
-          'non-dismissible warning: a list short by an unknown number of apps must not be read as this ' +
-          "user's whole access.\n\n" +
-          'Related internals: `sidepanel/components/users/appSourceSummary`, `sidepanel/hooks/useUserApps`.',
+          'Which apps this user has, and which group grants each one. The granting group is ' +
+          'named on load at no extra cost — Okta already names it in the `expand=user/{id}` ' +
+          'embed — so there is no per-row "name the group" button.\n\n' +
+          'A `Direct` badge and a `Through {group}` line are not in tension: Okta reports a ' +
+          'single scope per app-user and prefers `USER`, so `Direct` only means "there is a ' +
+          'direct assignment". A grantor that is not known is spelled out in italic rather than ' +
+          'left blank, and `complete: false` raises a standing, non-dismissible warning — a ' +
+          "partial walk must never read as this user's whole access.",
       },
     },
   },

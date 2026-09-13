@@ -162,7 +162,7 @@ describe('sync meta', () => {
     });
   });
 
-  it('round-trips the parse version a completed walk recorded (ADR-0066)', async () => {
+  it('round-trips the parse version a completed walk recorded', async () => {
     await orgSnapshotStore.patchMeta('groups', ORIGIN, { complete: true, parseVersion: 4 });
 
     expect((await orgSnapshotStore.getMeta('groups', ORIGIN)).parseVersion).toBe(4);
