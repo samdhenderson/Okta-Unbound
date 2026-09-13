@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { useState, type ReactElement } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import Select from './Select';
 
 const meta = {
@@ -91,5 +92,33 @@ export const Suspended: Story = {
   args: {
     label: 'User Status',
     value: 'SUSPENDED',
+  },
+};
+
+const SelectHarness = (): ReactElement => {
+  const [value, setValue] = useState('ACTIVE');
+  return (
+    <Select
+      label="User Status"
+      value={value}
+      onChange={setValue}
+      options={[
+        { value: 'ACTIVE', label: 'Active' },
+        { value: 'STAGED', label: 'Staged' },
+        { value: 'SUSPENDED', label: 'Suspended' },
+      ]}
+    />
+  );
+};
+
+export const Choosing: Story = {
+  render: () => <SelectHarness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const select = canvas.getByRole('combobox', { name: 'User Status' });
+    await expect(select).toHaveValue('ACTIVE');
+
+    await userEvent.selectOptions(select, 'SUSPENDED');
+    await expect(select).toHaveValue('SUSPENDED');
   },
 };

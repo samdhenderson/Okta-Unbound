@@ -72,9 +72,12 @@ const meta = {
     docs: {
       description: {
         component:
-          "One batch of Okta API requests that shared a `reason` — the row the History tab's **Verbose** mode adds alongside the existing undo-action rows.\n\n" +
-          'A batch of one request renders its endpoint inline, no disclosure needed. A larger batch collapses to `N requests — reason` with the same `ListRow` + `IconButton`/`aria-expanded` disclosure shape as `AuditLogRow`, so the two entry kinds read as one list.\n\n' +
-          'Endpoints were already redacted (`shared/utils/redact`) before they reached storage; this row does not redact anything itself.',
+          "One batch of Okta API requests that shared a `reason` — the row the History tab's " +
+          '**Verbose** mode adds beside the undo-action rows. A batch of one renders its ' +
+          'endpoint inline; a larger batch collapses to `N requests — reason` behind the same ' +
+          '`aria-expanded` disclosure `AuditLogRow` uses.\n\n' +
+          'Endpoints are redacted by `shared/utils/redact` before storage — this row redacts ' +
+          'nothing itself.',
       },
     },
   },
@@ -158,15 +161,34 @@ export const PartiallyFailed: Story = {
 };
 
 export const OpeningTheDisclosure: Story = {
-  args: { entry: batch, isExpanded: false },
+  args: { entry: batch },
+  render: function Disclosure(args) {
+    const [expanded, setExpanded] = React.useState(false);
+    return (
+      <RequestLogRow
+        {...args}
+        isExpanded={expanded}
+        onToggle={(id) => {
+          args.onToggle(id);
+          setExpanded((open) => !open);
+        }}
+      />
+    );
+  },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole('button', {
       name: 'Show the 42 requests for Populate Groups page',
     });
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
     await userEvent.click(trigger);
     await expect(args.onToggle).toHaveBeenCalledWith('req_log_batch');
+    await expect(canvas.getByRole('button', { expanded: true })).toBeVisible();
+    await expect(canvas.getByText('/api/v1/groups?limit=200')).toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { expanded: true }));
+    await expect(canvas.getByRole('button', { expanded: false })).toBeVisible();
   },
 };
 

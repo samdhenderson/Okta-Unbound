@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent } from 'storybook/test';
 import GroupAppRow from './GroupAppRow';
@@ -23,19 +24,12 @@ const meta = {
       description: {
         component:
           'One assigned app: what it is, whether it is live, and — behind the disclosure — how ' +
-          'it is wired.\n\n' +
-          'This list used to be `EntityLink` chips, so a reader could not tell an `ACTIVE` SAML ' +
-          'app from a deactivated bookmark without leaving the page. **Nothing here costs an ' +
-          'extra request**: `GET /api/v1/groups/{id}/apps` already returned the status, sign-on ' +
-          'mode and timestamps the old chip discarded at the boundary.\n\n' +
-          '**Absent is absent.** An app whose row did not report a status gets no badge, not one ' +
-          'reading "Unknown" — the schema catches unexpected values precisely so a row degrades ' +
-          'rather than being dropped, which makes an absent field genuinely unknown.\n\n' +
-          '**Push is three-state.** `unknown` (the group load’s push enrichment did not run) ' +
-          'says nothing at all, because "not pushed" would turn a skipped enrichment into a ' +
-          'claim. `GroupPushSection` owns the same distinction and remains the complete account: ' +
-          'a group can be pushed to an app it is not assigned to, so a mapping can exist with no ' +
-          'row here to hang it on.',
+          'it is wired. Every field comes from the group’s own apps response, so the row costs ' +
+          'no extra request.\n\n' +
+          'Absent is absent: a row that reported no status gets no badge rather than one ' +
+          'reading "Unknown". Push is three-state, and `unknown` says nothing at all — ' +
+          '`GroupPushSection` remains the complete account, because a group can be pushed to an ' +
+          'app it is not assigned to.',
       },
     },
   },
@@ -108,10 +102,31 @@ export const PushUnknown: Story = {
 };
 
 export const TogglesFromTheChevron: Story = {
+  render: function Disclosure(args) {
+    const [expanded, setExpanded] = useState(false);
+    return (
+      <GroupAppRow
+        {...args}
+        expanded={expanded}
+        onToggle={(id) => {
+          args.onToggle(id);
+          setExpanded((open) => !open);
+        }}
+      />
+    );
+  },
   play: async ({ args, canvas }) => {
     const toggle = canvas.getByRole('button', { name: 'Show details for Slack' });
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
     await userEvent.click(toggle);
     await expect(args.onToggle).toHaveBeenCalledWith('0oaFAKE1');
+    await expect(canvas.getByRole('button', { expanded: true })).toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { expanded: true }));
+    await expect(canvas.getByRole('button', { name: 'Show details for Slack' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   },
 };

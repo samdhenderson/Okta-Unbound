@@ -67,9 +67,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The two opposite ways a loaded rule can touch the group open in Okta, never merged into one count or one filter.\n\n' +
-          "**Assigns members into this group** — the group is in the rule's `assignUserToGroups` targets, so the rule feeds it. **References this group by ID in a condition** — the group id appears in an `isMemberOfGroup(…)`/`isMemberOfAnyGroup(…)` call, so the group is an input and nobody is added here. The second list is deliberately subordinate: the first explains why members are here, the second is only a dependency edge.\n\n" +
-          "Reference detection covers 2 of Okta's 7 membership functions — the two that take group **ids**. The five name-based variants (`isMemberOfGroupName`, `isMemberOfAnyGroupName`, `…NameStartsWith`, `…NameContains`, `…NameRegex`) take names that can resolve to groups this extension never sees, so a rule matching on name reads the group and still will not be listed. The section copy says so; do not remove that caveat.",
+          'The two opposite ways a loaded rule can touch the group open in Okta, listed apart and never merged into one count: rules that assign members **into** the group, and rules that **reference** the group id in a condition.\n\n' +
+          'Reference detection covers only the two membership functions that take group **ids**; the five name-based variants can resolve to groups this extension never sees, and the section copy states that limit — keep it.',
       },
     },
   },

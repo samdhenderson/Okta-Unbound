@@ -13,19 +13,12 @@ const meta = {
       description: {
         component:
           'The small uppercase label that titles a section — the one place the recipe `text-xs font-semibold uppercase tracking-wide text-neutral-600` lives.\n\n' +
-          'Before this component the same element was hand-rolled in roughly eighteen files under four competing recipes: `tracking-wide` against `tracking-wider`, `text-xs` against the off-scale `text-[10px]` / `text-[11px]`, and `text-neutral-500` against `-600` against `-700`. Several sizes of the same element could appear on one screen.\n\n' +
-          'ADR-0030 already settled the values — `DetailSection`’s `tracking-wide` eyebrow is named there as the survivor of the tracking-wide/tracking-wider split — but settled them in prose, so the drift kept accumulating. This component is that decision made mechanical.\n\n' +
-          'There is deliberately **no colour, size or tracking prop**. A section wanting a different eyebrow treatment is exactly the drift this exists to stop; if a new treatment is genuinely needed it changes here, once, for everyone. `className` is for layout and spacing only.\n\n' +
-          'An eyebrow is a **label, not a control**. A section header that needs a verb composes this beside a `Button` or `IconButton` — the label itself never becomes pressable.\n\n' +
-          'Use `as="h3"` only when the eyebrow is a real section heading that should join the document outline; the default `span` keeps a decorative label out of heading order.',
+          'There is deliberately no colour, size or tracking prop: `className` is for layout and spacing only. An eyebrow is a label, never a control, and `as="h3"` is for when it is a real section heading that should join the document outline.',
       },
     },
   },
   argTypes: {
-    children: {
-      description:
-        'The label text. Keep it short — an eyebrow titles a section, it does not explain it.',
-    },
+    children: { description: 'The label text; short, because an eyebrow titles a section.' },
     as: {
       description:
         'Element to render: `span` (default), `div` for a block box, or `h3` when the eyebrow is a real section heading.',

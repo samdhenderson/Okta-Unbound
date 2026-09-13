@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import PoliciesListPanel from './PoliciesListPanel';
 import { resetEntityCache } from '../../cache/entityCache';
 import type { OktaPolicyListItem, OktaPolicyRule } from '../../../shared/schemas/okta';
@@ -50,11 +50,10 @@ const meta = {
     docs: {
       description: {
         component:
-          "The Auth Policies tab's list region.\n\n" +
-          'Wraps a scrollable list of policy cards and picks the right empty state: "nothing ' +
-          'loaded" — which also carries the admin-role caveat, since a `403` on the policies ' +
-          'endpoint is indistinguishable from an org with no policies — versus "nothing matches ' +
-          'the search".',
+          "The Auth Policies tab's list region: a scrollable list of policy cards, and the " +
+          'right empty state for the situation. "Nothing loaded" also carries the admin-role ' +
+          'caveat, because a `403` on the policies endpoint is indistinguishable from an org ' +
+          'with no policies.',
       },
     },
   },
@@ -97,12 +96,26 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+export const ExpandingACard: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Show rules for Any two factors' }));
+    await expect(await canvas.findByText('Catch-all Rule')).toBeInTheDocument();
+    await expect(args.loadRules).toHaveBeenCalledWith('rstFAKE000000000001');
+  },
+};
+
 export const Loading: Story = {
   args: { isLoading: true, policies: [], hasPolicies: false },
 };
 
 export const NoPolicies: Story = {
   args: { policies: [], hasPolicies: false },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Reload Policies' }));
+    await expect(args.onLoad).toHaveBeenCalled();
+  },
 };
 
 export const NoSearchMatches: Story = {

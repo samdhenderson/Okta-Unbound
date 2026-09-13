@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import PresetControls from './PresetControls';
 import type { ExportPreset } from '../../../shared/storage/presetStore';
 
@@ -32,12 +32,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Saved-preset controls for the Export tab.\n\n' +
-          'Apply a saved column selection via the shared `Select`, save the current selection ' +
-          'under a name (shared `Input` + `Button`), and delete the active preset. The apply ' +
-          'dropdown is disabled when no presets exist; the delete affordance only appears once ' +
-          'a preset is applied; saving is gated on `canSave` and a non-empty name. Persistence ' +
-          'is owned by the tab hook — this component is presentational plus a local name field.',
+          'Apply a saved column selection, save the current one under a name, or delete the ' +
+          'applied preset. Persistence is owned by the tab hook: the only state this component ' +
+          'holds is the name being typed.',
       },
     },
   },
@@ -66,6 +63,11 @@ export const Default: Story = {};
 
 export const PresetApplied: Story = {
   args: { activePresetId: 'p-1' },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Delete/ }));
+    await expect(args.onDelete).toHaveBeenCalledWith('p-1');
+  },
 };
 
 export const Empty: Story = {
@@ -74,4 +76,26 @@ export const Empty: Story = {
 
 export const CannotSave: Story = {
   args: { canSave: false },
+};
+
+export const SavingAPreset: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const save = canvas.getByRole('button', { name: 'Save' });
+    await expect(save).toBeDisabled();
+
+    await userEvent.type(canvas.getByLabelText('Preset name'), 'Contractors');
+    await expect(save).toBeEnabled();
+
+    await userEvent.click(save);
+    await expect(args.onSave).toHaveBeenCalledWith('Contractors');
+  },
+};
+
+export const ApplyingAPreset: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.selectOptions(canvas.getByLabelText('Apply a saved preset'), 'p-2');
+    await expect(args.onApply).toHaveBeenCalledWith('p-2');
+  },
 };

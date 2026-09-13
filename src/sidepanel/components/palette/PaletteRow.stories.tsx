@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import PaletteRow from './PaletteRow';
 
 const meta = {
@@ -10,11 +10,13 @@ const meta = {
     docs: {
       description: {
         component:
-          "One row in the ⌘K palette's result list — a section to jump to, or an entity to open.\n\n" +
-          '**§3 exception — a raw `<button>`.** A palette row is a left-aligned icon + label + trailing-mark row carrying a roving `tabIndex` and a ref for programmatic focus. `Button` is a centred CTA and exposes neither. `ListRow` exposes `elementRef` — half of what is needed — but no `tabIndex` and no `onKeyDown`, so it cannot carry the roving anchor or the Up/Down handler either. The gap is structural rather than stylistic against both primitives, so a new variant would not discharge it. See `docs/components.md` §3.\n\n' +
-          "**Button or link, never both.** A row whose kind this build cannot open in-panel has one route left — the Okta admin console — and that route is the whole row. Given an `href` the row renders as an `<a>`; otherwise as a `<button>`. A link nested inside the row button is a `nested-interactive` axe violation, and a button wrapping a working link is a control that does nothing (ADR-0039). `home/JumpResultRow` makes the same call with `as={onSelect ? 'button' : 'div'}`. Both forms are focusable and take the same roving `tabIndex`, so the list's Up/Down arithmetic stays a plain walk over its rows.\n\n" +
-          '**The roving anchor lives in the list, not the row.** Exactly one row carries `tabIndex={0}` and every other carries `-1`, so the whole result list is one tab stop. The row takes the value it is told and a ref the list focuses; it owns none of that state.\n\n' +
-          '`press-subtle` rather than `press` (ADR-0046): the row spans the full palette width, so a button-scale depress would read as a lurch.',
+          "One row in the ⌘K palette's result list — a section to jump to, or an entity to " +
+          'open. Given an `href` the row renders as an `<a>`, otherwise as a `<button>`: ' +
+          'never both, because a link nested inside the row button is a `nested-interactive` ' +
+          'violation and a button wrapping a link is a control that does nothing.\n\n' +
+          'The roving anchor lives in the list, not the row: exactly one row carries ' +
+          '`tabIndex={0}` and every other carries `-1`, so the whole result list is one tab ' +
+          'stop. The row takes the value it is told and a ref the list focuses.',
       },
     },
   },
@@ -22,11 +24,11 @@ const meta = {
     trailing: {
       control: false,
       description:
-        'Right-edge mark. The palette uses it to name where a row goes (`Groups ›`), or to carry an "Open in Okta" link when a kind is unreachable — so a row that cannot navigate still has a route.',
+        'Right-edge mark naming where the row goes (`Groups ›`), or carrying its "Open in Okta" link.',
     },
     isCurrent: {
       description:
-        'Whether this is the section the reader is already on. Marks the row `aria-current="page"`, so the palette says where you are rather than only where you could go.',
+        'Whether this is the section the reader is already on; marks the row `aria-current="page"`.',
     },
     tabIndex: {
       description: 'The roving anchor: `0` on exactly one row in the list, `-1` on every other.',
@@ -44,6 +46,13 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const Activating: Story = {
+  play: async ({ args, canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Groups' }));
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+  },
+};
 
 export const Current: Story = {
   args: { label: 'Home', icon: 'home', isCurrent: true },

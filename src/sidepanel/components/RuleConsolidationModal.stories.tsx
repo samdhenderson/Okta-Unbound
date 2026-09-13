@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import RuleConsolidationModal from './RuleConsolidationModal';
 import type {
   ConsolidationPreview,
@@ -57,9 +57,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Wizard for rule consolidation (Feature A4).\n\n' +
-          'Add-target flow: search-select a group to add → dry-run diff → confirm. Merge flow: opens straight to the diff for a cluster of identical-expression rules. The confirm step creates the union rule, activates it if needed, then retires the source rule(s). All writes are audited and captured for undo.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'Wizard for rule consolidation. The add-target flow is search-select a group → ' +
+          'dry-run diff → confirm; the merge flow opens straight to the diff for a cluster of ' +
+          'identical-expression rules. Confirming creates the union rule, activates it if ' +
+          'needed, then retires the source rules — all audited and captured for undo.',
       },
     },
   },
@@ -72,7 +73,7 @@ const meta = {
     error: { description: 'Failure message to surface, or null.' },
     actorNotice: {
       description:
-        'Non-blocking notice for a run whose acting admin could not be confirmed, so the audit entry carries no actor (D-013c).',
+        'Non-blocking notice for a run whose acting admin could not be confirmed, so the audit entry carries no actor.',
     },
     onDismissActorNotice: { description: 'Dismiss the actor-unavailable notice.' },
     searchGroups: { description: 'Search groups by name (add-target select step).' },
@@ -96,6 +97,20 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const ChoosingAGroup: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+
+    await userEvent.type(canvas.getByPlaceholderText('Search groups by name…'), 'Engineering');
+    const hit = await canvas.findByRole('button', { name: 'Engineering Managers' });
+    await userEvent.click(hit);
+
+    await waitFor(() =>
+      expect(args.onChooseGroup).toHaveBeenCalledWith('grp2', 'Engineering Managers'),
+    );
+  },
+};
 
 export const Loading: Story = {
   args: { phase: 'loading' },

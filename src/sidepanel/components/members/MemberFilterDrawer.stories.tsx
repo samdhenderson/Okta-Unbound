@@ -53,19 +53,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Members tab used to stack seven surfaces above its first member row. This is ' +
-          'the drawer half of the replacement: one visible control line, and everything else ' +
-          'here — the membership-source strip and its notes, the status/MFA/sort panel, the ' +
-          'routes into each profile attribute, and a pointer to the Insights tab where the ' +
-          'composition reports now live.\n\n' +
-          'The disclosure is the shared `.disclose` height animation, so the contents stay ' +
-          '**mounted** while closed and keep their own state across an open/close — and are ' +
-          '`inert`, so they leave the tab order *and* the accessible tree, which a `hidden` ' +
-          'class would only half do. Reduced motion needs nothing here: `tailwind.css` ' +
-          'flattens the transition globally.\n\n' +
-          '**Not observable in this runner:** the collapsed height. The headless story runner ' +
-          'loads no Tailwind, so the `0fr` grid row is not applied and the drawer measures the ' +
-          'same open or closed. The `inert` contract is what these stories assert.',
+          'Every member control the explorer has, behind one disclosure: the ' +
+          'membership-source strip and its notes, the status/MFA/sort panel, the routes into ' +
+          'each profile attribute, and a pointer to the Insights tab. The contents stay ' +
+          'mounted while closed — and `inert`, so they leave the tab order and the accessible ' +
+          'tree — which is the contract these stories assert, since the headless runner loads ' +
+          'no Tailwind and so cannot observe the collapsed height.',
       },
     },
   },

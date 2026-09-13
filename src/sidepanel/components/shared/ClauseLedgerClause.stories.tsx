@@ -16,9 +16,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'One leaf of a `ClauseLedger` tree — the clause stated in words; its outcome chip; the group references it named; and the profile evidence that drove it.\n\n' +
-          'A clause carrying a `predicate` is read as a sentence (**department** (lowercased) equals `"sales"`) rather than printed as the expression it came from; a group-membership clause gets its own plain-language label whose polarity is stated in words; and a clause the explainer could not describe exactly falls back to its verbatim text. The raw expression is always one toggle away in the ledger itself.\n\n' +
-          'An attribute read is one of three states this component ever sees: a present value, an explicit `null`, or an absent attribute rendered as the words "not set" — never a dash, never `0`.',
+          'One leaf of a `ClauseLedger` tree: the clause stated in words, its outcome chip, ' +
+          'the group references it named, and the profile evidence that drove it. A clause ' +
+          'carrying a `predicate` reads as a sentence rather than as the expression it came ' +
+          'from; one the explainer could not describe exactly keeps its verbatim text.\n\n' +
+          'An attribute read is one of three states: a present value, an explicit `null`, or ' +
+          'an absent attribute rendered as the words "not set" — never a dash, never `0`.',
       },
     },
   },

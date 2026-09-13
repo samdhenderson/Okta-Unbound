@@ -27,16 +27,12 @@ Two projects: `unit` (jsdom, browser-free — `npm run test:run`) and `storybook
 A story without a `play` function asserts exactly two things: **it renders without
 throwing, and it is axe-clean**. It does **not** check that the right text appeared,
 that a callback fired, or that a derived value is correct. Only a `play` function does
-that, and at the time of writing **6 of 115 story files have one**.
+that, and very few story files have one.
 
-This matters when applying "one runner per pure-render component". A 2026-08-13 audit
-found 45 components carrying both a `.test.tsx` and a `.stories.tsx` and checked
-whether the story could stand in for the test. **None could.** Even the three whose
-stories have `play` functions cover different ground than their tests —
+So "there's already a story" is **not** on its own a reason to delete a test. Even a
+story with a `play` function usually covers different ground than the test beside it —
 `AuthPoliciesTab`'s play expands a policy, while its test also pins re-expansion
 caching and the deferral that keeps a hidden tab from fetching.
-
-So "there's already a story" is **not** on its own a reason to delete a test.
 Collapsing duplicate coverage requires the story to actually assert the same
 behavior — read its `play` function and say so in the PR note. Going forward, the
 rule bites at authoring time: don't write a render-only test for a component that
@@ -59,9 +55,8 @@ Mock at the layer under test instead:
   from `src/test/setup.ts`; set its resolved value per case.
 - **Stories** — mock at the facade via `.storybook/mocks/useOktaApi.mock.ts`.
 
-`src/test/mocks/fixtures.ts` exports the `mockUsers` / `mockGroup` **fixtures** used
-by 32 stories and tests. It was `handlers.ts` until its vestigial MSW handler array —
-which no `setupServer` ever consumed — was removed along with the `msw` dependency.
+`src/test/mocks/fixtures.ts` exports the `mockUsers` / `mockGroup` **fixtures** shared
+by stories and tests.
 
 Shared fakes live in `src/test/factories/`. `makeFakeCore` there is the `CoreApi`
 fake every `useOktaApi/*` suite builds on; pass per-suite defaults through its
@@ -158,8 +153,7 @@ Coverage says nothing about whether code is _reachable_. Two things follow, and 
 pull in opposite directions:
 
 - A **fully-tested dead module** scores 100% and inflates the average. Deleting it
-  makes the percentage go **down** even though the codebase got healthier — removing
-  `statusNormalizer.ts` cost ~0.1 points.
+  makes the percentage go **down** even though the codebase got healthier.
 - An **untested dead module** never appears at all. `coverage.all` is not enabled, so
   v8 only instruments files a test actually loads; a file no test imports is absent
   from the denominator entirely.

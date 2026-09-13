@@ -61,12 +61,9 @@ Type scale via Tailwind: `text-xs` (chips/meta), `text-sm` (body), `text-base`
 
 **There is exactly one eyebrow recipe: `text-xs font-semibold uppercase tracking-wide
 text-neutral-600`**, and it lives in the shared `Eyebrow` component
-(`components/shared/Eyebrow.tsx`) — never hand-roll it. It had drifted into four
-recipes across ~18 files (`tracking-wider`, the off-scale `text-[10px]`/`text-[11px]`,
-and `text-neutral-500`/`600`/`700`); `tracking-wide` is the survivor, and the
-primitive is what keeps it settled. `Eyebrow` has no colour, size or tracking
-prop by design; a section that wants a different treatment is the drift it exists to
-stop.
+(`components/shared/Eyebrow.tsx`) — never hand-roll it. `Eyebrow` has no colour,
+size or tracking prop by design; a section that wants a different treatment is the
+drift it exists to stop.
 
 ## Spacing
 
@@ -99,11 +96,6 @@ still `rounded-md`. Component sizing goes through the size props, not ad-hoc pad
 `sm|md|lg` for most primitives, with `Icon` (`xs`…`xl`) and `LoadingSpinner`
 (`sm`…`2xl`) carrying extra steps and sharing size names with each other — see
 `docs/components.md`.
-
-This replaces the old advice ("use the Tailwind scale, avoid one-off values"), which was
-the best available before a system existed. It is not the best available now: eight tab
-roots had independently hand-copied `px-6 py-6 space-y-6`, and `space-y-3` appeared 74
-times, because prose cannot enforce agreement.
 
 ## Token violations
 

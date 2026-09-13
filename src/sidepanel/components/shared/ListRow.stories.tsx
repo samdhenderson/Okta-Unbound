@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ListRow from './ListRow';
 
 const meta = {
@@ -10,16 +11,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'The chrome every list row shares, in one place (ADR-0029).\n\n' +
-          'Before this existed the same conceptual element shipped ten padding values, ' +
-          'five hover treatments and four separator strategies, with class strings ' +
-          'hand-copied between files. `ListRow` fixes the radius, resting border, hover ' +
-          'border and transition — there is deliberately no prop to change them — and ' +
-          'exposes only `density`, `state`, `flash` and `as`.\n\n' +
-          'It does **not** own the interior: children are whatever the feature needs, ' +
-          'because interiors genuinely differ (a checkbox and a disclosure body versus ' +
-          'three lines of text). The interior instead follows the typography contract in ' +
-          '`docs/design-system.md`.\n\n' +
+          'The chrome every list row shares: radius, resting border, hover border and ' +
+          'transition are fixed with no prop to change them, and only `density`, `state`, ' +
+          '`flash`, `body` and `as` are exposed. The interior belongs to the feature and ' +
+          'follows the typography contract in `docs/design-system.md`.\n\n' +
           'Prefer `StretchedButton` over `as="button"` when the row contains its own ' +
           'controls — a button cannot legally contain a checkbox or another button.',
       },
@@ -29,9 +24,7 @@ const meta = {
     children: { description: "The row's content, owned by the feature." },
     density: {
       description:
-        'Content-density selector, not a viewport one: `compact` resolves the row ' +
-        'spacing role (`--sp-row-y`/`--sp-row-x`) and `comfortable` the card role ' +
-        '(`--sp-card`) — both still move together as the panel resizes (ADR-0048).',
+        'Content density: `compact` resolves the row spacing role, `comfortable` the card role.',
     },
     state: { description: 'Resting appearance: `default`, `selected`, or `highlighted`.' },
     flash: { description: 'One-shot success confirmation via `animate-affirm-flash`.' },
@@ -109,10 +102,11 @@ export const States: Story = {
 export const Interactive: Story = {
   args: {
     children: null,
+    onClick: fn(),
   },
-  render: () => (
+  render: (args) => (
     <div className="space-y-3">
-      <ListRow as="button" onClick={() => {}} ariaLabel="Open Engineering">
+      <ListRow as="button" onClick={args.onClick} ariaLabel="Open Engineering">
         <RowBody title='as="button"' meta="Whole row activates — keyboard reachable" />
       </ListRow>
       <ListRow as="a" href="#list-row-demo" target="_blank">
@@ -120,6 +114,18 @@ export const Interactive: Story = {
       </ListRow>
     </div>
   ),
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const row = canvas.getByRole('button', { name: 'Open Engineering' });
+
+    await userEvent.click(row);
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+
+    row.focus();
+    await expect(row).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onClick).toHaveBeenCalledTimes(2);
+  },
 };
 
 export const Pressed: Story = {

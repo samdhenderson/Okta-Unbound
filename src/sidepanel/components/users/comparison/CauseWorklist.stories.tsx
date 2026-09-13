@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import CauseWorklist from './CauseWorklist';
 import type { AccessCause } from './accessCause';
 import type { LeafClauseNode } from '../../../../shared/rules/explainExpression';
@@ -160,4 +160,15 @@ export const LongGroupName: Story = {
 
 export const WithoutClauseDeepLink: Story = {
   args: { onViewClauses: undefined },
+};
+
+export const OpeningTheClauseChecklist: Story = {
+  args: { causes: [blocked] },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open clause checklist' }));
+    await expect(args.onViewClauses).toHaveBeenCalledWith(
+      expect.objectContaining({ groupId: '00gFAKE001' }),
+    );
+  },
 };

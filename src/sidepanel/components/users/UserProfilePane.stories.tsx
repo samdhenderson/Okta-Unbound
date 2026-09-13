@@ -171,30 +171,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'Replaces `UserProfileCard`, which was a data dump: two-column white-on-white tiles that **truncated** ' +
-          'the addresses and logins an admin came to read, hid every empty attribute so "does this org even ' +
-          'define X?" could not be answered, and hard-coded its own labels and section names.\n\n' +
-          "This pane's argument is different. **Attributes are the evidence group rules read to grant access**, " +
-          'so a `{n} rules` chip sits beside any value a currently *granting* rule consults — and the header ' +
-          'counts those separately from the plain attribute total. A rule that reads `department` but grants ' +
-          'this user nothing is deliberately not counted; see `profileRuleReads`.\n\n' +
-          "Everything else is the admin's: the categories, their order, the attributes inside them, the layout, " +
-          'and whether API names, rule chips and empty attributes show at all. Attributes filed under no ' +
-          'category — or under one that was deleted — collect in a final **Uncategorized** block that can never ' +
-          'silently vanish.\n\n' +
-          '`attributes`, `config` and `ruleReads` are props, not hooks: the pane renders and never fetches, ' +
-          'and it holds no configuration. `Save` only *arms* its confirmation, which `UserDetailPanel` ' +
-          'mounts.\n\n' +
-          '**Customizing the display happens here, in place.** The gear switches the pane into customize ' +
-          'mode, where `ProfileDisplayEditor` replaces the section list — so the categories being dragged ' +
-          'are the categories on screen, not a second copy of them in a dialog. The editor owns a local ' +
-          'draft and returns the **whole** configuration on Done; Cancel leaves nothing behind.\n\n' +
-          '**Editing** arrives the same way. `edit` carries the pane-level verbs and `cells` carries one entry ' +
-          'per attribute that has a control; an attribute with no cell renders exactly as it does in read ' +
-          'mode, which is what keeps the no-truncation contract a property of the file rather than of a ' +
-          'branch. The Edit button is **absent** rather than disabled when nothing on the profile can be ' +
-          'edited.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          "The user's attributes, in the admin's own categories and order. Attributes are the " +
+          'evidence group rules read to grant access, so a `{n} rules` chip sits beside any ' +
+          'value a currently *granting* rule consults. Anything filed under no category collects ' +
+          'in a final **Uncategorized** block that can never silently vanish.\n\n' +
+          '`attributes`, `config` and `ruleReads` are props, not hooks: the pane renders, never ' +
+          'fetches, and holds no configuration. The gear switches it into customize mode in ' +
+          'place, and `edit` adds the pane-level edit verbs with one `cells` entry per editable ' +
+          'attribute — an attribute with no cell renders exactly as it does in read mode. Both ' +
+          'the Edit button and the gear are absent, never disabled, when they have nothing to do.',
       },
     },
   },

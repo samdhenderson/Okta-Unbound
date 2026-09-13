@@ -17,15 +17,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Pick one entity out of a list already in memory, and hand its id back — the launcher ' +
-          'half of a scoped, opt-in action.\n\n' +
-          'It **filters; it never searches**. Everything offered arrives through `choices`, and ' +
-          'typing narrows that array locally. There is deliberately no async source and no ' +
-          '`onFilterChange`: a chooser that queried Okta per keystroke would spend requests to ' +
-          'avoid spending requests, which is the whole reason the surface is a chooser and not a ' +
-          'count.\n\n' +
-          'The visible cap is stated, never silent. A list quietly cut to its first page reads as ' +
-          'the complete answer — here, as "your group is not in this org".',
+          'Pick one entity out of a list already in memory and hand its id back. It filters; ' +
+          'it never searches — everything offered arrives through `choices` and typing narrows ' +
+          'that array locally, with no async source. The visible cap is stated rather than ' +
+          'silently truncating the list.',
       },
     },
   },

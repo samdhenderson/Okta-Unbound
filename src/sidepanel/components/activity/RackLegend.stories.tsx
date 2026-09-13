@@ -10,10 +10,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'The bucket rack’s key.\n\n' +
-          'Comparing families is the whole reason the rack exists (ADR-0059), and a legend is what makes that comparison happen in one look rather than six. It also carries the one thing no single lane can say: that a **pale tail is headroom, not absence** — a track drawn against remaining budget has a meaningful empty part, and nothing in a lane’s own words explains that.\n\n' +
-          'Every swatch is `aria-hidden` and the text beside it carries the meaning, so the legend costs a screen-reader user nothing and tells them nothing they are missing — every magnitude it keys is already on each lane’s accessible name. Decoration in the accessibility tree, information in the visual one, which is the correct split for a key.\n\n' +
-          'It **wraps** rather than scrolls: on a narrow panel it becomes two short rows, which costs a few pixels once, where a horizontal scroller would hide half the vocabulary behind a gesture nobody knows to make.',
+          'The bucket rack’s key: it names the track vocabulary once so six lanes can be read ' +
+          'by shape, and it carries the one thing no single lane says — a pale tail is ' +
+          'headroom, not absence. Every swatch is `aria-hidden` with the meaning in the text ' +
+          'beside it, and the row wraps rather than scrolls on a narrow panel.',
       },
     },
   },
@@ -28,7 +28,7 @@ export const NarrowPanel: Story = {
   parameters: { viewport: { defaultViewport: 'mobile1' } },
   decorators: [
     (Story) => (
-      <div style={{ width: 360, border: '1px solid var(--color-neutral-200)' }}>
+      <div className="w-[360px] border border-(--color-neutral-200)">
         <Story />
       </div>
     ),

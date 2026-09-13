@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { useState, type ReactElement } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import Icon from '../shared/Icon';
 import IconButton from './IconButton';
 import Input from './Input';
@@ -14,9 +15,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Controlled single-line text field with optional label, hint, size scale, leading/trailing adornments, and error state.\n\n' +
-          '`onChange` receives the string value (not the event). When `error` is set the field turns red and the error message replaces the hint. Supports labeled, hinted, error, disabled, and adorned states. For multi-line use `Textarea`; for choices use `Select`.\n\n' +
-          'Three sizes (`sm ≈ 30px | md ≈ 38px | lg ≈ 46px`) and two in-field slots — `icon` (leading glyph) and `trailing` (clear button, spinner). Both reserve their padding automatically and scale with `size`, so a search composite composes this primitive instead of re-declaring the field class string. A `trailing` node is inert by default; set `trailingInteractive` when it holds a control.',
+          'Controlled single-line text field with optional label, hint, size scale, leading/trailing adornments and error state. `onChange` receives the string value, not the event; when `error` is set the field turns red and the message replaces the hint. For multi-line use `Textarea`; for choices use `Select`.\n\n' +
+          'Three sizes (`sm` ≈ 30px, `md` ≈ 38px, `lg` ≈ 46px) and two in-field slots — `icon` and `trailing` — which reserve their padding automatically. A `trailing` node is inert by default; set `trailingInteractive` when it holds a control.',
       },
     },
   },
@@ -140,7 +140,7 @@ export const NotFullWidth: Story = {
 
 export const Sizes: Story = {
   render: (args) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 320 }}>
+    <div className="flex w-80 flex-col gap-3">
       <Input {...args} size="sm" ariaLabel="Small field" placeholder="sm — 30px" />
       <Input {...args} size="md" ariaLabel="Medium field" placeholder="md — 38px (default)" />
       <Input {...args} size="lg" ariaLabel="Large field" placeholder="lg — 46px" />
@@ -216,6 +216,41 @@ export const Searching: Story = {
     value: 'ada',
     icon: <Icon type="search" size="sm" />,
     trailing: <LoadingSpinner size="sm" />,
+  },
+};
+
+const InputHarness = (): ReactElement => {
+  const [value, setValue] = useState('');
+  return (
+    <Input
+      ariaLabel="Search groups"
+      value={value}
+      onChange={setValue}
+      placeholder="Type to search…"
+      icon={<Icon type="search" size="sm" />}
+      trailingInteractive={value !== ''}
+      trailing={
+        value ? (
+          <IconButton label="Clear search" variant="ghost" size="sm" onClick={() => setValue('')}>
+            <Icon type="close" size="sm" />
+          </IconButton>
+        ) : undefined
+      }
+    />
+  );
+};
+
+export const Typing: Story = {
+  render: () => <InputHarness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole('textbox', { name: 'Search groups' });
+
+    await userEvent.type(field, 'engineering');
+    await expect(field).toHaveValue('engineering');
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear search' }));
+    await expect(field).toHaveValue('');
   },
 };
 

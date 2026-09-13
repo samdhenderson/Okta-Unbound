@@ -60,7 +60,7 @@ describe('the selection register shares its row rather than stacking a new one',
   });
 });
 
-describe('position one of the register is a selection control (ADR-0051 §2)', () => {
+describe('position one of the register is a selection control', () => {
   it.each([0, 1, 2, 3, 6, 42])('leads with a selection control at %i selected', (selected) => {
     render(bar(selected));
 

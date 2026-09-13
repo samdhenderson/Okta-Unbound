@@ -10,8 +10,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Small metadata chips shown above the Rules list.\n\n' +
-          'Surfaces the API-request count the last load cost and the timestamp of the cached data. Each chip is independently gated: the cost chip appears only when a cost is known, and the cache chip only when a time is known *and* rules are loaded. When neither has anything to show the component renders nothing.',
+          'Small metadata chips above the Rules list: what the last load cost in API requests, ' +
+          'and when the cached data was fetched. Each chip is gated independently — the cache ' +
+          'chip needs both a time and loaded rules — and the row renders nothing when neither ' +
+          'has anything to say.',
       },
     },
   },

@@ -11,18 +11,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'The bucket rack of the expanded activity bar.\n\n' +
-          '**Every published bucket gets a lane** (ADR-0072). The rack used to filter — first to buckets under strain, then to strain *or* recent use, with the remainder collapsed onto a "3 buckets idle · meta, zones" line. Both filters answered a second, differently-shaped question from the one the scheduler had already answered, and the two disagreed at exactly the wrong moment: a bucket stops being strained on its *last settle*, so a strain filter deleted the row at the instant ADR-0070’s memory existed to preserve it.\n\n' +
-          'So there is no filter, no row cap and no summary line. A lane appears when the scheduler starts tracking a bucket and disappears when the scheduler forgets it, on one clock, decided in one place — bounded at twelve with LRU eviction by ADR-0070 §5. The rack renders retention; it has no retention policy of its own.\n\n' +
-          'Height is bounded by **scrolling, not truncating**: every lane stays reachable, and none is hidden behind prose a reader has to expand something to resolve. Truncating would reintroduce the filter one layer down.',
+          'The bucket rack of the expanded activity bar. Lanes are identical because the question is comparative: which endpoint family is holding everything up?\n\n' +
+          'Every published bucket gets a lane — no filter, no row cap, no summary line. A lane appears when the scheduler starts tracking a bucket and disappears when the scheduler forgets it; the rack renders retention and has no retention policy of its own. Height is bounded by scrolling rather than truncating.',
       },
     },
   },
   argTypes: {
     buckets: { description: 'Buckets as published by the scheduler, most-pressured first.' },
     lowThresholdPercent: {
-      description:
-        'The org-learned percentage at which the scheduler backs off. Lanes mark "low" at the line the scheduler acts on, not one of their own.',
+      description: 'The org-learned percentage at which the scheduler backs off.',
     },
     now: { description: 'Shared clock tick in epoch ms, so every countdown in the bar agrees.' },
   },

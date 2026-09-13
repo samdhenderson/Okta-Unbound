@@ -1,5 +1,6 @@
+import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupSearchBar from './GroupSearchBar';
 
 const meta = {
@@ -11,10 +12,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The groups search input row.\n\n' +
-          'Binds to a different query depending on the search mode: `live` queries Okta ' +
-          'directly (showing a trailing spinner while a request is in flight), while ' +
-          '`cached` filters the already-loaded list client-side.',
+          'The groups search input row. It binds to a different query depending on the search mode: `live` queries Okta directly and shows a trailing spinner while a request is in flight, while `cached` filters the already-loaded list client-side.',
       },
     },
   },
@@ -64,4 +62,41 @@ export const LiveMode: Story = {
 export const LiveSearching: Story = {
   args: { searchMode: 'live', liveSearchQuery: 'admins', isLiveSearching: true },
   render: Default.render,
+};
+
+const SearchHarness = (args: React.ComponentProps<typeof GroupSearchBar>) => {
+  const [cached, setCached] = useState('');
+  const [live, setLive] = useState('');
+  return (
+    <div style={{ width: 360 }}>
+      <GroupSearchBar
+        {...args}
+        searchQuery={cached}
+        onSearchQueryChange={setCached}
+        liveSearchQuery={live}
+        onLiveSearchQueryChange={setLive}
+      />
+    </div>
+  );
+};
+
+export const TypingACachedQuery: Story = {
+  render: (args) => <SearchHarness {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByPlaceholderText('Search groups...');
+    await userEvent.type(field, 'engineering');
+    await expect(field).toHaveValue('engineering');
+  },
+};
+
+export const TypingALiveQuery: Story = {
+  args: { searchMode: 'live' },
+  render: (args) => <SearchHarness {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByPlaceholderText('Search groups by name...');
+    await userEvent.type(field, 'admins');
+    await expect(field).toHaveValue('admins');
+  },
 };

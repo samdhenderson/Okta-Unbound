@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import AuditLogRow from './AuditLogRow';
@@ -143,9 +143,7 @@ const meta = {
       description: {
         component:
           'One recorded action: what happened, its type, when — and, for a profile write whose prior values were captured, an **Undo** button.\n\n' +
-          'This replaces a hand-rolled disclosure (a `cursor-pointer` `<div>` with no `role` and no `aria-expanded`, an inline `<svg>` chevron, and a `<span>` wearing badge classes). Adding a real Undo control to that shape would have nested one interactive element inside another, so the row is rebuilt on shared `ListRow` + `IconButton` + `Badge`.\n\n' +
-          'Undo is **offered or absent**, never disabled: a disabled button with no explanation reads as a bug. The reason an entry cannot be undone is a quiet line inside the expanded body, where a sentence fits. An entry already undone wears `Undone`; one whose outcome was never confirmed wears `Outcome unknown` and is never offered a restore, because we cannot say what it set.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Types](?path=/docs/internals-types--docs)',
+          'Undo is offered or absent, never disabled; the reason an entry cannot be undone is a line inside the expanded body. An entry already undone wears `Undone`, and one whose outcome was never confirmed wears `Outcome unknown` and is never offered a restore.',
       },
     },
   },
@@ -255,14 +253,31 @@ export const WithoutUndoHandler: Story = {
 
 export const OpeningTheDisclosure: Story = {
   args: { isExpanded: false },
-  play: async ({ args, canvasElement }) => {
+  render: (args) => {
+    const Harness = () => {
+      const [expanded, setExpanded] = useState(false);
+      return (
+        <AuditLogRow
+          {...args}
+          isExpanded={expanded}
+          onToggle={() => setExpanded((prev) => !prev)}
+        />
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole('button', {
       name: 'Show details for Updated department, title on Ada Lovelace',
     });
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(trigger);
-    await expect(args.onToggle).toHaveBeenCalledWith('action_profile');
+    await expect(
+      canvas.getByRole('button', {
+        name: 'Hide details for Updated department, title on Ada Lovelace',
+      }),
+    ).toHaveAttribute('aria-expanded', 'true');
   },
 };
 

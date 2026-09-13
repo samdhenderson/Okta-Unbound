@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { useState, type ReactElement } from 'react';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import CreateFeedingRuleModal from './CreateFeedingRuleModal';
 
 const meta = {
@@ -11,19 +12,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "The confirm step for the Group Detail rung's *Create feeding rule* verb — the action " +
-          '`GroupActionBar` puts behind **More** because a rule *grants* memberships as it matches ' +
-          'and deleting it afterwards leaves every one of them in place (ADR-0039 §2).\n\n' +
-          'Fully controlled: the draft, its checks and the write all live in `useCreateFeedingRule`. ' +
-          'Three things are always said before the confirm — the consequence, the mitigation ' +
-          '(Okta creates the rule **inactive**, so nothing is granted until somebody activates it), ' +
-          'and what is **not predicted**: how many people the rule would add. Under ADR-0036 a ' +
-          'withheld prediction is a peer of an answer and carries its reason; a count invented from ' +
-          'an inventory this rung does not hold would be exactly the assertion that ADR forbids.\n\n' +
-          'The expression notice is a `warning` and never blocks the write: this panel parses a ' +
-          'documented subset of Okta EL, so “could not read that” is a fact about the panel rather ' +
-          'than a verdict on the rule (ADR-0017).\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          "The confirm step for the Group Detail rung's *Create feeding rule* verb, which sits behind **More** because a rule grants memberships as it matches and deleting it later leaves every one of them in place.\n\n" +
+          'Fully controlled — the draft, its checks and the write live in `useCreateFeedingRule`. Three things are always said before the confirm: the consequence, the mitigation (Okta creates the rule inactive), and the one thing that is not predicted — how many people the rule would add, withheld with its reason rather than invented.',
       },
     },
   },
@@ -131,6 +121,49 @@ export const ErrorState: Story = {
     expression: 'user.department == "Engineering"',
     canSubmit: true,
     error: 'A rule with this name already exists.',
+  },
+};
+
+const DraftHarness = (): ReactElement => {
+  const [name, setName] = useState('');
+  const [expression, setExpression] = useState('');
+  return (
+    <CreateFeedingRuleModal
+      isOpen
+      groupName="Engineering"
+      name={name}
+      onNameChange={setName}
+      nameError={name.length > 50 ? `Okta allows 50 characters; this is ${name.length}.` : null}
+      expression={expression}
+      onExpressionChange={setExpression}
+      expressionNotice={null}
+      canSubmit={name.trim() !== '' && expression.trim() !== '' && name.length <= 50}
+      isCreating={false}
+      error={null}
+      createdRuleName={null}
+      createdRuleId={null}
+      onClose={fn()}
+      onConfirm={fn()}
+      onNavigateToRule={fn()}
+    />
+  );
+};
+
+export const Drafting: Story = {
+  render: () => <DraftHarness />,
+  play: async ({ canvasElement }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const confirm = body.getByRole('button', { name: 'Create rule' });
+    await expect(confirm).toBeDisabled();
+
+    await userEvent.type(body.getByPlaceholderText('Engineering intake'), 'Engineering intake');
+    await expect(confirm).toBeDisabled();
+
+    await userEvent.type(
+      body.getByPlaceholderText('user.department == "Engineering"'),
+      'user.department == "Eng"',
+    );
+    await expect(confirm).toBeEnabled();
   },
 };
 

@@ -30,7 +30,7 @@ log.info('Global API scheduler initialized');
 const relaySchedulerState = createThrottledRelay<SchedulerStateChangedMessage>(
   (message) => {
     chrome.runtime.sendMessage(message).catch(() => {
-      // Ignore errors if no listeners (sidepanel not open)
+      // No listeners when the side panel is closed.
     });
   },
   { isUrgent: (previous, next) => previous.state.status !== next.state.status },

@@ -72,27 +72,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'One list where **every row states the comparison**: the context user on the left, the compared user ' +
-          'on the right, and an equality marker between them.\n\n' +
-          'This replaced three tone-coded buckets (onlyCompared / shared / onlyContext) that shared the ' +
-          "panel's height in proportion to their row counts. That failed twice over: it separated the two users " +
-          '*spatially*, so reading a row meant knowing which card you were in, and it gave most of the screen ' +
-          'to `shared` — the one group nobody acts on. A 65-group comparison handed 53 shared rows ~80% of the ' +
-          'panel and left the 12 actionable ones scrolling in a sliver.\n\n' +
-          '**Every cell names its user, in every state**, and an Add button says `Add <recipient>`. An earlier ' +
-          'cut named only the holding side and put a **inward-pointing arrow** on the Add button, aimed at the ' +
-          '`≠` it would close. That failed twice: only the named side filled its third, so the strip was visibly ' +
-          'lopsided; and the arrow pointed *away* from the user who actually receives the item — the recipient ' +
-          'is whichever side the button sits on — so the row read as the reverse of what clicking it did. With ' +
-          'the recipient named there is nothing left for an arrow to disambiguate, so there is no arrow.\n\n' +
-          'The middle cell borrows the button silhouette so the three cells read as one set, but it is inert — ' +
-          'no `<button>`, not focusable, `role="img"` with a label. `=` and `≠` are different glyphs, so the ' +
-          'state never depends on colour.\n\n' +
-          'A side that lacks the item and *cannot* be given it (an app row, an app-mastered group) renders a ' +
-          'stated non-answer rather than a button that would fail — still named, so all three states are the ' +
-          'same shape.\n\n' +
-          'It also fixes a subtler wrong: under buckets a successful copy made the Add button *vanish*, because ' +
-          'the row moved to another card. Here the row flips `≠` → `=` where you are already looking.',
+          'One list where **every row states the comparison**: the context user on the left, the compared user on the right, and an equality marker between them. Every cell names its user in every state, and an Add button says `Add <recipient>` — the recipient being whichever side the button sits on.\n\n' +
+          'The middle cell borrows the button silhouette but is inert: `role="img"` with a label, and `=`/`≠` are different glyphs so the state never depends on colour. A side that lacks the item and cannot be given it renders a stated non-answer rather than a button that would fail.',
       },
     },
   },
@@ -184,8 +165,11 @@ export const AllRowShapes: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    await expect(canvas.queryByText('all.employees')).not.toBeInTheDocument();
+
     await userEvent.click(canvas.getByRole('button', { name: /^All/ }));
     await waitFor(() => expect(canvas.getByText('all.employees')).toBeInTheDocument());
+    await expect(canvas.getByText('us.employees.union')).toBeInTheDocument();
   },
 };
 

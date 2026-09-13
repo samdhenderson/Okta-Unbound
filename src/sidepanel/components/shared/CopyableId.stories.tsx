@@ -10,9 +10,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'A truncating `<code>` beside a ghost `IconButton` whose glyph and accessible name flip to a confirmation for ~1.5s. The single home for a recipe that was hand-rolled identically in `ContextBar` and the user identity card, both of which also pinned the glyph and the text to arbitrary sizes the design system already answers.\n\n' +
-          'Distinct from `CopyButton`, which is a labelled `Button` for copying a *body* of text (a list of emails, a CSV). This is for a single identifier in a line of metadata, where a full button would outweigh the value beside it.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          'A truncating `<code>` beside a ghost `IconButton` whose glyph and accessible name flip to a confirmation after a copy.\n\n' +
+          'Use it for a single identifier in a line of metadata; `CopyButton` is the labelled control for copying a body of text.',
       },
     },
   },

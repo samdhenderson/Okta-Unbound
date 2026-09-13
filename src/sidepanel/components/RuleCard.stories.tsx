@@ -30,11 +30,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'A single Okta group rule as a list row: name, status, the badges that say how it relates to the group you arrived from, and its condition in human-readable form.\n\n' +
-          '**It used to be the detail view.** The card carried an expandable body holding the condition expression, the referenced attributes, the target groups, the conflicts and the metadata — and, flex-wrapped at the bottom, four write verbs. That body is [RuleDetailView](?path=/docs/rules-ruledetailview--docs) now, under a real `ActionBar`: ADR-0030 §2 is explicit that verbs whose object is the whole entity do not belong inside a section of a card.\n\n' +
-          "**Pressing the row opens it, through a `StretchedButton`.** An invisible full-bleed `<button>` rather than a click handler on a `<div>`, so Enter/Space, focus and disabled semantics come for free and the row's heading stays a heading. Its accessible name is the same on every row, so it points at *this* row's name via `aria-describedby`.\n\n" +
-          '**The status is stated in text, not hue.** It was a coloured dot with no label — the one fact the row most needed to carry, available only to a reader who could see the colour and knew the convention.\n\n' +
-          '**Related internals:** [ListRow](?path=/docs/shared-listrow--docs), [StretchedButton](?path=/docs/shared-stretchedbutton--docs)',
+          'A single Okta group rule as a list row: name, status, the badges that say how it relates to the group you arrived from, and its condition in human-readable form. The rule detail lives on its own rung, in `RuleDetailView`.\n\n' +
+          "Pressing anywhere on the row opens it, through a `StretchedButton` whose accessible name is identical on every row — so it points at *this* row's name via `aria-describedby`.",
       },
     },
   },
@@ -44,8 +41,7 @@ const meta = {
       description: "Open this rule's detail rung. Wired by the Rules tab, which has one to push.",
     },
     onOpenInRulesTab: {
-      description:
-        'Jump to this rule on the Rules tab. Wired by surfaces showing a rule somewhere else, whose own view stack has no rule rung to push.',
+      description: 'Jump to this rule on the Rules tab, for surfaces with no rule rung to push.',
     },
     isHighlighted: {
       description: 'When true, the row flashes once on arrival (deep-link target).',

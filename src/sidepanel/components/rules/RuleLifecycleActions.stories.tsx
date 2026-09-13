@@ -27,26 +27,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'What sits behind **More** on the rule rung. Shown here on its own; in the app it is the ' +
-          '`expansion` slot of [RuleActionBar](?path=/docs/rules-ruleactionbar--docs), sharing the ' +
-          'strip’s chrome.\n\n' +
-          '**Why both lifecycle verbs are in here.** On the user rung the asymmetry is obvious — ' +
-          '*Add group* is reversible, *Suspend* is not. A rule looks symmetric and is not: Okta’s ' +
-          'rule engine *only ever adds* (D-052). Activating writes memberships into every target ' +
-          'group, and deactivating later leaves every one of those people exactly where they are — ' +
-          'now unattributed, indistinguishable from a manual add. Neither press undoes the other, so ' +
-          'both fail ADR-0039’s consequence test.\n\n' +
-          '**That is a change in behaviour, not only in placement.** *Activate Rule* used to fire ' +
-          'immediately from the rule card, with no gate at all.\n\n' +
-          '**Only one of the two is ever offered.** The other is not something you can do to a rule ' +
-          'in this state, and a disabled button offering it would be a control with no path to ' +
-          'firing (ADR-0039 §3).\n\n' +
-          '**Deactivate keeps its existing gate rather than gaining a second one.** It opens ' +
-          '`RuleImpactModal`, which computes and *names* who stops being attributed — strictly ' +
-          'better than the generic sentence a `Modal` here could offer, and adding one would be two ' +
-          'confirms for one verb. That is why only activation has a dialog in these stories.\n\n' +
-          '`Each asks to confirm` is stated once for the band; repeating it per button would read as ' +
-          'a warning about one verb rather than a property of all.',
+          'What sits behind **More** on the rule rung. Shown here on its own; in the app it is the `expansion` slot of `RuleActionBar`.\n\n' +
+          "Both lifecycle verbs live here because neither undoes the other: Okta's rule engine only ever adds, so deactivating leaves every membership the rule wrote exactly where it is. Only one of the two is ever offered — the other is not something you can do to a rule in this state, so it is absent rather than disabled.",
       },
     },
   },

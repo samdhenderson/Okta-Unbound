@@ -80,7 +80,7 @@ describe('buildFigure', () => {
     expect(figure.note).toBe('Groups have not been read yet.');
   });
 
-  it('marks a partial count as a floor rather than a total (ADR-0040 §7)', () => {
+  it('marks a partial count as a floor rather than a total', () => {
     const figure = buildFigure('groups', 'Groups', 'users', source({ complete: false }));
     expect(figure).toMatchObject({ status: 'partial', value: 42 });
     expect(figure.note).toMatch(/At least/);

@@ -20,7 +20,7 @@ describe('userStatusVariant', () => {
     expect(userStatusVariant('')).toBe('neutral');
   });
 
-  it('never returns the banned "error" vocabulary (ADR-0002)', () => {
+  it('never returns the banned "error" vocabulary', () => {
     const statuses = [
       'ACTIVE',
       'PROVISIONED',

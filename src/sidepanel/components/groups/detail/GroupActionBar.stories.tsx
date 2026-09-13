@@ -25,39 +25,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'The ADR-0039 wrapper `GroupDetailView.tsx` was missing: previously it called the shared ' +
-          '`ActionBar` directly with an `export-members` descriptor shipped `disabled: !onExportGroup` ' +
-          'whenever that prop was left out — a ghost action with no live wire.\n\n' +
-          '**Export members** now only appears in the strip when `onExportGroup` is actually provided ' +
-          '(omitted, never disabled-forever).\n\n' +
-          '**`Add` is the `primary` and `Export members` is behind More** (ADR-0068). This strip ' +
-          'used to lead with *Export members* in the blue button and put *Add* beside it in plain ' +
-          '`secondary`. `primary` marks a verb that **acts** — its object is the whole page *and* ' +
-          'pressing it opens a modal or performs the operation — and *Add* passes both while an ' +
-          'export passes neither: an export descriptor forwards to the Export tab with its column ' +
-          'picker and presets, which is navigation wearing a verb’s clothes. So every export ' +
-          "descriptor in the app takes `priority: 'tier'`, on every rung, as a flat rule rather " +
-          'than a per-strip judgement. *Add* also passes ADR-0039’s consequence test in the row’s ' +
-          'favour: an add is undone by a remove.\n\n' +
-          '**Compare** sits beside it for the same reason `UserActionBar` puts its own *Compare* in ' +
-          'the row: it reads two rosters and writes nothing.\n\n' +
-          'The strip has a disclosure tier holding two verbs, one of each shape `ActionBar` ' +
-          'offers. First, as a descriptor: **Remove deprovisioned**, ' +
-          'the bulk cleanup that empties a group of every member Okta has already deprovisioned. ' +
-          'It changes group state with no symmetric undo press, so per ADR-0039 it is ' +
-          "`priority: 'tier'` (behind **More** from the start) behind a confirm `Modal` that names " +
-          'the count and the group.\n\n' +
-          'It is **absent, not disabled**, whenever it cannot honestly run: no `onRemoveDeprovisioned` ' +
-          'wire, an `APP_GROUP` (the operation refuses those), or a `deprovisionedCount` of `0` or ' +
-          '`undefined` — `undefined` being the pre-analysis state, which is deliberately not shown ' +
-          'as zero (ADR-0032 §2a, absent is not zero).\n\n' +
-          'Second, in `ActionBar`’s `expansion` slot — where it goes because it ships a line of ' +
-          'prose beside it and a descriptor can carry no JSX: **Create feeding rule**. It is ' +
-          'behind **More** for ' +
-          'its consequence, not its importance (ADR-0039 §2): a rule *grants* memberships as it ' +
-          'matches, and deleting it afterwards leaves every one of them in place. The consequence ' +
-          'is written beside the control, the way `UserLifecycleActions` writes “Blocks sign-in ' +
-          'until reversed”; the confirm dialog itself belongs to `CreateFeedingRuleModal`.',
+          'Every verb whose object is the whole group. `Add` is the `primary` and sits in ' +
+          'the row beside `Compare`: one writes but is undone by a remove, the other only ' +
+          'reads. `Export members` forwards to the Export tab rather than producing a file in ' +
+          'place, so like every export descriptor in the app it starts behind **More**.\n\n' +
+          'The tier holds two verbs, one of each shape `ActionBar` offers: **Remove ' +
+          'deprovisioned** as a descriptor behind a confirm `Modal`, and **Create feeding ' +
+          'rule** in the `expansion` slot, where it can carry the line of prose stating what ' +
+          'a rule leaves behind. A verb that cannot honestly run is absent, never disabled ' +
+          'forever — no wire, an `APP_GROUP`, or an unknown deprovisioned count all omit it.',
       },
     },
   },
@@ -74,22 +50,14 @@ const meta = {
   },
   argTypes: {
     group: { description: 'The group every verb in the strip acts on.' },
-    targetTabId: {
-      description:
-        '`Add` and `Compare` both disable without a connected tab — neither type-ahead has ' +
-        'anything to search.',
-    },
+    targetTabId: { description: '`Add` and `Compare` both disable without a connected tab.' },
     onExportGroup: {
-      description:
-        "Opens the Export tab pre-scoped to this group's members. When omitted, per ADR-0039 " +
-        '*Export members* is left out of the strip entirely.',
+      description: "Opens the Export tab pre-scoped to this group's members. Omitted → no action.",
     },
     onAddMember: { description: 'Opens the Add-member modal.' },
     onCompare: { description: 'Opens the picker for the second group in a comparison.' },
     deprovisionedCount: {
-      description:
-        'How many loaded members are `DEPROVISIONED`. `undefined` (not yet analyzed) and `0` both ' +
-        'omit the action rather than rendering a count the page cannot vouch for.',
+      description: 'How many loaded members are `DEPROVISIONED`. `undefined` and `0` both omit it.',
     },
     onRemoveDeprovisioned: {
       description:
@@ -101,14 +69,8 @@ const meta = {
     removeError: {
       description: 'The last error the run reported, shown inside the confirm modal.',
     },
-    onCreateFeedingRule: {
-      description:
-        'Opens the create-feeding-rule confirm dialog. Lives in the disclosure tier because a ' +
-        'rule’s grants outlive the rule (ADR-0039 §2).',
-    },
-    sticky: {
-      description: 'Pin the strip below the header. `false` in stories — nothing scrolls.',
-    },
+    onCreateFeedingRule: { description: 'Opens the create-feeding-rule confirm dialog.' },
+    sticky: { description: 'Pin the strip below the header.' },
   },
 } satisfies Meta<typeof GroupActionBar>;
 

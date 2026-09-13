@@ -55,18 +55,17 @@ Side panel (useOktaApi)  →  Background (ApiScheduler)  →  Content script (fe
 - **Content script** — [`src/content/`](../src/content/), injected **only** on Okta origins.
   Holds the authenticated session cookies + XSRF token; performs the only Okta `fetch`.
 
-**The background is now also an originator of traffic, not only a router.** Two
+**The background is also an originator of traffic, not only a router.** Two
 background-owned callers schedule Okta requests with no side panel open: the org-snapshot
 walk ([`background/snapshotBridge.ts`](../src/background/snapshotBridge.ts), armed by
 [`snapshotScheduler.ts`](../src/background/snapshotScheduler.ts) on tab-navigation and a
 `chrome.alarms` tick) and the once-per-org rate-limit-threshold probe
 ([`background/rateLimitThreshold.ts`](../src/background/rateLimitThreshold.ts)). Neither
-widens the boundary: the background still cannot fetch Okta itself, so every one of those
-requests exits through the same scheduler and the same content-script choke point, at
-`low` priority, against a tab whose URL has been parsed and confirmed as an Okta origin
-(`oktaOriginOf`). What changed is that authenticated traffic can happen without a user
-gesture, which is why the snapshot walk is opportunistic (it no-ops when no logged-in Okta
-tab exists) rather than scheduled.
+widens the boundary: the background cannot fetch Okta itself, so each of those requests
+exits through the same scheduler and the same content-script choke point, at `low`
+priority, against a tab whose URL has been parsed and confirmed as an Okta origin
+(`oktaOriginOf`). Because authenticated traffic can happen without a user gesture, the
+snapshot walk is opportunistic — it no-ops when no logged-in Okta tab exists.
 
 **Content-script re-injection.** On install/update, MV3 orphans the content script in every
 already-open Okta tab without injecting the new one.
@@ -172,18 +171,12 @@ Enforced at the single fetch choke point,
   defense in depth at the fetch site. The request URL is always
   `window.location.origin + endpoint`; the origin is never taken from the message.
 - **HTTP-method allow-list.** `ALLOWED_METHODS = {GET, POST, PUT, PATCH, DELETE}`; anything
-  else is rejected. The extension's first user-profile write (`POST /api/v1/users/{id}`)
-  needed **no allow-list change** at either boundary — `POST` was already permitted for the
-  lifecycle and rule endpoints — so a new mutation class was added without widening the
-  trust boundary. There is deliberately no path allow-list; the same-origin guard plus
+  else is rejected. There is deliberately no path allow-list; the same-origin guard plus
   the method list is the whole contract.
 - **Response-header allow-list (outbound).** Only five headers cross the message boundary
   back to the background: `FORWARDED_RESPONSE_HEADERS` = `link`, `x-rate-limit-limit`,
   `x-rate-limit-remaining`, `x-rate-limit-reset`, `x-total-count`, projected by
-  `collectForwardedHeaders`. Previously the whole `Response.headers` bag was forwarded.
-  That leaked nothing on its own — the Fetch API never exposes `set-cookie`, and no header
-  value is logged anywhere — but it kept a bag of unfiltered response metadata one careless
-  `log.debug` away from disclosure, on every response. Every allow-listed key has a named
+  `collectForwardedHeaders`. Every allow-listed key has a named
   consumer (the three rate-limit counters feed
   `shared/scheduler/rateLimitDetector.parseHeaders`; `link` drives every paginated walk;
   `x-total-count` feeds `shared/snapshot/syncMeta.readTotalCount` and the app-assignment
@@ -219,14 +212,12 @@ Enforced at the single fetch choke point,
   `credentials.userName` is ever read or exported (`export/descriptors/appUsers.ts`), so
   the residual is unread payload held in memory, itemised at [risk #11](./security-risks.md).
 - **The content script's own handlers validate too.** The page-context handlers make their
-  own Okta reads, and both now parse before reading: `handleGetPolicyInfo` validates
-  `GET /api/v1/policies/{id}` with `oktaPolicyListItemSchema`, and `handleGetAppInfo` —
-  previously the last unvalidated read in `src/` — validates `GET /api/v1/apps/{id}` with
-  `oktaAppListItemSchema` ([`content/index.ts`](../src/content/index.ts)). A validation
-  miss degrades to the URL/DOM-derived data exactly as a failed request does; it never
-  breaks page detection. The app read is also now conditional — it happens only when the
-  DOM heading came up empty — so a masthead re-detect no longer costs a request per app
-  page visited.
+  own Okta reads, and both parse before reading: `handleGetPolicyInfo` validates
+  `GET /api/v1/policies/{id}` with `oktaPolicyListItemSchema`, and `handleGetAppInfo`
+  validates `GET /api/v1/apps/{id}` with `oktaAppListItemSchema`
+  ([`content/index.ts`](../src/content/index.ts)). A validation miss degrades to the
+  URL/DOM-derived data exactly as a failed request does; it never breaks page detection.
+  The app read is conditional — it happens only when the DOM heading came up empty.
 - **No dynamic code execution.** Rule expressions are end-user-authored, hence untrusted.
   Syntax is handled by [`jsep`](https://github.com/EricSmekens/jsep) — pinned exactly at
   `1.4.0`, MIT, no transitive dependencies — which builds an **AST only**: it evaluates
@@ -241,9 +232,7 @@ Enforced at the single fetch choke point,
   _unevaluable_, never approximated. The grammar gate is an **AST walk**, not a substring
   scan, so nothing can pass it and then fail inside the evaluator. To verify it directly,
   call `checkRuleNodeSupport()` on a node from `parseRuleExpression()` — that is the same
-  walk `tryEvaluateRuleExpression` applies internally. (It replaced the boolean
-  `canEvaluateClientSide()`, retired along with the whole two-valued surface, because a
-  bare `false` could not say _why_ a gate rejected an expression.) Parsing is capped at 4096 characters to bound the work
+  walk `tryEvaluateRuleExpression` applies internally. Parsing is capped at 4096 characters to bound the work
   an adversarial tenant value can force, and expression text is **never logged**
   (literals can carry tenant PII) — only a reason code. Grep confirms **zero**
   `eval`/`new Function`/string-`setTimeout`/`innerHTML`/`document.write`/
@@ -259,9 +248,7 @@ Enforced at the single fetch choke point,
   hand-written pattern parser → Thompson NFA → breadth-wise simultaneous-state
   simulation, which has no backtracking in its implementation and therefore no
   input that can trigger catastrophic backtracking. `new RegExp` is never called on
-  tenant text — the refusal that ADR-0001 §3 originally stated for this function is
-  superseded by building a matcher the refusal's own reasoning doesn't apply to, not
-  by weakening the reasoning. Hard caps (pattern length, input length, NFA state
+  tenant text. Hard caps (pattern length, input length, NFA state
   count, total step budget) are enforced before and during simulation, and every
   guard failure is a structured decline (`unsupported-syntax`, `parse-error`,
   `pattern-too-long`, `input-too-long`, `too-many-states`, `step-budget-exceeded`,
@@ -348,10 +335,8 @@ notifications, sidePanel, alarms, scripting`, each mapped to a real consumer:
 - **TTL'd / bounded storage.** Cached entity data carries a TTL —
   [`sidepanel/cache/entityCache.ts`](../src/sidepanel/cache/entityCache.ts) (in-memory,
   5-minute default) and [`shared/rulesCache.ts`](../src/shared/rulesCache.ts)
-  (`chrome.storage.local`, 5 minutes). A third, `groupsCache`, was deleted along with the
-  `entityCache`-backed app inventory when the org snapshot replaced them (grep-verified:
-  no `groupsCache` module remains in `src/`); `rulesCache` is the last hand-rolled cache
-  and `D-029` retires it. The background-owned org snapshot is IndexedDB-backed and
+  (`chrome.storage.local`, 5 minutes). `rulesCache` is the last hand-rolled cache and
+  `D-029` retires it. The background-owned org snapshot is IndexedDB-backed and
   **not** TTL'd the same way — it is reconciled by walk-and-sweep rather than expiry, and
   whether it needs a TTL or a clear-on-sign-out is an open question tracked as `D-028`
   item 7. Worth stating for a reviewer weighing that gap: the snapshot's collections are
@@ -362,9 +347,7 @@ notifications, sidePanel, alarms, scripting`, each mapped to a real consumer:
   rather than a deletion, so it is **separately bounded** at `MAX_ENTRIES` (500) with
   eviction on write — expired entries first, then least-recently-read, and never a key
   with a live subscriber or an in-flight fetch, since dropping those would force the
-  refetch the cache exists to avoid. Before that bound existed the in-memory store grew
-  for the life of a panel session. Undo
-  history is capped at 50 entries
+  refetch the cache exists to avoid. Undo history is capped at 50 entries
   ([`shared/undoManager.ts`](../src/shared/undoManager.ts)) and its
   profile-update entries carry the **prior and new values** of the attributes a write
   touched — bounded inside that same module at `MAX_CAPTURED_ATTRIBUTES` (25) and

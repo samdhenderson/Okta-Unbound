@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import ExportTab from './ExportTab';
 import { OrgEntityIndexProvider } from '../../contexts/OrgEntityIndexContext';
 
@@ -11,11 +12,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Descriptor-driven Export tab. Consumes the Export Engine via `useOktaApi` ' +
-          'and orchestrates the flow through `useExportTab`.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs), ' +
-          '[Shared utilities](?path=/docs/internals-shared-utilities--docs)',
+          'Descriptor-driven Export tab, orchestrated by `useExportTab`. The `pick` phase ' +
+          'lists exportable entities; choosing one enters `configure` — context picker, ' +
+          'filter box, column picker, presets, preview and download.',
       },
     },
   },
@@ -43,6 +42,19 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const PickingAnEntity: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /^App Groups/ }));
+
+    const back = await canvas.findByRole('button', { name: 'All exports' });
+    await expect(canvas.getByRole('heading', { level: 2, name: 'App Groups' })).toBeVisible();
+
+    await userEvent.click(back);
+    await expect(canvas.queryByRole('button', { name: 'All exports' })).toBeNull();
+  },
+};
 
 export const Disconnected: Story = {
   args: { targetTabId: undefined },

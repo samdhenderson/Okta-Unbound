@@ -13,9 +13,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'Accessible modal dialog — the canonical overlay for all pop-up UI.\n\n' +
-          'Provides `role="dialog"` + `aria-modal`, a Tab focus-trap, autofocus into the panel, focus restoration on close, and Escape / overlay-click to dismiss. Four width presets (`sm | md | lg | xl`) and an optional footer bar for action buttons. Renders nothing when `isOpen` is false. Always use this rather than a bespoke overlay.\n\n' +
-          'Closing is animated: the panel is held in the DOM for one exit animation, but is `aria-hidden` + `inert` for that window and focus returns to the trigger immediately — so `isOpen === false` means "gone" to every consumer from the first frame. Under `prefers-reduced-motion` the hold is skipped entirely. See the **Motion Showcase** story.',
+          'The canonical overlay for all pop-up UI: `role="dialog"` + `aria-modal`, a Tab ' +
+          'focus-trap, autofocus into the panel, focus restoration on close, and Escape / ' +
+          'overlay-click to dismiss. Four width presets and an optional footer bar. Always use ' +
+          'this rather than a bespoke overlay.\n\n' +
+          'Closing is animated: the panel is held in the DOM for one exit animation, but is ' +
+          '`aria-hidden` + `inert` for that window and focus returns to the trigger at once, so ' +
+          '`isOpen === false` means "gone" to every consumer from the first frame.',
       },
     },
   },
@@ -87,7 +91,7 @@ export const WithLongContent: Story = {
   args: {
     title: 'Terms and Conditions',
     children: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="flex flex-col gap-4">
         <p>
           Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt
           ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
@@ -169,6 +173,30 @@ export const ExitInteraction: Story = {
   },
 };
 
+export const EscapeAndFocusTrap: Story = {
+  args: {
+    title: 'Confirm removal',
+    children: <p>Tab cycles inside this dialog; Escape dismisses it.</p>,
+  },
+  render: (args) => <ExitDemo {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole('button', { name: 'Open modal' });
+
+    await userEvent.click(trigger);
+    const dialog = await canvas.findByRole('dialog');
+
+    for (let i = 0; i < 5; i += 1) {
+      await userEvent.tab();
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(canvas.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+  },
+};
+
 const OverActivityBar: React.FC<React.ComponentProps<typeof Modal>> = (args) => {
   const [open, setOpen] = useState(false);
   const openOnceLayerExists = useCallback(() => setOpen(true), []);
@@ -191,7 +219,7 @@ export const OverTheActivityBar: Story = {
   args: {
     title: 'Confirm removal',
     children: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="flex flex-col gap-4">
         {Array.from({ length: 12 }, (_, i) => (
           <p key={i}>
             Removing this group takes its {i + 1} members with it. Scroll to the end to confirm —

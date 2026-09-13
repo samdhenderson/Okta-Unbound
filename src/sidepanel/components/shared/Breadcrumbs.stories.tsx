@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import Breadcrumbs from './Breadcrumbs';
 
 const meta = {
@@ -11,13 +11,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Ordered `nav > ol` trail of crumbs separated by a chevron, used for push/pop sub-navigation inside a tab.\n\n' +
-          'Every crumb except the last is a button that navigates back up the trail; the last crumb is the ' +
-          'view currently on screen and renders as non-interactive text carrying `aria-current="page"`. ' +
-          'Labels truncate rather than wrap the header, so a long group name stays on one line in the ' +
-          'narrow side panel. It shapes exactly to the `trail` returned by `useViewStack`, so a tab shell ' +
-          'can pass that through unchanged.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'Ordered `nav > ol` trail for push/pop sub-navigation inside a tab, shaped to the ' +
+          '`trail` `useViewStack` returns. Every crumb but the last is a button back up the ' +
+          'trail; the last is the current view and renders as text carrying ' +
+          '`aria-current="page"`. Labels truncate rather than wrap.',
       },
     },
   },
@@ -56,6 +53,15 @@ export const DeepStack: Story = {
       { key: 'g2', label: 'Engineering — Platform', onSelect: fn() },
       { key: 'g3', label: 'Members' },
     ],
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText('Members')).toHaveAttribute('aria-current', 'page');
+    await expect(canvas.queryByRole('button', { name: 'Members' })).toBeNull();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Engineering' }));
+    await expect(args.items[1].onSelect).toHaveBeenCalledTimes(1);
   },
 };
 

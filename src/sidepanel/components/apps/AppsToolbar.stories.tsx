@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import AppsToolbar from './AppsToolbar';
+import { filterAndSortApps } from './appFilters';
+import type { OktaAppListItem } from '../../../shared/schemas/okta';
 
 const meta = {
   title: 'Apps/AppsToolbar',
@@ -11,15 +14,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'Search, status and group-push filters, and sort controls for the Applications list.\n\n' +
           'Fully controlled: the tab shell owns the filter state, so the same values drive ' +
           'both this row and the filtered list. The search box accepts a `/pattern/flags` ' +
-          'regex query (parsed by the shared `regexQuery` helper) as well as plain substrings.\n\n' +
-          '**"Pushes nothing" is narrower than it sounds, deliberately.** It means Group Push is ' +
-          'enabled on the app and the org snapshot holds no group assignment for it. The snapshot ' +
-          'walks `/api/v1/apps/{id}/groups` only for `GROUP_PUSH` apps, so for anything else an ' +
-          'absent assignment means *nobody asked* — a wider bucket would report the whole ' +
-          'inventory as unassigned.',
+          'regex query as well as a plain substring.\n\n' +
+          '`Pushes nothing` means Group Push is enabled on the app and the org snapshot holds ' +
+          'no group assignment for it — the snapshot only walks the groups endpoint for ' +
+          '`GROUP_PUSH` apps, so a wider reading would report the whole inventory as unassigned.',
       },
     },
   },
@@ -76,4 +76,83 @@ export const PushesNothingFilter: Story = {
 
 export const SortedByCreatedDesc: Story = {
   args: { sortBy: 'created', sortDesc: true },
+};
+
+const harnessApps = [
+  { id: '0oaFAKE0001', label: 'Salesforce', status: 'ACTIVE', created: '2026-01-15T09:00:00.000Z' },
+  {
+    id: '0oaFAKE0002',
+    label: 'Workday HR',
+    status: 'INACTIVE',
+    created: '2026-03-01T09:00:00.000Z',
+  },
+  { id: '0oaFAKE0003', label: 'Slack', status: 'ACTIVE', created: '2025-11-20T09:00:00.000Z' },
+] as OktaAppListItem[];
+
+export const Interactive: Story = {
+  render: (args) => {
+    const Harness = () => {
+      const [searchQuery, setSearchQuery] = useState('');
+      const [statusFilter, setStatusFilter] = useState<'' | 'ACTIVE' | 'INACTIVE'>('');
+      const [groupsFilter, setGroupsFilter] = useState<'' | 'no-groups'>('');
+      const [sortBy, setSortBy] = useState<'label' | 'status' | 'created'>('label');
+      const [sortDesc, setSortDesc] = useState(false);
+
+      const visible = filterAndSortApps(harnessApps, {
+        searchQuery,
+        statusFilter,
+        groupsFilter,
+        sortBy,
+        sortDesc,
+      });
+
+      return (
+        <div className="space-y-(--sp-field)">
+          <AppsToolbar
+            {...args}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            groupsFilter={groupsFilter}
+            onGroupsFilterChange={setGroupsFilter}
+            sortBy={sortBy}
+            sortDesc={sortDesc}
+            onToggleSort={(field) => {
+              if (field === sortBy) setSortDesc((previous) => !previous);
+              else {
+                setSortBy(field);
+                setSortDesc(false);
+              }
+            }}
+            resultCount={visible.length}
+            totalCount={harnessApps.length}
+          />
+          <ul aria-label="Applications" className="space-y-1 text-sm text-neutral-700">
+            {visible.map((app) => (
+              <li key={app.id}>{app.label}</li>
+            ))}
+          </ul>
+        </div>
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const list = canvas.getByRole('list', { name: 'Applications' });
+
+    await userEvent.type(canvas.getByLabelText('Search applications'), 'sl');
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    await expect(within(list).getByText('Slack')).toBeInTheDocument();
+
+    await userEvent.clear(canvas.getByLabelText('Search applications'));
+    await userEvent.click(
+      within(canvas.getByRole('group', { name: 'Filter by status' })).getByRole('button', {
+        name: 'Inactive',
+      }),
+    );
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
+    await expect(within(list).getByText('Workday HR')).toBeInTheDocument();
+  },
 };

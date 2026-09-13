@@ -1,7 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
 import GroupReferenceChip from './GroupReferenceChip';
-import { NavigationProvider } from '../../contexts/NavigationContext';
 import type { ClauseGroupReference } from '../../../shared/rules/explainExpression';
 
 const names: Record<string, string> = { '00gFAKECHIP1': 'Engineering — Platform' };
@@ -16,19 +14,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'One group an `isMemberOf*` clause named, as a small primary-tinted chip.\n\n' +
-          'The satisfied/unsatisfied glyph is **complete-or-absent**: it renders only when `hasContext` says a `RuleGroupContext` was actually supplied. Without one, `reference.satisfied` would read as a definite answer about membership nobody checked, so the chip shows no glyph at all rather than guessing.\n\n' +
-          'The three pattern kinds (`nameStartsWith`, `nameContains`, `nameRegex`) never name a single group, so their label stays a mono-quoted phrase naming the pattern — `startsWith "SecOps-"` — the same convention `ClauseGroupList` uses.',
+          'One group an `isMemberOf*` clause named, as a small primary-tinted chip. The ' +
+          'satisfied/unsatisfied glyph renders only when `hasContext` says a `RuleGroupContext` ' +
+          'was supplied — without one, `reference.satisfied` would read as a verdict on ' +
+          'membership nobody checked.\n\n' +
+          'The three pattern kinds never name a single group, so their label stays a ' +
+          'mono-quoted phrase naming the pattern — `startsWith "SecOps-"`.',
       },
     },
   },
-  decorators: [
-    (Story) => (
-      <NavigationProvider handlers={{ group: fn() }}>
-        <Story />
-      </NavigationProvider>
-    ),
-  ],
   argTypes: {
     reference: { description: 'The group reference to render.' },
     hasContext: {

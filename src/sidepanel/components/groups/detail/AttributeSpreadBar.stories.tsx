@@ -20,24 +20,12 @@ const meta = {
     docs: {
       description: {
         component:
-          "One attribute's value composition as a single segmented bar, replacing the fill " +
-          'meter the Insights card used to carry. A fill meter answers "how much of this is ' +
-          'populated", which the card already states in words; the bar answers "and how is the ' +
-          'populated part *distributed*", which nothing on a collapsed card answered before.\n\n' +
-          '**Blanks are not a segment.** A blank is the absence of a value, not a value people ' +
-          'share; giving it a slice put "nobody filled this in" on the same footing as "forty ' +
-          'people are in Engineering". The blank count gets its own line in the card body.\n\n' +
-          '**The tail is hatched, never tinted.** A flat neutral on a bar whose every other ' +
-          'segment is a value reads as one more value. The hatch (`CHART_TAIL_HATCH`, built ' +
-          'from `--color-neutral-300`/`--color-neutral-100`) reads as an aggregate and survives ' +
-          'greyscale, so "this is the rest, not a thing" is not carried by colour alone.\n\n' +
-          '**It is `aria-hidden`.** The bar states proportions and no labels, so on its own it ' +
-          'is unreadable by anybody — sighted readers get shares without names too. Rather than ' +
-          'synthesise an `aria-label` that duplicates the value list badly, it is decoration ' +
-          'over content the card states in text one disclosure away.\n\n' +
-          '**Storybook renders no Tailwind**, so nothing here asserts segment widths, the ' +
-          'hatch, or the bar’s height — those claims are visual and are verified by eye, not ' +
-          'by these stories.',
+          "One attribute's value composition as a single segmented bar: how the populated " +
+          'part is distributed, which the card states nowhere else.\n\n' +
+          'Blanks get no segment — an absence is not a value people share — and the folded ' +
+          'tail is hatched rather than tinted so it does not read as one more value. The bar ' +
+          'is `aria-hidden`: it carries proportions and no labels, over content the card ' +
+          'states in text one disclosure away.',
       },
     },
   },

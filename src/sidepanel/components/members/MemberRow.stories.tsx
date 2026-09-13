@@ -66,36 +66,19 @@ const meta = {
     docs: {
       description: {
         component:
-          'Single member card: name, email, login (only when it differs from the email — ' +
-          "most orgs provision the two identically, and restating a login that's already " +
-          'the email above it is the same fact twice), a status badge, MFA factor tags, and a ' +
-          "disclosure carrying the member's profile attributes and an Okta deep link.\n\n" +
-          'Memoized for large lists. The status badge and the factor/"No MFA" tags all go ' +
-          'through the shared `Badge`, which maps the user status to a semantic token set ' +
-          '(success / warning / danger, neutral fallback). Factor tags — or "No MFA" for a ' +
-          '0-factor user — render only once a scan has completed.\n\n' +
-          '**The row is not a link.** It used to become one whenever an org origin was ' +
-          "known, which foreclosed the disclosure: a chevron inside an anchor is axe's " +
-          '`nested-interactive`. The deep link now lives inside the disclosure, where ' +
-          '`GroupMembershipRow` and `UserAppRow` already put it.\n\n' +
-          '`expanded` is owned by the **list**, not the row, so filtering a row out and ' +
-          'back in does not close it.\n\n' +
+          'Single member card: name, email, the login only when it differs from the email, a ' +
+          'status badge, MFA factor tags once a scan has completed, and a disclosure carrying ' +
+          "the member's profile attributes and an Okta deep link. The row is never itself a " +
+          'link — a chevron inside an anchor is `nested-interactive` — and `expanded` is owned ' +
+          'by the list, so filtering a row out and back in does not close it.\n\n' +
           'Pass a `membership` and the row also explains **why** this person is in the group: a ' +
-          'verdict badge and one source line collapsed, and the full caveat plus one evidence ' +
-          'card per attributed rule — its condition checked clause by clause against *this* ' +
-          'member — expanded. Those come from the same components ' +
-          '`users/GroupMembershipRow` uses for the mirror-image case, so the two surfaces cannot ' +
-          'drift into two vocabularies for one fact.\n\n' +
+          'verdict badge and one source line collapsed, the full caveat plus one evidence card ' +
+          "per attributed rule expanded. This surface holds one group's roster and no " +
+          '`groupContext`, so `isMemberOf*` clauses read "Cannot be determined", which is true.\n\n' +
           '**The row carries a selection checkbox**, revealed on hover or keyboard focus and ' +
           'drawn unconditionally while ticked, so a pick cannot fade out as the reader scrolls ' +
-          'past it. It costs this row nothing: a row that is its own click target cannot ' +
-          'legally hold a checkbox, and this one gave that up for the chevron already. The ' +
-          'name says who (`Select Ada Lovelace`) — a column of bare "Select" boxes tells a ' +
-          'screen-reader user nothing. Omitting `onToggleSelect` renders no checkbox.\n\n' +
-          "**No `groupContext` is passed here.** This surface holds one group's roster, not each " +
-          'member\'s complete group list, so `isMemberOf*` clauses read "Cannot be determined" — ' +
-          'which is true. A context built from the one group in hand would instead report every ' +
-          'other group a member belongs to as a clause they failed (ADR-0021).',
+          'past it. Its name says who (`Select Ada Lovelace`); omitting `onToggleSelect` ' +
+          'renders no checkbox.',
       },
     },
   },

@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import SearchDropdown from './SearchDropdown';
 import Modal from './Modal';
 import type { OktaUser } from '../../../shared/types';
@@ -16,8 +17,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Generic search input with a live results dropdown and a selected-item summary state.\n\n' +
-          'Fully controlled and presentational — the caller owns query state, async searching, and the results array (typically via a search hook). Generic over the result type `T`; `renderResult` / `renderSelected` project each item to UI. Covers idle, searching (spinner), results-open, selected-summary, and disabled states.',
+          'Generic search input with a live results dropdown and a selected-item summary ' +
+          'state. Fully controlled: the caller owns the query, the in-flight flag, and the ' +
+          'results array — `renderResult` / `renderSelected` project each item to UI.',
       },
     },
   },
@@ -173,6 +175,52 @@ export const SelectedWithLabel: Story = {
         </div>
       );
     },
+  },
+};
+
+export const Interactive: Story = {
+  render: function InteractiveSearch(args) {
+    const [query, setQuery] = useState('');
+    const [selected, setSelected] = useState<OktaUser | null>(null);
+    const results = query
+      ? mockUsers.filter((user) => user.profile.email.includes(query.toLowerCase())).slice(0, 5)
+      : [];
+
+    return (
+      <div className="w-[360px]">
+        <SearchDropdown
+          {...args}
+          label="Source user"
+          query={query}
+          onQueryChange={setQuery}
+          results={results}
+          showDropdown={results.length > 0}
+          onSelect={(item) => {
+            setSelected(asUser(item));
+            setQuery('');
+          }}
+          selectedItem={selected ?? undefined}
+          renderSelected={(item) => <div className="text-sm">{asUser(item).profile.email}</div>}
+          onClear={() => {
+            setSelected(null);
+            setQuery('');
+          }}
+        />
+      </div>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.type(canvas.getByRole('textbox'), 'user12@');
+    const hit = await canvas.findByText('user12@example.com');
+    await userEvent.click(hit);
+
+    await expect(canvas.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+    await expect(canvas.queryByRole('textbox')).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear selection' }));
+    await expect(canvas.getByRole('textbox')).toHaveValue('');
   },
 };
 

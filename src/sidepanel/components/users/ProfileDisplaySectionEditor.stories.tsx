@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ProfileDisplaySectionEditor from './ProfileDisplaySectionEditor';
 import ProfileDisplayAttributeEditRow from './ProfileDisplayAttributeEditRow';
 import { fixtureAttribute } from './profileDisplayStoryFixture';
@@ -84,3 +84,42 @@ export const Empty: Story = { args: { name: 'Contact & locale', fieldCount: 0, c
 export const Lifted: Story = { args: { isLifted: true } };
 
 export const Disabled: Story = { args: { isReorderDisabled: true } };
+
+export const RenamingASection: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Rename Identity' }));
+
+    const field = canvas.getByRole('textbox', { name: 'Rename Identity' });
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Who they are{Enter}');
+
+    await expect(args.onRename).toHaveBeenCalledWith('Who they are');
+  },
+};
+
+export const CancellingARename: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Rename Identity' }));
+
+    const field = canvas.getByRole('textbox', { name: 'Rename Identity' });
+    await userEvent.type(field, ' team{Escape}');
+
+    await expect(args.onRename).not.toHaveBeenCalled();
+    await expect(canvas.getByRole('button', { name: 'Rename Identity' })).toBeVisible();
+  },
+};
+
+export const ConfirmingADelete: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Delete Identity' }));
+
+    await expect(canvas.getByText(/return to Uncategorized/)).toBeVisible();
+    await expect(args.onDelete).not.toHaveBeenCalled();
+
+    await userEvent.click(canvas.getByRole('button', { name: /^Delete$/ }));
+    await expect(args.onDelete).toHaveBeenCalledTimes(1);
+  },
+};

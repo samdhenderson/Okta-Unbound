@@ -10,16 +10,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'The per-row marker on an app diff row: how Okta reports the assignment, or why it cannot be reported.\n\n' +
-          'Four states, in two visual registers. A **chip** is an answer Okta actually gave (`Direct`, `Via group`); ' +
-          '**muted italic text** is a non-answer (`Source unknown`, `Source not compared`). Nothing is left to be ' +
-          'inferred from the absence of a chip — the absence is itself spelled out.\n\n' +
-          'The wording is deliberately non-exclusive. Okta returns a **single** scope per app-user and reports ' +
-          '`USER` when a user is both directly assigned *and* in an assigned group, so `Direct` can only mean ' +
-          '"there is a direct assignment" — never "direct only" or "not via a group". The hover description on ' +
-          'each state carries that caveat in full.\n\n' +
-          'Neither answer is styled as good or bad: both chips share one neutral recipe and differ only in their ' +
-          'words, so the distinction is never carried by colour alone.',
+          'The per-row marker on an app diff row: how Okta reports the assignment, or why it ' +
+          'cannot be reported. A chip is an answer Okta gave (`Direct`, `Via group`); muted ' +
+          'italic text is a non-answer (`Source unknown`, `Source not compared`).\n\n' +
+          'Okta returns a single scope per app-user and reports `USER` when a user is both ' +
+          'directly assigned and in an assigned group, so `Direct` means "there is a direct ' +
+          'assignment", never "direct only".',
       },
     },
   },

@@ -149,26 +149,16 @@ const meta = {
     docs: {
       description: {
         component:
-          '**A confirmation that restates rather than summarises.** By the time an admin has typed into four ' +
-          'fields they are looking at four *new* values and no longer at the old ones, so every changed ' +
-          'attribute is listed with both sides. The two states a form cannot show are given words instead of ' +
-          'blanks: an unset prior value reads `— not set`, an emptied new value reads `— cleared`. A blank ' +
-          'cell beside an arrow reads as a rendering bug, and “cleared” is a decision an admin must be able ' +
-          'to see they made. Values wrap and never truncate — a clipped value beside a `→` is misleading ' +
-          'about what is being written.\n\n' +
-          '**`login` gets its own warning.** Every other attribute in a profile is data *about* a person; ' +
-          '`login` is how that person gets in. `DraftChange.changesSignIn` marks it, and this surface raises ' +
-          'it to a `danger` alert **in addition to** the ordinary overwrite warning, never as one more line ' +
-          'in the list, because the consequence lands on someone who is not in the room.\n\n' +
-          '**The analysis is opt-in and offered once.** The draft cannot change while the modal is open, so ' +
-          'the report can only ever be computed once for it — the button is replaced by its answer rather ' +
-          'than becoming a re-run of a question with a fixed answer. `BlastRadiusReport` renders nothing ' +
-          'under `not-computed`, so it is mounted unconditionally beneath the button.\n\n' +
-          '**Presentational only.** The draft, the diff and the request live in `useProfileEdit`; the ' +
-          'prediction lives in `useBlastRadius`. This component takes `report` / `onAnalyze` / `isAnalyzing` ' +
-          'as props, which is why every state below is a story rather than a scenario.\n\n' +
-          'Related internals: `sidepanel/hooks/useProfileEdit`, `sidepanel/hooks/useBlastRadius`, ' +
-          '`sidepanel/components/users/profileDraft`.',
+          'The last thing between an admin’s profile edits and a live write to Okta. It ' +
+          'restates rather than summarises: every changed attribute is listed with both ' +
+          'sides, and the two states a form cannot show get words instead of blanks — an ' +
+          'unset prior value reads `— not set`, an emptied new value reads `— cleared`. A ' +
+          '`login` change raises its own `danger` alert in addition to the overwrite warning, ' +
+          'because that consequence lands on someone who is not in the room.\n\n' +
+          'The blast-radius analysis is opt-in and offered once: the draft cannot change ' +
+          'while the modal is open, so the button is replaced by its answer rather than ' +
+          'becoming a re-run. This component is presentational — `report`, `onAnalyze` and ' +
+          '`isAnalyzing` all arrive as props.',
       },
     },
   },
@@ -183,10 +173,7 @@ const meta = {
     isAnalyzing: false,
   },
   argTypes: {
-    changes: {
-      description:
-        'The changes awaiting confirmation — non-null opens the modal. Untrusted tenant data; never logged.',
-    },
+    changes: { description: 'The changes awaiting confirmation; non-null opens the modal.' },
     userName: { description: 'Whose profile this is, for the warning sentence. **PII.**' },
     onCancel: { description: 'Dismiss without writing. Also fires on Escape and overlay click.' },
     onConfirm: { description: 'Perform the write.' },
@@ -251,6 +238,28 @@ export const Analyzing: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('button', { name: 'Analyze blast radius' })).toBeDisabled();
+  },
+};
+
+export const AnalyzeThenSave: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Analyze blast radius' }));
+    await expect(args.onAnalyze).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Save changes' }));
+    await expect(args.onConfirm).toHaveBeenCalledTimes(1);
+    await expect(args.onCancel).not.toHaveBeenCalled();
+  },
+};
+
+export const CancelMakesNoWrite: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
+    await expect(args.onCancel).toHaveBeenCalledTimes(1);
+    await expect(args.onConfirm).not.toHaveBeenCalled();
   },
 };
 

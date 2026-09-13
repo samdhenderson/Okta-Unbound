@@ -21,12 +21,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Dependency-free list of horizontal proportion bars for a value distribution.\n\n' +
-          'Each row is a clickable filter toggle that highlights when its value is an ' +
-          'active member-list filter; the aggregated "Other" row is clickable only when an ' +
-          '`onShowOther` handler is supplied, revealing a "View →" affordance. Bars are ' +
-          'plain divs sized by percentage using existing color tokens. With no rows it ' +
-          'falls back to an empty-state message (`emptyMessage`, default "No data").',
+          'Dependency-free list of horizontal proportion bars for a value distribution. Each row is a clickable filter toggle that highlights when its value is an active member-list filter; the aggregated "Other" row is clickable only when `onShowOther` is supplied.\n\n' +
+          '`rowIntent` decides what a row promises: `toggle` keeps `aria-pressed`, while `navigate` drops it and names the destination, because a row that leaves is not a toggle.',
       },
     },
   },
@@ -40,8 +36,7 @@ const meta = {
       description: 'Called when the aggregated "Other" row is clicked, to reveal its values.',
     },
     rowIntent: {
-      description:
-        'What a value row does: `toggle` a facet on the list beside it, or `navigate` away to the Members tab.',
+      description: 'Whether a value row toggles a facet or navigates to the Members tab.',
     },
     emptyMessage: { description: 'Optional empty-state message when there are no rows.' },
   },
@@ -57,6 +52,13 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+export const TogglingAValue: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Engineering/ }));
+    await expect(args.onRowClick).toHaveBeenCalledWith(sampleRows[0]);
+  },
+};
+
 export const Empty: Story = {
   args: { rows: [] },
 };
@@ -71,6 +73,13 @@ export const WithActiveRow: Story = {
 
 export const WithExpandableOther: Story = {
   args: { onShowOther: fn() },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /Other \(4 values\)/ }));
+    await expect(args.onShowOther).toHaveBeenCalled();
+    await expect(canvas.getByRole('button', { name: /Other \(4 values\)/ })).not.toHaveAttribute(
+      'aria-pressed',
+    );
+  },
 };
 
 export const NavigatesToMembers: Story = {

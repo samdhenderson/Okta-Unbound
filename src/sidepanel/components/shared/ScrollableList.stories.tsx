@@ -23,8 +23,7 @@ const meta = {
     loading: { description: 'Shows a loading spinner when true.' },
     loadingMessage: { description: 'Custom message for the loading state.' },
     skeleton: {
-      description:
-        'Optional known-shape placeholder (typically a `Skeleton`) shown instead of the default spinner while `loading` is true.',
+      description: 'Known-shape placeholder shown instead of the spinner while `loading`.',
     },
     maxHeight: { description: 'Optional explicit max-height (e.g. "400px", "50vh").' },
     fillAvailable: { description: 'If true (default), uses flex-grow to fill remaining space.' },

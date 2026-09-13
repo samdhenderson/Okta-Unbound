@@ -60,39 +60,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'What is worth fixing in this org, as a findings list two rows long. Each row is one ' +
-          'actionable count — *4 group rules paused* — and pressing it opens that tab with the ' +
-          'matching filter already applied. The collection totals are a caption underneath, ' +
-          'because `214 groups` is trivia and the slice of it that needs work is not.\n\n' +
-          'All of it is read from the background-owned org snapshot (ADR-0040), so a warm org ' +
-          'renders the whole card at **zero requests** — and that is exactly why there are two ' +
-          'rows. A row has to cost no walk of its own, name a subject, have a verb at the end of ' +
-          'it, and not be a superset of a sharper row. Every app-derived finding failed the ' +
-          'first test: an apps walk plus a per-app assignment read is the tightest rate budget ' +
-          'in the org, and it must never be spent because a tab opened.\n\n' +
-          'The row anatomy is inverted from what it was: a 20px glyph leads, then the finding as ' +
-          'a sentence, then the count at the trailing edge, then the chevron. The count used to ' +
-          'be a `text-3xl` number on the left, which made the card a wall of digits you read ' +
-          'twice — once to see the number, once to find out what it counted. It still holds the ' +
-          'darkest ink and the heaviest weight in a fixed `3ch` right-aligned slot; it is simply ' +
-          'no longer the biggest thing anywhere. The glyph lead matches `WorkingSetRow`’s ' +
-          'exactly, so the entity rows above and the findings below read as one column.\n\n' +
-          'Row 2 is computed by *subtraction* — it removes the groups some rule fills — and is ' +
-          'held to a stricter bar because of it. A rule list missing half its pages does not ' +
-          'under-report it; it reports every group those missing rules fill as unfilled. So the ' +
-          'number is suppressed rather than published wrong, and the row keeps its place with an ' +
-          'em dash and a sentence naming the missing read.\n\n' +
-          'The four states below are the deliverable. `rows.length === 0` is ambiguous three ' +
-          'ways at once — an empty org, a read that has not happened, and a read that failed all ' +
-          'produce it — so a figure is a number **only** when its collection’s last walk ' +
-          'actually finished. Everything else gets its own copy: a skeleton while reading, a ' +
-          'floor when the walk was interrupted (ADR-0040 §7 forbids serving a partial as ' +
-          'complete), and a recessed row with an em dash when nothing was read. Only the first ' +
-          'is ever a control.\n\n' +
-          'The footnote is not decoration either. A cached number with no stated age *is* a ' +
-          'cached number presented as current, so the card quotes the oldest walk behind it — ' +
-          'oldest, not newest, or one refreshed corner would date the whole card. With any ' +
-          'collection unwalked there is no honest age, and the line says so rather than guessing.',
+          'What is worth fixing in this org, as a findings list two rows long. Each row is one actionable count — *4 group rules paused* — and pressing it opens that tab with the matching filter applied; the collection totals sit underneath as a caption. Everything is read from the background-owned org snapshot, so a warm org renders the whole card at zero requests.\n\n' +
+          'A figure is a number **only** when its collection’s last walk finished. Anything else gets its own copy — a skeleton while reading, a floor when the walk was interrupted, an em dash and a sentence naming the missing read when nothing was read — and only a finished figure is ever a control. The footnote quotes the **oldest** walk behind the card, and says so rather than guessing when any collection is unwalked.',
       },
     },
   },

@@ -11,15 +11,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Groups tab shell: browse, search, filter, and select Okta groups.\n\n' +
-          'Orchestrates the search bar, filter panel, selection bar, and list, plus the ' +
-          'export, comparison, source, and collections surfaces it opens. ' +
-          'Starts in live-search mode; loading all groups switches to ' +
-          'cached mode. With no connected Okta tab (`targetTabId` null) the API-backed ' +
-          'actions are disabled.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs), ' +
-          '[Shared utilities](?path=/docs/internals-shared-utilities--docs)',
+          'Groups tab shell: browse, search, filter, and select Okta groups. ' +
+          'It starts in live-search mode and switches to cached mode once all groups are loaded. ' +
+          'With no connected Okta tab (`targetTabId` null) every API-backed action is disabled.',
       },
     },
   },

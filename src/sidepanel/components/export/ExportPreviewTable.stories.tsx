@@ -47,12 +47,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Read-only preview of the first rows an export will produce.\n\n' +
-          'Renders the enabled columns using the exact projection the engine uses, with a ' +
-          'summary banner, an optional dropped-rows note, and an info alert when the row cap ' +
-          'was hit. When the descriptor declares a `linkify` column, that cell deep-links into ' +
-          'the Okta Admin Console. Empty results self-diagnose: it distinguishes "the server ' +
-          'returned nothing" from "every row was dropped by schema validation".',
+          'Read-only preview of the first rows an export will produce, using the exact ' +
+          'projection the engine uses. Empty results self-diagnose: "the server returned ' +
+          'nothing" and "every row was dropped by schema validation" are distinct states.',
       },
     },
   },

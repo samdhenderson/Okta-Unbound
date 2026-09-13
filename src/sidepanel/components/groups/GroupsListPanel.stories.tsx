@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupsListPanel from './GroupsListPanel';
 import { mockGroup } from '../../../test/mocks/fixtures';
 import type { GroupSummary } from '../../../shared/types';
@@ -71,11 +71,7 @@ const meta = {
     selectedGroupIds: { description: 'Ids of the currently selected groups.' },
     selectedCount: {
       description:
-        'How many groups are selected — the `· N selected` half of the line beneath the list, ' +
-        'omitted from it entirely when zero. This line is the app’s one plain-prose statement of ' +
-        'the count: the strip’s verbs carry it in their labels (*Compare (3)*), and the ' +
-        '`PageHeader` badge no longer states it at all, because a header describes what you are ' +
-        'browsing rather than what you have picked (ADR-0032).',
+        'How many groups are selected — the `· N selected` half of the line beneath the list, omitted entirely when zero.',
     },
     onToggleSelect: { description: 'Toggles selection for a group id.' },
     oktaOrigin: { description: 'Okta origin passed to each row for deep-linking.' },
@@ -155,6 +151,15 @@ export const LiveSearching: Story = {
 };
 
 export const LargeListWindowed: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Showing 50 of 120/)).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: /Load more/ }));
+
+    await expect(await canvas.findByText(/Showing 100 of 120/)).toBeInTheDocument();
+    await expect(canvas.getByText('Team 100')).toBeInTheDocument();
+  },
   args: {
     filteredGroups: Array.from({ length: 120 }, (_, i) => ({
       id: `00gFAKE${String(i).padStart(4, '0')}`,

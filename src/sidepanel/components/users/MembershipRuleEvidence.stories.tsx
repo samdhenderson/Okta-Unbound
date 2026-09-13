@@ -57,19 +57,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The evidence card behind one membership: a link to the rule, the profile attributes its ' +
-          'condition **reads**, and the condition itself.\n\n' +
-          'It carries **no caption of its own**. The row above already wears the verdict badge that ' +
-          'says how much the attribution is worth, and repeating that hedge once per rule is exactly ' +
-          'how this surface used to read.\n\n' +
-          'The `Reads` chips come from walking the parsed AST, not from a regex over the text: ' +
-          '`user.department == "user.title"` names **one** attribute, and any pattern match over the ' +
-          'expression reports two. An **unparseable** condition therefore yields no chips at all ' +
-          'rather than an empty `Reads` row, which would state as fact that the rule reads nothing.\n\n' +
-          'With a `user`, the condition is rendered by `ClauseLedger` — the tree the tenant actually ' +
-          'wrote, with the profile value that drove each clause. Without one there is nothing to evaluate against, so the ' +
-          'raw condition is shown instead of an explanation nobody could trust.\n\n' +
-          '**Related internals:** [Shared](?path=/docs/internals-shared--docs)',
+          'The evidence card behind one membership: a link to the rule, the profile attributes its condition **reads**, and the condition itself. The `Reads` chips come from walking the parsed AST, so an unparseable condition yields no chips rather than an empty `Reads` row.\n\n' +
+          'With a `user`, the condition is rendered by `ClauseLedger` — the tree the tenant wrote, with the profile value that drove each clause. Without one there is nothing to evaluate against, so the raw condition is shown instead.',
       },
     },
   },

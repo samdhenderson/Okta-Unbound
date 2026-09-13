@@ -199,7 +199,7 @@ const ActionBar: React.FC<ActionBarProps> = ({
       dock-band
       ${
         sticky
-          ? // `z-30` puts the band *above* the page header (`z-20`) and still below
+          ? // `z-30`: above the page header (`z-20`) so the merge can cover its 1px
             'sticky top-[var(--header-h,0px)] z-30'
           : ''
       }

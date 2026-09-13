@@ -65,14 +65,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "Auth Policies tab shell: browse and search the org's app authentication policies.\n\n" +
-          'Read-only by construction — the tab reaches only for `listPolicies` and (lazily, per ' +
-          "expanded card) `getPolicyRules`, and renders no mutation affordance. Because Okta's " +
-          'policy endpoints are commonly forbidden for non-super-admins, a `403` is ' +
-          'indistinguishable from an empty org: the empty state says so explicitly.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Storage & cache](?path=/docs/internals-storage-cache--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          "Auth Policies tab shell: browse and search the org's app authentication policies, with each card's rules fetched lazily on expand.\n\n" +
+          "Read-only by construction. Because Okta's policy endpoints are commonly forbidden for non-super-admins, a `403` is indistinguishable from an empty org, so the empty state names both.",
       },
     },
   },
@@ -80,13 +74,15 @@ const meta = {
     targetTabId: {
       description: 'Chrome tab id of the connected Okta tab; the load is skipped when absent.',
     },
-    oktaOrigin: {
-      description: 'Okta org origin of the connected tab (reserved for future deep links).',
+    isActive: {
+      description: 'Whether this is the selected top-level tab; the load defers until it is.',
+    },
+    selectedPolicyId: {
+      description: 'A policy to arrive at, applied once as a filter then cleared.',
     },
   },
   args: {
     targetTabId: 1,
-    oktaOrigin: 'https://example.okta.com',
   },
   beforeEach: () => {
     resetEntityCache();
@@ -163,6 +159,16 @@ export const RulesLoadFailure: Story = {
         }),
       }),
     );
+  },
+};
+
+export const SearchFiltersList: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const search = await canvas.findByRole('searchbox', { name: 'Search auth policies' });
+    await userEvent.type(search, 'contractor');
+    await waitFor(() => expect(canvas.getByText('Contractor sign-on')).toBeInTheDocument());
+    await expect(canvas.queryByText('Any two factors')).not.toBeInTheDocument();
   },
 };
 

@@ -40,8 +40,8 @@
 ## Documentation comments (TypeDoc)
 
 API docs are generated from source comments with **TypeDoc** (`npm run docs`), which
-now emits **Markdown** surfaced in Storybook's **Internals** section, not a
-standalone HTML site. The config (`typedoc.json`) covers the **non-component** code
+emits **Markdown** surfaced in Storybook's **Internals** section. The config
+(`typedoc.json`) covers the **non-component** code
 (hooks, contexts, cache, `shared/`, background, content) **except** `*.test`/`*.spec`
 /`*.stories` files; components are documented via their story autodocs instead. When
 you add or move a module, document it in the same change — treat it like the

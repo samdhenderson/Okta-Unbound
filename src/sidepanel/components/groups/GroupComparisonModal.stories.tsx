@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import GroupComparisonModal from './GroupComparisonModal';
 import { mockGroup, mockUsers } from '../../../test/mocks/fixtures';
 import type { GroupSummary, GroupComparisonResult, OktaUser } from '../../../shared/types';
@@ -70,15 +70,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Modal comparing membership overlap across 2–5 selected groups.\n\n' +
-          'Opening triggers the comparison: it fetches members (reusing the passed cache ' +
-          'where possible) and renders the shared intersection, each group’s unique ' +
-          'members, and — for 3+ groups — a pairwise overlap matrix. Surfaces loading and ' +
-          'error states while the comparison is in flight, and renders nothing when ' +
-          'closed.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs), ' +
-          '[Types](?path=/docs/internals-types--docs)',
+          'Modal comparing membership overlap across 2–5 selected groups. Opening triggers ' +
+          'the comparison: it fetches members (reusing the passed cache where it can) and ' +
+          'renders the shared intersection, each group’s unique members, and — for 3+ groups ' +
+          '— a pairwise overlap matrix. It renders nothing when closed.',
       },
     },
   },
@@ -105,7 +100,15 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args }) => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await expect(await dialog.findByText('Total Unique Users')).toBeVisible();
+    await expect(dialog.getByText('In All Groups')).toBeVisible();
+    await expect(args.compareGroups).toHaveBeenCalled();
+  },
+};
 
 export const ThreeGroups: Story = {
   args: {

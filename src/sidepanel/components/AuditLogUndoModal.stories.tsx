@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import AuditLogUndoModal from './AuditLogUndoModal';
 import type { CapturedAttribute, UndoAction } from '../../shared/undoTypes';
 
@@ -61,11 +61,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'The confirmation for undoing a recorded profile write — and the place a refusal is explained.\n\n' +
-          'Undo here is a **forward write**: Okta has no rollback, so restoring an attribute means issuing a new update that happens to set the old value. The dialog says so, because the difference is visible — the restore can fail, and it appears in the history as its own entry rather than erasing the one it undoes.\n\n' +
-          'The **confirm** body lists every attribute `after → before`. When some prior values were never captured it says "3 of 5 attributes can be restored" and names the ones it will leave alone, with the reason: a silent partial restore would be a lie, and refusing outright would strand the attributes that *can* be put back.\n\n' +
-          'The **drifted** body is a refusal, not an error the admin caused. The executor re-read the user and found an attribute is no longer what the original write set, so someone else owns it now; only the attribute *names* are shown, never a value. There is no confirm button in that state — re-offering the action would invite pressing past a guard that just worked.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Types](?path=/docs/internals-types--docs)',
+          'The confirmation for undoing a recorded profile write, and the place a refusal is ' +
+          'explained. Undo here is a forward write — Okta has no rollback, so restoring an ' +
+          'attribute issues a new update that happens to set the old value, and the dialog ' +
+          'says so.\n\n' +
+          'The confirm body lists every attribute `after → before`, naming any whose prior ' +
+          'value was never captured. The `drifted` body is a refusal with no confirm button, ' +
+          'and shows attribute names only, never values.',
       },
     },
   },
@@ -85,8 +87,7 @@ const meta = {
       description: 'Whether the restoring write is in flight; drives the confirm spinner.',
     },
     drifted: {
-      description:
-        'Attributes found changed in Okta since the original write. Present means the undo was refused — names only, never values.',
+      description: 'Attributes changed in Okta since the original write; present means refused.',
     },
     error: { description: 'Message from a restore that was attempted and did not succeed.' },
   },
@@ -96,10 +97,21 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  play: async ({ canvasElement }) => {
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await expect(canvas.getByRole('dialog', { name: 'Restore previous values' })).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Restore' })).toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Restore' }));
+    await expect(args.onConfirm).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const CancelMakesNoWrite: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole('button', { name: 'Cancel' }));
+    await expect(args.onClose).toHaveBeenCalledTimes(1);
+    await expect(args.onConfirm).not.toHaveBeenCalled();
   },
 };
 

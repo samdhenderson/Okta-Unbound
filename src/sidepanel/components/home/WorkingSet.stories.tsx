@@ -48,14 +48,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Home tab’s second region: what you pinned, and what you were just looking at.\n\n' +
-          '**The empty state is the point, not a fallback.** The obvious move for a cold panel is ' +
-          'to render nothing — but the pin lives in the corner of a detail header, which is a place ' +
-          'nobody looks until they know something is there. So an empty *Pinned* list holds its ' +
-          'space and says how to fill it. It is the only surface that can teach the affordance, and ' +
-          'it can only do that by existing before it has content.\n\n' +
-          '*Recent* is the opposite: it fills itself the first time you open anything, needs no ' +
-          'instructions, and is simply absent until it has rows.',
+          "The Home tab's second region: what you pinned, and what you were just looking at.\n\n" +
+          'An empty *Pinned* list still renders and says how to fill it — it is the only surface that teaches the pin affordance. *Recent* is absent until it has rows, because it needs no teaching.',
       },
     },
   },
@@ -73,6 +67,23 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const OpeningAndUnpinning: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Open group' })[0]);
+    await expect(args.onOpen).toHaveBeenCalledWith(PINS[0]);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Unpin Engineering' }));
+    await expect(args.onUnpin).toHaveBeenCalledWith(PINS[0]);
+  },
+};
+
+export const ForgettingARecent: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: 'Forget Contractors' }));
+    await expect(args.onForget).toHaveBeenCalledWith(RECENTS[0]);
+  },
+};
 
 export const ColdStart: Story = {
   args: { pinned: [], recent: [] },

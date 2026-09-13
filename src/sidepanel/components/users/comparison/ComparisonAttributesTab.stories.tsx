@@ -104,28 +104,8 @@ const meta = {
     docs: {
       description: {
         component:
-          "The comparison's fourth dimension: what is *different about these two people*, attribute by " +
-          "attribute, in the admin's own categories and order.\n\n" +
-          'Groups and apps answer "who has what access". Neither answers the question an admin actually arrives ' +
-          'with when two people have different access — and the attributes are the evidence group rules read, so ' +
-          'an attribute diff is very often the whole explanation.\n\n' +
-          "The chrome is `ComparisonDiffTab`'s: filter pills, a search field, and one bordered container whose " +
-          "rows are separated by `divide-y divide-neutral-100` (ADR-0029's second sanctioned separator pattern " +
-          'for a dense, table-like surface — the rows are `<li>` and carry no card border, so this is **not** a ' +
-          '`ListRow` surface).\n\n' +
-          'What differs: the cells carry **values**, not checkmarks, and the rows group under category eyebrows ' +
-          "in the config's order with Uncategorized last — the same grouping the Users tab's Profile pane uses.\n\n" +
-          '**Hidden differences are disclosed, never dropped.** The display config can hide an attribute, and the ' +
-          'one it hides may be the one explaining an access gap, so the count is stated above the list with a ' +
-          'control that reveals those rows inline, marked as hidden.\n\n' +
-          '**Either user is editable, per side.** Which of the two values is right is exactly what a value diff ' +
-          'leaves the admin to decide, so the affordance works in both directions: one editor per column, each ' +
-          'naming its user, with the per-attribute cells joined to a row by the bare attribute name.\n\n' +
-          '**The counts and the markers do not follow the typing.** They describe what Okta holds; a dirty side ' +
-          'is marked with an `Edited` badge instead. And a hidden row holding a draft stays listed even with the ' +
-          'disclosure collapsed, so an edit can never be on screen nowhere and still in the patch.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Types](?path=/docs/internals-types--docs)',
+          "The comparison's fourth dimension: what is different about these two people, attribute by attribute, in the admin's own categories and order. The cells carry **values**, not checkmarks, and the rows arrive differences-first from `attributeParityRows` and are never re-sorted here.\n\n" +
+          'Two rules govern it. A **hidden difference is disclosed, never dropped** — the attribute the config hides may be the one explaining an access gap — and the counts and markers describe what Okta holds, not what has been typed, so a dirty side takes an `Edited` badge instead. Either column is editable, one editor per side.',
       },
     },
   },
@@ -144,23 +124,15 @@ const meta = {
       description: 'Display name of the compared user — the RIGHT cell of every row.',
     },
     rows: {
-      description:
-        'The config-visible rows from `attributeParityRows`, already ordered differences-first. Never re-sorted here.',
+      description: 'The config-visible rows from `attributeParityRows`, ordered differences-first.',
     },
     hiddenRows: {
       description: 'Rows the config hides, kept whole so this surface can reveal them on demand.',
     },
-    hiddenDifferences: {
-      description:
-        'How many of `hiddenRows` actually differ — the number behind the disclosure line.',
-    },
-    config: {
-      description:
-        "The admin's reconciled display configuration: category list and order, `showApiNames`, `showRuleChips`.",
-    },
+    hiddenDifferences: { description: 'How many of `hiddenRows` actually differ.' },
+    config: { description: "The admin's reconciled display configuration." },
     ruleReads: {
-      description:
-        'Attribute Okta name to the rules that read it and currently grant either user access, from `profileRuleReads`.',
+      description: 'Okta attribute name → the rules that read it and grant either user access.',
     },
     contextEdit: {
       description: "The context user's editor. Absent leaves the left column read-only.",

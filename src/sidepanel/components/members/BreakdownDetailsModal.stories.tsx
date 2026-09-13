@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import BreakdownDetailsModal from './BreakdownDetailsModal';
 import { NONE_VALUE, OTHER_VALUE } from './memberAnalytics';
 import type { BreakdownRow } from './memberAnalytics';
@@ -22,11 +22,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Modal showing the full value distribution for one composition dimension.\n\n' +
-          'Displays every value — including those collapsed into the summary\'s "Other" ' +
-          'row — as a scrollable {@link BreakdownReport}, with a "Copy all" of the real ' +
-          'value labels (disabled when there are none). Each row toggles a member-list ' +
-          'filter; an active value is highlighted. Renders nothing while closed.',
+          'Every value for one composition dimension — including those the summary folded ' +
+          'into "Other" — as a scrollable `BreakdownReport`, with a "Copy all" of the real ' +
+          'value labels. Each row toggles a member-list filter, and the modal renders nothing ' +
+          'while closed.',
       },
     },
   },
@@ -53,10 +52,27 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args }) => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await userEvent.click(dialog.getByRole('button', { name: /Sales/ }));
+    await expect(args.onRowClick).toHaveBeenCalledWith(sampleRows[1]);
+
+    await userEvent.keyboard('{Escape}');
+    await expect(args.onClose).toHaveBeenCalled();
+  },
+};
 
 export const WithActiveFilter: Story = {
   args: { activeValues: new Set(['Sales']) },
+  play: async () => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+    await expect(dialog.getByRole('button', { name: /Sales/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  },
 };
 
 export const Empty: Story = {
@@ -65,4 +81,7 @@ export const Empty: Story = {
 
 export const Closed: Story = {
   args: { isOpen: false },
+  play: async () => {
+    await expect(within(document.body).queryByRole('dialog')).toBeNull();
+  },
 };

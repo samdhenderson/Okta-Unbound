@@ -14,10 +14,9 @@ drags freely, so a layout that only holds at one width is a defect — switch a
 story between the presets to check. No preset is the default, so stories fill the
 canvas as before.
 
-Nothing in the panel branches on a width breakpoint any more: the `ActivityBar`'s
-collapse used to be gated on a 640px `useIsNarrow` read and is now offered at
-every width, so the presets are for looking, not for reaching a second code
-path.
+Nothing in the panel branches on a width breakpoint — the `ActivityBar`'s collapse
+is offered at every width — so the presets are for looking, not for reaching a second
+code path.
 
 The presets resize the explorer preview only. The headless test runner renders at
 its own window size, so exercise width-dependent logic through the presentational
@@ -32,7 +31,7 @@ test in headless Chromium (and the suite already carries `retry: 2` for a Vite
 dep-optimizer race, so a second timing-shaped flake source is unwelcome), and
 `npm run shoot` would otherwise catch entrance animations mid-flight and produce a
 different contact sheet each run. A useful side effect is that the reduced-motion
-path gets exercised by all ~550 story tests on every CI run.
+path gets exercised by every story test on every CI run.
 
 A story whose _subject_ is the animation opts back in:
 
@@ -62,9 +61,9 @@ component is `position: fixed`.
 
 ## Stories as browser tests (`@storybook/addon-vitest`)
 
-`vitest.config.ts` has two projects: `unit` (jsdom, the ~940 existing tests) and
-`storybook` (headless-browser, every story becomes a render test; the 11 `play`
-functions become interaction tests). Scripts:
+`vitest.config.ts` has two projects: `unit` (jsdom) and `storybook`
+(headless-browser, where every story becomes a render test and a story's `play`
+function becomes an interaction test). Scripts:
 
 ```
 npm run test:run         # jsdom unit project only (fast, browser-free)

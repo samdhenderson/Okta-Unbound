@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import CauseWorklistRow from './CauseWorklistRow';
 import { NavigationProvider } from '../../../contexts/NavigationContext';
 import type { AccessCause } from './accessCause';
@@ -41,8 +41,7 @@ const meta = {
       description: {
         component:
           'One group on the cause worklist: its name, the rule it hinges on, the failing-clause evidence, and the jump into the full clause checklist.\n\n' +
-          'A `cannot-determine` row renders its reason as a sentence in the **neutral** palette — never `danger`, never `warning`. The clause preview is capped, with the remainder counted and left to the checklist. Long group and rule names wrap rather than overflow.\n\n' +
-          "Group ids **inside** the clause text are named by the same `resolveGroupName` the prerequisite lists use, so the evidence and the list above it read the same way. An id neither that resolver nor the clause's own matched references can name keeps its raw quoted form.",
+          'A `cannot-determine` row renders its reason as a sentence in the neutral palette — never `danger`, never `warning` — and the clause preview is capped with the remainder counted. Group ids inside the clause text are named by `resolveGroupName`; an id it cannot name keeps its raw quoted form.',
       },
     },
   },
@@ -73,6 +72,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const BlockedByAttribute: Story = {};
+
+export const ViewingClauses: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Open clause checklist' }));
+    await expect(args.onViewClauses).toHaveBeenCalled();
+  },
+};
 
 export const ManyFailingClauses: Story = {
   args: {

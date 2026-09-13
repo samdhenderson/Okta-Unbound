@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ClauseLedger from './ClauseLedger';
 import { NavigationProvider } from '../../contexts/NavigationContext';
 import type { OktaUser } from '../../../shared/types';
@@ -42,10 +42,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Explains a rule condition against one user as a **tree** — the `&&`/`||` structure a tenant actually wrote, rather than a flattened row-per-clause list. It replaced `groups/detail/ClauseChecklist`, which no longer exists; `users/MembershipRuleEvidence` is its production adopter.\n\n' +
-          'A `not-evaluated` clause is never dressed up as a failure, and a connective whose outcome is already decided by some children states so in one sentence — "one alternative passes, so the OR passes" — sourced entirely from structured fields, never by re-reading rendered text.\n\n' +
-          'A "Raw expression" toggle switches to the tenant\'s own EL text, whose footer states `true`/`false` or, for an unevaluable condition, the reason instead of a value it never rounds "cannot tell" down to `false`.\n\n' +
-          '**Related internals:** [Shared](?path=/docs/internals-shared--docs)',
+          'Explains a rule condition against one user as a **tree** — the `&&`/`||` structure the tenant actually wrote, rather than a flattened row-per-clause list.\n\n' +
+          'A `not-evaluated` clause is never dressed up as a failure: the "Raw expression" toggle switches to the tenant\'s own EL text, whose footer states `true`/`false` or, for an unevaluable condition, the reason — it never rounds "cannot tell" down to `false`.',
       },
     },
   },
@@ -107,6 +105,25 @@ export const RawViewOpen: Story = {
 
 export const NoGroupContext: Story = {
   args: { expression: 'isMemberOfAnyGroup("00gFAKELEDGER1")' },
+};
+
+export const TogglingTheRawView: Story = {
+  args: {
+    expression: 'user.department == "Engineering" && user.title != "Intern"',
+    groupContext: groups,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const toggle = canvas.getByRole('button', { name: 'Raw expression' });
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByText(/user\.title != "Intern"/)).toBeVisible();
+
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  },
 };
 
 export const CompactPanel: Story = {

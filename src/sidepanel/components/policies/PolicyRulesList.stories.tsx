@@ -23,11 +23,10 @@ const meta = {
     docs: {
       description: {
         component:
-          "A read-only list of one auth policy's rules.\n\n" +
-          'Each row shows only the *validated scalar* fields of a rule — evaluation priority, ' +
-          "name, status and whether it is Okta-managed. A rule's `conditions` and `actions` are " +
-          '`unknown` by contract (their shape varies per policy type) and are deliberately never ' +
-          'read here. The component also owns the small per-policy loading, error and empty states.',
+          "A read-only list of one auth policy's rules, showing only the validated scalar " +
+          'fields: evaluation priority, name, status and whether the rule is Okta-managed. A ' +
+          "rule's `conditions` and `actions` vary by policy type, are `unknown` by contract, " +
+          'and are never read here. The loading, error and empty states belong to this list.',
       },
     },
   },

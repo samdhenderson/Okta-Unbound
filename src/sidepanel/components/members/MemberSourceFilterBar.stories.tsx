@@ -69,24 +69,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The same split `MemberSourceMeter` reads out, where the reader can act on it: the bar ' +
-          'for proportion at a glance, and one pill per segment to narrow the member list to the ' +
-          'people in it.\n\n' +
-          '**The bar is not the click target.** "Click a segment to filter" is the obvious reading ' +
-          'of a meter and the wrong control here — at the 360px panel floor a one-member segment ' +
-          'is a `min-w-1` sliver, which is not a button. The pills carry the same colour swatch, ' +
-          'so the mapping stays legible, and each is a full-size target with its own accessible ' +
-          'name and count.\n\n' +
-          'The bar stays `aria-hidden`, as it is in `MemberSourceMeter`: every number it encodes ' +
-          'is printed on the pills beside it, so a screen reader gets the whole answer as text ' +
-          'rather than an unlabelled graphic.\n\n' +
-          'Zero-count segments are dropped rather than drawn as an empty slice or offered as a ' +
-          'pill that would filter to nobody.\n\n' +
-          '**This is the whole readout on the Members tab** — `MemberSourceMeter` is not rendered ' +
-          'beside it, because a legend and a pill row carrying the same numbers is the same fact ' +
-          'twice down a 360px column. So each pill states its bucket, its count *and* its share, ' +
-          'and an aggregated tail says how many rules it folded in — as a line of text, not a ' +
-          '`title`, because a fact nobody can read without hovering is not stated.',
+          'The membership-source split where the reader can act on it: the bar for proportion at a glance, and one full-size pill per segment to narrow the member list. The bar itself is `aria-hidden` and is never the click target — each pill states its bucket, its count and its share as text.\n\n' +
+          'Zero-count segments are dropped rather than offered as a pill that filters to nobody, and an aggregated tail says in words how many rules it folded in.',
       },
     },
   },

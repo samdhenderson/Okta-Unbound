@@ -87,25 +87,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The Users tab keeps **one** `PageHeader` mounted and swaps its contents as views are ' +
-          'pushed and popped (ADR-0008, ADR-0016). This is that swap, extracted so the tab shell ' +
-          'stays composition.\n\n' +
-          'Three rungs, three subjects: **search** shows the stack’s own root label; **detail** ' +
-          'shows the user’s display name plus the identity region built by `userIdentity`; ' +
-          '**compare** shows `Compare users`, because the subject there is *two* users and ' +
-          'describing one of them would be wrong.\n\n' +
-          '**An unloaded count is absent, not `0`.** The apps metric only appears once the Apps ' +
-          'pane has resolved the full assignment list; `appCount: undefined` drops the fact ' +
-          'entirely, because a user with no apps and a user whose apps have not been fetched are ' +
-          'different answers and only one of them is zero (ADR-0032 §2a). The group count follows ' +
-          'the same rule while memberships load.\n\n' +
-          'The header describes a user **only** on the detail rung, and only once the loaded user ' +
-          'is the one that rung is for — otherwise the push-time snapshot name still stands and a ' +
-          'status badge would belong to somebody else. It never falls back to the entity detected ' +
-          'on the live Okta tab: that is `ContextBar`’s subject, and the two must not converge ' +
-          '(ADR-0032 §1).\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Components](?path=/docs/internals-components--docs)',
+          'What the Users tab’s single `PageHeader` says on each rung of its view stack: **search** shows the stack’s root label, **detail** the user’s display name plus the `userIdentity` region, and **compare** `Compare users`, because the subject there is two users.\n\n' +
+          'An unloaded count is absent, not `0` — `appCount: undefined` drops the metric entirely, and the group count does the same while memberships load. The header never falls back to the entity detected on the live Okta tab; that is `ContextBar`’s subject.',
       },
     },
   },
@@ -138,14 +121,14 @@ const meta = {
     },
     appCount: {
       description:
-        'How many apps the user has, once the Apps pane resolved them. `undefined` omits the fact rather than rendering a zero.',
+        'How many apps the user has; `undefined` omits the metric rather than zeroing it.',
     },
     oktaOrigin: {
       description: 'Origin for the header’s "Open in Okta" link; it hides without one.',
     },
     isActive: {
       description:
-        'Whether the Users tab is the visible one. Passed to `sticky`, so a hidden panel never publishes a stale `--header-h`.',
+        'Whether the Users tab is the visible one, so a hidden panel publishes no `--header-h`.',
     },
   },
 } satisfies Meta<typeof UserRungHeader>;

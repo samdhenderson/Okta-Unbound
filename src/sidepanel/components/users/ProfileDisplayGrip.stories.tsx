@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn } from 'storybook/test';
 import ProfileDisplayGrip from './ProfileDisplayGrip';
 
 const meta = {
@@ -45,6 +45,41 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
 
+export const SpaceLifts: Story = {
+  play: async ({ args, canvas, userEvent }) => {
+    const grip = canvas.getByRole('button', { name: 'Reorder Department' });
+    await expect(grip).toHaveAttribute('aria-pressed', 'false');
+
+    grip.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    await expect(args.onStep).not.toHaveBeenCalled();
+
+    await userEvent.keyboard(' ');
+    await expect(args.onLift).toHaveBeenCalled();
+  },
+};
+
 export const Lifted: Story = { args: { lifted: true } };
+
+export const LiftedKeyboardSteps: Story = {
+  args: { lifted: true },
+  play: async ({ args, canvas, userEvent }) => {
+    const grip = canvas.getByRole('button', { name: 'Reorder Department' });
+    await expect(grip).toHaveAttribute('aria-pressed', 'true');
+
+    grip.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    await expect(args.onStep).toHaveBeenCalledWith('down');
+
+    await userEvent.keyboard('{ArrowRight}');
+    await expect(args.onStep).toHaveBeenCalledWith('next-section');
+
+    await userEvent.keyboard('{Escape}');
+    await expect(args.onCancel).toHaveBeenCalled();
+
+    await userEvent.keyboard(' ');
+    await expect(args.onDrop).toHaveBeenCalled();
+  },
+};
 
 export const Disabled: Story = { args: { disabled: true } };

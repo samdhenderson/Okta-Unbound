@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import UserLifecycleActions from './UserLifecycleActions';
 import { mockUsers } from '../../../test/mocks/fixtures';
 import type { OktaUser } from '../../../shared/types';
@@ -19,21 +19,14 @@ const meta = {
     docs: {
       description: {
         component:
-          "The **Manage tier's body** on the user-detail rung: the account-state verbs plus their " +
-          'confirmation modal, gated by user status.\n\n' +
-          'It lost its card. These used to be a `Lifecycle Actions` card of their own, stacked with ' +
-          'the profile and the memberships as though "suspend this person" were a section of the ' +
-          "page's content. It is not — it is a verb whose object is the whole page, so ADR-0030 puts " +
-          'it in the `ActionBar`, one press away behind **Manage** (`UserActionBar`). ' +
-          '**The `useUserLifecycleActions` state machine, every confirm modal and the status-driven ' +
-          'gating are unchanged; only the placement moved.**\n\n' +
-          'Reading order is deliberate: the non-destructive verbs first, a rule, then the destructive ' +
-          'one alone on its own row with the consequence stated beside it. `Each asks to confirm` is ' +
-          'stated once for the band rather than implied per button.\n\n' +
-          'Offers only the actions valid for the current status — Reset password + Suspend for ' +
+          "The Manage tier's body on the user-detail rung: the account-state verbs plus their " +
+          'confirmation modal, gated by user status. Reading order is deliberate — the ' +
+          'non-destructive verbs first, a rule, then the destructive one alone with its ' +
+          'consequence stated beside it.\n\n' +
+          'Offers only the actions valid for the current status: Reset password + Suspend for ' +
           'ACTIVE, Unsuspend for SUSPENDED, Reset password alone for RECOVERY / LOCKED_OUT / ' +
-          'PASSWORD_EXPIRED, and a notice for DEPROVISIONED. Presentational: the parent owns the ' +
-          'pending-action state and the API call.',
+          'PASSWORD_EXPIRED, and a notice for DEPROVISIONED. Presentational: the parent owns ' +
+          'the pending-action state and the API call.',
       },
     },
   },
@@ -69,7 +62,15 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Active: Story = {};
+export const Active: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Suspend user' }));
+    await expect(args.onRequestAction).toHaveBeenCalledWith('suspend');
+    await expect(args.onConfirm).not.toHaveBeenCalled();
+  },
+};
 
 export const Suspended: Story = {
   args: { user: user({ status: 'SUSPENDED' }) },
@@ -89,6 +90,12 @@ export const Loading: Story = {
 
 export const ConfirmingSuspend: Story = {
   args: { pendingLifecycleAction: 'suspend' },
+  play: async ({ args }) => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await userEvent.click(dialog.getByRole('button', { name: 'Suspend' }));
+    await expect(args.onConfirm).toHaveBeenCalledTimes(1);
+  },
 };
 
 export const ConfirmingResetPassword: Story = {

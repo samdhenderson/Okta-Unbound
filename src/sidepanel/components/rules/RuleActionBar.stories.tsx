@@ -27,31 +27,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'Every verb whose object is the whole rule (ADR-0030). They used to be four buttons ' +
-          'flex-wrapped at the bottom of `RuleCard`’s expanded body — a page-level verb rendered as ' +
-          'though it were a property of a section of a card, which is the exact failure ADR-0030 §2 ' +
-          'exists to stop.\n\n' +
-          '**The split is not the obvious one.** A rule looks like it has a reversible pair — ' +
-          'activate and deactivate — and it does not. Okta’s rule engine *only ever adds*: ' +
-          'activating writes memberships that deactivating will not take back, and deactivating ' +
-          'strands memberships that reactivating will not re-attribute (D-052). Neither press undoes ' +
-          'the other, so both fail ADR-0039’s consequence test and both start behind **More**, with ' +
-          'the consequence stated beside the control.\n\n' +
-          '*Add target group* joins them there for the reason ADR-0051 §2 records learning the hard ' +
-          'way: **a wizard in front of a verb does not move that verb into the row.** The ' +
-          'consolidation wizard previews everything and still ends by creating a replacement rule ' +
-          'and retiring this one.\n\n' +
-          'What is left for the row is genuinely read-only: *Preview impact*, which works out who ' +
-          'would stop being attributed and writes nothing. It is also the `primary` — this is a ' +
-          '**detail** rung, so ADR-0061’s list-rung rule does not apply, and `primary` means what ' +
-          'ADR-0030 always said it meant: the page’s one main verb.\n\n' +
-          '**There is no Delete and no Edit condition, deliberately.** Rule deletion exists only as ' +
-          'the retire half of the consolidation sequence, which owns its own preview and undo ' +
-          'capture, and the app performs no in-place rule edit at all. ADR-0039 §3 is explicit that ' +
-          'the fix for a verb with no live handler is to declare the descriptor when one exists — ' +
-          'not to ship a control with no path to firing.\n\n' +
-          '**Related internals:** [ActionBar](?path=/docs/shared-actionbar--docs), ' +
-          '[RuleLifecycleActions](?path=/docs/rules-rulelifecycleactions--docs)',
+          'Every verb whose object is the whole rule. The row holds only what is ' +
+          'read-only — *Preview impact*, which works out who would stop being attributed and ' +
+          'writes nothing, and which is therefore also the `primary`.\n\n' +
+          'Activate and deactivate look like a reversible pair and are not: Okta’s rule ' +
+          'engine only ever adds, so activating writes memberships deactivating will not take ' +
+          'back, and deactivating strands memberships reactivating will not re-attribute. ' +
+          'Both start behind **More**, with the consequence stated beside the control, as ' +
+          'does *Add target group* — a wizard in front of a verb does not move it into the ' +
+          'row. There is no Delete and no Edit condition because neither has a live handler.',
       },
     },
   },
@@ -71,24 +55,13 @@ const meta = {
   },
   argTypes: {
     rule: { description: 'The rule every verb in the strip acts on.' },
-    onPreviewImpact: {
-      description: 'Opens the read-only impact preview. Omitted when the rule targets no groups.',
-    },
-    tierOpen: {
-      description:
-        'Whether the disclosure tier is showing. Owned by the tab, so a rung change collapses it.',
-    },
-    onTierOpenChange: {
-      description: 'Called with the tier’s next open state when **More** is pressed.',
-    },
+    onPreviewImpact: { description: 'Opens the read-only impact preview.' },
+    tierOpen: { description: 'Whether the disclosure tier is showing. Owned by the tab.' },
+    onTierOpenChange: { description: 'Called with the tier’s next open state.' },
     isLifecycleLoading: { description: 'True while a confirmed lifecycle write is in flight.' },
     isConfirmingActivate: { description: 'Whether the activation confirm is armed.' },
-    onAddTargetGroup: {
-      description: 'Starts the consolidation wizard. Omitted when not wired.',
-    },
-    sticky: {
-      description: 'Pin the strip below the header. `false` in stories — nothing scrolls.',
-    },
+    onAddTargetGroup: { description: 'Starts the consolidation wizard.' },
+    sticky: { description: 'Pin the strip below the header.' },
   },
 } satisfies Meta<typeof RuleActionBar>;
 
@@ -107,6 +80,13 @@ export const TierOpenInactive: Story = {
 
 export const ConfirmingActivate: Story = {
   args: { tierOpen: true, rule: rule({ status: 'INACTIVE' }), isConfirmingActivate: true },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(canvas.getByRole('dialog')).toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Activate' }));
+    await expect(args.onConfirmActivate).toHaveBeenCalledTimes(1);
+  },
 };
 
 export const TierOpenLifecycleRunning: Story = {

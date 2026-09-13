@@ -11,23 +11,15 @@ const meta = {
     docs: {
       description: {
         component:
-          'ADR-0044 names the defect this removes, and `D-053` filed it in seven places: an element changes size after mount — a chip whose label swaps, a badge that only appears once a fetch resolves, a button whose label runs through three lengths — while sitting in a flex row beside text that is `min-w-0` and therefore free to absorb the difference. The neighbour re-truncates, re-wraps or changes its line count, and the row visibly re-lays-out under the reader’s eye.\n\n' +
-          '**Why a hidden twin rather than a `min-w-[…]`.** A hard-coded width is a guess about a font the panel does not control, and one that has to be re-made every time the copy changes — which is how the reflow got in. Rendering the widest state invisibly in the same grid cell makes the browser measure it, in the reader’s own font at the reader’s own zoom.\n\n' +
-          '**The twin is not part of the page.** It is `aria-hidden`, `invisible` and `select-none`, and it carries `data-reserve-width` — which `src/test/setup.ts` and `.storybook/preview.tsx` both add to Testing Library’s `defaultIgnore`, the same mechanism that already hides `<script>` and `<style>`. A text query sees exactly what a reader sees.\n\n' +
-          '**It reserves the box; it does not stabilise the digits.** `11%` and `88%` are different widths in a proportional font, so a numeric readout carries `tabular-nums` as well. Most call sites want both — that is the second half of the convention.',
+          "Reserves the width a slot will need by rendering its widest state invisibly in the same grid cell, so a label that changes after mount cannot re-lay-out the `min-w-0` text beside it. A hard-coded `min-w-[…]` would be a guess about a font the panel does not control; the hidden twin lets the browser measure it in the reader's own font.\n\n" +
+          "The twin is `aria-hidden`, `invisible`, and carries `data-reserve-width`, which the test setup adds to Testing Library's `defaultIgnore` — so a text query sees exactly what a reader sees. It reserves the box but does not stabilise digits: a numeric readout still needs `tabular-nums`.",
       },
     },
   },
   argTypes: {
-    reserve: {
-      description:
-        'The widest state this slot will ever hold. Too narrow and the row can still move; too wide and it holds unused space. Neither breaks anything.',
-    },
+    reserve: { description: 'The widest state this slot will ever hold.' },
     children: { description: 'What is actually shown.' },
-    align: {
-      description:
-        'How the live child sits in the reserved box. `start` (default) for a label, `end` for a right-aligned number, `center` for a chip.',
-    },
+    align: { description: 'How the live child sits in the reserved box; `start` by default.' },
     className: { description: 'Extra classes for the outer box — layout only.' },
   },
   args: {

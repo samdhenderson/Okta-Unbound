@@ -104,23 +104,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'The label/value half of `UserProfilePane`: one category block, in whichever of the three ' +
-          'layouts the admin chose.\n\n' +
-          '**No truncation, ever.** The card this replaces laid attributes out as fixed two-column ' +
-          'tiles and clipped anything that did not fit — which meant a street address and a long ' +
-          'login, the two attributes most likely to be *why* an admin opened the profile, were the ' +
-          'two that could not be read. Every layout here wraps (`break-words` + `text-pretty`) and ' +
-          'the value takes whatever height it needs. A future `truncate` here would be a regression, ' +
-          'not a tidy-up.\n\n' +
-          'The layout decision is one `Record<layout, string>` lookup rather than three branches: ' +
-          '`rows` is a wide label column beside a value, `compact` narrows the column and the gap, ' +
-          'and `grid` becomes `auto-fit` cards that hold two per line at the 360px floor and grow ' +
-          'to three or four when the panel is docked wider.\n\n' +
-          'Rendered as a `<dl>`, so each label is programmatically tied to its value rather than ' +
-          'merely sitting to its left — which is what makes the pane readable in a screen ' +
-          "reader's list-of-terms view. An empty attribute renders `—` with a `No value` tooltip " +
-          'rather than a blank line.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          'The label/value half of `UserProfilePane`: one category block, in whichever of the three layouts the admin chose — `rows`, `compact`, or `auto-fit` `grid` cards.\n\n' +
+          'Nothing here truncates: every layout wraps and the value takes whatever height it needs, because the long values are the ones an admin most often opened the profile to read. Rendered as a `<dl>`, so each label is programmatically tied to its value, and an empty attribute renders `—` with a `No value` tooltip rather than a blank line.',
       },
     },
   },
@@ -152,12 +137,10 @@ const meta = {
     },
     showRuleChips: { description: 'Whether the "read by rules" chips render at all.' },
     ruleReads: {
-      description:
-        'Attribute name → the rules that read it. An attribute absent from the map gets no chip.',
+      description: 'Attribute name → the rules that read it; an absent name gets no chip.',
     },
     cells: {
-      description:
-        'Attribute name → its edit cell while the surface is editing. Absent is the read-only path.',
+      description: 'Attribute name → its edit cell while editing; absent is the read-only path.',
     },
   },
 } satisfies Meta<typeof UserProfileAttributeList>;
@@ -260,4 +243,53 @@ export const EditingInGrid: Story = {
 export const EditingNarrow: Story = {
   args: { cells: editCells },
   parameters: { viewport: { value: 'sidepanelCompact' } },
+};
+
+const LiveEditingHarness = (args: React.ComponentProps<typeof UserProfileAttributeList>) => {
+  const [drafts, setDrafts] = React.useState<Record<string, string>>({
+    department: 'Identity Platform',
+    costCenter: '',
+  });
+
+  const cell = (
+    name: string,
+    editability: AttributeEditCell['editability'],
+    original: string,
+  ): AttributeEditCell => ({
+    name,
+    editability,
+    draft: drafts[name],
+    dirty: drafts[name] !== original,
+    invalid:
+      name === 'costCenter' && drafts.costCenter === ''
+        ? 'Okta requires a value for this attribute.'
+        : undefined,
+    onChange: (next: string) => setDrafts((previous) => ({ ...previous, [name]: next })),
+  });
+
+  return (
+    <UserProfileAttributeList
+      {...args}
+      cells={{
+        department: cell(
+          'department',
+          { editable: true, control: 'text', required: false },
+          'Platform Engineering',
+        ),
+        costCenter: cell('costCenter', { editable: true, control: 'text', required: true }, ''),
+      }}
+    />
+  );
+};
+
+export const EditingLive: Story = {
+  render: (args) => <LiveEditingHarness {...args} />,
+  play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByText('Okta requires a value for this attribute.')).toBeInTheDocument();
+
+    const costCenter = canvas.getByRole('textbox', { name: 'Cost Center' });
+    await userEvent.type(costCenter, 'CC-100');
+    await expect(costCenter).toHaveValue('CC-100');
+    await expect(canvas.queryByText('Okta requires a value for this attribute.')).toBeNull();
+  },
 };

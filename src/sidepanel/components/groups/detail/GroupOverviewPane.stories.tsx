@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupOverviewPane from './GroupOverviewPane';
 import type { MemberSourceBreakdown } from '../../../../shared/membership/groupSource';
 import type { GroupSummary } from '../../../../shared/types';
@@ -54,15 +54,13 @@ const meta = {
       description: {
         component:
           "The Group Detail view's landing pane: verdict tiles, each a derived claim, that " +
-          'drill into the tab that answers it. Presentational only — every figure is a re-read ' +
-          'of state `GroupDetailView` already computes; this pane issues no fetch of its own.\n\n' +
-          'A tile never restates a fact `PageHeader` already owns (name, id, member count, rule ' +
-          'count, timestamps — ADR-0032). A fact that has not loaded yet is **omitted**, never a ' +
-          'zero: the membership-source tile renders a call-to-action until the gated analysis has ' +
-          'run, the Access and Rules tiles are simply absent until their automatic reads resolve, ' +
-          'and the app-push tile only exists when the group carries at least one mapping — never a ' +
-          '"0 mappings" card.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs)',
+          'drill into the tab that answers it. Presentational only — every figure re-reads ' +
+          'state `GroupDetailView` already computes, and the pane issues no fetch of its ' +
+          'own.\n\n' +
+          'A tile never restates a fact `PageHeader` already owns, and a fact that has not ' +
+          'loaded is omitted rather than shown as zero: the Access and Rules tiles are absent ' +
+          'until their reads resolve, and the app-push tile exists only when the group carries ' +
+          'at least one mapping.',
       },
     },
   },
@@ -103,7 +101,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const NotAnalyzed: Story = {};
+export const NotAnalyzed: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: /Where membership comes from/i }));
+    await expect(args.onNavigate).toHaveBeenCalledWith('members');
+  },
+};
 
 export const AllTilesLoaded: Story = {
   args: {

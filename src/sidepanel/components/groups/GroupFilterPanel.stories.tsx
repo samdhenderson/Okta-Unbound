@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupFilterPanel from './GroupFilterPanel';
 
 const availablePushApps = [
@@ -17,12 +18,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Expandable cached-mode filter + sort panel for the groups list.\n\n' +
-          'Filters by group type, member-count bucket, push status, rule attribution, and ' +
-          'push-target app, ' +
-          'and sorts by a chosen field/direction. When any filters are ' +
-          'active it surfaces a summary chips row with a "Clear all" link; the ' +
-          'push-target-app row is hidden when no push apps are available.',
+          'Cached-mode filter + sort panel for the groups list: group type, member-count ' +
+          'bucket, push status, rule attribution, and push-target app, plus the sort field and ' +
+          'direction. Fully controlled — every axis is owned by the caller. With any filter ' +
+          'active it surfaces a summary chips row with a "Clear all" link.',
       },
     },
   },
@@ -98,4 +97,69 @@ export const NoPushApps: Story = {
 
 export const SortedDescending: Story = {
   args: { sortBy: 'memberCount', sortDesc: true },
+};
+
+export const Interactive: Story = {
+  render: function InteractiveFilters(args) {
+    const [typeFilter, setTypeFilter] = useState(args.typeFilter);
+    const [sizeFilter, setSizeFilter] = useState(args.sizeFilter);
+    const [pushFilter, setPushFilter] = useState(args.pushFilter);
+    const [ruleFilter, setRuleFilter] = useState(args.ruleFilter);
+    const [pushAppFilter, setPushAppFilter] = useState(args.pushAppFilter);
+    const [sortBy, setSortBy] = useState(args.sortBy);
+    const [sortDesc, setSortDesc] = useState(args.sortDesc);
+
+    const activeFilterCount =
+      (typeFilter ? 1 : 0) +
+      (sizeFilter ? 1 : 0) +
+      (pushFilter ? 1 : 0) +
+      (ruleFilter ? 1 : 0) +
+      (pushAppFilter.size > 0 ? 1 : 0);
+
+    return (
+      <GroupFilterPanel
+        {...args}
+        activeFilterCount={activeFilterCount}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        sizeFilter={sizeFilter}
+        setSizeFilter={setSizeFilter}
+        pushFilter={pushFilter}
+        setPushFilter={setPushFilter}
+        ruleFilter={ruleFilter}
+        setRuleFilter={setRuleFilter}
+        pushAppFilter={pushAppFilter}
+        setPushAppFilter={setPushAppFilter}
+        sortBy={sortBy}
+        sortDesc={sortDesc}
+        toggleSort={(field) => {
+          setSortDesc((previous) => (field === sortBy ? !previous : false));
+          setSortBy(field);
+        }}
+        clearFilters={() => {
+          setTypeFilter('');
+          setSizeFilter('');
+          setPushFilter('');
+          setRuleFilter('');
+          setPushAppFilter(new Set<string>());
+        }}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const okta = canvas.getByRole('button', { name: 'Okta' });
+    await userEvent.click(okta);
+    await expect(okta).toHaveAttribute('aria-pressed', 'true');
+    await expect(canvas.getByText('Type: OKTA GROUP')).toBeInTheDocument();
+
+    const noRules = canvas.getByRole('button', { name: 'No rules' });
+    await userEvent.click(noRules);
+    await expect(noRules).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear all' }));
+    await expect(canvas.queryByText('Type: OKTA GROUP')).not.toBeInTheDocument();
+    await expect(okta).toHaveAttribute('aria-pressed', 'false');
+  },
 };

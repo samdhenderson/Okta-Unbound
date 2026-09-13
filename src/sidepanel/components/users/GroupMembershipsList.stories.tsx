@@ -127,26 +127,14 @@ const meta = {
     docs: {
       description: {
         component:
-          'The **Groups pane** of the user-detail rung: every group the user is in, what put them ' +
-          'there, and how much that answer is worth.\n\n' +
-          'The pane follows the rung’s shared spine — summary line → filter → source pills → rows → ' +
-          'empty state. The summary names every bucket that has rows in it and omits the ones that ' +
-          'do not; dropping a category silently would be worse than showing no summary at all.\n\n' +
-          'A row says exactly two things: one **verdict badge** (`Rule`, `Rule · n`, ' +
-          '`Direct`, `App`, `Unresolved` — see `membershipVerdict`) and one **source ' +
-          'line** worded by `shared/membership/sourceLine`. The raw membership enum and the second ' +
-          'group-type badge are gone: group type only matters when it explains the source, which ' +
-          'the `App` verdict already does.\n\n' +
-          'Everything else is behind the row’s disclosure, in one order: the full explanation, a card per ' +
-          'attributed rule (the rule, the profile attributes its condition **reads**, and the ' +
-          'condition explained clause by clause against the user), any apps the group also grants, ' +
-          'the **Ask Okta** proof action (ADR-0031 — one API call, and never on a collapsed row; ' +
-          'the pane also fires it automatically for anything it could not settle itself, which is ' +
-          'the last rung of ADR-0001’s certainty ladder), ' +
-          'and the Okta deep link.\n\n' +
-          'Every badge here is a *deduction*: `GET /api/v1/users/{id}/groups` carries no attribution ' +
-          'embed (ADR-0020). A row carrying `provenance` is the exception — that is Okta’s own ' +
-          'answer, and it is the only way a deduced row becomes a proven one.',
+          'The Groups pane of the user-detail rung: every group the user is in, what put them ' +
+          'there, and how much that answer is worth. A row says exactly two things — one verdict ' +
+          'badge (`Rule`, `Rule · n`, `Direct`, `App`, `Unresolved`) and one source line.\n\n' +
+          'Everything else is behind the row’s disclosure: the full explanation, a card per ' +
+          'attributed rule with its condition checked clause by clause against the user, any apps ' +
+          'the group also grants, the **Ask Okta** proof action, and the Okta deep link. The ' +
+          'badges are deductions — the user-groups read carries no attribution embed — and a row ' +
+          'carrying `provenance` is the exception: that is Okta’s own answer.',
       },
     },
   },
@@ -195,7 +183,7 @@ const meta = {
     },
     onProveMembershipSource: {
       description:
-        'Asks Okta which rules manage one membership (`GET /api/v1/groups/{groupId}/users/{userId}/group-rules`). Supplied, each opened row gains an "Ask Okta" action, **and** the pane asks automatically for every row whose `attribution` is not `exact` — the backstop rung of ADR-0001’s certainty ladder. **One API call per row**, once per row, and never for a membership already settled.',
+        'Asks Okta which rules manage one membership. Each opened row gains an "Ask Okta" action, and the pane asks automatically for every unsettled row — one call per row, never for a settled one.',
     },
   },
 } satisfies Meta<typeof GroupMembershipsList>;

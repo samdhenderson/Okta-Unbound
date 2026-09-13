@@ -106,19 +106,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'One membership, reduced to two statements: a **verdict badge** (`Rule`, ' +
-          '`Rule · n`, `Direct`, `App`, `Unresolved` — from `membershipVerdict`) and ' +
-          'one **source line** worded by `shared/membership/sourceLine`.\n\n' +
-          'The row this replaced stacked the raw membership enum, a second group-type badge, a ' +
-          'qualified caption and a "Prove it" strip on top of each other, and left the reader to ' +
-          'decide which to believe. Everything past the two statements now lives behind the ' +
-          'disclosure, in one order: the full explanation, a card per attributed rule, any apps the ' +
-          'group also grants, the **Ask Okta** proof action (ADR-0031), and the Okta deep link.\n\n' +
-          'The disclosure is closed by default and held `inert` while closed, which is what keeps ' +
-          'the proof action — one API call per press — off a row nobody has opened. Expansion is ' +
-          'owned by the pane, not the row, so filtering the list cannot close a row the reader ' +
-          'opened.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          'One membership, reduced to two statements: a **verdict badge** (`Rule`, `Rule · n`, `Direct`, `App`, `Unresolved`, from `membershipVerdict`) and one **source line** worded by `shared/membership/sourceLine`. Everything past those two lives behind the disclosure — the full explanation, a card per attributed rule, any apps the group also grants, the **Ask Okta** proof action, and the Okta deep link.\n\n' +
+          'The disclosure is closed by default and held `inert` while closed, which keeps the proof action — one API call per press — off a row nobody has opened. Expansion is owned by the pane, not the row, so filtering the list cannot close a row the reader opened.',
       },
     },
   },
@@ -147,11 +136,10 @@ const meta = {
     membership: { description: 'The membership this row is about, as the classifier produced it.' },
     user: {
       description:
-        'The user it belongs to; supplied, each rule condition is explained clause by clause against them.',
+        'The user it belongs to; each rule condition is explained clause by clause against them.',
     },
     isCurrentGroup: {
-      description:
-        'Whether this group is the one being browsed elsewhere in the panel — highlights the row and adds an "On page" badge.',
+      description: 'Whether this is the group being browsed elsewhere in the panel.',
     },
     expanded: {
       description:
@@ -163,8 +151,7 @@ const meta = {
     },
     flash: { description: 'One-shot success flash for a group that was just added this session.' },
     appNames: {
-      description:
-        'Apps this group also grants. **Absent is not empty** — the line is omitted rather than claiming the group grants none.',
+      description: 'Apps this group also grants; absent omits the line rather than claiming none.',
     },
     proofEnabled: {
       description: 'Whether the surface can prove a membership at all (a resolver was supplied).',
@@ -255,6 +242,11 @@ export const ProofDisabled: Story = {
 
 export const ProofIdle: Story = {
   args: { membership: ruleAmbiguous, expanded: true, proofEnabled: true },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Ask Okta' }));
+    await expect(args.onProve).toHaveBeenCalledWith(ruleAmbiguous);
+  },
 };
 
 export const ProofPending: Story = {
@@ -294,6 +286,36 @@ export const OpeningTheDisclosure: Story = {
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(trigger);
     await expect(args.onToggle).toHaveBeenCalledWith(ruleExact.group.id);
+  },
+};
+
+const ExpandableRow = (props: React.ComponentProps<typeof GroupMembershipRow>) => {
+  const [expanded, setExpanded] = React.useState(false);
+  return (
+    <GroupMembershipRow
+      {...props}
+      expanded={expanded}
+      onToggle={() => setExpanded((open) => !open)}
+    />
+  );
+};
+
+export const DisclosureRoundTrip: Story = {
+  render: (args) => <ExpandableRow {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const open = canvas.getByRole('button', { name: 'Show how Engineering Staff was granted' });
+    await userEvent.click(open);
+
+    const close = await canvas.findByRole('button', {
+      name: 'Hide how Engineering Staff was granted',
+    });
+    await expect(close).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(close);
+    await expect(
+      await canvas.findByRole('button', { name: 'Show how Engineering Staff was granted' }),
+    ).toHaveAttribute('aria-expanded', 'false');
   },
 };
 

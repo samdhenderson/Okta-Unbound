@@ -58,13 +58,11 @@ const meta = {
     docs: {
       description: {
         component:
-          "The one-line signal region of a group row: the compact member-source bar, the exact member count, what the source split says, and the group's rule/push facts.\n\n" +
-          'The 56px bar draws one slice per attributing rule (three named rules, then an aggregated tail) with a minimum slice ' +
-          'width so a single shared member is still visible. Its *text* deliberately stays coarser — `Rule-managed / Manual / ' +
-          'Indeterminate` — because rule names are unbounded and a list row is not; the full per-segment detail is in the bar ' +
-          'tooltip. The bar is `aria-hidden`, so nothing is available only as colour.\n\n' +
-          'A row never fetches: it renders a bar only from a breakdown already banked in the session cache, and otherwise says ' +
-          '"Source not analyzed" rather than showing an empty meter.',
+          'The one-line signal region of a group row: the compact member-source bar, the ' +
+          "member count, what the source split says, and the group's rule/push facts. The bar " +
+          'is `aria-hidden`, so nothing is available only as colour. A row never fetches — it ' +
+          'draws a bar only from a breakdown already banked in the session cache, and ' +
+          'otherwise says "Source not analyzed" rather than showing an empty meter.',
       },
     },
   },

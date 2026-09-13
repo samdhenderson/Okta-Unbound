@@ -218,9 +218,7 @@ class AuditStore {
 
       for (const entry of allEntries) {
         operationsByType[entry.action] = (operationsByType[entry.action] || 0) + 1;
-
         totalUsersAffected += entry.affectedUsers.length;
-
         totalApiRequests += entry.details.apiRequestCount;
 
         if (entry.result === 'success') {
@@ -262,7 +260,6 @@ class AuditStore {
     try {
       const db = await this.getDB();
       const settings = await db.get(SETTINGS_STORE, 'default');
-
       return settings || { enabled: true, retentionDays: 90 };
     } catch (error) {
       log.error('Failed to get settings:', error);

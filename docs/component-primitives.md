@@ -84,12 +84,11 @@ exact hit.
 ## `Tabs`
 
 The accessible tab-bar primitive (`role="tablist"/"tab"`, roving `tabindex`, arrow-key nav) with
-two variants: `underline` (section nav, the default) and `rail` (icon-first primary nav). A third,
-`segmented` — a pill in a grey tray — was **retired**: its three callers were all picking one of N
-views, which is what `underline` is for, and keeping a second look for the same job only invited
-strips that matched neither neighbour. **Never hand-roll a `role="tablist"`**: the ARIA attributes are the part that gets
-copied and the keyboard handling is the part that gets left behind — which is what
-`ComparisonTabBar` shipped, a strip a keyboard user could reach and then not move inside.
+two variants: `underline` (section nav, the default) and `rail` (icon-first primary nav). There is
+no third: picking one of N views is what `underline` is for, and a pill-in-a-tray look for the same
+job only invites strips that match neither neighbour. **Never hand-roll a `role="tablist"`** — the
+ARIA attributes are the part that gets copied and the keyboard handling is the part that gets left
+behind.
 
 Two additive capabilities keep a caller from forking it for styling, each a property of a tab
 rather than of one surface:

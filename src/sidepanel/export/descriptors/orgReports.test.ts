@@ -232,7 +232,7 @@ describe('a partial answer states its shortfall on every row', () => {
     expect(filename).not.toContain('-partial-');
   });
 
-  it('names the dormant report with the threshold the join actually applies (ADR-0067 §1)', () => {
+  it('names the dormant report with the threshold the join actually applies', () => {
     expect(dormantAccessReportDescriptor.displayName).toBe(`Report: ${dormantAccessLabel()}`);
     expect(dormantAccessReportDescriptor.displayName).toContain('6 months');
     expect(DORMANT_ACCESS_DAYS).toBe(180);

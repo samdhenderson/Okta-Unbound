@@ -32,8 +32,7 @@ const meta = {
       description: {
         component:
           "The Group Detail view's Add-member modal: a debounced user type-ahead over the shared Modal — the group-side mirror of the Users tab's AddToGroupModal.\n\n" +
-          "Fully controlled: the parent (via useAddGroupMember) owns the query, the debounced results (with the group's current roster already excluded), the open/searching flags, and the selected user. Renders the type-ahead dropdown, an inline search spinner, the chosen-user chip, and a confirm button that stays disabled until a user is picked and shows its own spinner while the add is in flight.\n\n" +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          'Fully controlled: the parent (via `useAddGroupMember`) owns the query, the debounced results with the current roster already excluded, the searching flags, and the selected user. The confirm button stays disabled until a user is picked.',
       },
     },
   },

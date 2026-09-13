@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import AppsTab from './AppsTab';
 import { useOktaApi, makeUseOktaApiValue } from '../../../.storybook/mocks/useOktaApi.mock';
 import {
@@ -72,14 +72,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Applications tab shell: browse, search, filter, and sort the org's application inventory.\n\n" +
-          'Read-only by construction — the inventory comes from the background-owned org snapshot ' +
-          '(ADR-0040), and the tab reaches for the API only (lazily, per expanded row) via ' +
-          '`getAppAssignmentCounts`. A failed load surfaces as a dismissible `danger` banner ' +
-          'rather than an empty list presented as complete.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
-          '[Storage & cache](?path=/docs/internals-storage-cache--docs), ' +
-          '[Scheduler & messaging](?path=/docs/internals-scheduler-messaging--docs)',
+          "Applications tab shell: browse, search, filter and sort the org's application inventory. It is read-only by construction — the rows come from the background-owned org snapshot, and the tab reaches for the API only lazily, per expanded row. A failed load surfaces as a dismissible `danger` banner rather than an empty list presented as complete.",
       },
     },
   },
@@ -113,6 +106,18 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     await expect(await within(canvasElement).findByText('Salesforce')).toBeInTheDocument();
+  },
+};
+
+export const Searching: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText('Salesforce');
+
+    await userEvent.type(canvas.getByRole('searchbox', { name: 'Search applications' }), 'Workday');
+
+    await expect(await canvas.findByText('Workday HR')).toBeInTheDocument();
+    await expect(canvas.queryByText('Salesforce')).not.toBeInTheDocument();
   },
 };
 

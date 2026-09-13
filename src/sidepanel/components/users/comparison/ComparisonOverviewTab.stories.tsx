@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ComparisonOverviewTab from './ComparisonOverviewTab';
 import { mockGroup } from '../../../../test/mocks/fixtures';
 import type { GroupMembership } from '../../../../shared/types';
@@ -70,9 +70,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'Summary tab of the comparison modal: two proportion cards (groups + apps) with jump-to-detail links, followed by the cause worklist.\n\n' +
-          'Each card visualizes the shared vs unique split for one dimension and shows its whole-percent overlap; the links jump to the corresponding Groups or Apps detail tab. Prop-driven from pre-bucketed data, so it renders full-overlap, no-overlap, and fully-empty states purely from its inputs.\n\n' +
-          'The `causes` prop is optional on purpose: absent means *not computed* and reads differently from an empty array, which means *computed, nothing found*.',
+          'Summary tab of the comparison modal: two proportion cards (groups + apps) with ' +
+          'jump-to-detail links, followed by the cause worklist. Each card shows the shared ' +
+          'vs unique split for one dimension and its whole-percent overlap, entirely from ' +
+          'pre-bucketed props.\n\n' +
+          'The `causes` prop is optional on purpose: absent means not computed, which reads ' +
+          'differently from an empty array meaning computed and nothing found.',
       },
     },
   },
@@ -99,15 +102,11 @@ const meta = {
     },
     groupSimilarity: { description: 'Group overlap as a whole percent (0–100).' },
     appSimilarity: {
-      description:
-        'App overlap as a whole percent (0–100), or `null` when the assignments could not be fully read — the card reports "overlap unavailable" rather than a percentage it cannot stand behind.',
+      description: 'App overlap as a whole percent, or `null` when the read did not complete.',
     },
     onJumpToGroups: { description: 'Jumps to the Groups detail tab.' },
     onJumpToApps: { description: 'Jumps to the Apps detail tab.' },
-    causes: {
-      description:
-        'Access differences classified by remedy. Absent means "not computed"; empty means "computed, none found".',
-    },
+    causes: { description: 'Access differences classified by remedy. Absent means not computed.' },
     onViewClauses: { description: 'Opens the full clause checklist for one cause.' },
   },
 } satisfies Meta<typeof ComparisonOverviewTab>;
@@ -115,7 +114,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const [groupsLink, appsLink] = canvas.getAllByRole('button', { name: 'View details' });
+
+    await userEvent.click(groupsLink);
+    await expect(args.onJumpToGroups).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(appsLink);
+    await expect(args.onJumpToApps).toHaveBeenCalledTimes(1);
+  },
+};
 
 export const FullOverlap: Story = {
   args: {

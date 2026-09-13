@@ -13,10 +13,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Tab bar (Overview / Groups / Apps / Attributes) for the comparison surface.\n\n' +
-          'Shared `Tabs` in its default `underline` variant. Purely presentational — selection is owned by the parent.\n\n' +
-          'It used to be a hand-rolled `role="tablist"`, copied from the primitive for styling. The copy left the keyboard behind: no roving `tabindex`, no arrow keys. Using `Tabs` makes the strip keyboard-navigable for free — see **KeyboardNavigation** below.\n\n' +
-          'The four labels carry no glyphs and no diff-count badges. Both were dropped for width: with them the strip measured 489px against the 328px of track a 360px side panel gives it, and labels alone measure 292px, so all four sections stay reachable without scrolling at the width the panel can actually be dragged to. Each tab states its own difference count in its body instead — see the **Differences** filter pill on Groups, Apps and Attributes.',
+          'Tab bar (Overview / Groups / Apps / Attributes) for the comparison surface — the shared `Tabs` in its default `underline` variant, purely presentational, with selection owned by the parent.\n\n' +
+          'The four labels carry no glyphs and no diff-count badges: with them the strip measured 489px against the 328px of track a 360px side panel gives it. Each tab states its own difference count in its body instead.',
       },
     },
   },

@@ -78,7 +78,7 @@ describe('the app-level refresh control', () => {
     expect(screen.getByRole('button', { name: 'Refresh Payments Team' })).toBeInTheDocument();
   });
 
-  it('ignores a rung that is mounted but not on screen (ADR-0018)', () => {
+  it('ignores a rung that is mounted but not on screen', () => {
     render(
       <>
         <Rung name="the rules list" run={() => {}} isActive={false} />

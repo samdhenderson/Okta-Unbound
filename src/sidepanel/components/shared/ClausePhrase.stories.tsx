@@ -10,9 +10,12 @@ const meta = {
     docs: {
       description: {
         component:
-          'One rule clause stated as a sentence, composed from the `LeafPredicate` the explainer derived for it — `String.toLowerCase(user.department) == "sales"` reads as **department** (lowercased) equals `"sales"`.\n\n' +
-          "The wording lives here; the decision lives in the type. Every form, operator and transform below comes from a closed set recognised syntactically off the clause's own AST, so nothing branches on a display string and a clause the explainer could not read exactly carries no predicate at all — at which point `ClauseLedgerClause` prints its verbatim text instead.\n\n" +
-          'The `user.` prefix is dropped because the subject of every sentence is the user; the evidence line under the clause still prints the full path.',
+          'One rule clause stated as a sentence, composed from the `LeafPredicate` the explainer ' +
+          'derived for it — `String.toLowerCase(user.department) == "sales"` reads as ' +
+          '**department** (lowercased) equals `"sales"`.\n\n' +
+          'The wording lives here; the decision lives in the type. Every form, operator and ' +
+          'transform comes from a closed set read off the clause AST, so nothing branches on a ' +
+          'display string and an unreadable clause carries no predicate at all.',
       },
     },
   },

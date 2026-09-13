@@ -134,10 +134,11 @@ const meta = {
     docs: {
       description: {
         component:
-          'The recorded action history, read from `chrome.storage` and live-refreshed while the tab is active.\n\n' +
-          'Each entry is an `AuditLogRow` — a real disclosure with `aria-expanded`, not the `cursor-pointer` `<div>` this viewer used to render — and a profile write whose prior values were captured also carries an **Undo**, confirmed through `AuditLogUndoModal`. Undo is a forward write, so it can be refused on drift or fail outright; both keep the dialog open and explain themselves there. A resolved outcome (restored, already undone, not undoable) is reported in an inline alert above the list.\n\n' +
-          'Clear History goes through the shared `Modal` rather than a native `confirm()`, which is what gives it a focus trap, focus restore and Escape. The `chrome.storage` listener is gated on `isActive`: a hidden tab registers no shared listener and re-reads when it comes back (ADR-0018).\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), [Storage & cache](?path=/docs/internals-storage-cache--docs)',
+          'The recorded action history, read from `chrome.storage` and live-refreshed while the ' +
+          'tab is active. A profile write whose prior values were captured carries an **Undo**, ' +
+          'confirmed through `AuditLogUndoModal`; every other shape states its outcome instead.\n\n' +
+          'Undo is a forward write, so it can be refused on drift or fail outright — both keep ' +
+          'the dialog open and explain themselves there.',
       },
     },
   },
@@ -153,8 +154,7 @@ const meta = {
       description: "Tab hosting the live Okta session an undo's restoring write is scoped to.",
     },
     isActive: {
-      description:
-        'Whether the History tab is visible. Gates the `chrome.storage` listener (ADR-0018).',
+      description: 'Whether the History tab is visible. Gates the `chrome.storage` listener.',
     },
   },
 } satisfies Meta<typeof AuditLogViewer>;

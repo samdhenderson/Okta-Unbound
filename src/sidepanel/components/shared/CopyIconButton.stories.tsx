@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, within } from 'storybook/test';
+import { expect, userEvent, waitFor, within } from 'storybook/test';
 import CopyIconButton from './CopyIconButton';
 
 const meta = {
@@ -11,9 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'A ghost `IconButton` whose glyph and accessible name flip to a confirmation for ~1.5s after a click. Extracted (D-015) after `EntityLink`’s `copyId` control re-implemented the recipe byte-for-byte alongside `CopyableId`; both now delegate here, so the confirmation timing and the glyph swap are decided once.\n\n' +
-          'It carries no visible text: the accessible name is the whole label, which is why callers pass one that names *what* is being copied rather than the bare verb.\n\n' +
-          '**Related internals:** [Components](?path=/docs/internals-components--docs)',
+          'A ghost `IconButton` whose glyph and accessible name flip to a confirmation for ~1.5s after a click, shared by `CopyableId` and `EntityLink`. It carries no visible text, so the label must name *what* is being copied rather than the bare verb.',
       },
     },
   },
@@ -40,4 +38,22 @@ export const Default: Story = {
 
 export const NamesWhatItCopies: Story = {
   args: { value: '00uFAKE9z8y7x6w5v4', label: 'Copy user id for ana@example.com' },
+};
+
+export const Copying: Story = {
+  play: async ({ canvasElement }) => {
+    const written: string[] = [];
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (text: string) => (written.push(text), Promise.resolve()) },
+    });
+
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Copy group id' }));
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Copied!' })).toBeInTheDocument(),
+    );
+    await expect(written).toEqual(['00gFAKE1a2b3c4d5e6']);
+  },
 };

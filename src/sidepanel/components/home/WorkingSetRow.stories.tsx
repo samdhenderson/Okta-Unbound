@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import WorkingSetRow from './WorkingSetRow';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -7,21 +7,18 @@ const DAY = 24 * 60 * 60 * 1000;
 const meta = {
   title: 'Home/WorkingSetRow',
   component: WorkingSetRow,
+  tags: ['autodocs'],
   parameters: {
     docs: {
       description: {
         component:
-          'One entity in the Home tab’s working set.\n\n' +
-          'The row opens the entity **and** carries its own control, which a `<button>` row cannot ' +
-          'legally contain — nesting one is an axe `nested-interactive` violation. So it uses the ' +
-          'shared `StretchedButton` overlay rather than `ListRow as="button"`, with the trailing ' +
-          'control on `relative z-10` above it.\n\n' +
-          'The secondary line names the pane you left off on **when the rung reported one**. The ' +
-          'design handoff’s worked example reads `Rule · left on Attributes`, which cannot be ' +
-          'built: the Rules tab has no view stack and no panes. A rung with no pane shows its kind ' +
-          'alone rather than an invented location.\n\n' +
-          'The age is omitted for anything seen today — on a list you were just browsing, "today" ' +
-          'on every row is a column that distinguishes nothing.',
+          'One entity in the Home tab’s working set. The row opens the entity and carries its own ' +
+          'drop control, so it uses the shared `StretchedButton` overlay rather than ' +
+          '`ListRow as="button"` — nesting a button inside a button is an axe ' +
+          '`nested-interactive` violation.\n\n' +
+          'The secondary line names the pane you left off on only when the rung reported one; a ' +
+          'rung with no pane shows its kind alone rather than an invented location. The age is ' +
+          'omitted for anything seen today.',
       },
     },
   },
@@ -48,7 +45,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const PinnedGroup: Story = {};
+export const PinnedGroup: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Open group' }));
+    await expect(args.onOpen).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Unpin Engineering' }));
+    await expect(args.onDrop).toHaveBeenCalledTimes(1);
+    await expect(args.onOpen).toHaveBeenCalledTimes(1);
+  },
+};
 
 export const RecentUser: Story = {
   args: {

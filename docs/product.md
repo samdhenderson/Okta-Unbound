@@ -75,24 +75,22 @@ There is no backend and no telemetry, so these are task-shaped, not dashboards.
 
 ### The tab map
 
-| Tab      | Its one question                          | State                        |
-| -------- | ----------------------------------------- | ---------------------------- |
-| Home     | Is my tenant OK, and what changed?        | To build — replaces Overview |
-| Users    | Why does this person have what they have? | Has a detail rung            |
-| Groups   | Who is in this and why?                   | Has a detail rung            |
-| Apps     | Who can reach this, through what?         | Needs a detail rung          |
-| Rules    | What does this do, and what breaks?       | Needs a detail rung          |
-| Export   | Give me the evidence                      | Done; capped                 |
-| History  | What changed, and can I undo it?          | Needs widening               |
-| Policies | (unresolved — deepen or dissolve)         | Read-only cards today        |
-| Explorer | (developer tool)                          | Demote behind advanced       |
+| Tab      | Its one question                          | State                       |
+| -------- | ----------------------------------------- | --------------------------- |
+| Home     | Is my tenant OK, and what changed?        | Shipped — replaced Overview |
+| Users    | Why does this person have what they have? | Has a detail rung           |
+| Groups   | Who is in this and why?                   | Has a detail rung           |
+| Apps     | Who can reach this, through what?         | Needs a detail rung         |
+| Rules    | What does this do, and what breaks?       | Needs a detail rung         |
+| Export   | Give me the evidence                      | Done; capped                |
+| History  | What changed, and can I undo it?          | Needs widening              |
+| Policies | (unresolved — deepen or dissolve)         | Read-only cards today       |
+| Explorer | (developer tool)                          | Demote behind advanced      |
 
-**Overview is dissolved, not restyled.** Today it is a weaker fifth rendering of
-entities that already have proper detail rungs — same member explorer, fewer
-sections, plus two buttons that duplicate `GroupActionBar`. Home replaces it with
-the one thing a detail rung structurally cannot duplicate: an org-scoped report.
-The background-owned org snapshot exists to unblock exactly this; `I-012`
-(tiered snapshot depth) is the gate.
+**Overview is dissolved, not restyled.** A second, weaker rendering of entities that
+already have detail rungs is not a tab. Home holds the one thing a detail rung
+structurally cannot duplicate: an org-scoped report, served by the background-owned
+org snapshot. `I-012` (tiered snapshot depth) is the gate on deepening it.
 
 ## Write verbs — the Unbind bar
 

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import ClauseGroupList from './ClauseGroupList';
 import Button from '../../shared/Button';
 import type { ClauseGroupReference } from '../../../../shared/rules/explainExpression';
@@ -19,20 +20,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'The groups behind a failing group-membership clause — and the two polarities are **not** mirror ' +
-          'images of each other.\n\n' +
-          'A **positive** clause (`isMemberOfAnyGroup(a, b, c)`) failed because *none* of its groups matched, ' +
-          'so every candidate is listed: that is what makes "it wanted any one of these and you have none" ' +
-          'legible. Satisfied entries are marked rather than hidden, so a partly-satisfied list cannot be ' +
-          'misread as "all of these are missing".\n\n' +
-          'A **negated** clause (`!isMemberOfAnyGroup(…)`) failed because one *did* match. A real rule may ' +
-          'exclude twenty groups of which the user is in one, so only the memberships they actually hold are ' +
-          'shown; the rest are counted, never listed.\n\n' +
-          'Each entry is the shared `GroupReferenceChip` — the same chip `ClauseLedgerClause` renders beneath a ' +
-          'leaf clause on the full checklist, so a group named here reads identically there. An id is unreadable ' +
-          'but it is the thing you paste into Okta, so it stays a one-click copy on the chip rather than a raw ' +
-          'string to select by hand; an id with no known name is the chip label itself, appearing once.\n\n' +
-          'Every state is stated in words (`already in`, `blocking`); colour never carries a meaning alone.',
+          'The groups behind a failing group-membership clause. The two polarities are not ' +
+          'mirror images: a positive clause failed because none of its groups matched, so every ' +
+          'candidate is listed with satisfied entries marked rather than hidden; a negated ' +
+          'clause failed because one did match, so only the memberships actually held are ' +
+          'shown and the rest are counted.\n\n' +
+          'Each entry is the shared `GroupReferenceChip`, and every state is stated in words ' +
+          '(`already in`, `blocking`) — colour never carries a meaning alone.',
       },
     },
   },
@@ -98,6 +92,15 @@ export const CollapsedCandidates: Story = {
   args: {
     requirement: 'member',
     references: Array.from({ length: 9 }, (_, i) => ref({ value: `00gFAKEgroup0000${i}` })),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const reveal = canvas.getByRole('button', { name: /Show \d+ more groups?/ });
+
+    await userEvent.click(reveal);
+
+    await expect(canvas.queryByRole('button', { name: /Show \d+ more groups?/ })).toBeNull();
+    await expect(canvas.getByText('00gFAKEgroup00008')).toBeInTheDocument();
   },
 };
 

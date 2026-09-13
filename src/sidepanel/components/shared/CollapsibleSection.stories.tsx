@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import CollapsibleSection from './CollapsibleSection';
+import { Checkbox } from './index';
 
 const meta = {
   title: 'Shared/CollapsibleSection',
@@ -10,9 +13,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Bordered card whose clickable header toggles its body open or closed.\n\n' +
-          'Manages its own open/closed state internally (uncontrolled), seeded by `defaultOpen`. A chevron rotates on toggle and an optional count badge shows next to the title (rendered even when the count is zero). The header button carries `aria-expanded`/`aria-controls` for the body region.\n\n' +
-          "The body height animates via the shared `.disclose` grid wrapper (`grid-template-rows: 0fr → 1fr`, no JS measurement), so children **stay mounted while collapsed** — held out of the tab order and the accessible tree with `inert`. Don't rely on collapsing to reset or unmount body state. See the **Motion Showcase** story.",
+          'Bordered card whose clickable header toggles its body open or closed. It owns its open state (uncontrolled, seeded by `defaultOpen`), and the header button carries `aria-expanded`/`aria-controls` for the body region.\n\n' +
+          "The body animates via the shared `.disclose` grid wrapper, so children **stay mounted while collapsed** — held out of the tab order and the accessible tree with `inert`. Don't rely on collapsing to reset or unmount body state.",
       },
     },
   },
@@ -27,42 +29,62 @@ const meta = {
   args: {
     title: 'Advanced Filters',
     defaultOpen: true,
-    children: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <p className="text-sm text-neutral-600">Filter controls would go here</p>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input type="checkbox" />
-          <span>Option A</span>
-        </label>
-        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input type="checkbox" />
-          <span>Option B</span>
-        </label>
-      </div>
-    ),
+    children: <FilterOptions options={['Option A', 'Option B']} />,
   },
 } satisfies Meta<typeof CollapsibleSection>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+function FilterOptions({ options }: { options: readonly string[] }) {
+  const [ticked, setTicked] = useState<readonly string[]>([]);
+  return (
+    <div className="flex flex-col gap-2">
+      {options.map((option) => (
+        <Checkbox
+          key={option}
+          label={option}
+          checked={ticked.includes(option)}
+          onChange={(next) =>
+            setTicked((previous) =>
+              next ? [...previous, option] : previous.filter((o) => o !== option),
+            )
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 export const Default: Story = {};
 
 export const Closed: Story = {
-  args: {
-    defaultOpen: false,
-  },
+  args: { defaultOpen: false },
 };
 
 export const WithItemCount: Story = {
-  args: {
-    itemCount: 3,
-  },
+  args: { itemCount: 3 },
 };
 
 export const WithZeroCount: Story = {
-  args: {
-    itemCount: 0,
+  args: { itemCount: 0 },
+};
+
+export const TogglingTheSection: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const header = canvas.getByRole('button', { name: /Advanced Filters/ });
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
+
+    await userEvent.click(canvas.getByLabelText('Option A'));
+    await expect(canvas.getByLabelText('Option A')).toBeChecked();
+
+    await userEvent.click(header);
+    await expect(header).toHaveAttribute('aria-expanded', 'false');
+
+    await userEvent.click(header);
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
+    await expect(canvas.getByLabelText('Option A')).toBeChecked();
   },
 };
 
@@ -79,16 +101,9 @@ export const WithLongContent: Story = {
   args: {
     title: 'Permissions',
     children: (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {['View users', 'Edit users', 'Delete users', 'Manage groups', 'View reports'].map(
-          (perm) => (
-            <label key={perm} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="checkbox" />
-              <span>{perm}</span>
-            </label>
-          ),
-        )}
-      </div>
+      <FilterOptions
+        options={['View users', 'Edit users', 'Delete users', 'Manage groups', 'View reports']}
+      />
     ),
   },
 };

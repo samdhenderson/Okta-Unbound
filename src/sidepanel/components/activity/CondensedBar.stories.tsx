@@ -12,8 +12,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'The condensed activity line.\n\n' +
-          'This is a **separate tree** from the full layout, swapped rather than cross-faded (ADR-0008). A crossfade would need both trees mounted at once, duplicating the Cancel control and the bar’s `role="status"` live region in the tab order, and their differing heights would move the bar’s top edge — the exact reflow the ADR forbids.',
+          'The condensed activity line: status, rate-limit headroom, and a ' +
+          'processed/progress tally, with no lane bars. It is a separate tree from the full ' +
+          'layout and is swapped rather than cross-faded, so the Cancel control and the ' +
+          'bar’s `role="status"` live region are never mounted twice.',
       },
     },
   },

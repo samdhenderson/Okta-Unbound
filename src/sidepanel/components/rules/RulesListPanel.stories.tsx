@@ -52,8 +52,10 @@ const meta = {
     docs: {
       description: {
         component:
-          "The Rules tab's list region, switching between four states.\n\n" +
-          'Shows a spinner while loading; a "Load Rules" call-to-action empty state when nothing is loaded yet; a "no match" empty state when a search/filter excludes every rule; otherwise the filtered `RuleCard` list. Each card is a row that opens the rule\'s own detail rung — the write verbs it used to carry inline are that rung\'s `ActionBar` now.',
+          "The Rules tab's list region, switching between four states: a skeleton while " +
+          'loading, a "Load Rules" call-to-action when nothing is loaded, a "no match" empty ' +
+          'state when the search or filter excludes every rule, and otherwise the filtered ' +
+          "`RuleCard` list. Each card is a row that opens the rule's own detail rung.",
       },
     },
   },
@@ -89,7 +91,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const [first] = canvas.getAllByRole('button', { name: /open rule/i });
+    await userEvent.click(first);
+    await expect(args.onOpenRule).toHaveBeenCalledWith(
+      expect.objectContaining({ id: sampleRules[0].id }),
+    );
+  },
+};
 
 export const Loading: Story = {
   args: { isLoading: true },
@@ -97,6 +108,11 @@ export const Loading: Story = {
 
 export const NoRulesLoaded: Story = {
   args: { hasRules: false, filteredRules: [] },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Load Rules' }));
+    await expect(args.onLoad).toHaveBeenCalledTimes(1);
+  },
 };
 
 export const NoMatchingRules: Story = {

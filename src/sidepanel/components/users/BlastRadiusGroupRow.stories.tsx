@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import BlastRadiusGroupRow from './BlastRadiusGroupRow';
 import type { GroupEffect } from '../../../shared/membership/blastRadiusTypes';
 
@@ -22,22 +23,8 @@ const meta = {
     docs: {
       description: {
         component:
-          '**The label asserts the prediction.** The marker’s accessible name is `Added` / `Removed`: the row ' +
-          'states what the edit does to the membership rather than qualifying it.\n\n' +
-          '**`Not predicted` is neutral, never `danger`.** It is a peer of the other two kinds, not their ' +
-          'absence: it is emitted only where something *was* implicated and the engine declined to call it, ' +
-          'and it always names why. `ClauseLedger` settled the precedent — a clause this panel declines to ' +
-          'evaluate is *not evaluated*, never *failed* — and colouring a withheld prediction red would restate ' +
-          'in colour exactly what the sentence carefully avoids saying. A removal is `warning` rather than ' +
-          '`danger` for the neighbouring reason: it is a consequence to flag, not a failure that occurred.\n\n' +
-          '**The marker is a status, not a control.** A `role="img"` span carrying its own accessible name — ' +
-          'the pattern `ComparisonAttributeRow`’s `=`/`≠` marker established — because the section `Eyebrow` ' +
-          'above the block is only a label, and a row read out of that context must still say what it means. ' +
-          'The `?` on a withheld row is `membershipVerdict`’s hedge marker, the same one the Groups pane uses.' +
-          '\n\n' +
-          '**A withheld row shows how Okta credits the membership today**, as a `Badge`, because that fact is ' +
-          'what makes “we are not predicting this” legible rather than evasive.\n\n' +
-          'Related internals: `shared/membership/blastRadius`, `sidepanel/hooks/useBlastRadius`.',
+          'What one profile edit is predicted to do to one group’s membership. The marker is a status, not a control: its accessible name is `Added` / `Removed`, so the row asserts the effect rather than qualifying it.\n\n' +
+          '`Not predicted` is a third peer kind, neutral rather than `danger` — it is emitted only where something was implicated and the engine declined to call it, and it always names why and shows how Okta credits the membership today.',
       },
     },
   },
@@ -51,7 +38,7 @@ const meta = {
   argTypes: {
     effect: {
       description:
-        'One entry from `BlastRadiusReport.groups`. Its `groupName`, `ruleName` and `blockingRuleName` are untrusted tenant data — rendered escaped, never logged.',
+        'One entry from `BlastRadiusReport.groups`; its names are untrusted tenant data.',
     },
   },
   args: {
@@ -262,13 +249,27 @@ export const WithCascade: Story = {
       },
     ],
   },
-  play: async ({ canvasElement, args }) => {
+  render: (args) => {
+    const Harness = () => {
+      const [expanded, setExpanded] = useState(false);
+      return (
+        <BlastRadiusGroupRow
+          {...args}
+          expanded={expanded}
+          onToggle={() => setExpanded((prev) => !prev)}
+        />
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole('button', { name: /Rules that use this group/ });
 
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    trigger.click();
-    await expect(args.onToggle).toHaveBeenCalledWith('00gFAKE00000000000011');
+    await userEvent.click(trigger);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(canvas.getByText('Downstream feeder')).toBeInTheDocument();
   },
 };
 

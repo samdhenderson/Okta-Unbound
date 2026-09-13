@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ColumnPicker from './ColumnPicker';
 import type { ExportColumn } from '../../export/types';
 
@@ -39,11 +40,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'Inline collapsible column selector for the Export tab.\n\n' +
-          "Groups the descriptor's catalog into `Identity` (base), `Profile`, and " +
-          '`Custom` buckets — empty buckets are skipped — and renders each column as a ' +
-          '`FilterPill` toggle chip. The section header badge counts the enabled columns. ' +
-          'Fully controlled: the enabled set and toggling are owned by the Export tab hook.',
+          "Groups the descriptor's catalog into `Identity`, `Profile` and `Custom` buckets — " +
+          'empty buckets are skipped — and renders each column as a toggle chip. Fully ' +
+          'controlled: the enabled set and the toggling belong to the Export tab hook.',
       },
     },
   },
@@ -72,4 +71,38 @@ export const Minimal: Story = {
 
 export const AllEnabled: Story = {
   args: { enabled: new Set(catalog.map((column) => column.id)) },
+};
+
+export const Interactive: Story = {
+  render: (args) => {
+    const Harness = () => {
+      const [enabled, setEnabled] = useState(new Set(['id', 'status', 'email', 'firstName']));
+      return (
+        <ColumnPicker
+          {...args}
+          enabled={enabled}
+          onToggle={(id) =>
+            setEnabled((previous) => {
+              const next = new Set(previous);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
+        />
+      );
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const created = canvas.getByRole('button', { name: 'Created' });
+    await expect(created).toHaveAttribute('aria-pressed', 'false');
+
+    await userEvent.click(created);
+    await expect(created).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(created);
+    await expect(created).toHaveAttribute('aria-pressed', 'false');
+  },
 };

@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import type { MemberMfaResult } from '../../../shared/types';
-import { expect, userEvent, within } from 'storybook/test';
 import MemberList from './MemberList';
 import { mockUsers } from '../../../test/mocks/fixtures';
 
@@ -28,19 +27,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Windowed, auto-paging scrollable list of member rows.\n\n' +
-          'Mounts only the first `visibleCount` rows and grows via a "Load more" footer ' +
-          'plus an IntersectionObserver sentinel, capping DOM size for very large groups ' +
-          '(up to ~64k members). Each row optionally renders MFA factor tags once a scan ' +
-          'completes and deep-links to the Admin Console when an org origin is known; an ' +
-          'empty list shows the "no members match" message.\n\n' +
-          'Rows enter through the shared `.rise-in-stagger` wrapper driven by ' +
-          '`useStaggerReveal` — each row holds until it scrolls into view, then cascades ' +
-          'with its batch, wired through the wrapper so `MemberRow` needs no index prop. ' +
-          'While `loading`, the rows are replaced by ' +
-          '`Skeleton variant="row"` placeholders rather than a spinner: the shape of what ' +
-          'is coming is already known.\n\n' +
-          '**Related internals:** [Types](?path=/docs/internals-types--docs)',
+          'Windowed, auto-paging scrollable list of member rows. Only the first `visibleCount` rows mount; the list grows via a "Load more" footer plus an IntersectionObserver sentinel, which caps DOM size for very large groups.\n\n' +
+          'While `loading`, the rows are replaced by `Skeleton variant="row"` placeholders rather than a spinner, because the shape of what is coming is already known.',
       },
     },
   },
@@ -85,6 +73,10 @@ export const Default: Story = {};
 
 export const WithLoadMore: Story = {
   args: { members: mockUsers, visibleCount: 50 },
+  play: async ({ args, canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole('button', { name: /^Load more/ }));
+    await expect(args.onLoadMore).toHaveBeenCalled();
+  },
 };
 
 export const WithMfaResults: Story = {

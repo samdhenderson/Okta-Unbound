@@ -23,11 +23,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'A single expandable, read-only row in the Applications list.\n\n' +
-          'Collapsed it shows the display label, status badge, sign-on mode, app key, and ' +
-          'created date. Expanding reveals the ids/dates, an "Open in Okta" deep link built ' +
-          'from the validated org origin, and — fetched lazily only once the row is open, ' +
-          "then cached by app id — the app's user/group assignment counts.",
+          'Collapsed it shows the display label, status badge, sign-on mode, app key and ' +
+          'created date. Expanding reveals the ids and dates, an "Open in Okta" deep link ' +
+          "built from the validated org origin, and the app's assignment counts — fetched " +
+          'only once the row is open, then cached by app id.',
       },
     },
   },

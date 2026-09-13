@@ -14,8 +14,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'Compact header naming both users, with their overall Jaccard match % as a standard overlap bar.\n\n' +
-          'Each side renders a per-user gradient avatar (hue derived from the user id), its label, and the display name (the email rides on the `title`, since at side-panel width a second line truncated to nothing). Below them the whole-percent similarity is labelled and drawn as a full-width `rounded-full` bar, tone-coded by overlap — the same bar idiom the Overview tab and the members spread bar use, and one with no minimum width to overflow the panel. While `isLoading`, placeholder glyphs replace the percentage and the bar renders empty. Presentational leaf of the comparison surface.',
+          'Compact header naming both users, with their overall Jaccard match as a tone-coded overlap bar.\n\n' +
+          'When the percentage covers less than everything, pass `scopeNote` so the label states what it covers rather than implying a whole-account figure.',
       },
     },
   },

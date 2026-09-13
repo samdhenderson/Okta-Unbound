@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import StatCard from './StatCard';
 import Button from './Button';
 
@@ -13,22 +13,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'Single metric tile — an uppercase title, a large value, and an optional ' +
-          'top-right icon — used to build the Overview stat grids.\n\n' +
-          'Presentational only. Numeric values are localized with thousands separators; ' +
-          'string values render verbatim. The `color` prop selects a semantic icon/border ' +
-          'token set (`primary`, `success`, `warning`, `danger`, `neutral`). Passing ' +
-          '`onClick` turns the whole card into a real button — `role="button"`, a tab ' +
-          'stop, Enter/Space, and the shared `.press` depress + `.lift` hover elevation ' +
-          '(ADR-0046/ADR-0047).\n\n' +
-          'A card can opt into `countUp`, which interpolates a numeric value up to its ' +
-          'figure over `--dur-tell` when it first resolves and whenever it changes — the ' +
-          'motion that says "this number just arrived" rather than "this was always here". ' +
-          'It never fires on an incidental re-render, and is instant under ' +
-          '`prefers-reduced-motion`. The value is always rendered with `tabular-nums`, so ' +
-          'the card cannot twitch as the digits change. The same opt-in also tints the ' +
-          'settled figure `text-success-text` for a beat, easing back over `--dur-tell` — ' +
-          'a refreshed number that silently swapped is a missed event.',
+          'Single metric tile — an uppercase title, a large value, and an optional top-right ' +
+          'icon — used to build the Overview stat grids. Numeric values are localized with ' +
+          'thousands separators; `color` selects the semantic icon/border token set; passing ' +
+          '`onClick` turns the whole card into a real button (a tab stop, Enter/Space).\n\n' +
+          '`countUp` interpolates a numeric value up to its figure when it resolves or ' +
+          'changes, and tints the settled figure for a beat — it never fires on an incidental ' +
+          're-render and is instant under `prefers-reduced-motion`.',
       },
     },
   },
@@ -117,20 +108,34 @@ export const Clickable: Story = {
     value: 999,
     icon: 'chart',
   },
+  play: async ({ args, canvasElement }) => {
+    const card = within(canvasElement).getByRole('button', { name: /Click me/ });
+
+    await userEvent.click(card);
+    await expect(args.onClick).toHaveBeenCalledTimes(1);
+
+    card.focus();
+    await expect(card).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+    await expect(args.onClick).toHaveBeenCalledTimes(2);
+  },
 };
 
 export const ClickableHover: Story = {
   ...Clickable,
+  play: undefined,
   parameters: { pseudo: { hover: true } },
 };
 
 export const ClickableFocus: Story = {
   ...Clickable,
+  play: undefined,
   parameters: { pseudo: { focusVisible: true } },
 };
 
 export const ClickablePressed: Story = {
   ...Clickable,
+  play: undefined,
   parameters: { pseudo: { active: true } },
 };
 
@@ -173,6 +178,11 @@ export const Refreshed: Story = {
     color: 'primary',
     icon: 'users',
     countUp: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Refresh' }));
+    await waitFor(() => expect(canvas.getByText('4,957')).toBeInTheDocument());
   },
 };
 

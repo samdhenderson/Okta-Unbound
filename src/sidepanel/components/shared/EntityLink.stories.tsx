@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import EntityLink from './EntityLink';
 import { NavigationProvider } from '../../contexts/NavigationContext';
 
@@ -14,14 +14,13 @@ const meta = {
     docs: {
       description: {
         component:
-          'One component for every "that rule / that group / that user / that app" reference, so a cross-reference looks and behaves the same wherever it appears.\n\n' +
-          'The type glyph and trailing chevron are the point: `RuleCard` currently renders its target groups as pills identical to the neighbouring *attribute* pills, which do nothing when clicked. The chevron says "this goes somewhere" — and appears only when that is true.\n\n' +
-          '**Not every name can be linked.** A rule condition\'s `isMemberOfGroupName("sales")` carries a name and no id, and one name can match an Okta group *and* a Workday group. `PushGroupMapping.targetGroupName` names a group inside the downstream app, which is not an Okta entity at all. Omit `id` for those and the name renders as plain text with a tooltip saying why, rather than as a control that cannot work.\n\n' +
-          'The same fallback covers an entity kind the current build cannot reach, so a link is never dead.\n\n' +
-          '**`copyId` adds the third affordance.** Set it and the chip gains a *sibling* ghost copy control for the raw Okta id, so one import gives a call site the resolved name badge, copy-id, and open-in-detail together. It is a sibling rather than a child because the chip is a `<button>`. It appears only when an `id` is present — nothing to copy, no control — but it is independent of navigability: an id this build cannot open is still an id worth copying.\n\n' +
-          '**Known only by an id.** The mirror image: an id is in hand and no name is. Omit `name` and the reference renders as a stated absence ("Group name not loaded") beside the raw id in the identifier register — and still opens the entity when the id is navigable, because a valid id is a valid destination whether or not this view learned its name. That last part is what three hand-rolled local copies of this state could not do (I-017).\n\n' +
-          "Its chrome follows the house non-answer convention `AppScopeIndicator` and `GroupSourceIndicator` state explicitly: **a chip is a proven answer, a non-answer is muted italic text and is never chipped**. What survives from the pill one of those copies wore is the glyph and the chevron, which say *what kind* and *this goes somewhere* — information rather than weight. A reference whose entity is *gone* is a different thing: that is a proven answer, and it keeps its warning chip (`RuleDetailView`'s `MissingGroupChip`).\n\n" +
-          'Related internals: `sidepanel/contexts/NavigationContext`.',
+          'One component for every "that rule / that group / that user / that app" reference, ' +
+          'so a cross-reference looks and behaves the same wherever it appears. The chip opens ' +
+          'the entity on its own tab; `copyId` adds a sibling control for the raw Okta id.\n\n' +
+          'A chip is a proven answer. Omit `id` (a name with no id) or `name` (an id whose name ' +
+          'never loaded) and the missing half renders as muted italic text stating the absence — ' +
+          'never chipped, never a control that cannot work. An entity kind this build cannot ' +
+          'reach degrades the same way, so a link is never dead.',
       },
     },
   },
@@ -61,7 +60,7 @@ const meta = {
     },
     copyIdLabel: {
       description:
-        'Accessible name for that copy control. Defaults to “Copy <type> id for <name> (<id>)”, since several can share a screen and the id is the one part guaranteed unique even when two entities share a name (I-009).',
+        'Accessible name for the copy control. Defaults to “Copy <type> id for <name> (<id>)”.',
     },
     className: { description: 'Extra classes merged after the chip classes.' },
     testId: { description: 'Optional test handle.' },
@@ -76,7 +75,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+export const Default: Story = {
+  play: async ({ args, canvasElement }) => {
+    handlers.rule.mockClear();
+    const canvas = within(canvasElement);
+    await userEvent.click(
+      canvas.getByRole('button', { name: 'Open rule Sales territory assignment' }),
+    );
+    await expect(handlers.rule).toHaveBeenCalledWith(args.id);
+  },
+};
 
 export const EveryType: Story = {
   render: () => (
@@ -126,7 +134,16 @@ export const Truncates: Story = {
 };
 
 export const NoNavigationAvailable: Story = {
-  decorators: [(Story) => <Story />],
+  render: (args) => (
+    <NavigationProvider handlers={{}}>
+      <EntityLink {...args} />
+    </NavigationProvider>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Sales territory assignment')).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /open rule/i })).not.toBeInTheDocument();
+  },
 };
 
 export const WithCopyId: Story = {

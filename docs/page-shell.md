@@ -195,10 +195,9 @@ needs to park clear of it — the scroller's own top edge already begins beneath
 
 **The bottom reserve is the same rule as the sticky offsets.** The `ActivityBar` is
 `fixed`, so it is out of flow and paints over the end of whatever is scrolling behind
-it. The scroll root reserves `pb-[var(--activity-h,36px)]`. It used to reserve a flat
-`pb-14`, which was wrong by 4px against the bar it was guarding and would have gone
-wrong again on any change to the bar's padding or its bucket rack. The fallback is the
-condensed bar's own height, which is both what the bar boots into and what the
+it. The scroll root reserves `pb-[var(--activity-h,36px)]` — never a flat `pb-*`,
+which goes wrong on any change to the bar's padding or its bucket rack. The fallback
+is the condensed bar's own height, which is both what the bar boots into and what the
 variable resolves to wherever there is no `ResizeObserver` (jsdom).
 
 **`--header-h` is scoped to the `TabPanel`, not the document root.** Every tab stays

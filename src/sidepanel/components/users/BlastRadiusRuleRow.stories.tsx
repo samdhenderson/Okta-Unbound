@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import BlastRadiusRuleRow from './BlastRadiusRuleRow';
 import type { RuleEffect } from '../../../shared/membership/blastRadiusTypes';
 import type { OktaUser } from '../../../shared/types';
@@ -37,23 +38,14 @@ const meta = {
     docs: {
       description: {
         component:
-          '**The rule-centric mirror of `BlastRadiusGroupRow`.** The groups view answers *what access ' +
-          'changes*; this one answers *what is driving it* — the view an admin needs in order to go and fix a ' +
-          'rule rather than a person.\n\n' +
-          '**`Could not be evaluated` is neutral, and it is not a fifth shade of “unchanged”.** At least one ' +
-          'of the two evaluations produced no answer, so the pair cannot be compared. The sentence comes from ' +
-          'the shared `unevaluableReasonText` table rather than being rewritten here, so this surface and ' +
-          '`ClauseLedger` cannot end up saying different things about the same reason code. It renders ' +
-          'neutral because nothing failed, and a `danger` palette would assert in colour what the sentence ' +
-          'declines to assert in words (ADR-0017, ADR-0020).\n\n' +
-          '**The expression wraps; it never truncates.** A condition clipped at the row’s edge and set beside ' +
-          'a verdict is actively misleading — the clause that decided the verdict is routinely the one past ' +
-          'the ellipsis. Expressions, rule names and group names are all end-user-controllable tenant data, ' +
-          'rendered through React’s escaping only.\n\n' +
-          '**`Reads` is a display aid, never load-bearing.** `touchedAttributes` is approximate by ' +
-          'construction — the engine deliberately does *not* pre-filter rules on it, because a miss there ' +
-          'would silently drop a real effect rather than merely mislabel one.\n\n' +
-          'Related internals: `shared/membership/blastRadius`, `shared/rules/unevaluableReasonText`.',
+          'The rule-centric mirror of `BlastRadiusGroupRow`: the groups view answers *what ' +
+          'access changes*, this one answers *what is driving it* — the view an admin needs to ' +
+          'go and fix a rule rather than a person.\n\n' +
+          '`Could not be evaluated` is neutral, not a fifth shade of unchanged: one of the two ' +
+          'evaluations produced no answer, so the pair cannot be compared, and the sentence ' +
+          'comes from the shared `unevaluableReasonText` table. The expression wraps and never ' +
+          'truncates — the clause that decided the verdict is routinely the one past an ' +
+          'ellipsis — and `Reads` is a display aid the engine never filters on.',
       },
     },
   },
@@ -322,13 +314,28 @@ export const CascadeAcrossTwoGroups: Story = {
       },
     ],
   },
+  render: function Disclosure(args) {
+    const [expanded, setExpanded] = useState(false);
+    return (
+      <BlastRadiusRuleRow
+        {...args}
+        expanded={expanded}
+        onToggle={(ruleId) => {
+          args.onToggle?.(ruleId);
+          setExpanded((open) => !open);
+        }}
+      />
+    );
+  },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     const trigger = canvas.getByRole('button', { name: /Rules that use these groups/ });
 
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-    trigger.click();
+    await userEvent.click(trigger);
     await expect(args.onToggle).toHaveBeenCalledWith('0prFAKErule00041');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(canvas.getByText('EMEA tooling')).toBeInTheDocument();
   },
 };
 

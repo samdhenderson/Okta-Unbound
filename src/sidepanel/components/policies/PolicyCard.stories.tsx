@@ -34,12 +34,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Expandable, read-only card for a single app authentication policy.\n\n' +
-          'Collapsed it shows the policy name, status pill, evaluation priority, a `System` badge ' +
-          "for Okta-managed policies and the description. Expanding lazily fetches the policy's " +
-          'rules through the entity cache (keyed `["policyRules", id]`), so collapsing and ' +
-          're-expanding — or re-mounting after a tab switch — costs no second request. The card ' +
-          'renders no activate/deactivate or any other mutation affordance.',
+          'Collapsed it shows the policy name, status pill, evaluation priority, a `System` ' +
+          "badge for Okta-managed policies and the description. Expanding fetches the policy's " +
+          'rules through the entity cache, so re-expanding costs no second request. The card ' +
+          'is strictly read-only — it renders no mutation affordance at all.',
       },
     },
   },

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import ProfileEditCell from './ProfileEditCell';
 import type { AttributeDescriptor } from './profileAttributes';
 import type { AttributeEditability } from './profileEditability';
@@ -66,11 +66,7 @@ const meta = {
           'control its schema type calls for (`Input`, `Select`, `Checkbox`, or `Input type="number"`), ' +
           'and a locked one gets its value dimmed behind a padlock plus a sentence saying who owns ' +
           'it. **A lock is visible and explained, never a silently disabled field.**\n\n' +
-          'The cell renders the value only, never the label: its two surfaces disagree about what a ' +
-          'label is, so the control takes its accessible name from the attribute’s label through ' +
-          '`ariaLabel`. Values wrap rather than truncate — a long login and a street address are ' +
-          'exactly what an admin opened the profile to read.\n\n' +
-          '**Related internals:** [Shared](?path=/docs/internals-shared--docs)',
+          'The cell renders the value only, never the label — the control takes its accessible name from the attribute’s label — and values wrap rather than truncate.',
       },
     },
   },
@@ -293,6 +289,24 @@ export const LockedUnsupportedType: Story = {
     attribute: attribute('aliases', 'Aliases', 'ada,ada.example', 'custom'),
     editability: locked('unsupported-type', 'This panel does not edit array attributes.'),
     onChange: fn(),
+  },
+};
+
+export const TypingADraft: Story = {
+  args: { onChange: fn() },
+  render: (args) => {
+    const Harness = () => {
+      const [draft, setDraft] = useState<string | undefined>(undefined);
+      return <ProfileEditCell {...args} draft={draft} onChange={(next) => setDraft(next)} />;
+    };
+    return <Harness />;
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole('textbox', { name: 'Department' });
+    await userEvent.clear(field);
+    await userEvent.type(field, 'Security Engineering');
+    await expect(field).toHaveValue('Security Engineering');
   },
 };
 

@@ -9,13 +9,9 @@ const meta = {
     docs: {
       description: {
         component:
-          'The leading number shared by Home’s findings and its reports. Extracted rather than ' +
-          'duplicated: the two cards sit one above the other on the same tab, so a difference in ' +
-          'how they set a number would read as a mistake.\n\n' +
-          'At least `2.6ch` of `tabular-nums`, so the left edge of the sentences beside it never ' +
-          'twitches between a `4` and a `214` — and so an em dash occupies the space a number ' +
-          'would, which is what lets a missing value sit in a list without the row looking broken. ' +
-          'A minimum rather than a fixed width: a four-digit org widens the column instead of ' +
+          'The leading number shared by Home’s findings and its reports. At least `2.6ch` of ' +
+          '`tabular-nums` so the sentence beside it never shifts between a `4` and a `214`, and a ' +
+          'minimum rather than a fixed width so a four-digit org widens the column instead of ' +
           'spilling out of it.',
       },
     },

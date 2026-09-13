@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState, type ReactElement } from 'react';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import GroupListItem from './GroupListItem';
 import { resetEntityCache } from '../../cache/entityCache';
@@ -129,11 +130,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'One compact, scannable row in the groups list, built around a single question: *where do this group’s members come from?*\n\n' +
-          'The identity line under the name is the Okta description, falling back to the group id when it is blank (they frequently are). The signal line folds the old members/rules/dates strip into the state encoding: the member-source meter, the exact member count, and the rule/push facts — with "fed by" (rules that assign into the group) and "used in" (rules that merely test membership) kept deliberately apart.\n\n' +
-          '**The meter never fetches.** Computing a split costs `ceil(N/200)` member requests, so the row renders one only when it is already banked in the session cache by the Group Detail view; otherwise it says "Source not analyzed" and offers an explicit analyze action.\n\n' +
-          'Two open affordances with two accessible names: the chevron (`Expand`/`Collapse`, a real disclosure button with `aria-expanded`/`aria-controls`) opens an inline preview, and the row body (`View group details`) drills into the detail view. The checkbox and action icons appear on hover, on `:focus-within`, and permanently on touch; a selected checkbox never hides.\n\n' +
-          '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs) · [Cache](?path=/docs/internals-cache--docs)',
+          'One compact row in the groups list, built around a single question: where do this group’s members come from? The signal line carries the member-source meter, the member count, and the rule and push facts — with "fed by" (rules that assign into the group) and "used in" (rules that merely test membership) kept apart.\n\n' +
+          '**The meter never fetches.** A split costs `ceil(N/200)` member requests, so the row renders one only when the Group Detail view has already banked it; otherwise it says "Source not analyzed" and offers an explicit analyze action. Two open affordances carry two names: the chevron expands an inline preview, the row body drills into the detail view.',
       },
     },
   },
@@ -246,6 +244,34 @@ export const WithOktaLink: Story = {
 
 export const WithoutOpenDetail: Story = {
   args: { onOpenDetail: undefined },
+};
+
+const SelectableRow = (): ReactElement => {
+  const [selected, setSelected] = useState(false);
+  return (
+    <GroupListItem
+      group={plainGroup}
+      selected={selected}
+      onToggleSelect={() => setSelected((current) => !current)}
+      onOpenDetail={fn()}
+      onAnalyzeSource={fn()}
+    />
+  );
+};
+
+export const Selecting: Story = {
+  render: () => <SelectableRow />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const checkbox = canvas.getByRole('checkbox', { name: `Select ${plainGroup.name}` });
+    await expect(checkbox).not.toBeChecked();
+
+    await userEvent.click(checkbox);
+    await expect(checkbox).toBeChecked();
+
+    await userEvent.click(checkbox);
+    await expect(checkbox).not.toBeChecked();
+  },
 };
 
 export const Hover: Story = {

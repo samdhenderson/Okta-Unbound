@@ -10,8 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          'The four-state pipeline bar used by the expanded activity bar.\n\n' +
-          'Segments run in pipeline order: **spent** → **in flight** → **queued** → **planned**. Each segment is a solid fill sized by its share of the declared total; the planned share is rendered the same way whether the plan sized it exactly or estimated it (ADR-0060).',
+          'The four-state pipeline bar used by the expanded activity bar. Segments run in pipeline order — **spent** → **in flight** → **queued** → **planned** — each a solid fill sized by its share of the declared total. The planned share renders identically whether the plan sized it exactly or estimated it.',
       },
     },
   },
