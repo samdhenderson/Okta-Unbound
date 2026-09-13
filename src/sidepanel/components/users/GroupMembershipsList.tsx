@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { EmptyState, FilterPill, IconButton, Input, Skeleton } from '../shared';
 import Icon from '../shared/Icon';
 import GroupMembershipRow from './GroupMembershipRow';
+import { useRungSelection } from '../../selection/useRungSelection';
 import { useMembershipProofs } from './GroupMembershipsListProof';
 import {
   BUCKET_PILL_LABELS,
@@ -47,6 +48,12 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   const [query, setQuery] = useState('');
   const [bucket, setBucket] = useState<MembershipBucketFilter>('all');
   const [openGroupIds, setOpenGroupIds] = useState<ReadonlySet<string>>(() => new Set());
+  const groupEntities = useMemo(
+    () => memberships.map((m) => ({ id: m.group.id, name: m.group.profile.name })),
+    [memberships],
+  );
+  const selection = useRungSelection('group', groupEntities, (g) => g.name);
+
   const resolveProof = useMemo(
     () =>
       onProveMembershipSource
@@ -201,6 +208,8 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
               proofEnabled={proofs.enabled}
               proofOutcome={proofs.outcomeFor(membership.group.id)}
               onProve={proofs.prove}
+              selected={selection.selectedIds.has(membership.group.id)}
+              onToggleSelect={selection.toggleSelect}
             />
           ))}
         </div>

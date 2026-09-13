@@ -42,7 +42,11 @@ const ComparisonSearchPhase: React.FC<ComparisonSearchPhaseProps> = ({
         </div>
       )}
 
-      <UserSearchResults results={filtered} onSelectUser={onSelectUser} />
+      <UserSearchResults
+        results={filtered}
+        onSelectUser={onSelectUser}
+        actionLabel="Compare with this user"
+      />
     </div>
   );
 };

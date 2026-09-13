@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import type { FormattedRule } from '../../../shared/types';
 import RulesListPanel from './RulesListPanel';
 
@@ -69,6 +69,10 @@ const meta = {
     selectedRuleId: {
       description: 'Rule id being opened (deep-link target), for the arrival flash.',
     },
+    selectedRuleIds: {
+      description: "Ids ticked in the selection basket's `rule` partition.",
+    },
+    onToggleSelect: { description: "Toggles a rule's id in the selection basket." },
   },
   args: {
     isLoading: false,
@@ -77,6 +81,8 @@ const meta = {
     onLoad: fn(),
     onOpenRule: fn(),
     selectedRuleId: null,
+    selectedRuleIds: new Set<string>(),
+    onToggleSelect: fn(),
   },
 } satisfies Meta<typeof RulesListPanel>;
 
@@ -99,4 +105,22 @@ export const NoMatchingRules: Story = {
 
 export const WithSelectedRule: Story = {
   args: { selectedRuleId: sampleRules[0].id },
+};
+
+export const TogglingASelection: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('checkbox', { name: `Select ${sampleRules[1].name}` }));
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(sampleRules[1].id);
+  },
+};
+
+export const WithASelectedRule: Story = {
+  args: { selectedRuleIds: new Set([sampleRules[0].id]) },
+  play: async ({ canvasElement }) => {
+    const checkbox = within(canvasElement).getByRole('checkbox', {
+      name: `Select ${sampleRules[0].name}`,
+    });
+    await expect(checkbox).toBeChecked();
+  },
 };

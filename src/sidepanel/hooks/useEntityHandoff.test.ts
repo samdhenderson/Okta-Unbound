@@ -58,7 +58,6 @@ const PAGES: Record<PageType, { page: OktaPageContext; offers: string | null }> 
 function options(page: OktaPageContext, over: Record<string, unknown> = {}) {
   return {
     page,
-    suppressed: false,
     canNavigateTo: () => true,
     navigateTo: vi.fn(),
     ...over,
@@ -102,13 +101,6 @@ describe('useEntityHandoff', () => {
       useEntityHandoff(
         options(PAGES.policy.page, { canNavigateTo: (kind: JumpKind) => kind !== 'policy' }),
       ),
-    );
-    expect(result.current.offer).toBeNull();
-  });
-
-  it('is withheld while pinned, where the bar has its own switch hint', () => {
-    const { result } = renderHook(() =>
-      useEntityHandoff(options(PAGES.group.page, { suppressed: true })),
     );
     expect(result.current.offer).toBeNull();
   });

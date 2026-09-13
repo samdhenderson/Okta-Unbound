@@ -14,21 +14,23 @@ export const userStatusSchema = z.enum([
   'PASSWORD_EXPIRED',
 ]);
 
+const optionalProfileText = z
+  .string()
+  .nullish()
+  .transform((v) => v ?? undefined);
+
 export const oktaProfileSchema = z
   .object({
     login: z.string(),
     email: z.string(),
     firstName: z.string(),
     lastName: z.string(),
-    secondEmail: z.string().optional(),
-    mobilePhone: z
-      .string()
-      .nullish()
-      .transform((v) => v ?? undefined),
-    department: z.string().optional(),
-    title: z.string().optional(),
-    manager: z.string().optional(),
-    managerId: z.string().optional(),
+    secondEmail: optionalProfileText,
+    mobilePhone: optionalProfileText,
+    department: optionalProfileText,
+    title: optionalProfileText,
+    manager: optionalProfileText,
+    managerId: optionalProfileText,
   })
   .passthrough();
 

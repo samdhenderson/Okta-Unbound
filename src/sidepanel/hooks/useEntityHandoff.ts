@@ -39,7 +39,6 @@ function liveEntityOf(page: OktaPageContext): HandoffOffer | null {
 
 export interface UseEntityHandoffOptions {
   page: OktaPageContext;
-  suppressed: boolean;
   canNavigateTo: (kind: JumpKind) => boolean;
   navigateTo: (kind: JumpKind, id: string) => void;
 }
@@ -52,15 +51,13 @@ export interface UseEntityHandoffReturn {
 
 export function useEntityHandoff({
   page,
-  suppressed,
   canNavigateTo,
   navigateTo,
 }: UseEntityHandoffOptions): UseEntityHandoffReturn {
   const [handledId, setHandledId] = useState<string | null>(null);
 
   const live = liveEntityOf(page);
-  const offer =
-    live !== null && !suppressed && live.id !== handledId && canNavigateTo(live.kind) ? live : null;
+  const offer = live !== null && live.id !== handledId && canNavigateTo(live.kind) ? live : null;
 
   const accept = useCallback(() => {
     if (offer === null) return;

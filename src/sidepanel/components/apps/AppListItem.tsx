@@ -1,5 +1,13 @@
 import React, { memo, useCallback, useId, useState } from 'react';
-import { CopyableId, IconButton, ListRow, LoadingSpinner, OpenInOktaLink } from '../shared';
+import {
+  Checkbox,
+  CopyableId,
+  IconButton,
+  ListRow,
+  LoadingSpinner,
+  OpenInOktaLink,
+  REVEAL_ON_HOVER,
+} from '../shared';
 import Icon from '../shared/Icon';
 import { useEntityQuery } from '../../cache/useEntityQuery';
 import { cacheKeys } from '../../cache/keys';
@@ -18,6 +26,8 @@ export interface AppListItemProps {
   app: OktaAppListItem;
   oktaOrigin?: string;
   fetchAssignmentCounts?: (appId: string) => Promise<AppAssignmentCounts | null>;
+  selected?: boolean;
+  onToggleSelect?: (appId: string) => void;
 }
 
 const AssignmentCounts: React.FC<{
@@ -57,7 +67,7 @@ const AssignmentCounts: React.FC<{
 };
 
 const AppListItem: React.FC<AppListItemProps> = memo(
-  ({ app, oktaOrigin, fetchAssignmentCounts }) => {
+  ({ app, oktaOrigin, fetchAssignmentCounts, selected = false, onToggleSelect }) => {
     const [expanded, setExpanded] = useState(false);
     const detailsId = useId();
     const toggleExpanded = useCallback(() => setExpanded((prev) => !prev), []);
@@ -68,8 +78,9 @@ const AppListItem: React.FC<AppListItemProps> = memo(
     return (
       <ListRow
         density="comfortable"
+        state={selected ? 'selected' : 'default'}
         dataAttributes={{ 'data-app-id': app.id }}
-        className="group/item relative"
+        className="group/item group/row relative"
         body={
           <div
             id={detailsId}
@@ -129,6 +140,15 @@ const AppListItem: React.FC<AppListItemProps> = memo(
         }
       >
         <div className="flex items-start gap-3">
+          {onToggleSelect && (
+            <div className={`flex items-center pt-0.5 ${selected ? '' : REVEAL_ON_HOVER}`}>
+              <Checkbox
+                checked={selected}
+                onChange={() => onToggleSelect(app.id)}
+                aria-label={`Select ${label}`}
+              />
+            </div>
+          )}
           <div className="press-subtle flex-1 min-w-0 cursor-pointer" onClick={toggleExpanded}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -187,7 +207,9 @@ const AppListItem: React.FC<AppListItemProps> = memo(
   (prev, next) =>
     prev.app === next.app &&
     prev.oktaOrigin === next.oktaOrigin &&
-    prev.fetchAssignmentCounts === next.fetchAssignmentCounts,
+    prev.fetchAssignmentCounts === next.fetchAssignmentCounts &&
+    prev.selected === next.selected &&
+    prev.onToggleSelect === next.onToggleSelect,
 );
 
 AppListItem.displayName = 'AppListItem';

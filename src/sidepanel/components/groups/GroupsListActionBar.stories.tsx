@@ -29,18 +29,18 @@ const meta = {
           'that was ticking it.\n\n' +
           '**Position one of the register is a safety property.** Every other control there ' +
           'appears and disappears with the selection size, so whatever sits first changes as you ' +
-          'tick rows — and the first cut of this strip put *Merge* there, under the pointer that ' +
-          'had just been pressing *Select all*. It is *Deselect all* the moment anything is ' +
+          'tick rows — and the first cut of this strip put its destructive verb there, under the ' +
+          'pointer that had just been pressing *Select all*. It is *Deselect all* the moment ' +
+          'anything is ' +
           'ticked and *Select all* when nothing is, both `pinned` (ADR-0051 §2, untouched by ' +
           'ADR-0061 and ADR-0068).\n\n' +
-          '*Merge* and *Bulk actions* start behind **More** on consequence (ADR-0039) — the ' +
-          'first empties the source groups, the second deletes memberships across the selection. ' +
-          '*Collections* and *Cleanup* are there on frequency alone. *Export (N)* is there under ' +
-          'ADR-0068 §2’s flat rule: an export descriptor forwards to the Export tab rather than ' +
-          'producing a file in place, so it is never in the row.\n\n' +
+          '*Export (N)* sits behind **More** under ADR-0068 §2’s flat rule: an export ' +
+          'descriptor forwards to the Export tab rather than producing a file in place, so it ' +
+          'is never in the row. ADR-0039’s other reason for that tier — consequence — has no ' +
+          'occupant since *Merge* was retired; the rule still governs where a future ' +
+          'destructive verb starts.\n\n' +
           'Selection-scoped verbs are **omitted** below their threshold rather than shipped ' +
-          'disabled: *Compare* appears for 2–5 selected, *Export (N)* / *Merge* / *Bulk actions* ' +
-          'above 0.\n\n' +
+          'disabled: *Compare* appears for 2–5 selected, *Export (N)* above 0.\n\n' +
           '**Two controls are deliberately disabled instead, and each says why.** *Export list* ' +
           'acts on the filter, so at zero filtered rows it is a live verb with an empty result. ' +
           '*Select all (M)* stays visible and disabled at a full selection: it does not swap to ' +
@@ -50,46 +50,32 @@ const meta = {
           'description rather than restating the label.\n\n' +
           '**The blue button is still *Export list* (ADR-0068 §2, softened).** `primary` marks a ' +
           'verb that *acts* — opens a modal or performs the operation — and this rung has none: ' +
-          'the panel toggles are read-only and every verb that writes is selection-scoped. The ' +
-          'softened rule admits an export as `primary` on exactly that rung, and only there; a ' +
-          'refresh never qualifies, and every other export in the app is `tier`.\n\n' +
-          '**A panel toggle is not a verb.** *Cross-search*, *Collections*, *Cleanup* and *Bulk ' +
-          'actions* are `ghost` — chromeless beside the bordered `secondary` of a verb — and ' +
-          'state themselves in their **label** (*Cross-search (5)* → *Hide cross-search*), never ' +
-          'in a colour, an `aria-pressed` or a `className` a descriptor may not carry. An open ' +
-          "trigger keeps `priority: 'pinned'` explicitly, which is the half that matters for " +
-          'safety: the control that closes a panel must never be the one hiding behind **More**.',
+          'every verb that writes is selection-scoped. The softened rule admits an export as ' +
+          '`primary` on exactly that rung, and only there; a refresh never qualifies, and every ' +
+          'other export in the app is `tier`.\n\n' +
+          '**The strip opens no inline panel, and writes nothing.** *Cross-search* and *Bulk ' +
+          'actions* were its two ' +
+          '`ghost` panel toggles and both have been retired, so every control here navigates, ' +
+          'opens a modal, or performs an operation. The toggle rules themselves are asserted on ' +
+          '`RulesListActionBar`, which is now the only strip with a panel to open.',
       },
     },
   },
   args: {
     selectedCount: 0,
     filteredCount: 42,
-    activePanel: 'none',
-    crossSearchBadge: 0,
     onSelectAll: fn(),
     onDeselectAll: fn(),
     onCompare: fn(),
-    onMerge: fn(),
-    onTogglePanel: fn(),
     onExportSelection: fn(),
     onExportGroupsList: fn(),
   },
   argTypes: {
     selectedCount: { description: 'Number of currently selected groups.' },
     filteredCount: { description: 'Number of groups after filtering.' },
-    activePanel: {
-      description:
-        'Which inline panel is open; its trigger names the way back and is pinned into the row.',
-    },
-    crossSearchBadge: {
-      description: 'Cached-members count — appended to the Cross-search label when above zero.',
-    },
     onSelectAll: { description: 'Selects every filtered group.' },
     onDeselectAll: { description: 'Clears the selection.' },
     onCompare: { description: 'Opens the comparison modal (offered only for 2–5 selections).' },
-    onMerge: { description: 'Opens the merge wizard (offered for 2+ selections).' },
-    onTogglePanel: { description: 'Toggles the given inline panel open/closed.' },
     onExportSelection: { description: 'Exports the selected groups.' },
     onExportGroupsList: { description: 'Exports the current (filtered) groups list.' },
   },
@@ -118,9 +104,9 @@ export const FirstRegisterControlIsAlwaysSelection: Story = {
 
     const first = within(register).getAllByRole('button')[0];
     await expect(first).toHaveAccessibleName('Deselect all');
-    await expect(canvas.getByRole('button', { name: /^Merge/ })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Export (3)' })).toBeInTheDocument();
     await expect(
-      within(register).queryByRole('button', { name: /^Merge/ }),
+      within(register).queryByRole('button', { name: 'Export (3)' }),
     ).not.toBeInTheDocument();
   },
 };
@@ -144,30 +130,7 @@ export const LargeSelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole('button', { name: /^Compare/ })).not.toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Merge (12)' })).toBeInTheDocument();
-  },
-};
-
-export const WithCachedCrossSearch: Story = {
-  args: { selectedCount: 3, crossSearchBadge: 5 },
-};
-
-export const BulkPanelOpen: Story = {
-  args: { selectedCount: 4, activePanel: 'bulk' },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByRole('button', { name: 'Hide bulk actions' })).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: 'Bulk actions' })).not.toBeInTheDocument();
-  },
-};
-
-export const TheOpenPanelSaysSo: Story = {
-  args: { activePanel: 'crossSearch', crossSearchBadge: 5 },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByRole('button', { name: 'Hide cross-search' })).toBeInTheDocument();
-    await expect(canvas.queryByRole('button', { name: /^Cross-search/ })).not.toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Export list' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Export (12)' })).toBeInTheDocument();
   },
 };
 
@@ -183,10 +146,6 @@ export const ExportListIsTheRungsPrimary: Story = {
       within(register).queryByRole('button', { name: 'Export list' }),
     ).not.toBeInTheDocument();
   },
-};
-
-export const CleanupPanelOpen: Story = {
-  args: { activePanel: 'cleanup' },
 };
 
 export const AllSelected: Story = {

@@ -45,7 +45,7 @@ describe('RAIL_TAB_DEFS', () => {
     const railIds = RAIL_TAB_DEFS.map((def) => def.id);
     const hidden = TAB_DEFS.filter((def) => def.railHidden).map((def) => def.id);
 
-    expect(hidden).toEqual(['explorer', 'history']);
+    expect(hidden).toEqual(['explorer', 'history', 'selection']);
     for (const id of hidden) {
       expect(railIds).not.toContain(id);
     }

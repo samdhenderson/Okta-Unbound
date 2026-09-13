@@ -2,6 +2,7 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import GroupMembershipsList from './GroupMembershipsList';
+import { selectionStore } from '../../selection/selectionStore';
 import type { GroupMembership, MembershipRule, OktaUser } from '../../../shared/types';
 
 const user: OktaUser = {
@@ -162,6 +163,10 @@ const meta = {
     memberships: [ruleExact, direct, appMastered],
     user,
     isLoading: false,
+  },
+  beforeEach: () => {
+    selectionStore.clearAll();
+    return () => selectionStore.clearAll();
   },
   argTypes: {
     memberships: {
@@ -391,6 +396,18 @@ export const WithoutUser: Story = {
 export const RecentlyAddedGroupFlash: Story = {
   args: { recentlyAddedGroupId: direct.group.id },
   parameters: { motion: 'on' },
+};
+
+export const Selectable: Story = {
+  args: { memberships: [ruleExact, direct] },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const box = canvas.getByRole('checkbox', { name: 'Select Engineering Staff' });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(box).toBeChecked();
+  },
 };
 
 export const Compact: Story = {

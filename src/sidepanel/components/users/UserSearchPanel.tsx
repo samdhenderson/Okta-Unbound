@@ -2,6 +2,8 @@ import React from 'react';
 import { EmptyState } from '../shared';
 import UserSearchBar from './UserSearchBar';
 import UserSearchResults from './UserSearchResults';
+import { useRungSelection } from '../../selection/useRungSelection';
+import { userDisplayName } from '../../../shared/utils/userDisplay';
 import type { OktaUser } from '../../../shared/types';
 
 export interface UserSearchPanelProps {
@@ -27,6 +29,9 @@ const UserSearchPanel: React.FC<UserSearchPanelProps> = ({
   hasError,
   alerts,
 }) => {
+  const selection = useRungSelection('user', searchResults, userDisplayName);
+  const selectedCount = selection.selectedIds.size;
+
   return (
     <>
       <div className="space-y-(--sp-rung)">
@@ -42,7 +47,22 @@ const UserSearchPanel: React.FC<UserSearchPanelProps> = ({
       {alerts}
 
       {!hasSelectedUser && (
-        <UserSearchResults results={searchResults} onSelectUser={onSelectUser} />
+        <div className="space-y-(--sp-field)">
+          {selectedCount > 0 && (
+            <p className="text-xs text-neutral-600">
+              <span className="font-semibold tabular-nums text-primary-text">
+                {selectedCount.toLocaleString()} {selectedCount === 1 ? 'user' : 'users'} selected
+              </span>
+              {' — they stay selected while you search again.'}
+            </p>
+          )}
+          <UserSearchResults
+            results={searchResults}
+            onSelectUser={onSelectUser}
+            selectedIds={selection.selectedIds}
+            onToggleSelect={selection.toggleSelect}
+          />
+        </div>
       )}
 
       {!isSearching &&

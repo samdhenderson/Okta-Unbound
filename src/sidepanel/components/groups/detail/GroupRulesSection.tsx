@@ -7,9 +7,12 @@ import {
   type GroupNameResolver,
 } from '../../shared';
 import RuleCard from '../../RuleCard';
+import { useRungSelection } from '../../../selection/useRungSelection';
 import type { FeedingRule, SourceStatus } from '../../../hooks/useGroupSource';
 import type { ReferencingRule } from '../../../hooks/useGroupRuleReferences';
 import type { FormattedRule } from '../../../../shared/types';
+
+const ruleName = (rule: FormattedRule) => rule.name;
 
 const RuleConditionLine: React.FC<{
   rule: FormattedRule;
@@ -45,6 +48,8 @@ const RuleRelationList: React.FC<{
   rules: FormattedRule[];
   onNavigateToRule?: (ruleId: string) => void;
   resolveGroupName?: GroupNameResolver;
+  selectedRuleIds: Set<string>;
+  onToggleSelect: (ruleId: string) => void;
 }> = ({
   heading,
   hint,
@@ -54,6 +59,8 @@ const RuleRelationList: React.FC<{
   rules,
   onNavigateToRule,
   resolveGroupName,
+  selectedRuleIds,
+  onToggleSelect,
 }) => (
   <div>
     <h3 className="text-xs font-medium text-neutral-600">
@@ -72,7 +79,12 @@ const RuleRelationList: React.FC<{
         <div className="space-y-2">
           {rules.map((rule) => (
             <div key={rule.id}>
-              <RuleCard rule={rule} onOpenInRulesTab={onNavigateToRule} />
+              <RuleCard
+                rule={rule}
+                onOpenInRulesTab={onNavigateToRule}
+                selected={selectedRuleIds.has(rule.id)}
+                onToggleSelect={onToggleSelect}
+              />
               <RuleConditionLine rule={rule} resolveGroupName={resolveGroupName} />
             </div>
           ))}
@@ -102,32 +114,50 @@ const GroupRulesSection: React.FC<GroupRulesSectionProps> = ({
   referencingError,
   onNavigateToRule,
   resolveGroupName,
-}) => (
-  <DetailSection title="Rules">
-    <div className="space-y-4">
-      <RuleRelationList
-        heading="Assigns members into this group"
-        hint="These rules add users here — the group's automated intake."
-        status={assigningStatus}
-        error={assigningError}
-        emptyMessage="No rule assigns users to this group. Members are added manually or by app push."
-        rules={assigningRules}
-        onNavigateToRule={onNavigateToRule}
-        resolveGroupName={resolveGroupName}
-      />
+}) => {
+  const allRules = useMemo(() => {
+    const byId = new Map<string, FormattedRule>();
+    for (const rule of [...assigningRules, ...referencingRules]) byId.set(rule.id, rule);
+    return [...byId.values()];
+  }, [assigningRules, referencingRules]);
 
-      <RuleRelationList
-        heading="References this group in a condition"
-        hint="These rules read this group's membership to decide some other group. Only references by group id are detected — a rule matching on group name is not listed."
-        status={referencingStatus}
-        error={referencingError}
-        emptyMessage="No rule condition references this group by id."
-        rules={referencingRules}
-        onNavigateToRule={onNavigateToRule}
-        resolveGroupName={resolveGroupName}
-      />
-    </div>
-  </DetailSection>
-);
+  const { selectedIds: selectedRuleIds, toggleSelect: onToggleSelect } = useRungSelection(
+    'rule',
+    allRules,
+    ruleName,
+  );
+
+  return (
+    <DetailSection title="Rules">
+      <div className="space-y-4">
+        <RuleRelationList
+          heading="Assigns members into this group"
+          hint="These rules add users here — the group's automated intake."
+          status={assigningStatus}
+          error={assigningError}
+          emptyMessage="No rule assigns users to this group. Members are added manually or by app push."
+          rules={assigningRules}
+          onNavigateToRule={onNavigateToRule}
+          resolveGroupName={resolveGroupName}
+          selectedRuleIds={selectedRuleIds}
+          onToggleSelect={onToggleSelect}
+        />
+
+        <RuleRelationList
+          heading="References this group in a condition"
+          hint="These rules read this group's membership to decide some other group. Only references by group id are detected — a rule matching on group name is not listed."
+          status={referencingStatus}
+          error={referencingError}
+          emptyMessage="No rule condition references this group by id."
+          rules={referencingRules}
+          onNavigateToRule={onNavigateToRule}
+          resolveGroupName={resolveGroupName}
+          selectedRuleIds={selectedRuleIds}
+          onToggleSelect={onToggleSelect}
+        />
+      </div>
+    </DetailSection>
+  );
+};
 
 export default GroupRulesSection;

@@ -50,11 +50,17 @@ const meta = {
     isHighlighted: {
       description: 'When true, the row flashes once on arrival (deep-link target).',
     },
+    selected: {
+      description: "Whether this rule is in the selection basket's `rule` partition.",
+    },
+    onToggleSelect: { description: "Toggles this rule's id in the selection basket." },
   },
   args: {
     rule: baseRule,
     onOpenRule: fn(),
     isHighlighted: false,
+    selected: false,
+    onToggleSelect: fn(),
   },
 } satisfies Meta<typeof RuleCard>;
 
@@ -153,4 +159,23 @@ export const NotOpenable: Story = {
 
 export const Highlighted: Story = {
   args: { isHighlighted: true },
+};
+
+export const TogglingSelection: Story = {
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('checkbox', { name: `Select ${baseRule.name}` }));
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(baseRule.id);
+    await expect(args.onOpenRule).not.toHaveBeenCalled();
+  },
+};
+
+export const Selected: Story = {
+  args: { selected: true },
+  play: async ({ canvasElement }) => {
+    const checkbox = within(canvasElement).getByRole('checkbox', {
+      name: `Select ${baseRule.name}`,
+    });
+    await expect(checkbox).toBeChecked();
+  },
 };

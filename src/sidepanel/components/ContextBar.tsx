@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, IconButton } from './shared';
 import Icon from './shared/Icon';
+import SelectionSummary from '../selection/SelectionSummary';
 import { KIND_ICON, destinationLabel } from './home/jumpDestinations';
 import type { ConnectionStatus } from '../hooks/useOktaTabContext';
 import type { PageType } from '../hooks/useOktaPageContext';
@@ -12,14 +13,11 @@ interface ContextBarProps {
   connectionStatus: ConnectionStatus;
   isLoading: boolean;
   error: string | null;
-  isPinned: boolean;
-  canPin: boolean;
-  liveContextChanged?: boolean;
-  liveEntityName?: string;
-  onTogglePin: () => void;
   onRefresh: () => void;
   refreshSubjectName?: string | null;
   onReconnect?: () => void;
+
+  onOpenSelection?: () => void;
   handoff?: HandoffOffer | null;
   onAcceptHandoff?: () => void;
   onDismissHandoff?: () => void;
@@ -49,14 +47,10 @@ const ContextBar: React.FC<ContextBarProps> = ({
   connectionStatus,
   isLoading,
   error,
-  isPinned,
-  canPin,
-  liveContextChanged = false,
-  liveEntityName,
-  onTogglePin,
   onRefresh,
   refreshSubjectName,
   onReconnect,
+  onOpenSelection,
   handoff,
   onAcceptHandoff,
   onDismissHandoff,
@@ -78,8 +72,6 @@ const ContextBar: React.FC<ContextBarProps> = ({
   const connectionText = error ? 'Disconnected' : isSettling ? 'Connecting…' : 'Connected';
 
   const degraded = Boolean(error);
-
-  const liveChanged = isPinned && liveContextChanged;
 
   const refreshLabel = refreshSubjectName ? `Refresh ${refreshSubjectName}` : 'Refresh';
 
@@ -146,7 +138,8 @@ const ContextBar: React.FC<ContextBarProps> = ({
           </span>
         )}
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="relative flex items-center gap-1 shrink-0">
+          {onOpenSelection && <SelectionSummary onOpen={onOpenSelection} />}
           <IconButton
             label={refreshLabel}
             onClick={onRefresh}
@@ -156,45 +149,8 @@ const ContextBar: React.FC<ContextBarProps> = ({
           >
             <Icon type="refresh" size="sm" className={isLoading ? 'animate-spin' : ''} />
           </IconButton>
-          <Button
-            variant={isPinned ? 'primary' : 'secondary'}
-            size="sm"
-            icon="pin"
-            onClick={onTogglePin}
-            disabled={!canPin && !isPinned}
-            title={
-              isPinned
-                ? 'Unpin — resume following the live Okta tab'
-                : canPin
-                  ? 'Pin this context while you cross-reference another page'
-                  : 'Navigate to a group or user page to pin it'
-            }
-          >
-            {isPinned ? 'Pinned' : 'Pin'}
-          </Button>
         </div>
       </div>
-
-      {liveChanged && (
-        <div className="px-(--sp-gutter) py-2 bg-warning-light border-t border-warning-light flex items-center justify-between gap-2 text-xs text-warning-text">
-          <span className="truncate">
-            {liveEntityName ? (
-              <>
-                Live tab moved to <strong>{liveEntityName}</strong>
-              </>
-            ) : (
-              'The live Okta tab has changed'
-            )}
-          </span>
-          <button
-            type="button"
-            onClick={onTogglePin}
-            className="shrink-0 font-semibold underline hover:no-underline"
-          >
-            Unpin &amp; switch
-          </button>
-        </div>
-      )}
     </div>
   );
 };

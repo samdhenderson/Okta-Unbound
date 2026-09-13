@@ -21,6 +21,27 @@
   provider mounted for the whole session drives no traffic for a surface nobody
   is looking at.
 
+  Panel-wide state that a component in `ContextBar` needs to read is a **module
+  store, not a fifth context**, when `ContextBar` is a sibling of the tree that
+  writes it: `App` draws `ContextBar` beside every tab, so a provider mounted
+  inside `App`'s tree could not be read by `App`'s own body.
+  `sidepanel/cache/entityCache`, `hooks/useRefreshSubject` (the app's one
+  refresh control) and `sidepanel/selection/selectionStore` (the entity-selection
+  basket behind `ContextBar`'s Selection count, [ADR-0005](adr/0005-session-chrome.md))
+  all take this shape for exactly that reason.
+
+  A store that also has to **survive a reload** takes one further shape, and
+  `shared/storage/workingSetStore` is the reference: one `chrome.storage.local`
+  key holding a `{ version, origins }` envelope, a `normalizeFile()` that treats
+  what it reads as untrusted and degrades to empty rather than throwing, pure
+  exported reducers that the class only sequences, and a `select(file, origin)`
+  that is the sole read path — so no caller can forget the org scoping.
+  `sidepanel/selection/collectionStore` (saved collections,
+  [ADR-0006](adr/0006-saved-collections.md)) copies it exactly. It sits beside the
+  basket rather than under `shared/storage/` for a layering reason worth stating:
+  a row's `kind` is a `SelectionKind`, and `src/shared/` must not import
+  `src/sidepanel/`.
+
 If a component has more than ~8 `useState`s, that's a smell — extract a hook.
 
 ## God-component decomposition (how we decomposed)
@@ -132,8 +153,9 @@ Chrome tabs on one org share an inventory.
 
 **Check upstream before adding a gate.** The `useEntityQuery` call sites pass
 `enabled` for key-readiness only and are correctly ungated: what would change their
-key is already frozen one level up (`App`'s pinned identity selection,
-`deriveTabContext` in `pinContext.ts`), and a second gate below that buys nothing.
+key is the live probe itself (`useOktaTabContext`/`useOktaPageContext`) — there is
+no second identity to select between one level up — so a second gate below that
+buys nothing.
 
 `isActive` arrives at a hook as `enabled?: boolean` (default `true`, so standalone
 and story use are unaffected). An audit found **five** shapes; only the first two
@@ -158,9 +180,8 @@ dependency array, so work is deferred rather than dropped; it nests, as when
 opening a user pays for the default pane only.
 
 The dual-axis gate is a live capability with tests, but **no production call site
-passes `enabled: false` any more**: the pin no longer suspends the context engine
-(`App` freezes the identity selection instead), so `!isPinned` is no longer folded
-into that flag.
+passes `enabled: false` any more**: nothing in the panel suspends the context
+engine, so it runs unconditionally and `enabled` stays fixed at its default.
 
 ## One skeleton per pane
 

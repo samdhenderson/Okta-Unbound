@@ -63,15 +63,15 @@ export function useCurrentRefreshSubject(): RefreshSubject | null {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
-export function useAppRefresh(
-  refetchPageContext: () => Promise<unknown> | void,
-  isPinned: boolean,
-): { subjectName: string | null; refresh: () => void } {
+export function useAppRefresh(refetchPageContext: () => Promise<unknown> | void): {
+  subjectName: string | null;
+  refresh: () => void;
+} {
   const subject = useCurrentRefreshSubject();
   const refresh = useCallback(() => {
-    if (!isPinned) void refetchPageContext();
+    void refetchPageContext();
     subject?.run();
-  }, [isPinned, refetchPageContext, subject]);
+  }, [refetchPageContext, subject]);
 
   return { subjectName: subject?.name ?? null, refresh };
 }

@@ -36,6 +36,7 @@ import { useRuleConsolidation } from '../hooks/useRuleConsolidation';
 import { useViewStack } from '../hooks/useViewStack';
 import { useGroupNameResolver } from '../hooks/useGroupNameResolver';
 import { useScrollPreservation } from '../hooks/useScrollPreservation';
+import { useRungSelection } from '../selection/useRungSelection';
 import type { RuleImpactInput } from '../hooks/useOktaApi/ruleImpact';
 import { TabStateManager, saveRulesTabState } from '../../shared/tabState/tabStateManager';
 import type { RulesTabState } from '../../shared/tabState/types';
@@ -45,6 +46,8 @@ const log = createLogger('RulesTab');
 
 const targetsGroup = (rule: FormattedRule, groupId?: string): boolean =>
   groupId ? rule.groupIds.includes(groupId) : false;
+
+const ruleName = (rule: FormattedRule) => rule.name;
 
 interface RulesTabProps {
   targetTabId?: number;
@@ -105,6 +108,11 @@ const RulesTab: React.FC<RulesTabProps> = ({
   const impact = useRuleImpact(api.captureRuleImpact);
   const data = useRulesData({ targetTabId, onError: handleError, currentGroupId, oktaOrigin });
   const { rules, stats, loadRules } = data;
+  const { selectedIds: selectedRuleIds, toggleSelect: toggleRuleSelect } = useRungSelection(
+    'rule',
+    rules,
+    ruleName,
+  );
   const lifecycle = useRuleLifecycle({
     targetTabId,
     rules,
@@ -456,6 +464,8 @@ const RulesTab: React.FC<RulesTabProps> = ({
           onLoad={handleLoadFromEmptyState}
           onOpenRule={handleOpenRule}
           selectedRuleId={activeRuleId}
+          selectedRuleIds={selectedRuleIds}
+          onToggleSelect={toggleRuleSelect}
         />
       </div>
 

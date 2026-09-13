@@ -64,6 +64,17 @@ const meta = {
     hasPolicies: { description: 'Whether any policies are loaded (picks the empty state).' },
     onLoad: { description: "Load the policy list (the empty state's action)." },
     loadRules: { description: "Fetches a policy's rules for the expanded card." },
+    selectedIds: {
+      description: "Every basket id of kind 'policy', including ones ticked elsewhere.",
+    },
+    onToggleSelect: { description: "Tick or untick one card's policy." },
+    onSelectAll: {
+      description:
+        'Replaces the policy selection with every currently filtered policy. A request, not a resolved outcome.',
+    },
+    onDeselectAll: {
+      description: "Empties the policy partition, leaving other kinds' picks alone.",
+    },
   },
   args: {
     isLoading: false,
@@ -71,6 +82,10 @@ const meta = {
     hasPolicies: true,
     onLoad: fn(),
     loadRules: fn(async () => sampleRules),
+    selectedIds: new Set<string>(),
+    onToggleSelect: fn(),
+    onSelectAll: fn(),
+    onDeselectAll: fn(),
   },
   beforeEach: () => {
     resetEntityCache();
@@ -92,4 +107,8 @@ export const NoPolicies: Story = {
 
 export const NoSearchMatches: Story = {
   args: { policies: [], hasPolicies: true },
+};
+
+export const WithSelection: Story = {
+  args: { selectedIds: new Set([samplePolicies[0].id]) },
 };

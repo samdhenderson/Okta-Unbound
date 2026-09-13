@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupMembershipsList from './GroupMembershipsList';
+import { selectionStore } from '../../selection/selectionStore';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
+
+beforeEach(() => {
+  selectionStore.clearAll();
+});
 
 const user: OktaUser = {
   id: '00uFAKE1',
@@ -716,5 +721,46 @@ describe('GroupMembershipsList — asking Okta about what it could not settle', 
     renderList(onProve, [unsettled], { isLoading: true });
 
     expect(onProve).not.toHaveBeenCalled();
+  });
+});
+
+describe('GroupMembershipsList selection', () => {
+  const secondMembership: GroupMembership = {
+    group: { id: '00gFAKE2', type: 'OKTA_GROUP', profile: { name: 'Ops Handbook' } },
+    membershipType: 'DIRECT',
+    rules: [],
+    attribution: 'exact',
+  };
+
+  it('ticks and unticks one group from its own row', async () => {
+    const user2 = userEvent.setup();
+    render(<GroupMembershipsList {...base} user={user} />);
+
+    const box = screen.getByRole('checkbox', { name: 'Select Engineering' });
+    await user2.click(box);
+    expect(screen.getByRole('checkbox', { name: 'Select Engineering' })).toBeChecked();
+
+    await user2.click(screen.getByRole('checkbox', { name: 'Select Engineering' }));
+    expect(screen.getByRole('checkbox', { name: 'Select Engineering' })).not.toBeChecked();
+  });
+
+  it('keeps a pick that the filter has since hidden', async () => {
+    const user2 = userEvent.setup();
+    render(
+      <GroupMembershipsList
+        {...base}
+        user={user}
+        memberships={[formattedRuleMembership, secondMembership]}
+      />,
+    );
+
+    await user2.click(screen.getByRole('checkbox', { name: 'Select Ops Handbook' }));
+    expect(screen.getByRole('checkbox', { name: 'Select Ops Handbook' })).toBeChecked();
+
+    await user2.type(screen.getByLabelText('Filter group memberships'), 'engineering');
+    expect(screen.queryByRole('heading', { name: 'Ops Handbook' })).not.toBeInTheDocument();
+
+    await user2.clear(screen.getByLabelText('Filter group memberships'));
+    expect(screen.getByRole('checkbox', { name: 'Select Ops Handbook' })).toBeChecked();
   });
 });

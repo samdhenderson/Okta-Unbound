@@ -1,27 +1,9 @@
 import React from 'react';
-import Icon, { type IconType } from '../shared/Icon';
+import Icon from '../shared/Icon';
 import CopyIconButton from './CopyIconButton';
 import CopyableId from './CopyableId';
 import { useEntityNavigation, type EntityType } from '../../contexts/NavigationContext';
-
-const typeIcon: Record<EntityType, IconType> = {
-  rule: 'bolt',
-  group: 'users',
-  user: 'user',
-  app: 'app',
-  policy: 'shield',
-};
-
-const typeNoun: Record<EntityType, string> = {
-  rule: 'rule',
-  group: 'group',
-  user: 'user',
-  app: 'app',
-  policy: 'policy',
-};
-
-const capitalisedNoun = (type: EntityType): string =>
-  typeNoun[type].charAt(0).toUpperCase() + typeNoun[type].slice(1);
+import { typeIcon, typeNoun, capitalisedNoun } from './entityKind';
 
 interface EntityLinkBaseProps {
   type: EntityType;

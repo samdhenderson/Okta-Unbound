@@ -1,14 +1,30 @@
 import React, { useId, useState } from 'react';
-import { Badge, EntityLink, Eyebrow, IconButton, ListRow, OpenInOktaLink } from '../shared';
+import {
+  Badge,
+  Checkbox,
+  EntityLink,
+  Eyebrow,
+  IconButton,
+  ListRow,
+  OpenInOktaLink,
+  REVEAL_ON_HOVER,
+} from '../shared';
 import Icon from '../shared/Icon';
 import type { AppSourceRow } from './appSourceSummary';
 
 export interface UserAppRowProps {
   row: AppSourceRow;
   oktaOrigin?: string | null;
+  selected?: boolean;
+  onToggleSelect?: (appId: string) => void;
 }
 
-const UserAppRow: React.FC<UserAppRowProps> = ({ row, oktaOrigin }) => {
+const UserAppRow: React.FC<UserAppRowProps> = ({
+  row,
+  oktaOrigin,
+  selected = false,
+  onToggleSelect,
+}) => {
   const [open, setOpen] = useState(false);
   const detailId = useId();
 
@@ -40,8 +56,23 @@ const UserAppRow: React.FC<UserAppRowProps> = ({ row, oktaOrigin }) => {
   );
 
   return (
-    <ListRow as="li" density="compact" body={disclosure}>
+    <ListRow
+      as="li"
+      density="compact"
+      state={selected ? 'selected' : 'default'}
+      className="group/row"
+      body={disclosure}
+    >
       <div className="flex items-start gap-(--sp-inline)">
+        {onToggleSelect && (
+          <div className={`flex items-center pt-0.5 ${selected ? '' : REVEAL_ON_HOVER}`}>
+            <Checkbox
+              checked={selected}
+              onChange={() => onToggleSelect(row.id)}
+              aria-label={`Select ${row.label}`}
+            />
+          </div>
+        )}
         <Icon type="app" size="sm" className="mt-0.5 shrink-0 text-neutral-400" />
 
         <div className="min-w-0 flex-1">

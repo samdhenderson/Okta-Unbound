@@ -64,6 +64,13 @@ const meta = {
     fetchAssignmentCounts: {
       description: "Loads a single app's assignment counts, lazily, once its row is expanded.",
     },
+    selectedIds: { description: "Every basket id of kind 'app', including ones ticked elsewhere." },
+    onToggleSelect: { description: "Tick or untick one row's app." },
+    onSelectAll: {
+      description:
+        'Replaces the app selection with every currently filtered app. A request, not a resolved outcome.',
+    },
+    onDeselectAll: { description: "Empties the app partition, leaving other kinds' picks alone." },
   },
   args: {
     loading: false,
@@ -75,6 +82,10 @@ const meta = {
     onReload: fn(),
     oktaOrigin: 'https://example.okta.com',
     fetchAssignmentCounts: fn(async () => ({ users: 128, groups: 4 })),
+    selectedIds: new Set<string>(),
+    onToggleSelect: fn(),
+    onSelectAll: fn(),
+    onDeselectAll: fn(),
   },
 } satisfies Meta<typeof AppsListPanel>;
 
@@ -93,4 +104,8 @@ export const NoMatches: Story = {
 
 export const NothingLoaded: Story = {
   args: { apps: [], hasApps: false },
+};
+
+export const WithSelection: Story = {
+  args: { selectedIds: new Set([sampleApps[0].id]) },
 };

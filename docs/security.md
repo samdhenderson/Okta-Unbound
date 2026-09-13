@@ -403,6 +403,36 @@ notifications, sidePanel, alarms, scripting`, each mapped to a real consumer:
   optional pane and a timestamp: no email, status, profile or member list. `recent` is
   capped at 5 per org and expires after 14 days; `pinned` is capped at 20 and does not
   expire.
+- **Selection basket — held in memory, never written to disk.**
+  [`sidepanel/selection/selectionStore.ts`](../src/sidepanel/selection/selectionStore.ts)
+  is deliberately not persisted, unlike the working set above. `workingSetStore` is
+  entitled to persist because it is bounded at twenty rows per org by construction; a
+  basket has no such bound — the driving use case banks around 1,200 display names,
+  which in this app are usually email addresses — and `chrome.storage` is plaintext
+  with no TTL. A cohort worth keeping is kept deliberately as a named saved set, not as
+  a by-product of ticking boxes. A future change must not persist the basket to solve a
+  reload-loses-selection complaint without first shrinking that bound.
+- **Saved collections — the named set the basket bullet points at.**
+  [`sidepanel/selection/collectionStore.ts`](../src/sidepanel/selection/collectionStore.ts)
+  persists named cohorts in one `chrome.storage.local` key, with the same
+  `{ version, origins }` envelope and untrusted-input `normalizeFile` as
+  `workingSetStore`. Entries are **scoped by org origin**, so one org never shows
+  another's names or unresolvable ids — the defect the retired `GroupCollections`
+  shipped with. A row holds a `SelectionKind`, an id, and **optionally** a display
+  name: ids for groups, rules, apps and policies resolve for free from the org
+  snapshot or one shared list, so no name is written for those kinds at all. Users
+  are the sole exception — the snapshot holds no user rows, so each id costs its
+  own request to name — and the admin decides, per save, whether to store the name
+  or pay the requests (`Remember display names`). No email, status, profile or
+  member list is stored either way. Two bounds, enforced in the writer and
+  re-applied on read: **20 collections per org** and **2,000 rows per collection**
+  (equal to `SELECTION_LIMIT`), with an over-cap save **refused whole rather than
+  truncated**. There is **no TTL** — a saved collection is a decision the admin
+  made, the same argument `workingSetStore` gives for `pinned` — so the caps are
+  the only bound, and the worst case they permit is 40,000 display names in
+  plaintext per org. That is a real posture change, is registered at
+  [risk #9](./security-risks.md), and is argued in
+  [ADR-0006](./adr/0006-saved-collections.md).
 - **Session-scoped rate-limit memo.**
   [`background/rateLimitThreshold.ts`](../src/background/rateLimitThreshold.ts) stores one
   integer (or `null`) per org in `chrome.storage.session` under `rateLimitThreshold:<origin>`

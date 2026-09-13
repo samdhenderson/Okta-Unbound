@@ -3,6 +3,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import UserAppsList from './UserAppsList';
 import { APP_SOURCE_COPY } from './appSourceSummary';
 import { NavigationProvider } from '../../contexts/NavigationContext';
+import { selectionStore } from '../../selection/selectionStore';
 import type { GroupMembership } from '../../../shared/types';
 import type { UserAppAssignment } from '../../hooks/useOktaApi/userOperations';
 
@@ -130,6 +131,10 @@ const meta = {
     complete: true,
     oktaOrigin: 'https://example.okta.com',
   },
+  beforeEach: () => {
+    selectionStore.clearAll();
+    return () => selectionStore.clearAll();
+  },
 } satisfies Meta<typeof UserAppsList>;
 
 export default meta;
@@ -255,6 +260,21 @@ export const FilteredToUnknown: Story = {
 
     await expect(canvas.getByText('Slack')).toBeInTheDocument();
     await expect(canvas.queryByText('Salesforce')).toBeNull();
+  },
+};
+
+export const Selectable: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const box = canvas.getByRole('checkbox', { name: 'Select Salesforce' });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(box).toBeChecked();
+    await expect(canvas.getByText(/1 selected/)).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Select all' }));
+    await expect(canvas.getByRole('checkbox', { name: 'Select Slack' })).toBeChecked();
   },
 };
 

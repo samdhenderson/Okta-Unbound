@@ -264,25 +264,28 @@ const ActionBar: React.FC<ActionBarProps> = ({
         </div>
       )}
 
-      {hasTier && (
-        <div id={tierId} className="disclose" data-open={open} inert={!open || undefined}>
-          <div>
-            <div className="space-y-3 border-t border-neutral-200 px-2.5 py-3">
-              {overflowed.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  {overflowed.map((action) => (
-                    <Action key={action.id} action={action} variant="secondary" />
-                  ))}
-                </div>
-              )}
-              {overflowed.length > 0 && expansion !== undefined && (
-                <div className="h-px bg-neutral-200" />
-              )}
-              {expansion}
-            </div>
+      <div
+        id={tierId}
+        className="disclose"
+        data-open={open && hasTier}
+        inert={!open || !hasTier || undefined}
+      >
+        <div>
+          <div className="space-y-3 border-t border-neutral-200 px-2.5 py-3">
+            {overflowed.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                {overflowed.map((action) => (
+                  <Action key={action.id} action={action} variant="secondary" />
+                ))}
+              </div>
+            )}
+            {overflowed.length > 0 && expansion !== undefined && (
+              <div className="h-px bg-neutral-200" />
+            )}
+            {expansion}
           </div>
         </div>
-      )}
+      </div>
 
       {measuring && <MeasureProbe actions={ordered} cluster probeRef={probeRef} />}
       {registerFit.measuring && (

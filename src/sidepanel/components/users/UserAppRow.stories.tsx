@@ -135,6 +135,13 @@ const meta = {
     oktaOrigin: {
       description: 'Origin for the admin-console deep link; the link hides when absent.',
     },
+    selected: {
+      description:
+        "Whether this app is in the selection basket; a ticked row paints ListRow's selected state.",
+    },
+    onToggleSelect: {
+      description: 'Tick or untick this app. Omitted ⇒ no checkbox renders at all.',
+    },
   },
 } satisfies Meta<typeof UserAppRow>;
 
@@ -218,4 +225,22 @@ export const WithoutOktaOrigin: Story = {
 export const Compact: Story = {
   args: { row: privileged },
   parameters: { viewport: { value: 'sidepanelCompact' } },
+};
+
+export const Selectable: Story = {
+  args: { onToggleSelect: fn() },
+  play: async ({ args, canvas }) => {
+    const box = canvas.getByRole('checkbox', { name: 'Select Salesforce' });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(directAndViaGroup.id);
+  },
+};
+
+export const Selected: Story = {
+  args: { onToggleSelect: fn(), selected: true },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('checkbox', { name: 'Select Salesforce' })).toBeChecked();
+  },
 };

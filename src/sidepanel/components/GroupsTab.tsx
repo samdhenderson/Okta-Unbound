@@ -16,7 +16,6 @@ import { useGroupFilters } from '../hooks/useGroupFilters';
 import type { GroupsListView } from '../listViewRequest';
 import { useGroupSelection } from '../hooks/useGroupSelection';
 import { useGroupMembersCache } from '../hooks/useGroupMembersCache';
-import { useGroupMerge } from '../hooks/useGroupMerge';
 import { useViewStack } from '../hooks/useViewStack';
 import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useScrollPreservation } from '../hooks/useScrollPreservation';
@@ -25,16 +24,11 @@ import { useRefreshSubject } from '../hooks/useRefreshSubject';
 import type { GroupSummary } from '../../shared/types';
 import GroupExportModal from './groups/GroupExportModal';
 import GroupComparisonModal from './groups/GroupComparisonModal';
-import CrossGroupSearch from './groups/CrossGroupSearch';
-import BulkOperationsPanel from './groups/BulkOperationsPanel';
-import GroupCollections from './groups/GroupCollections';
-import GroupCleanupPanel from './groups/GroupCleanupPanel';
 import GroupSearchBar from './groups/GroupSearchBar';
 import GroupFilterPanel from './groups/GroupFilterPanel';
-import GroupsListActionBar, { type ActivePanel } from './groups/GroupsListActionBar';
+import GroupsListActionBar from './groups/GroupsListActionBar';
 import GroupsListPanel from './groups/GroupsListPanel';
 import GroupDetailView, { type GroupDetailTab } from './groups/detail/GroupDetailView';
-import GroupMergeModal from './groups/GroupMergeModal';
 import { downloadCSV, getDateForFilename } from '../../shared/utils/csvUtils';
 import { buildGroupsListCsv } from './groups/groupsListCsv';
 
@@ -78,8 +72,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportGroups, setExportGroups] = useState<GroupSummary[]>([]);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
-  const [showMergeModal, setShowMergeModal] = useState(false);
-  const [activePanel, setActivePanel] = useState<ActivePanel>('none');
 
   const handleResult = useCallback(({ message, type }: OperationResult) => {
     if (type === 'error') setError(message);
@@ -102,8 +94,7 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     liveSearchResults: liveSearch.liveSearchResults,
   });
   const selection = useGroupSelection(loader.groups);
-  const membersCache = useGroupMembersCache(api, loader.groups);
-  const merge = useGroupMerge(targetTabId ?? undefined);
+  const membersCache = useGroupMembersCache(api);
 
   const detailViewRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -119,11 +110,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     scrollRootRef ?? noScroller,
     isActive && nav.isRoot,
   );
-
-  const handleCloseMerge = useCallback(() => {
-    setShowMergeModal(false);
-    merge.reset();
-  }, [merge]);
 
   const { groups, loading, loadAllGroups } = loader;
   const { filteredGroups, activeFilterCount } = filters;
@@ -245,10 +231,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
     );
   }, [filteredGroups]);
 
-  const togglePanel = useCallback((panel: ActivePanel) => {
-    setActivePanel((prev) => (prev === panel ? 'none' : panel));
-  }, []);
-
   const searchRow = (
     <div className="flex gap-2">
       <GroupSearchBar
@@ -333,13 +315,16 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
               search={searchRow}
               selectedCount={selectedGroupIds.size}
               filteredCount={filteredGroups.length}
-              activePanel={activePanel}
-              crossSearchBadge={membersCache.groupMembersCache.size}
-              onSelectAll={() => selection.replaceSelection(filteredGroups.map((g) => g.id))}
+              onSelectAll={() => {
+                const outcome = selection.replaceSelection(filteredGroups.map((g) => g.id));
+                if (outcome.refused > 0) {
+                  setError(
+                    `Selecting ${outcome.refused} groups would take the selection past its limit, so nothing changed. Narrow the filter and try again.`,
+                  );
+                }
+              }}
               onDeselectAll={selection.deselectAll}
               onCompare={() => setShowComparisonModal(true)}
-              onMerge={() => setShowMergeModal(true)}
-              onTogglePanel={togglePanel}
               onExportSelection={handleExportSelection}
               onExportGroupsList={handleExportGroupsList}
             />
@@ -366,43 +351,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
                 sortDesc={filters.sortDesc}
                 toggleSort={filters.toggleSort}
                 clearFilters={filters.clearFilters}
-              />
-            )}
-
-            {activePanel === 'bulk' && selectedGroupIds.size > 0 && (
-              <BulkOperationsPanel
-                selectedGroups={selectedGroups}
-                executeBulkOperation={api.executeBulkOperation}
-                onClose={() => setActivePanel('none')}
-                onExportSelection={handleExportSelection}
-              />
-            )}
-
-            {activePanel === 'crossSearch' && (
-              <CrossGroupSearch
-                groupMembersCache={membersCache.groupMembersCache}
-                groupNames={membersCache.groupNames}
-                searchUserAcrossGroups={api.searchUserAcrossGroups}
-                onRemoveUserFromGroups={membersCache.removeUserFromGroups}
-                onClose={() => setActivePanel('none')}
-              />
-            )}
-
-            {activePanel === 'collections' && (
-              <GroupCollections
-                selectedGroupIds={selectedGroupIds}
-                groups={groups}
-                onLoadCollection={selection.replaceSelection}
-                onClose={() => setActivePanel('none')}
-              />
-            )}
-
-            {activePanel === 'cleanup' && (
-              <GroupCleanupPanel
-                groups={groups}
-                onSelectGroups={selection.replaceSelection}
-                onAnalyzeSource={handleOpenDetail}
-                onClose={() => setActivePanel('none')}
               />
             )}
 
@@ -481,20 +429,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
         groups={selectedGroups}
         compareGroups={api.compareGroups}
         memberCache={membersCache.groupMembersCache}
-      />
-
-      <GroupMergeModal
-        isOpen={showMergeModal}
-        selectedGroups={selectedGroups}
-        phase={merge.phase}
-        plan={merge.plan}
-        results={merge.results}
-        error={merge.error}
-        actorNotice={merge.actorNotice}
-        onDismissActorNotice={merge.dismissActorNotice}
-        onPreview={merge.preview}
-        onExecute={merge.execute}
-        onClose={handleCloseMerge}
       />
     </div>
   );

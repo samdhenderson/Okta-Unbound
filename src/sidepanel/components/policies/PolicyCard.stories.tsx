@@ -46,6 +46,13 @@ const meta = {
   argTypes: {
     policy: { description: 'The validated policy to display.' },
     loadRules: { description: "Fetches a policy's rules (the tab passes `api.getPolicyRules`)." },
+    selected: {
+      description:
+        "Whether this policy is in the selection basket; a ticked card paints ListRow's selected state.",
+    },
+    onToggleSelect: {
+      description: 'Tick or untick this policy. Omitted ⇒ no checkbox renders at all.',
+    },
   },
   args: {
     policy: samplePolicy,
@@ -154,5 +161,23 @@ export const DuplicateNamesStayDistinguishable: Story = {
         name: 'Copy policy id for Any two factors (rstFAKE000000000004)',
       }),
     ).toBeInTheDocument();
+  },
+};
+
+export const Selectable: Story = {
+  args: { onToggleSelect: fn() },
+  play: async ({ args, canvas }) => {
+    const box = canvas.getByRole('checkbox', { name: 'Select Any two factors' });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(samplePolicy.id);
+  },
+};
+
+export const Selected: Story = {
+  args: { onToggleSelect: fn(), selected: true },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('checkbox', { name: 'Select Any two factors' })).toBeChecked();
   },
 };

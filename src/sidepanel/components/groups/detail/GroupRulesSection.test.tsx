@@ -1,7 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupRulesSection from './GroupRulesSection';
+import { selectionStore } from '../../../selection/selectionStore';
 import type { FormattedRule } from '../../../../shared/types';
 
 const ASSIGNS = 'Assigns members into this group';
@@ -35,6 +36,10 @@ function listUnder(heading: string) {
 }
 
 describe('GroupRulesSection', () => {
+  beforeEach(() => {
+    selectionStore.clearAll();
+  });
+
   it('lists the two rule relationships separately rather than summing them', async () => {
     render(<GroupRulesSection {...base} />);
 
@@ -165,5 +170,29 @@ describe('GroupRulesSection', () => {
     render(<GroupRulesSection {...base} />);
     expect(screen.getByText('ACTIVE')).toBeInTheDocument();
     expect(screen.getByText('INACTIVE')).toBeInTheDocument();
+  });
+
+  it('ticks a rule into the shared selection basket', async () => {
+    render(<GroupRulesSection {...base} />);
+
+    const checkbox = screen.getByRole('checkbox', { name: 'Select All Engineers' });
+    expect(checkbox).not.toBeChecked();
+
+    await userEvent.click(checkbox);
+
+    expect(checkbox).toBeChecked();
+  });
+
+  it('resolves one rule ticked consistently when it appears under both headings', async () => {
+    const shared = rule({ id: 'r7', name: 'Shared rule' });
+    render(<GroupRulesSection {...base} assigningRules={[shared]} referencingRules={[shared]} />);
+
+    const checkboxes = screen.getAllByRole('checkbox', { name: 'Select Shared rule' });
+    expect(checkboxes).toHaveLength(2);
+
+    await userEvent.click(checkboxes[0]);
+
+    expect(checkboxes[0]).toBeChecked();
+    expect(checkboxes[1]).toBeChecked();
   });
 });

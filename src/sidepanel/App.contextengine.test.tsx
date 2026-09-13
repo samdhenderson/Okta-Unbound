@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import App from './App';
 import { ProgressProvider } from './contexts/ProgressContext';
 
@@ -104,38 +103,5 @@ describe('App context engine', () => {
 
     await waitFor(() => expect(screen.getByText('Finance')).toBeInTheDocument());
     expect(originCalls()).toBe(before + 1);
-  });
-
-  it('keeps detecting while pinned, and names where the live tab went', async () => {
-    const uev = userEvent.setup();
-    renderApp();
-    expect(await screen.findByText('Engineering')).toBeInTheDocument();
-
-    await uev.click(screen.getByRole('button', { name: 'Pin' }));
-    expect(screen.getByRole('button', { name: 'Pinned' })).toBeInTheDocument();
-
-    const before = originCalls();
-    navigateTo(`${ORIGIN}/admin/group/00g2`);
-    onGroupPage(FINANCE);
-
-    await waitFor(() => expect(originCalls()).toBeGreaterThan(before));
-
-    await screen.findByText('Finance', { selector: 'strong' });
-    expect(screen.getByText(/Live tab moved to/)).toBeInTheDocument();
-    expect(screen.getByText('Engineering')).toBeInTheDocument();
-  });
-
-  it('raises no live-changed hint while the live tab is still on the pinned entity', async () => {
-    const uev = userEvent.setup();
-    renderApp();
-    expect(await screen.findByText('Engineering')).toBeInTheDocument();
-
-    await uev.click(screen.getByRole('button', { name: 'Pin' }));
-
-    navigateTo(`${ORIGIN}/admin/group/00g1`);
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    expect(screen.queryByText(/Live tab moved to/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/The live Okta tab has changed/)).not.toBeInTheDocument();
   });
 });

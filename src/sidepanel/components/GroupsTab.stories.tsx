@@ -11,10 +11,10 @@ const meta = {
     docs: {
       description: {
         component:
-          'Groups tab shell: browse, search, filter, and bulk-manage Okta groups.\n\n' +
+          'Groups tab shell: browse, search, filter, and select Okta groups.\n\n' +
           'Orchestrates the search bar, filter panel, selection bar, and list, plus the ' +
-          'export, comparison, source, merge, cleanup, cross-search, and collections ' +
-          'surfaces it opens. Starts in live-search mode; loading all groups switches to ' +
+          'export, comparison, source, and collections surfaces it opens. ' +
+          'Starts in live-search mode; loading all groups switches to ' +
           'cached mode. With no connected Okta tab (`targetTabId` null) the API-backed ' +
           'actions are disabled.\n\n' +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +

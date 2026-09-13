@@ -150,6 +150,13 @@ const userSearchInput = () => {
 };
 const groupSearchInput = () => screen.getByPlaceholderText('Type to search by group name...');
 
+const adaResultRow = () =>
+  screen.findByRole(
+    'button',
+    { name: 'View user details', description: 'Ada Lovelace' },
+    { timeout: 2000 },
+  );
+
 const MEMBERSHIP_ROW_TIMEOUT_MS = 5000;
 
 async function membershipRow(groupName: string): Promise<HTMLElement> {
@@ -359,8 +366,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
-    const card = await screen.findByText('Ada Lovelace', {}, { timeout: 2000 });
-    fireEvent.click(card);
+    fireEvent.click(await adaResultRow());
 
     const salesforce = await membershipRow('Salesforce');
     expect(within(salesforce).getByText('App')).toBeInTheDocument();
@@ -373,7 +379,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
-    fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
+    fireEvent.click(await adaResultRow());
 
     expect(within(await membershipRow('Engineering')).getByText('Rule')).toBeInTheDocument();
     expect(screen.getAllByText(/Eng auto-assign/).length).toBeGreaterThan(0);
@@ -384,7 +390,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
-    fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
+    fireEvent.click(await adaResultRow());
 
     expect(within(await membershipRow('Engineering')).getByText('Direct')).toBeInTheDocument();
     expect(screen.getByText('Added directly')).toBeInTheDocument();
@@ -399,7 +405,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
-    fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
+    fireEvent.click(await adaResultRow());
 
     const engineering = await membershipRow('Engineering');
     expect(within(engineering).getByText('Direct')).toBeInTheDocument();
@@ -412,7 +418,7 @@ describe('membership classification (in-file heuristic)', () => {
 
     render(<UsersTab targetTabId={1} />);
     fireEvent.change(userSearchInput(), { target: { value: 'ada' } });
-    fireEvent.click(await screen.findByText('Ada Lovelace', {}, { timeout: 2000 }));
+    fireEvent.click(await adaResultRow());
 
     const engineering = await membershipRow('Engineering');
     expect(within(engineering).getByText('Unresolved')).toBeInTheDocument();

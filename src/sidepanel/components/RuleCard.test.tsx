@@ -36,12 +36,12 @@ const withConflict: FormattedRule = {
 };
 
 const renderCard = (props: Partial<ComponentProps<typeof RuleCard>> = {}) =>
-  render(<RuleCard rule={initial} {...props} />);
+  render(<RuleCard rule={initial} selected={false} onToggleSelect={vi.fn()} {...props} />);
 
 const rerenderCard = (
   rerender: ReturnType<typeof renderCard>['rerender'],
   props: Partial<ComponentProps<typeof RuleCard>> = {},
-) => rerender(<RuleCard rule={initial} {...props} />);
+) => rerender(<RuleCard rule={initial} selected={false} onToggleSelect={vi.fn()} {...props} />);
 
 describe('RuleCard', () => {
   it('repaints when a later pass adds a conflict to a rule already on screen', () => {
@@ -73,11 +73,17 @@ describe('RuleCard', () => {
     });
 
     it('says what being broken means, where INACTIVE says something else', () => {
-      const { rerender } = render(<RuleCard rule={{ ...initial, status: 'INVALID' }} />);
+      const { rerender } = render(
+        <RuleCard
+          rule={{ ...initial, status: 'INVALID' }}
+          selected={false}
+          onToggleSelect={vi.fn()}
+        />,
+      );
       const brokenTitle = screen.getByText('Broken').getAttribute('title');
       expect(brokenTitle).toContain('INVALID');
 
-      rerender(<RuleCard rule={{ ...initial, status: 'INACTIVE' }} />);
+      rerenderCard(rerender, { rule: { ...initial, status: 'INACTIVE' } });
       const pausedTitle = screen.getByText('INACTIVE').getAttribute('title');
       expect(pausedTitle).toContain('deactivated');
       expect(pausedTitle).not.toBe(brokenTitle);
@@ -116,6 +122,23 @@ describe('RuleCard', () => {
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByText(initial.name)).toBeInTheDocument();
+  });
+
+  it('toggles the rule id, independently of opening the row', async () => {
+    const onToggleSelect = vi.fn();
+    const onOpenRule = vi.fn();
+    renderCard({ onToggleSelect, onOpenRule });
+
+    await userEvent.click(screen.getByRole('checkbox', { name: `Select ${initial.name}` }));
+
+    expect(onToggleSelect).toHaveBeenCalledWith(initial.id);
+    expect(onOpenRule).not.toHaveBeenCalled();
+  });
+
+  it('shows a ticked checkbox as checked', () => {
+    renderCard({ selected: true });
+
+    expect(screen.getByRole('checkbox', { name: `Select ${initial.name}` })).toBeChecked();
   });
 
   it('names the specific rule its overlay opens', () => {

@@ -74,7 +74,7 @@ The two primitives worth building **once** and reusing across C/D:
 
 | Feature                                | Effort | Impact   | Verdict                          |
 | -------------------------------------- | ------ | -------- | -------------------------------- |
-| A. Orphan/Clutter + Rule Consolidation | M      | High     | `[x]` **Shipped (flagship)**     |
+| A. Orphan/Clutter + Rule Consolidation | M      | High     | `[~]` Partly withdrawn (A2, A4)  |
 | B. Rule Impact Preview                 | L–M    | High     | `[x]` **Shipped**                |
 | C. Bulk Attribute Editor               | M      | High     | `[ ]` Single-user editor shipped |
 | D. Bulk Lifecycle Console              | M      | Med–High | Fast follow                      |
@@ -87,23 +87,26 @@ The two primitives worth building **once** and reusing across C/D:
 
 ## Shipped (A + B + H)
 
-**A. Orphan / Clutter Remediation + Rule Consolidation — flagship** `[x]`
-All four sub-features landed; the _why_ is captured in the code's doc comments.
+**A. Orphan / Clutter Remediation + Rule Consolidation — flagship** `[~]`
+All four sub-features landed. Two have since been **withdrawn** — A1 and A3 were
+deleted in the 2026-09-12 Groups-tab cull — and the two that remain, A2 and A4, are
+still shipped. The _why_ for those two is captured in the code's doc comments.
 
-- **A1 — Cleanup triage** (`groups/clutterAnalysis.ts::analyzeClutter`): a pure, tested
-  classifier over the loaded `GroupSummary[]` fuses empty / duplicate-name / stale /
-  missing-description into one 0–100 review score. Surfaced as a **Cleanup** panel inside
-  the Groups tab whose category counts are one-click selectors into the existing
-  selection → bulk/export machinery — no new mutation surface.
+- **A1 — Cleanup triage** — **withdrawn 2026-09-12.** The **Cleanup** panel and its
+  `analyzeClutter` scoring were deleted with the rest of the Groups tab's inline
+  panels: a 0–100 review score fused from four unrelated signals was a number no
+  admin could act on, and the rung it lived in was being reduced to browsing and
+  export. Nothing replaced it; the classifier is gone, not parked.
 - **A2 — Membership-source insight** (`useGroupSource` +
   `shared/membership/groupSource.ts`): per-group "why does this exist / who feeds it" —
   feeding rules, app-push targets, and a gated manual-vs-rule split. Read-only. Its
   original `GroupSourceModal` shell has since been retired: the content now lives in the
   Group Detail view pushed from the groups list.
-- **A3 — Group merge** (`GroupMergeModal` + `useGroupMerge` +
-  `shared/membership/mergePlan.ts`): membership consolidation from the selection bar —
-  copy sources into a survivor, empty the sources, block sources fed by an active rule;
-  reversible; audited.
+- **A3 — Group merge** — **withdrawn 2026-09-12.** The merge wizard, its hook and its
+  planner were deleted in the same cull: it was the only verb on the groups rung that
+  changed entity state with no symmetric undo, and the partial-failure hole `D-100`
+  recorded made "reversible" a claim the code could not keep. Nothing replaced it;
+  consolidating memberships is not an operation this extension offers.
 - **A4 — Rule consolidation** (`RuleConsolidationModal` + `useRuleConsolidation` +
   `useOktaApi/ruleWrites.ts` + `shared/rules/consolidation.ts`): new zod-validated
   create/delete rule writes to add a target group or merge identical-condition rules, via
@@ -225,22 +228,20 @@ Carried forward from the A/B build (surfaced while working, none blocking):
   the repo and hasn't been exercised against a live tenant. Add a `useRuleConsolidation`
   hook test (mock the write ops) pinning the create → activate → retire sequencing and
   the abort-before-delete guarantee; consider a post-create verification read.
-- ~~**A3/A4 audit attribution.**~~ Resolved (`D-013b`): both now resolve the
-  current admin through `useOktaApi`'s `getCurrentUser()` facade, same as the
-  rule lifecycle. An unresolvable actor records `performedBy: null` with
+- ~~**A4 audit attribution.**~~ Resolved (`D-013b`): it resolves the current admin
+  through `useOktaApi`'s `getCurrentUser()` facade, same as the rule lifecycle. An
+  unresolvable actor records `performedBy: null` with
   `actorResolution: 'unavailable'` rather than a fabricated placeholder — see
-  `useRuleConsolidation.ts:237,312-313`.
+  `useRuleConsolidation.ts:237,312-313`. A3 carried the same fix and went with the
+  feature on 2026-09-12.
 - **`RulesCache` stores `rawRules: []`.** Anything needing exclusion lists (the impact
   engine) must re-fetch raw rules. Populating `rawRules` once would let impact capture
   skip its rules fetch entirely.
 - **Rules tab fetches rules outside the scheduler** (`chrome.tabs.sendMessage` directly),
   unlike the impact capture. Migrating the main rule fetch onto the scheduler path would
   make rate-limiting uniform.
-- **A1 orphan signal.** `GroupSummary.hasRules`/`ruleCount` are now populated from
-  `RulesCache`, so `analyzeClutter` could add a real **orphan** category/reason on top of
-  the existing counts.
 - **`useGroupsLoader` mount-rehydrate races `loadAllGroups`** (characterized in its
-  docstring) — relevant if A1/A2 start triggering loads.
+  docstring) — relevant if A2 starts triggering loads.
 - **Finish the eyebrow migration.** `Eyebrow` (the layout contract's recipe, finally
   extracted) is the single uppercase section label, but roughly eighteen files still hand-roll
   `uppercase tracking-*` — `RuleCard`, `ContextBar`, `PolicyCard`, `StatCard`,

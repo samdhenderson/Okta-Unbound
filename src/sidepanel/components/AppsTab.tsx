@@ -3,6 +3,7 @@ import { AlertMessage, PageHeader } from './shared';
 import AppsToolbar from './apps/AppsToolbar';
 import AppsListPanel from './apps/AppsListPanel';
 import {
+  appDisplayLabel,
   computeActiveAppFilterCount,
   filterAndSortApps,
   type AppGroupsFilter,
@@ -15,6 +16,7 @@ import { useAppsData } from '../hooks/useAppsData';
 import { useRefreshSubject } from '../hooks/useRefreshSubject';
 import { useOrgSnapshot } from '../cache/useOrgSnapshot';
 import { splitShardedId } from '../../shared/snapshot/types';
+import { useRungSelection } from '../selection/useRungSelection';
 import type { OktaAppGroupAssignment } from '../../shared/schemas/okta';
 import type { AppsListView } from '../listViewRequest';
 
@@ -91,6 +93,18 @@ const AppsTab: React.FC<AppsTabProps> = ({
     () => computeActiveAppFilterCount({ statusFilter, groupsFilter }),
     [statusFilter, groupsFilter],
   );
+
+  const selection = useRungSelection('app', apps, appDisplayLabel);
+  const { replaceSelection } = selection;
+
+  const handleSelectAll = useCallback(() => {
+    const outcome = replaceSelection(filteredApps.map((app) => app.id));
+    if (outcome.refused > 0) {
+      setError(
+        `Selecting ${outcome.refused} apps would take the selection past its limit, so nothing changed. Narrow the filters and try again.`,
+      );
+    }
+  }, [replaceSelection, filteredApps]);
 
   const listViewHandledRef = useRef<AppsListView | null>(null);
   useEffect(() => {
@@ -193,6 +207,10 @@ const AppsTab: React.FC<AppsTabProps> = ({
             onReload={reloadApps}
             oktaOrigin={oktaOrigin}
             fetchAssignmentCounts={api.getAppAssignmentCounts}
+            selectedIds={selection.selectedIds}
+            onToggleSelect={selection.toggleSelect}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={selection.deselectAll}
           />
         </div>
       </div>

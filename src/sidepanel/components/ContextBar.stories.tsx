@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import ContextBar from './ContextBar';
+import { selectionStore } from '../selection/selectionStore';
 
 const meta = {
   title: 'Sidepanel/ContextBar',
@@ -12,8 +13,8 @@ const meta = {
     docs: {
       description: {
         component:
-          'One line of top chrome: what the live Okta tab is on, plus Refresh and Pin.\n\n' +
-          "One line of chrome: a hue-coded connection *wire* along the panel's top edge, the live tab's entity name, and the two global context controls (Refresh, Pin). It sits outside the panel's scroller and is therefore always on screen, which is why it carries no wordmark, no id chip and no *Pinned* badge — see the module note for what each of those was cut for. The wire costs no layout height at rest and thickens into a labelled strip with a real Reconnect control when the connection is down. Notable states: resolving (`Loading`), a connection/context failure (`ErrorState`), pinned to the current entity (`Pinned`), and pinned-but-the-live-tab-moved (`PinnedLiveChanged`). Presentational — pin/refresh behaviour and the live-vs-pinned comparison are owned by the caller (App).\n\n" +
+          'One line of top chrome: what the live Okta tab is on, plus Refresh.\n\n' +
+          "One line of chrome: a hue-coded connection *wire* along the panel's top edge, the live tab's entity name, and the global Refresh control. It sits outside the panel's scroller and is therefore always on screen, which is why it carries no wordmark and no id chip — see the module note for what each of those was cut for. The wire costs no layout height at rest and thickens into a labelled strip with a real Reconnect control when the connection is down. Notable states: resolving (`Loading`) and a connection/context failure (`ErrorState`). Presentational — refresh behaviour is owned by the caller (App).\n\n" +
           '**Related internals:** [Hooks](?path=/docs/internals-hooks--docs), ' +
           '[Shared utilities](?path=/docs/internals-shared-utilities--docs)',
       },
@@ -21,24 +22,12 @@ const meta = {
   },
   argTypes: {
     pageType: { description: 'Detected page type; drives the label fallback and dot colour.' },
-    entityName: { description: 'Display name of the detected (or pinned) entity, if resolved.' },
+    entityName: { description: 'Display name of the detected entity, if resolved.' },
     connectionStatus: { description: 'Connection state to the Okta tab.' },
     isLoading: { description: 'Whether page context is still resolving.' },
     error: { description: 'Connection/context error message, or `null` when healthy.' },
-    isPinned: { description: 'Whether the panel is currently pinned to the entity.' },
-    canPin: {
-      description: 'Whether pinning is available right now (a group/user entity is present).',
-    },
-    liveContextChanged: {
-      description: 'While pinned, `true` once the live Okta tab has navigated to another entity.',
-    },
-    liveEntityName: {
-      description: 'Optional name of the live entity, shown in the switch hint when known.',
-    },
-    onTogglePin: { description: 'Toggle the pin on/off.' },
     onRefresh: {
-      description:
-        'Re-read whatever the panel is showing, and re-probe the live context. Never disabled while pinned.',
+      description: 'Re-read whatever the panel is showing, and re-probe the live context.',
     },
     handoff: {
       description:
@@ -61,9 +50,6 @@ const meta = {
     connectionStatus: 'connected',
     isLoading: false,
     error: null,
-    isPinned: false,
-    canPin: true,
-    onTogglePin: fn(),
     onRefresh: fn(),
     onReconnect: fn(),
   },
@@ -99,42 +85,10 @@ export const RefreshUnclaimed: Story = {
   },
 };
 
-export const PinnedRefreshStaysEnabled: Story = {
-  args: { isPinned: true, refreshSubjectName: 'Payments Team' },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByRole('button', { name: 'Refresh Payments Team' })).toBeEnabled();
-  },
-};
-
 export const UserPage: Story = {
   args: {
     pageType: 'user',
     entityName: 'Jordan Rivera',
-  },
-};
-
-export const Pinned: Story = {
-  args: { isPinned: true },
-};
-
-export const PinnedLiveChanged: Story = {
-  args: { isPinned: true, liveContextChanged: true, liveEntityName: 'Finance Team' },
-};
-
-export const PinnedDisconnected: Story = {
-  args: {
-    isPinned: true,
-    connectionStatus: 'error',
-    error: 'Can’t reach the Okta tab — reload it to reconnect.',
-  },
-};
-
-export const NotPinnable: Story = {
-  args: {
-    pageType: 'admin',
-    entityName: undefined,
-    canPin: false,
   },
 };
 
@@ -143,7 +97,6 @@ export const Loading: Story = {
     isLoading: true,
     connectionStatus: 'connecting',
     entityName: undefined,
-    canPin: false,
   },
 };
 
@@ -151,7 +104,6 @@ export const ErrorState: Story = {
   args: {
     entityName: undefined,
     error: 'Can’t reach the Okta tab — reload it to reconnect.',
-    canPin: false,
   },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
@@ -170,7 +122,6 @@ export const ControlsDoNotMoveOnFailure: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /Pin/ })).toBeInTheDocument();
   },
 };
 
@@ -178,7 +129,6 @@ export const ErrorWithNoTabToReconnect: Story = {
   args: {
     entityName: undefined,
     error: 'Can’t reach the Okta tab — reload it to reconnect.',
-    canPin: false,
     onReconnect: undefined,
   },
   play: async ({ canvasElement }) => {
@@ -201,7 +151,6 @@ export const HandoffGroup: Story = {
     await expect(args.onAcceptHandoff).toHaveBeenCalled();
 
     await expect(canvas.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: /Pin/ })).toBeInTheDocument();
   },
 };
 
@@ -270,7 +219,6 @@ export const HandoffAbsentOnAdminPage: Story = {
   args: {
     pageType: 'admin',
     entityName: undefined,
-    canPin: false,
     handoff: null,
   },
   play: async ({ canvasElement }) => {
@@ -278,5 +226,38 @@ export const HandoffAbsentOnAdminPage: Story = {
     await expect(canvas.getByText('Okta Admin')).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Open / })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Dismiss / })).not.toBeInTheDocument();
+  },
+};
+
+export const SessionChrome: Story = {
+  args: { onOpenSelection: fn() },
+  beforeEach: () => {
+    selectionStore.clearAll();
+    selectionStore.toggle({ kind: 'user', id: '00uFAKE0001', name: 'Dana Example' });
+    selectionStore.toggle({ kind: 'user', id: '00uFAKE0002', name: 'Rowan Example' });
+    selectionStore.toggle({ kind: 'group', id: '00gFAKE0001', name: 'Payments Team' });
+    return () => selectionStore.clearAll();
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole('button', { name: '2 users and 1 group selected' }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: '2 users and 1 group selected' }));
+    await expect(args.onOpenSelection).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const SessionChromeWithEmptyBasket: Story = {
+  args: { onOpenSelection: fn() },
+  beforeEach: () => {
+    selectionStore.clearAll();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /selected$/ })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
   },
 };
