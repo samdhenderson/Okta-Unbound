@@ -86,6 +86,12 @@ const meta = {
           'member — expanded. Those come from the same components ' +
           '`users/GroupMembershipRow` uses for the mirror-image case, so the two surfaces cannot ' +
           'drift into two vocabularies for one fact.\n\n' +
+          '**The row carries a selection checkbox**, revealed on hover or keyboard focus and ' +
+          'drawn unconditionally while ticked, so a pick cannot fade out as the reader scrolls ' +
+          'past it. It costs this row nothing: a row that is its own click target cannot ' +
+          'legally hold a checkbox, and this one gave that up for the chevron already. The ' +
+          'name says who (`Select Ada Lovelace`) — a column of bare "Select" boxes tells a ' +
+          'screen-reader user nothing. Omitting `onToggleSelect` renders no checkbox.\n\n' +
           "**No `groupContext` is passed here.** This surface holds one group's roster, not each " +
           'member\'s complete group list, so `isMemberOf*` clauses read "Cannot be determined" — ' +
           'which is true. A context built from the one group in hand would instead report every ' +
@@ -112,6 +118,13 @@ const meta = {
     },
     onRemove: {
       description: 'Request removal. Omitted ⇒ no control renders — never a disabled one.',
+    },
+    selected: {
+      description:
+        "Whether this member is in the selection basket; a ticked row paints ListRow's selected state.",
+    },
+    onToggleSelect: {
+      description: 'Tick or untick this member. Omitted ⇒ no checkbox renders at all.',
     },
   },
   args: {
@@ -203,5 +216,23 @@ export const WithRemove: Story = {
     const remove = canvas.getByRole('button', { name: /^Remove .* from this group$/ });
     await userEvent.click(remove);
     await expect(args.onRemove).toHaveBeenCalledWith(activeUser);
+  },
+};
+
+export const Selectable: Story = {
+  args: { onToggleSelect: fn() },
+  play: async ({ args, canvas }) => {
+    const box = canvas.getByRole('checkbox', { name: /^Select / });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(activeUser.id);
+  },
+};
+
+export const Selected: Story = {
+  args: { onToggleSelect: fn(), selected: true },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('checkbox', { name: /^Select / })).toBeChecked();
   },
 };

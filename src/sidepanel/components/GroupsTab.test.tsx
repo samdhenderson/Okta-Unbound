@@ -13,6 +13,7 @@ import GroupsTab from './GroupsTab';
 import { useCurrentRefreshSubject } from '../hooks/useRefreshSubject';
 import { ProgressProvider } from '../contexts/ProgressContext';
 import { syncSnapshot } from '../../background/snapshotBridge';
+import { selectionStore } from '../selection/selectionStore';
 
 const render = (ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, {
@@ -45,27 +46,6 @@ vi.mock('./groups/GroupComparisonModal', () => ({
   default: (props: any) => {
     captured.props.GroupComparisonModal = props;
     return <div data-testid="comparison-modal" data-open={String(props.isOpen)} />;
-  },
-}));
-
-vi.mock('./groups/CrossGroupSearch', () => ({
-  default: (props: any) => {
-    captured.props.CrossGroupSearch = props;
-    return <div data-testid="cross-group-search" />;
-  },
-}));
-
-vi.mock('./groups/BulkOperationsPanel', () => ({
-  default: (props: any) => {
-    captured.props.BulkOperationsPanel = props;
-    return <div data-testid="bulk-panel" />;
-  },
-}));
-
-vi.mock('./groups/GroupCollections', () => ({
-  default: (props: any) => {
-    captured.props.GroupCollections = props;
-    return <div data-testid="collections-panel" />;
   },
 }));
 
@@ -375,6 +355,7 @@ let walkCalls: string[] = [];
 
 beforeEach(() => {
   vi.clearAllMocks();
+  selectionStore.clearAll();
   routes = [];
   walkCalls = [];
   captured.props = {};
@@ -1221,30 +1202,15 @@ describe('selection', () => {
     expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeEnabled();
   });
 
-  it('loading a collection replaces the selection wholesale', async () => {
-    const uev = userEvent.setup();
-    await renderCached(fixtures);
-    await uev.click(screen.getByRole('checkbox', { name: 'Select AppOne' }));
-    await uev.click(screen.getByRole('button', { name: /Collections/ }));
-
-    act(() => captured.props.GroupCollections.onLoadCollection(['b', 'c']));
-
-    expect(screen.getByRole('checkbox', { name: 'Select AppOne' })).not.toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Select OktaOne' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'Select OktaTwo' })).toBeChecked();
-  });
-
-  it('shows Compare only for 2-5 selections and Bulk actions only above 0', async () => {
+  it('shows Compare only for 2-5 selections', async () => {
     const uev = userEvent.setup();
     await renderCached(fixtures);
     const compare = () => screen.queryByRole('button', { name: /^Compare/ });
 
     expect(compare()).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Bulk actions' })).not.toBeInTheDocument();
 
     await uev.click(screen.getByRole('checkbox', { name: 'Select AppOne' }));
     expect(compare()).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Bulk actions' })).toBeInTheDocument();
 
     await uev.click(screen.getByRole('checkbox', { name: 'Select OktaOne' }));
     expect(compare()).toHaveTextContent('Compare (2)');
@@ -1359,17 +1325,6 @@ describe('prop brokering', () => {
     expect(Object.is(captured.props.GroupExportModal.onFetchMembers, fetchMembers)).toBe(true);
   });
 
-  it('keeps onRemoveUserFromGroups Object.is-stable across re-renders', async () => {
-    const uev = userEvent.setup();
-    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
-    await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
-    const remove = captured.props.CrossGroupSearch.onRemoveUserFromGroups;
-
-    await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
-
-    expect(Object.is(captured.props.CrossGroupSearch.onRemoveUserFromGroups, remove)).toBe(true);
-  });
-
   it('onFetchMembers uses the current targetTabId even though it is memoized on []', async () => {
     route(/^\/api\/v1\/groups\/g1\/users\?limit=200&expand=group-rules$/, () => ({
       success: true,
@@ -1435,25 +1390,27 @@ describe('prop brokering', () => {
 });
 
 describe('groupMembersCache', () => {
-  it('onFetchMembers populates the cache immutably and the Cross-search count reflects it', async () => {
+  it('onFetchMembers populates the cache immutably, and the new Map reaches the comparison modal', async () => {
     route(/^\/api\/v1\/groups\/a\/users\?limit=200&expand=group-rules$/, () => ({
       success: true,
       headers: {},
       data: [user('u1')],
     }));
     await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
-    const crossSearch = () => screen.getByRole('button', { name: /Cross-search/ }).textContent;
-
-    expect(crossSearch()).toBe('Cross-search');
+    const before = captured.props.GroupComparisonModal.memberCache;
+    expect(before.size).toBe(0);
 
     await act(async () => {
       await captured.props.GroupExportModal.onFetchMembers('a');
     });
 
-    expect(crossSearch()).toBe('Cross-search (1)');
+    const after = captured.props.GroupComparisonModal.memberCache;
+    expect(Object.is(after, before)).toBe(false);
+    expect([...after.keys()]).toEqual(['a']);
+    expect(after.get('a')).toHaveLength(1);
   });
 
-  it('compareGroups mutates the cache Map in place: no refetch, and no badge update', async () => {
+  it('compareGroups mutates the cache Map in place: no refetch, and no state update', async () => {
     const uev = userEvent.setup();
     let memberFetches = 0;
     route(/^\/api\/v1\/groups\/[ab]\/users\?limit=200&expand=group-rules$/, () => {
@@ -1466,6 +1423,7 @@ describe('groupMembersCache', () => {
     ]);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('checkbox', { name: 'Select Beta' }));
+    const cacheBefore = captured.props.GroupComparisonModal.memberCache;
 
     const runCompare = async () => {
       const p = captured.props.GroupComparisonModal;
@@ -1484,144 +1442,8 @@ describe('groupMembersCache', () => {
     await runCompare();
     expect(memberFetches).toBe(2);
 
-    expect(screen.getByRole('button', { name: /Cross-search/ }).textContent).toBe('Cross-search');
-  });
-
-  it('passes the raw (uncloned) cache Map to both the comparison modal and cross-search', async () => {
-    const uev = userEvent.setup();
-    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
-    await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
-
-    expect(
-      Object.is(
-        captured.props.GroupComparisonModal.memberCache,
-        captured.props.CrossGroupSearch.groupMembersCache,
-      ),
-    ).toBe(true);
-  });
-
-  it('builds groupNames from every cached group, not just the selected ones', async () => {
-    const uev = userEvent.setup();
-    await renderCached([
-      cachedGroup({ id: 'a', name: 'Alpha' }),
-      cachedGroup({ id: 'b', name: 'Beta' }),
-    ]);
-    await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
-    await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
-
-    expect([...captured.props.CrossGroupSearch.groupNames.entries()]).toEqual([
-      ['a', 'Alpha'],
-      ['b', 'Beta'],
-    ]);
-  });
-});
-
-describe('handleRemoveUserFromGroups', () => {
-  async function openCrossSearch() {
-    const uev = userEvent.setup();
-    await renderCached([cachedGroup({ id: 'a', name: 'Alpha' })]);
-    await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
-    return captured.props.CrossGroupSearch.onRemoveUserFromGroups;
-  }
-
-  it('issues one DELETE per group, sequentially, in the given order', async () => {
-    const order: string[] = [];
-    route(/^\/api\/v1\/groups\/.*\/users\/u1$/, (msg) => {
-      order.push(msg.endpoint);
-      return { success: true };
-    });
-    const remove = await openCrossSearch();
-
-    await act(async () => {
-      await remove('u1', ['g1', 'g2', 'g3']);
-    });
-
-    expect(order).toEqual([
-      '/api/v1/groups/g1/users/u1',
-      '/api/v1/groups/g2/users/u1',
-      '/api/v1/groups/g3/users/u1',
-    ]);
-    expect(schedulerCalls().every((m) => m.method === 'DELETE' || m.method === 'GET')).toBe(true);
-  });
-
-  it('aborts the remaining groups when a DELETE rejects, and propagates', async () => {
-    const attempted: string[] = [];
-    route(/^\/api\/v1\/groups\/.*\/users\/u1$/, (msg) => {
-      attempted.push(msg.endpoint);
-      if (msg.endpoint.includes('/g2/')) throw new Error('boom');
-      return { success: true };
-    });
-    const remove = await openCrossSearch();
-
-    await expect(remove('u1', ['g1', 'g2', 'g3'])).rejects.toThrow('boom');
-    expect(attempted).toEqual(['/api/v1/groups/g1/users/u1', '/api/v1/groups/g2/users/u1']);
-  });
-
-  it('treats a success:false response as a success and keeps going', async () => {
-    const attempted: string[] = [];
-    route(/^\/api\/v1\/groups\/.*\/users\/u1$/, (msg) => {
-      attempted.push(msg.endpoint);
-      return { success: false, error: 'nope' };
-    });
-    const remove = await openCrossSearch();
-
-    await act(async () => {
-      await expect(remove('u1', ['g1', 'g2'])).resolves.toBeUndefined();
-    });
-    expect(attempted).toHaveLength(2);
-  });
-});
-
-describe('inline panels', () => {
-  const fixtures = [cachedGroup({ id: 'a', name: 'Alpha' })];
-
-  it('are mutually exclusive and toggle off on a second click', async () => {
-    const uev = userEvent.setup();
-    await renderCached(fixtures);
-
-    await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
-    expect(screen.getByTestId('cross-group-search')).toBeInTheDocument();
-
-    await uev.click(screen.getByRole('button', { name: 'Collections' }));
-    expect(screen.queryByTestId('cross-group-search')).not.toBeInTheDocument();
-    expect(screen.getByTestId('collections-panel')).toBeInTheDocument();
-
-    await uev.click(screen.getByRole('button', { name: 'Hide collections' }));
-    expect(screen.queryByTestId('collections-panel')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Collections' })).toBeInTheDocument();
-  });
-
-  it('closes via the child onClose callback', async () => {
-    const uev = userEvent.setup();
-    await renderCached(fixtures);
-    await uev.click(screen.getByRole('button', { name: /^Cross-search/ }));
-
-    act(() => captured.props.CrossGroupSearch.onClose());
-
-    expect(screen.queryByTestId('cross-group-search')).not.toBeInTheDocument();
-  });
-
-  it('drops the bulk panel the moment the selection empties', async () => {
-    const uev = userEvent.setup();
-    await renderCached(fixtures);
-    await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
-    await uev.click(screen.getByRole('button', { name: 'Bulk actions' }));
-    expect(screen.getByTestId('bulk-panel')).toBeInTheDocument();
-
-    await uev.click(screen.getByRole('button', { name: 'Deselect all' }));
-
-    expect(screen.queryByTestId('bulk-panel')).not.toBeInTheDocument();
-  });
-
-  it('lets the bulk panel trigger the export modal', async () => {
-    const uev = userEvent.setup();
-    await renderCached(fixtures);
-    await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
-    await uev.click(screen.getByRole('button', { name: 'Bulk actions' }));
-
-    await act(async () => captured.props.BulkOperationsPanel.onExportSelection());
-
-    expect(screen.getByTestId('export-modal')).toHaveAttribute('data-open', 'true');
+    expect(cacheBefore.size).toBe(2);
+    expect(Object.is(captured.props.GroupComparisonModal.memberCache, cacheBefore)).toBe(true);
   });
 });
 

@@ -13,11 +13,8 @@ const OTHER_GROUP_ID = '00gFAKEGROUP2';
 const USER_ID = '00uFAKEUSER1';
 const ORIGIN = 'https://example.okta.com';
 
-const TopBar: React.FC<{ refetch: () => void; isPinned?: boolean }> = ({
-  refetch,
-  isPinned = false,
-}) => {
-  const { subjectName, refresh } = useAppRefresh(refetch, isPinned);
+const TopBar: React.FC<{ refetch: () => void }> = ({ refetch }) => {
+  const { subjectName, refresh } = useAppRefresh(refetch);
   return (
     <button type="button" onClick={refresh}>
       {subjectName === null ? 'Refresh' : `Refresh ${subjectName}`}
@@ -108,23 +105,6 @@ describe('the app-level refresh control', () => {
       </>,
     );
     expect(screen.getByRole('button', { name: 'Refresh the groups list' })).toBeInTheDocument();
-  });
-
-  it('skips the context re-probe while pinned but still runs the data half', async () => {
-    const uev = userEvent.setup();
-    const refetch = vi.fn();
-    const run = vi.fn();
-
-    render(
-      <>
-        <Rung name="Payments Team" run={run} />
-        <TopBar refetch={refetch} isPinned />
-      </>,
-    );
-    await uev.click(screen.getByRole('button', { name: 'Refresh Payments Team' }));
-
-    expect(refetch).not.toHaveBeenCalled();
-    expect(run).toHaveBeenCalledTimes(1);
   });
 
   describe('what a press invalidates', () => {

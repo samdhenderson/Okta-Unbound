@@ -44,6 +44,7 @@ export { default as ClauseLedgerBranch, ClauseTreeNodeView } from './ClauseLedge
 export { default as ClauseLedgerClause } from './ClauseLedgerClause';
 export { default as GroupReferenceChip } from './GroupReferenceChip';
 export { default as RawExpressionWell } from './RawExpressionWell';
+export { default as SelectionSummaryButton } from './SelectionSummaryButton';
 
 export type { ButtonVariant, ButtonSize } from './Button';
 export type { IconButtonVariant, IconButtonSize } from './IconButton';
@@ -70,11 +71,14 @@ export type { ClauseLedgerBranchProps, ClauseTreeNodeViewProps } from './ClauseL
 export type { ClauseLedgerClauseProps } from './ClauseLedgerClause';
 export type { GroupReferenceChipProps } from './GroupReferenceChip';
 export type { RawExpressionWellProps } from './RawExpressionWell';
+export type { SelectionSummaryButtonProps } from './SelectionSummaryButton';
 export type { UseClauseLedgerOptions, UseClauseLedgerResult } from './useClauseLedger';
 export { useClauseLedger } from './useClauseLedger';
 export type { StableWidthProps } from './StableWidth';
 export type { StatusType, UserStatusVariant } from './status';
 export { userStatusVariant } from './status';
+export { typeIcon, typeNoun, capitalisedNoun, typeNounForms } from './entityKind';
+export { REVEAL_ON_HOVER } from './revealOnHover';
 export type { TabItem, TabsVariant, TabCountDisplay } from './Tabs';
 export type { TooltipTriggerProps } from './Tooltip';
 export type { BreadcrumbItem, BreadcrumbsSize } from './Breadcrumbs';

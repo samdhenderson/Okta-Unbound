@@ -1,15 +1,12 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useOktaApi } from './useOktaApi';
-import { getOrFetch, invalidate } from '../cache/entityCache';
+import { getOrFetch } from '../cache/entityCache';
 import { cacheKeys } from '../cache/keys';
-import type { GroupSummary, OktaUser } from '../../shared/types';
-import { createLogger } from '../../shared/utils/logger';
-
-const log = createLogger('useGroupMembersCache');
+import type { OktaUser } from '../../shared/types';
 
 type OktaApi = ReturnType<typeof useOktaApi>;
 
-export function useGroupMembersCache(api: OktaApi, groups: GroupSummary[]) {
+export function useGroupMembersCache(api: OktaApi) {
   const [groupMembersCache, setGroupMembersCache] = useState<Map<string, OktaUser[]>>(new Map());
 
   const apiRef = useRef(api);
@@ -28,24 +25,5 @@ export function useGroupMembersCache(api: OktaApi, groups: GroupSummary[]) {
     return members;
   }, []);
 
-  const removeUserFromGroups = useCallback(async (userId: string, groupIds: string[]) => {
-    const outcome = await apiRef.current.removeUserFromGroups(userId, groupIds);
-    for (const r of outcome.results) {
-      if (r.status !== 'fulfilled') continue;
-      invalidate(cacheKeys.groupMembers(r.item));
-      log.debug(`Removed user ${userId} from group ${r.item}`);
-    }
-    const rejected = outcome.results.find((r) => r.status === 'rejected');
-    if (rejected) throw rejected.error;
-  }, []);
-
-  const groupNames = useMemo(() => {
-    const names = new Map<string, string>();
-    for (const g of groups) {
-      names.set(g.id, g.name);
-    }
-    return names;
-  }, [groups]);
-
-  return { groupMembersCache, groupNames, fetchMembers, removeUserFromGroups };
+  return { groupMembersCache, fetchMembers };
 }

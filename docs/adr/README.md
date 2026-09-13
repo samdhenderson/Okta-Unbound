@@ -6,12 +6,14 @@ Seventy-four records were deleted on 2026-09-09 and the rules that were still
 live were folded into the specs in `docs/` as plain house rules. Numbering
 restarts at **0001**, and the shelf is deliberately near-empty.
 
-| Record                                     | Decision                                                                                    |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| [0001](0001-rule-assessment-certainty.md)  | Rule assessment: the certainty ladder, and which expression functions the evaluator refuses |
-| [0002](0002-linear-time-tenant-regex.md)   | Evaluate tenant-authored group-name regexes with a linear-time matcher, never `RegExp`      |
-| [0003](0003-stringswitch-matched-cases.md) | Support `String.stringSwitch` — Okta's own docs pin its match, order, and default behaviour |
-| [0004](0004-absent-attribute-is-null.md)   | An absent profile attribute is `null`, because that is the only way Okta reports "no value" |
+| Record                                     | Decision                                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| [0001](0001-rule-assessment-certainty.md)  | Rule assessment: the certainty ladder, and which expression functions the evaluator refuses  |
+| [0002](0002-linear-time-tenant-regex.md)   | Evaluate tenant-authored group-name regexes with a linear-time matcher, never `RegExp`       |
+| [0003](0003-stringswitch-matched-cases.md) | Support `String.stringSwitch` — Okta's own docs pin its match, order, and default behaviour  |
+| [0004](0004-absent-attribute-is-null.md)   | An absent profile attribute is `null`, because that is the only way Okta reports "no value"  |
+| [0005](0005-session-chrome.md)             | `ContextBar` carries session chrome — refresh and selection — and that list is closed at two |
+| [0006](0006-saved-collections.md)          | A saved collection stores ids; a display name is stored only for users, and only on request  |
 
 ## What went wrong the first time
 

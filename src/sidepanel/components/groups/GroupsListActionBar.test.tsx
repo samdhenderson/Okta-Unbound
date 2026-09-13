@@ -6,20 +6,12 @@ const handlers = {
   onSelectAll: vi.fn(),
   onDeselectAll: vi.fn(),
   onCompare: vi.fn(),
-  onMerge: vi.fn(),
-  onTogglePanel: vi.fn(),
   onExportSelection: vi.fn(),
   onExportGroupsList: vi.fn(),
 };
 
 const bar = (selectedCount: number, filteredCount = 42) => (
-  <GroupsListActionBar
-    selectedCount={selectedCount}
-    filteredCount={filteredCount}
-    activePanel="none"
-    crossSearchBadge={0}
-    {...handlers}
-  />
+  <GroupsListActionBar selectedCount={selectedCount} filteredCount={filteredCount} {...handlers} />
 );
 
 const band = (): HTMLElement => {
@@ -76,7 +68,7 @@ describe('position one of the register is a selection control (ADR-0051 §2)', (
     expect(first.textContent).toBe(selected > 0 ? 'Deselect all' : 'Select all (42)');
   });
 
-  it('never leads with Merge, whatever the selection size', () => {
+  it('never moves a verb under the pointer as rows are ticked', () => {
     const { rerender } = render(bar(0));
 
     for (const selected of [2, 3, 6, 42]) {

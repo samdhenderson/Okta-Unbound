@@ -175,6 +175,13 @@ const meta = {
     onProve: {
       description: 'Asks Okta about this one membership — one API call, from a press only.',
     },
+    selected: {
+      description:
+        "Whether this group is in the selection basket; a ticked row paints ListRow's selected state.",
+    },
+    onToggleSelect: {
+      description: 'Tick or untick this group. Omitted ⇒ no checkbox renders at all.',
+    },
   },
 } satisfies Meta<typeof GroupMembershipRow>;
 
@@ -305,5 +312,23 @@ export const LongGroupName: Story = {
     await expect(name).toHaveAttribute('title', longName.group.profile.name);
     await expect(canvas.getByText('Rule · 2')).toBeInTheDocument();
     await expect(canvas.getByText('On page')).toBeInTheDocument();
+  },
+};
+
+export const Selectable: Story = {
+  args: { onToggleSelect: fn() },
+  play: async ({ args, canvas }) => {
+    const box = canvas.getByRole('checkbox', { name: 'Select Engineering Staff' });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(ruleExact.group.id);
+  },
+};
+
+export const Selected: Story = {
+  args: { onToggleSelect: fn(), selected: true },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('checkbox', { name: 'Select Engineering Staff' })).toBeChecked();
   },
 };

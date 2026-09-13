@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
 import type { MemberMfaResult } from '../../../shared/types';
+import { expect, userEvent, within } from 'storybook/test';
 import MemberList from './MemberList';
 import { mockUsers } from '../../../test/mocks/fixtures';
 
@@ -58,6 +59,13 @@ const meta = {
     oktaOrigin: {
       description: 'Okta org origin for per-member Admin Console links (null when unknown).',
     },
+    selectedIds: {
+      description:
+        'Which members are in the selection basket. May hold ids for people ticked elsewhere.',
+    },
+    onToggleSelect: {
+      description: 'Tick or untick one member. Absent ⇒ no row renders a checkbox.',
+    },
   },
   args: {
     members: mockUsers.slice(0, 20),
@@ -98,4 +106,21 @@ export const Empty: Story = {
 
 export const Reloading: Story = {
   args: { loading: true },
+};
+
+export const WithSelection: Story = {
+  args: {
+    onToggleSelect: fn(),
+    selectedIds: new Set([mockUsers[0].id, mockUsers[2].id]),
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const checked = canvas
+      .getAllByRole('checkbox')
+      .filter((box) => (box as HTMLInputElement).checked);
+    await expect(checked).toHaveLength(2);
+
+    await userEvent.click(checked[0]);
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(mockUsers[0].id);
+  },
 };

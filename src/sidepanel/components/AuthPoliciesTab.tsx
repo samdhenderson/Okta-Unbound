@@ -9,8 +9,11 @@ import type { OperationResult } from '../hooks/useOktaApi/types';
 import { useOwedLoad } from '../hooks/useOwedLoad';
 import { usePoliciesData } from '../hooks/usePoliciesData';
 import { useRefreshSubject } from '../hooks/useRefreshSubject';
+import { useRungSelection } from '../selection/useRungSelection';
 import { filterPolicies } from './policies/policyFilters';
 import { getRelativeTime } from '../../shared/utils/dateFormat';
+
+const policyName = (policy: { name?: string; id: string }) => policy.name ?? policy.id;
 
 interface AuthPoliciesTabProps {
   targetTabId?: number;
@@ -49,6 +52,18 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
     () => filterPolicies(policies, searchQuery),
     [policies, searchQuery],
   );
+
+  const selection = useRungSelection('policy', policies, policyName);
+  const { replaceSelection } = selection;
+
+  const handleSelectAll = useCallback(() => {
+    const outcome = replaceSelection(filteredPolicies.map((policy) => policy.id));
+    if (outcome.refused > 0) {
+      setError(
+        `Selecting ${outcome.refused} policies would take the selection past its limit, so nothing changed. Narrow the search and try again.`,
+      );
+    }
+  }, [replaceSelection, filteredPolicies]);
 
   const selectedPolicyHandledRef = useRef<string | null>(null);
   useEffect(() => {
@@ -116,6 +131,10 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
           hasPolicies={hasPolicies}
           onLoad={handleLoad}
           loadRules={api.getPolicyRules}
+          selectedIds={selection.selectedIds}
+          onToggleSelect={selection.toggleSelect}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={selection.deselectAll}
         />
       </div>
     </div>

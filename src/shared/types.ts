@@ -348,15 +348,6 @@ export interface GroupComparisonResult {
   totalUniqueUsers: number;
 }
 
-export interface GroupCollection {
-  id: string;
-  name: string;
-  description?: string;
-  groupIds: string[];
-  createdAt: number;
-  updatedAt: number;
-}
-
 export interface GroupSummary {
   id: string;
   name: string;

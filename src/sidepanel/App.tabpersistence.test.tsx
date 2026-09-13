@@ -58,6 +58,7 @@ const runtimeSendMessage = vi.fn();
 const tabsSendMessage = vi.fn();
 const storageGet = vi.fn();
 const storageSet = vi.fn();
+const storageRemove = vi.fn();
 
 function cachedGroup(over: Record<string, unknown> = {}) {
   return {
@@ -133,7 +134,7 @@ beforeEach(() => {
     },
     windows: { getCurrent: vi.fn(async () => ({ id: 1 })) },
     storage: {
-      local: { get: storageGet, set: storageSet, remove: vi.fn() },
+      local: { get: storageGet, set: storageSet, remove: storageRemove },
       sync: { get: storageGet, set: storageSet, remove: vi.fn() },
       onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
     },
@@ -222,6 +223,18 @@ async function retargetTo({ id, origin }: { id: number; origin?: string }) {
 }
 
 describe('App tab lifetime', () => {
+  it('drops what retired features left in storage on boot', async () => {
+    renderApp();
+
+    await waitFor(() => expect(storageRemove).toHaveBeenCalled());
+    const removed = storageRemove.mock.calls.flatMap((call) => {
+      const keys = call[0] as string | string[];
+      return Array.isArray(keys) ? keys : [keys];
+    });
+    expect(removed).toContain('okta_unbound_pinned_context');
+    expect(removed).toContain('okta_unbound_group_collections');
+  });
+
   it('mounts a tab only once it has been activated', async () => {
     const uev = userEvent.setup();
     renderApp();

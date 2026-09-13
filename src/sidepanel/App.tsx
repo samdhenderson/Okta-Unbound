@@ -22,52 +22,20 @@ const AuthPoliciesTab = lazy(() => import('./components/AuthPoliciesTab'));
 const ExportTab = lazy(() => import('./components/export').then((m) => ({ default: m.ExportTab })));
 const ApiExplorerTab = lazy(() => import('./components/ApiExplorerTab'));
 const AuditLogViewer = lazy(() => import('./components/AuditLogViewer'));
+const SelectionTab = lazy(() => import('./components/selection/SelectionTab'));
 import { useGroupContext } from './hooks/useGroupContext';
 import { useOktaPageContext } from './hooks/useOktaPageContext';
 import { useSessionExpiry } from './hooks/useSessionExpiry';
 import { useAppRefresh } from './hooks/useRefreshSubject';
 import { useEntityHandoff } from './hooks/useEntityHandoff';
+import { selectionStore } from './selection/selectionStore';
 import type { JumpKind } from './hooks/useJumpResolver';
 import { SchedulerProvider } from './contexts/SchedulerContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { OrgEntityIndexProvider } from './contexts/OrgEntityIndexContext';
-import {
-  deriveTabContext,
-  revalidatePinnedContext,
-  type PinnablePageType,
-  type PinnedContext,
-} from './pinContext';
-import type { OktaPageContext } from './hooks/useOktaPageContext';
-
 const SELECTED_TAB_KEY = 'okta_unbound_selected_tab';
-const PINNED_CONTEXT_KEY = 'okta_unbound_pinned_context';
 
-interface LiveIdentity {
-  pageType: PinnablePageType;
-  id: string;
-  name: string;
-}
-
-function liveIdentityOf(page: OktaPageContext): LiveIdentity | null {
-  if (page.connectionStatus !== 'connected') return null;
-  if (page.pageType === 'group' && page.groupInfo) {
-    return { pageType: 'group', id: page.groupInfo.groupId, name: page.groupInfo.groupName };
-  }
-  if (page.pageType === 'user' && page.userInfo) {
-    return { pageType: 'user', id: page.userInfo.userId, name: page.userInfo.userName };
-  }
-  return null;
-}
-
-function pinnedEntityId(pinned: PinnedContext): string | undefined {
-  return pinned.pageType === 'group' ? pinned.groupInfo?.groupId : pinned.userInfo?.userId;
-}
-
-function hasLiveContextMoved(pinned: PinnedContext | null, live: LiveIdentity | null): boolean {
-  if (!pinned) return false;
-  if (live === null) return false;
-  return live.pageType !== pinned.pageType || live.id !== pinnedEntityId(pinned);
-}
+const RETIRED_STORAGE_KEYS = ['okta_unbound_pinned_context', 'okta_unbound_group_collections'];
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
@@ -78,8 +46,6 @@ const App: React.FC = () => {
   const [selectedPolicyId, setSelectedPolicyId] = useState<string | null>(null);
   const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null);
   const [listViewRequest, setListViewRequest] = useState<ListViewRequest | null>(null);
-  const [pinned, setPinned] = useState<PinnedContext | null>(null);
-  const isPinned = pinned !== null;
   const [mountedTabs, setMountedTabs] = useState<ReadonlySet<TabType>>(
     () => new Set<TabType>(['home']),
   );
@@ -96,89 +62,37 @@ const App: React.FC = () => {
     useGroupContext(page);
 
   useEffect(() => {
-    chrome.storage.local.get([PINNED_CONTEXT_KEY], (result) => {
-      const saved = result[PINNED_CONTEXT_KEY] as PinnedContext | undefined;
-      if (!saved) return;
-      void revalidatePinnedContext(saved).then((revalidated) => {
-        if (!revalidated) {
-          chrome.storage.local.remove(PINNED_CONTEXT_KEY);
-          return;
-        }
-        setPinned(revalidated);
-        if (revalidated.targetTabId !== saved.targetTabId) {
-          chrome.storage.local.set({ [PINNED_CONTEXT_KEY]: revalidated });
-        }
-      });
-    });
+    chrome.storage.local.remove(RETIRED_STORAGE_KEYS);
   }, []);
 
-  const isLivePinnable = page.pageType === 'group' || page.pageType === 'user';
-  const effective = pinned
-    ? {
-        pageType: pinned.pageType,
-        groupInfo: pinned.groupInfo,
-        userInfo: pinned.userInfo,
-        targetTabId: pinned.targetTabId as number | null,
-        oktaOrigin: pinned.oktaOrigin,
-        connectionStatus,
-        error,
-        isLoading: false,
-      }
-    : {
-        pageType: page.pageType,
-        groupInfo: page.groupInfo,
-        userInfo: page.userInfo,
-        targetTabId: page.targetTabId,
-        oktaOrigin: page.oktaOrigin,
-        connectionStatus: page.connectionStatus,
-        error: page.error,
-        isLoading: page.isLoading,
-      };
+  useEffect(() => {
+    selectionStore.setOrigin(oktaOrigin ?? null);
+  }, [oktaOrigin]);
 
-  const tabContext = deriveTabContext(pinned, { targetTabId, groupInfo, oktaOrigin });
+  const tabContext = {
+    targetTabId,
+    currentGroupId: groupInfo?.groupId,
+    oktaOrigin,
+  };
 
   const entityName =
-    effective.pageType === 'group'
-      ? (effective.groupInfo?.groupName ?? undefined)
-      : effective.pageType === 'user'
-        ? (effective.userInfo?.userName ?? undefined)
-        : effective.pageType === 'app'
+    page.pageType === 'group'
+      ? (page.groupInfo?.groupName ?? undefined)
+      : page.pageType === 'user'
+        ? (page.userInfo?.userName ?? undefined)
+        : page.pageType === 'app'
           ? (page.appInfo?.appName ?? undefined)
-          : effective.pageType === 'policy'
+          : page.pageType === 'policy'
             ? (page.policyInfo?.policyName ?? undefined)
             : undefined;
-
-  const liveIdentity = liveIdentityOf(page);
-  const liveContextChanged = hasLiveContextMoved(pinned, liveIdentity);
-
-  const handleTogglePin = () => {
-    if (pinned) {
-      setPinned(null);
-      chrome.storage.local.remove(PINNED_CONTEXT_KEY);
-      return;
-    }
-    if (isLivePinnable && page.targetTabId != null) {
-      const snapshot: PinnedContext = {
-        pageType: page.pageType as 'group' | 'user',
-        groupInfo: page.groupInfo,
-        userInfo: page.userInfo,
-        targetTabId: page.targetTabId,
-        oktaOrigin: page.oktaOrigin,
-      };
-      setPinned(snapshot);
-      chrome.storage.local.set({ [PINNED_CONTEXT_KEY]: snapshot });
-    }
-  };
 
   const refetchPageContext = page.refetch;
   const handleRefreshAll = useCallback(() => {
     void refetchPageContext();
   }, [refetchPageContext]);
 
-  const { subjectName: refreshSubjectName, refresh: handleRefresh } = useAppRefresh(
-    refetchPageContext,
-    isPinned,
-  );
+  const { subjectName: refreshSubjectName, refresh: handleRefresh } =
+    useAppRefresh(refetchPageContext);
 
   const handleReconnect = () => {
     if (targetTabId != null) {
@@ -212,6 +126,10 @@ const App: React.FC = () => {
     if (tab === 'rules' && selectedRuleId) {
       setSelectedRuleId(selectedRuleId);
     }
+  };
+
+  const handleOpenSelection = () => {
+    handleTabChange('selection');
   };
 
   const handleNavigateToRule = useCallback((ruleId: string) => {
@@ -271,7 +189,6 @@ const App: React.FC = () => {
   );
   const handoff = useEntityHandoff({
     page,
-    suppressed: isPinned,
     canNavigateTo: canNavigateToKind,
     navigateTo: navigateToKind,
   });
@@ -325,22 +242,18 @@ const App: React.FC = () => {
         >
           <div className="flex flex-col h-screen overflow-hidden bg-canvas">
             <ContextBar
-              pageType={effective.pageType}
+              pageType={page.pageType}
               entityName={entityName}
               connectionStatus={connectionStatus}
               isLoading={isLoading}
               error={error}
-              isPinned={isPinned}
-              canPin={isLivePinnable}
-              liveContextChanged={liveContextChanged}
-              liveEntityName={liveIdentity?.name}
-              onTogglePin={handleTogglePin}
               onRefresh={handleRefresh}
               refreshSubjectName={refreshSubjectName}
               onReconnect={handleReconnect}
               handoff={handoff.offer}
               onAcceptHandoff={handoff.accept}
               onDismissHandoff={handoff.dismiss}
+              onOpenSelection={handleOpenSelection}
             />
 
             <SessionExpiryNotice targetTabId={tabContext.targetTabId ?? null} />
@@ -453,6 +366,13 @@ const App: React.FC = () => {
                     />
                   </div>
                 </div>
+              ))}
+              {renderTabPanel('selection', (isActive) => (
+                <SelectionTab
+                  isActive={isActive}
+                  oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                  targetTabId={tabContext.targetTabId ?? null}
+                />
               ))}
 
               <ActivityBar />

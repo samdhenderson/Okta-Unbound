@@ -313,6 +313,35 @@ describe('parseOktaList', () => {
     expect(logged).not.toContain('NOT_A_STATUS');
   });
 
+  it('keeps a member whose optional profile attributes are null', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const nulledMember = {
+      ...validListUser,
+      id: '00uFAKEuser000000007',
+      profile: {
+        ...validListUser.profile,
+        secondEmail: null,
+        mobilePhone: null,
+        department: null,
+        title: null,
+        manager: null,
+        managerId: null,
+      },
+    };
+
+    const users = parseOktaList(
+      oktaUserListItemSchema,
+      [validListUser, nulledMember],
+      'GET /api/v1/groups/{groupId}/users',
+    );
+
+    expect(users).toHaveLength(2);
+    expect(users[1].id).toBe('00uFAKEuser000000007');
+    expect(users[1].profile.secondEmail).toBeUndefined();
+    expect(users[1].profile.department).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('returns [] and warns (no values) when data is not an array', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 

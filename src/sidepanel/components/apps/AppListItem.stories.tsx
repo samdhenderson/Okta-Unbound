@@ -40,6 +40,13 @@ const meta = {
       description:
         "Loads this app's assignment counts; called only once the row is expanded. Must be stable.",
     },
+    selected: {
+      description:
+        "Whether this app is in the selection basket; a ticked row paints ListRow's selected state.",
+    },
+    onToggleSelect: {
+      description: 'Tick or untick this app. Omitted ⇒ no checkbox renders at all.',
+    },
   },
   args: {
     app: salesforce,
@@ -121,5 +128,23 @@ export const AssignmentCountsUnavailable: Story = {
   args: {
     app: { ...salesforce, id: '0oaFAKE0011' } as OktaAppListItem,
     fetchAssignmentCounts: fn(async (): Promise<AppAssignmentCounts | null> => null),
+  },
+};
+
+export const Selectable: Story = {
+  args: { onToggleSelect: fn() },
+  play: async ({ args, canvas }) => {
+    const box = canvas.getByRole('checkbox', { name: 'Select Salesforce' });
+    await expect(box).not.toBeChecked();
+
+    await userEvent.click(box);
+    await expect(args.onToggleSelect).toHaveBeenCalledWith(salesforce.id);
+  },
+};
+
+export const Selected: Story = {
+  args: { onToggleSelect: fn(), selected: true },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole('checkbox', { name: 'Select Salesforce' })).toBeChecked();
   },
 };

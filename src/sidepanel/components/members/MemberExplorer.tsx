@@ -2,9 +2,13 @@ import React, { useCallback, useId, useMemo, useState } from 'react';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../shared/types';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { mfaScanNeedsConfirm } from '../../hooks/useMemberMfaScan';
+import AlertMessage from '../shared/AlertMessage';
 import Button from '../shared/Button';
 import FilterToggle from '../shared/FilterToggle';
 import Modal from '../shared/Modal';
+import { SELECTION_LIMIT } from '../../selection/selectionStore';
+import { useRungSelection } from '../../selection/useRungSelection';
+import { userDisplayName } from '../../../shared/utils/userDisplay';
 import MemberSearchBar from './MemberSearchBar';
 import MemberFilterDrawer from './MemberFilterDrawer';
 import ActiveFilterChips from './ActiveFilterChips';
@@ -49,6 +53,8 @@ interface MemberExplorerProps {
 
 const PAGE = 50;
 
+const memberName = (user: OktaUser) => userDisplayName(user);
+
 const MemberExplorer: React.FC<MemberExplorerProps> = ({
   members,
   isReloading = false,
@@ -75,6 +81,9 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   const [sortDesc, setSortDesc] = useState(false);
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
+
+  const selection = useRungSelection('user', members, memberName);
 
   const debouncedQuery = useDebouncedValue(query, 200);
 
@@ -125,6 +134,28 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
     });
   }, []);
 
+  const selectedHere = selection.selectedEntities.length;
+  const allFilteredSelected =
+    sorted.length > 0 && sorted.every((user) => selection.selectedIds.has(user.id));
+
+  const { replaceSelection, deselectAll } = selection;
+
+  const handleSelectAll = useCallback(() => {
+    const outcome = replaceSelection(sorted.map((user) => user.id));
+    setSelectionNotice(
+      outcome.refused > 0
+        ? `Selecting ${outcome.refused.toLocaleString()} members would take the selection past its ` +
+            `limit of ${SELECTION_LIMIT.toLocaleString()}, so nothing changed. Narrow the filters ` +
+            `and try again.`
+        : null,
+    );
+  }, [replaceSelection, sorted]);
+
+  const handleDeselectAll = useCallback(() => {
+    deselectAll();
+    setSelectionNotice(null);
+  }, [deselectAll]);
+
   const loadMore = useCallback(() => {
     setVisibleCount((c) => Math.min(c + PAGE, sorted.length));
   }, [sorted.length]);
@@ -174,18 +205,57 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
             <span className="ml-2 text-xs font-normal tabular-nums text-neutral-500">
               {sorted.length.toLocaleString()} of {members.length.toLocaleString()}
             </span>
+            {selectedHere > 0 && (
+              <span className="ml-2 text-xs font-normal tabular-nums text-primary-text">
+                · {selectedHere.toLocaleString()} selected
+              </span>
+            )}
           </h3>
-          <Button
-            variant="secondary"
-            size="sm"
-            icon="clipboard"
-            onClick={() => setCopyOpen(true)}
-            disabled={sorted.length === 0}
-            title="Copy the listed members as names or emails"
-          >
-            Copy members
-          </Button>
+          <div className="flex shrink-0 items-center gap-(--sp-inline)">
+            {selectedHere > 0 && (
+              <Button
+                variant="link"
+                size="xs"
+                onClick={handleDeselectAll}
+                title="Clear every selected user, including any picked on another screen"
+              >
+                Deselect all
+              </Button>
+            )}
+            <Button
+              variant="link"
+              size="xs"
+              onClick={handleSelectAll}
+              disabled={sorted.length === 0 || allFilteredSelected}
+              title={
+                sorted.length === 0
+                  ? 'No members match the current search and filters'
+                  : allFilteredSelected
+                    ? `All ${sorted.length.toLocaleString()} members matching the current search and filters are already selected`
+                    : `Replace the user selection with the ${sorted.length.toLocaleString()} members matching the current search and filters`
+              }
+            >
+              Select all
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon="clipboard"
+              onClick={() => setCopyOpen(true)}
+              disabled={sorted.length === 0}
+              title="Copy the listed members as names or emails"
+            >
+              Copy members
+            </Button>
+          </div>
         </div>
+
+        {selectionNotice && (
+          <AlertMessage
+            message={{ text: selectionNotice, type: 'danger' }}
+            onDismiss={() => setSelectionNotice(null)}
+          />
+        )}
       </div>
 
       <MemberFilterDrawer
@@ -220,6 +290,8 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
         onRemoveMember={onRemoveMember}
         memberSourceIndex={memberSource?.index}
         proofs={proofs}
+        selectedIds={selection.selectedIds}
+        onToggleSelect={selection.toggleSelect}
       />
 
       <BreakdownDetailsModal

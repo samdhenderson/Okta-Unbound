@@ -155,7 +155,13 @@ const compareView = () => within(screen.getByTestId('user-comparison-view'));
 
 async function selectAda(uev: ReturnType<typeof userEvent.setup>) {
   await uev.type(tabSearchInput(), 'ada');
-  await uev.click(await screen.findByText('Ada Lovelace', {}, { timeout: 3000 }));
+  await uev.click(
+    await screen.findByRole(
+      'button',
+      { name: 'View user details', description: 'Ada Lovelace' },
+      { timeout: 3000 },
+    ),
+  );
   await screen.findByRole('heading', { name: 'Ada Lovelace' });
 }
 
@@ -168,7 +174,13 @@ async function pushCompare(uev: ReturnType<typeof userEvent.setup>) {
 
 async function chooseComparedUser(uev: ReturnType<typeof userEvent.setup>) {
   await uev.type(compareSearchInput(), 'bob');
-  await uev.click(await screen.findByText('Bob Compared', {}, { timeout: 3000 }));
+  await uev.click(
+    await screen.findByRole(
+      'button',
+      { name: 'Compare with this user', description: 'Bob Compared' },
+      { timeout: 3000 },
+    ),
+  );
   await waitFor(() =>
     expect(screen.queryByText('Crunching memberships and assignments…')).not.toBeInTheDocument(),
   );
@@ -408,7 +420,13 @@ describe('UsersTab sub-navigation', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('User Search');
 
     await uev.type(tabSearchInput(), 'ada');
-    await uev.click(await screen.findByRole('button', { name: /Ada Lovelace/ }, { timeout: 3000 }));
+    await uev.click(
+      await screen.findByRole(
+        'button',
+        { name: 'View user details', description: 'Ada Lovelace' },
+        { timeout: 3000 },
+      ),
+    );
     await screen.findByRole('button', { name: 'Back to search' });
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ada Lovelace');

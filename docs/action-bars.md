@@ -72,9 +72,11 @@ Ask these in order.
    between the press and the doing.
 4. **Yes to both?** It starts in the row, `priority: 'flex'`.
 5. **Is it rare enough that the row is not its to spend?** Frequency may move a
-   row verb down to the tier — `Collections` and `Cleanup` sit there for this
-   reason. Frequency may **only** move a verb down, never up, and never brings a
-   confirm `Modal` with it.
+   row verb down to the tier — a panel toggle an admin reaches for once a quarter
+   has not earned a permanent seat beside the verbs they came for. Frequency may
+   **only** move a verb down, never up, and never brings a confirm `Modal` with
+   it. (The two verbs that used to illustrate this, `Collections` and `Cleanup`,
+   were retired from the Groups rung; the rule outlived them.)
 
 Then decide the fill separately, below.
 
@@ -135,7 +137,7 @@ is ticked, `Select all (M)` follows, and both are `pinned`.
 ## The open panel says so in words
 
 A panel toggle states its own state in its **label** — `Duplicates (3)` →
-`Hide duplicates`, `Cross-search (5)` → `Hide cross-search` — and never in colour
+`Hide duplicates`, `Stats` → `Hide stats` — and never in colour
 alone. A descriptor carries no `aria-pressed`, so a fill would be state no screen
 reader could read. Panel toggles take `variant: 'ghost'`: showing a panel is not an
 operation on the rung, and a chromeless control says so where a bordered one claims
@@ -170,10 +172,20 @@ ticked it. It overflows independently against its own width, into the action row
 **one** tier behind the **one** More control. Its leading descriptor is the caller's
 to keep correct — `ActionBar` pins what it is given and never reorders.
 
+**The tier region holds its space the same way, and for the same reason.** It is
+rendered whether or not there is anything to disclose: closed it is `0fr`, so an
+empty one costs no height, and a region that appeared only once it had content
+would pop into the band the moment a tier verb did. On a rung whose tier fills
+with the selection — every rung with a selection-scoped export, since rule 1
+above sends those to the tier — that is a row materialising under the pointer
+that just ticked a checkbox. The register alone cannot prevent it, because the
+register overflows _into_ that region. **More** is still absent while the tier is
+empty: a control that opens onto nothing is worse than no control.
+
 ## Refresh is app chrome
 
-There is exactly one refresh, in the top bar beside the Pin, on every rung of every
-tab. No strip declares its own, and neither does `PageHeader.actions`. Its subject is
+There is exactly one refresh, in the top bar, on every rung of every tab. No strip
+declares its own, and neither does `PageHeader.actions`. Its subject is
 whatever the panel is showing, and its `title` — which is also its accessible name —
 **names that subject**: _Refresh the groups list_, _Refresh Payments Team_. Never
 _Refresh this group_.
@@ -181,6 +193,10 @@ _Refresh this group_.
 It carries **no visible label, no badge and no count** — the name never appears as
 rendered chrome. An initial load belongs in the rung's own empty state, not in a
 control whose label swaps between _Load_ and _Refresh_.
+
+Refresh is one of exactly two **session chrome** controls in `ContextBar` — the
+other is Selection, the basket's count. The category and its closure at two are
+[ADR-0005](adr/0005-session-chrome.md) / `docs/page-shell.md`.
 
 ## The band
 

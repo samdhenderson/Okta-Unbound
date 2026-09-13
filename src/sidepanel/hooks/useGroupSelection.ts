@@ -1,9 +1,11 @@
 import type { GroupSummary } from '../../shared/types';
-import { useEntitySelection } from './useEntitySelection';
+import { useRungSelection } from '../selection/useRungSelection';
+
+const groupName = (group: GroupSummary) => group.name;
 
 export function useGroupSelection(groups: GroupSummary[]) {
   const { selectedIds, selectedEntities, toggleSelect, replaceSelection, deselectAll } =
-    useEntitySelection(groups);
+    useRungSelection('group', groups, groupName);
 
   return {
     selectedGroupIds: selectedIds,

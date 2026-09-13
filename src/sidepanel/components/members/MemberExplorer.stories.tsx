@@ -3,6 +3,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import type { MemberMfaResult, OktaUser } from '../../../shared/types';
 import MemberExplorer from './MemberExplorer';
 import { mockUsers } from '../../../test/mocks/fixtures';
+import { selectionStore } from '../../selection/selectionStore';
 
 const mfaResults = new Map<string, MemberMfaResult>(
   mockUsers.map((user, i) => [
@@ -37,9 +38,19 @@ const meta = {
           'which also takes the one-shot `pendingFilter` request the Insights tab uses to hand ' +
           'a value over. MFA scan results are owned by the caller, so the scan lifecycle ' +
           '(idle → confirming → scanning → complete) is driven by props.\n\n' +
+          '**Selection.** Rows carry a checkbox backed by the panel-wide selection basket, ' +
+          'and the control line offers *Select all* over the **filtered** cohort — narrowing ' +
+          'the list is how a reader says who they mean. Ids resolve against the full roster, ' +
+          "so a pick survives the filter that hid its row. *Select all* replaces the basket's " +
+          "user partition rather than adding to it, and a batch the basket's cap refuses adds " +
+          'nothing at all and says so in an alert.\n\n' +
           '**Related internals:** [Types](?path=/docs/internals-types--docs)',
       },
     },
+  },
+  beforeEach: () => {
+    selectionStore.clearAll();
+    return () => selectionStore.clearAll();
   },
   argTypes: {
     members: { description: "The group's full member set (the explorer filters/sorts locally)." },
@@ -155,5 +166,39 @@ export const ClosedDrawerIsInert: Story = {
 
     await userEvent.click(trigger);
     await expect(region).not.toHaveAttribute('inert');
+  },
+};
+
+export const SelectAllTakesTheFilteredSet: Story = {
+  args: { members: spreadMembers },
+  play: async ({ canvas }) => {
+    await userEvent.type(canvas.getByRole('searchbox'), 'spread7@');
+    await expect(await canvas.findByText('1 of 30')).toBeVisible();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Select all' }));
+    await expect(canvas.getByRole('checkbox', { name: 'Select First7 Last7' })).toBeChecked();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Clear search' }));
+    await expect(await canvas.findByText('30 of 30')).toBeVisible();
+    await expect(canvas.getByRole('checkbox', { name: 'Select First7 Last7' })).toBeChecked();
+    await expect(canvas.getByRole('checkbox', { name: 'Select First1 Last1' })).not.toBeChecked();
+  },
+};
+
+export const DeselectAllAppearsWithTheSelection: Story = {
+  args: { members: spreadMembers },
+  play: async ({ canvas }) => {
+    await expect(canvas.queryByRole('button', { name: 'Deselect all' })).toBeNull();
+
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Select First1 Last1' }));
+    const deselect = await canvas.findByRole('button', { name: 'Deselect all' });
+    await expect(deselect).toHaveAttribute(
+      'title',
+      'Clear every selected user, including any picked on another screen',
+    );
+
+    await userEvent.click(deselect);
+    await expect(canvas.getByRole('checkbox', { name: 'Select First1 Last1' })).not.toBeChecked();
+    await expect(canvas.queryByRole('button', { name: 'Deselect all' })).toBeNull();
   },
 };

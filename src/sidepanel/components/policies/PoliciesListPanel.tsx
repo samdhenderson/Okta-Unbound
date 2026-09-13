@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { useStaggerReveal } from '../../hooks/useStaggerReveal';
 import PolicyCard from './PolicyCard';
+import Button from '../shared/Button';
 import ScrollableList from '../shared/ScrollableList';
 import EmptyState from '../shared/EmptyState';
 import Skeleton from '../shared/Skeleton';
@@ -12,6 +13,10 @@ interface PoliciesListPanelProps {
   hasPolicies: boolean;
   onLoad: () => void;
   loadRules: (policyId: string) => Promise<OktaPolicyRule[]>;
+  selectedIds: Set<string>;
+  onToggleSelect: (policyId: string) => void;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
 }
 
 const noPoliciesState = (onLoad: () => void) => (
@@ -29,11 +34,54 @@ const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function Polici
   hasPolicies,
   onLoad,
   loadRules,
+  selectedIds,
+  onToggleSelect,
+  onSelectAll,
+  onDeselectAll,
 }) {
   const setStaggerRef = useStaggerReveal();
+  const selectedHere = selectedIds.size;
+  const allFilteredSelected =
+    policies.length > 0 && policies.every((policy) => selectedIds.has(policy.id));
 
   return (
     <div className="min-h-[400px]">
+      {policies.length > 0 && (
+        <div className="mb-(--sp-toolbar) flex items-center justify-between gap-3">
+          {selectedHere > 0 ? (
+            <p className="text-xs tabular-nums text-primary-text">
+              {selectedHere.toLocaleString()} selected
+            </p>
+          ) : (
+            <span />
+          )}
+          <div className="flex shrink-0 items-center gap-(--sp-inline)">
+            {selectedHere > 0 && (
+              <Button
+                variant="link"
+                size="xs"
+                onClick={onDeselectAll}
+                title="Clear every selected policy, including any picked on another screen"
+              >
+                Deselect all
+              </Button>
+            )}
+            <Button
+              variant="link"
+              size="xs"
+              onClick={onSelectAll}
+              disabled={allFilteredSelected}
+              title={
+                allFilteredSelected
+                  ? `All ${policies.length.toLocaleString()} policies matching the current search are already selected`
+                  : `Replace the policy selection with the ${policies.length.toLocaleString()} policies matching the current search`
+              }
+            >
+              Select all
+            </Button>
+          </div>
+        </div>
+      )}
       <ScrollableList
         loading={isLoading}
         loadingMessage="Loading auth policies…"
@@ -55,7 +103,13 @@ const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function Polici
         {policies.length > 0 && (
           <div ref={setStaggerRef} className="space-y-(--sp-rung) rise-in-stagger">
             {policies.map((policy) => (
-              <PolicyCard key={policy.id} policy={policy} loadRules={loadRules} />
+              <PolicyCard
+                key={policy.id}
+                policy={policy}
+                loadRules={loadRules}
+                selected={selectedIds.has(policy.id)}
+                onToggleSelect={onToggleSelect}
+              />
             ))}
           </div>
         )}

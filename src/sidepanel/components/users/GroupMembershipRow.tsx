@@ -1,5 +1,13 @@
 import React, { useId } from 'react';
-import { Badge, IconButton, ListRow, OpenInOktaLink, type GroupNameResolver } from '../shared';
+import {
+  Badge,
+  Checkbox,
+  IconButton,
+  ListRow,
+  OpenInOktaLink,
+  REVEAL_ON_HOVER,
+  type GroupNameResolver,
+} from '../shared';
 import Icon from '../shared/Icon';
 import MembershipRuleEvidence from './MembershipRuleEvidence';
 import MembershipProofAction, { type MembershipProofOutcome } from './GroupMembershipsListProof';
@@ -22,6 +30,8 @@ export interface GroupMembershipRowProps {
   proofEnabled: boolean;
   proofOutcome?: MembershipProofOutcome;
   onProve: (membership: GroupMembership) => void;
+  selected?: boolean;
+  onToggleSelect?: (groupId: string) => void;
 }
 
 const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
@@ -38,6 +48,8 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
   proofEnabled,
   proofOutcome,
   onProve,
+  selected = false,
+  onToggleSelect,
 }) => {
   const { group, rules } = membership;
   const line = membershipSourceLine(membership);
@@ -48,8 +60,9 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
   return (
     <ListRow
       density="compact"
-      state={isCurrentGroup ? 'highlighted' : 'default'}
+      state={isCurrentGroup ? 'highlighted' : selected ? 'selected' : 'default'}
       flash={flash}
+      className="group/row"
       dataAttributes={{ 'data-group-id': group.id }}
       body={
         <div
@@ -94,6 +107,15 @@ const GroupMembershipRow: React.FC<GroupMembershipRowProps> = ({
       }
     >
       <div className="flex items-center gap-(--sp-inline)">
+        {onToggleSelect && (
+          <div className={`flex items-center ${selected ? '' : REVEAL_ON_HOVER}`}>
+            <Checkbox
+              checked={selected}
+              onChange={() => onToggleSelect(group.id)}
+              aria-label={`Select ${groupName}`}
+            />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-center gap-(--sp-inline)">
             <h4

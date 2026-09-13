@@ -1,6 +1,14 @@
 import React, { useId } from 'react';
 import type { GroupMembership, OktaUser, MemberMfaResult } from '../../../shared/types';
-import { Badge, IconButton, ListRow, OpenInOktaLink, userStatusVariant } from '../shared';
+import {
+  Badge,
+  Checkbox,
+  IconButton,
+  ListRow,
+  OpenInOktaLink,
+  REVEAL_ON_HOVER,
+  userStatusVariant,
+} from '../shared';
 import Icon from '../shared/Icon';
 import MembershipRuleEvidence from '../users/MembershipRuleEvidence';
 import MembershipProofAction, {
@@ -18,6 +26,8 @@ interface MemberRowProps {
   oktaOrigin?: string | null;
   expanded: boolean;
   onToggle: (userId: string) => void;
+  selected?: boolean;
+  onToggleSelect?: (userId: string) => void;
   onRemove?: (user: OktaUser) => void;
   membership?: GroupMembership;
   proofEnabled?: boolean;
@@ -45,6 +55,8 @@ const MemberRow: React.FC<MemberRowProps> = ({
   oktaOrigin,
   expanded,
   onToggle,
+  selected = false,
+  onToggleSelect,
   onRemove,
   membership,
   proofEnabled = false,
@@ -62,6 +74,9 @@ const MemberRow: React.FC<MemberRowProps> = ({
   return (
     <ListRow
       density="compact"
+      state={selected ? 'selected' : 'default'}
+      className="group/row"
+      headerClassName="flex items-start gap-(--sp-field)"
       dataAttributes={{ 'data-user-id': user.id }}
       body={
         <div
@@ -108,7 +123,17 @@ const MemberRow: React.FC<MemberRowProps> = ({
         </div>
       }
     >
-      <div className="flex items-start justify-between gap-3">
+      {onToggleSelect && (
+        <div className={`flex items-center pt-0.5 ${selected ? '' : REVEAL_ON_HOVER}`}>
+          <Checkbox
+            checked={selected}
+            onChange={() => onToggleSelect(user.id)}
+            aria-label={`Select ${fullName}`}
+          />
+        </div>
+      )}
+
+      <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold text-neutral-900">{fullName}</div>
           <div className="truncate text-xs text-neutral-600">{user.profile.email}</div>

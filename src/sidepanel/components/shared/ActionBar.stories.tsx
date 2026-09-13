@@ -524,3 +524,30 @@ export const TheRegisterHoldsItsRowWhenEmpty: Story = {
     await expect(within(register).getAllByRole('button')).toHaveLength(1);
   },
 };
+
+export const TheTierHoldsItsSpaceWhenEmpty: Story = {
+  args: {
+    ariaLabel: 'Actions for the groups list',
+    actions: [
+      {
+        id: 'export-list',
+        label: 'Export list',
+        icon: 'download',
+        variant: 'primary',
+        onClick: fn(),
+      },
+    ],
+    testId: 'empty-tier-bar',
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole('button', { name: 'More' })).not.toBeInTheDocument();
+
+    const band = canvas.getByTestId('empty-tier-bar');
+    const tier = band.querySelector('.disclose');
+    await expect(tier).not.toBeNull();
+    await expect(tier).toHaveAttribute('data-open', 'false');
+    await expect(tier).toHaveAttribute('inert');
+  },
+};

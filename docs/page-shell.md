@@ -44,11 +44,11 @@ background, with no gutter and no seam. Three rules follow:
 
 `ContextBar` and `PageHeader` are not redundant and **must not converge**.
 
-|              | `ContextBar` (top of the shell)                                  | `PageHeader` (inside the scroller)     |
-| ------------ | ---------------------------------------------------------------- | -------------------------------------- |
-| Subject      | the live Okta tab this panel is bound to                         | whatever you are browsing in the panel |
-| Source       | `useOktaTabContext` / `useOktaPageContext`, or the pinned entity | the tab's `useViewStack` current entry |
-| Changes when | the Okta tab navigates, or you pin/unpin                         | you drill in, pop, or switch tabs      |
+|              | `ContextBar` (top of the shell)            | `PageHeader` (inside the scroller)     |
+| ------------ | ------------------------------------------ | -------------------------------------- |
+| Subject      | the live Okta tab this panel is bound to   | whatever you are browsing in the panel |
+| Source       | `useOktaTabContext` / `useOktaPageContext` | the tab's `useViewStack` current entry |
+| Changes when | the Okta tab navigates                     | you drill in, pop, or switch tabs      |
 
 The header **never** falls back to the context entity: a list rung says "Groups", not
 the name of whatever group the browser happens to be on. The context bar **never**
@@ -57,8 +57,37 @@ drilled into the group you were already looking at — not duplication to remove
 
 The division is enforced by removing overlap, not by asking two adjacent bands to be
 read carefully. A fact _about the entity_ — its id, its counts, its timestamps — is a
-`PageHeader` identity fact; `ContextBar` holds a subject and the verbs that act on the
-live tab.
+`PageHeader` identity fact.
+
+### The third category: session chrome
+
+`ContextBar` holds the live tab's subject **and session chrome** — controls whose
+object is the panel session itself, neither the live Okta tab nor the rung you are
+browsing. That list is **closed at two** ([ADR-0005](adr/0005-session-chrome.md)):
+
+| Control       | Its object                                             |
+| ------------- | ------------------------------------------------------ |
+| **Refresh**   | re-read whatever the panel is showing                  |
+| **Selection** | how many entities are in the basket, and managing them |
+
+Both are meaningful from every rung, which is why neither can live inside a tab.
+Order in the trailing group is `[Selection] [Refresh]`, and **Refresh never moves**:
+Selection's count changes on every tick, so it sits left of Refresh and expands
+**leftward, out of flow** over the identity region rather than reflowing the band —
+the same thing the handoff offer does. The band's height does not change; the fixed
+chrome budget below is untouched.
+
+At zero, Selection is **absent, not `(0)`** — a verb with nothing to act on is
+omitted (`docs/claims.md`).
+
+**Admitting a third member needs a record**, and the test is in ADR-0005: its object
+must be the session, it must be meaningful from every rung, and it must fit on one
+line at 360px without displacing the subject. Failing any of the three means it is a
+tab's control that escaped, or a `PageHeader` fact.
+
+The subject rule is unchanged by this: neither band may describe the **other's**
+entity. What it no longer claims is that everything in `ContextBar` is about the live
+tab.
 
 ## The top chrome is one slab
 

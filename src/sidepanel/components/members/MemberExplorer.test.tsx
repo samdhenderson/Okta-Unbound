@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MemberExplorer from './MemberExplorer';
+import { SELECTION_LIMIT, selectionStore } from '../../selection/selectionStore';
 import type { MemberSourceContext } from './memberSourceContext';
 import { toMemberSourceSegments } from '../groups/memberSourceBuckets';
 import { buildMemberSourceIndex } from '../../../shared/membership/memberSourceIndex';
@@ -20,6 +21,10 @@ beforeAll(() => {
       }
     },
   );
+});
+
+beforeEach(() => {
+  selectionStore.clearAll();
 });
 
 function member(
@@ -398,5 +403,112 @@ describe('a filter handed over by a neighbouring surface', () => {
 
     rerender(<MemberExplorer {...base} pendingFilter={pendingFilter} isReloading={false} />);
     expect(shownOfTotal()).toBe('6 of 6');
+  });
+});
+
+describe('selecting the filtered cohort', () => {
+  function selectedReadout(): HTMLElement | null {
+    return screen.queryByText(/^·\s\d+ selected$/);
+  }
+
+  it('takes only the members the filters left on screen', async () => {
+    const user = userEvent.setup();
+    render(<MemberExplorer {...base} />);
+
+    await user.type(screen.getByRole('searchbox'), 'grace');
+    await waitFor(() => expect(shownOfTotal()).toBe('1 of 6'));
+
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Select Grace Lovelace 4' })).toBeChecked();
+    expect(selectedReadout()).toHaveTextContent('1 selected');
+  });
+
+  it('keeps a pick that the filters have since hidden', async () => {
+    const user = userEvent.setup();
+    render(<MemberExplorer {...base} />);
+
+    await user.type(screen.getByRole('searchbox'), 'grace');
+    await waitFor(() => expect(shownOfTotal()).toBe('1 of 6'));
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+
+    await user.click(screen.getByRole('button', { name: 'Clear search' }));
+    await waitFor(() => expect(shownOfTotal()).toBe('6 of 6'));
+
+    expect(screen.getByRole('checkbox', { name: 'Select Grace Lovelace 4' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace 1' })).not.toBeChecked();
+    expect(selectedReadout()).toHaveTextContent('1 selected');
+  });
+
+  it('ticks and unticks one member from their own row', async () => {
+    const user = userEvent.setup();
+    render(<MemberExplorer {...base} />);
+
+    const box = screen.getByRole('checkbox', { name: 'Select Ada Lovelace 1' });
+    await user.click(box);
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace 1' })).toBeChecked();
+    expect(selectedReadout()).toHaveTextContent('1 selected');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Ada Lovelace 1' }));
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace 1' })).not.toBeChecked();
+    expect(selectedReadout()).toBeNull();
+  });
+
+  it('offers no way to clear a selection that does not exist yet', async () => {
+    const user = userEvent.setup();
+    render(<MemberExplorer {...base} />);
+
+    expect(screen.queryByRole('button', { name: 'Deselect all' })).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    await user.click(screen.getByRole('button', { name: 'Deselect all' }));
+
+    expect(screen.getByRole('checkbox', { name: 'Select Ada Lovelace 1' })).not.toBeChecked();
+    expect(selectedReadout()).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Deselect all' })).toBeNull();
+  });
+
+  it('says which boundary Select all is standing on once everyone is taken', async () => {
+    const user = userEvent.setup();
+    render(<MemberExplorer {...base} />);
+
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+
+    const selectAll = screen.getByRole('button', { name: 'Select all' });
+    expect(selectAll).toBeDisabled();
+    expect(selectAll).toHaveAttribute(
+      'title',
+      'All 6 members matching the current search and filters are already selected',
+    );
+  });
+
+  it('reports a batch the basket refused rather than showing an unchanged count', async () => {
+    const user = userEvent.setup();
+    const crowd = Array.from({ length: SELECTION_LIMIT + 1 }, (_, i) =>
+      member(i, 'ACTIVE', 'Engineering', 'Engineer'),
+    );
+    render(<MemberExplorer {...base} members={crowd} />);
+
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent(`${(SELECTION_LIMIT + 1).toLocaleString()} members`);
+    expect(alert).toHaveTextContent('nothing changed');
+    expect(selectedReadout()).toBeNull();
+  });
+
+  it('leaves an existing selection intact when a Select-all is refused', async () => {
+    const user = userEvent.setup();
+    const crowd = Array.from({ length: SELECTION_LIMIT + 1 }, (_, i) =>
+      member(i, 'ACTIVE', 'Engineering', 'Engineer'),
+    );
+    selectionStore.toggle({ kind: 'user', id: crowd[0].id, name: 'Already picked' });
+
+    render(<MemberExplorer {...base} members={crowd} />);
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('nothing changed');
+    expect(selectionStore.getSnapshot().picked).toHaveLength(1);
+    expect(selectionStore.getSnapshot().picked[0].id).toBe(crowd[0].id);
   });
 });

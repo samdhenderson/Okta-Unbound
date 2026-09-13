@@ -1,7 +1,16 @@
 import type { IconType } from './components/shared/Icon';
 
 export type TabType =
-  'home' | 'rules' | 'users' | 'groups' | 'apps' | 'policies' | 'export' | 'explorer' | 'history';
+  | 'home'
+  | 'rules'
+  | 'users'
+  | 'groups'
+  | 'apps'
+  | 'policies'
+  | 'export'
+  | 'explorer'
+  | 'history'
+  | 'selection';
 
 export interface TabDef {
   id: TabType;
@@ -20,6 +29,7 @@ export const TAB_DEFS: ReadonlyArray<TabDef> = [
   { id: 'export', label: 'Export', icon: 'download' },
   { id: 'explorer', label: 'Explorer', icon: 'terminal', railHidden: true },
   { id: 'history', label: 'History', icon: 'clipboard', railHidden: true },
+  { id: 'selection', label: 'Selection', icon: 'clipboard-check', railHidden: true },
 ];
 
 export const RAIL_TAB_DEFS: ReadonlyArray<TabDef> = TAB_DEFS.filter((def) => !def.railHidden);

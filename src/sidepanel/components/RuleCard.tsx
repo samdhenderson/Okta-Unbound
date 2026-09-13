@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useEffect, useId, useRef, memo } from 'react';
 import type { FormattedRule } from '../../shared/types';
 import { ruleStatusBadge } from '../../shared/ruleUtils';
-import { Badge, ListRow, StretchedButton } from './shared';
+import { Badge, Checkbox, ListRow, StretchedButton } from './shared';
+import { REVEAL_ON_HOVER } from './shared/revealOnHover';
 import Icon from './shared/Icon';
 
 const FLASH_MS = 500;
@@ -11,10 +12,12 @@ interface RuleCardProps {
   onOpenRule?: (rule: FormattedRule) => void;
   onOpenInRulesTab?: (ruleId: string) => void;
   isHighlighted?: boolean;
+  selected: boolean;
+  onToggleSelect: (ruleId: string) => void;
 }
 
 const RuleCard: React.FC<RuleCardProps> = memo(
-  ({ rule, onOpenRule, onOpenInRulesTab, isHighlighted = false }) => {
+  ({ rule, onOpenRule, onOpenInRulesTab, isHighlighted = false, selected, onToggleSelect }) => {
     const [isFlashing, setIsFlashing] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
     const nameId = useId();
@@ -46,6 +49,10 @@ const RuleCard: React.FC<RuleCardProps> = memo(
       onOpenInRulesTab?.(rule.id);
     }, [onOpenRule, onOpenInRulesTab, rule]);
 
+    const handleToggleSelect = useCallback(() => {
+      onToggleSelect(rule.id);
+    }, [onToggleSelect, rule.id]);
+
     const canOpen = Boolean(onOpenRule || onOpenInRulesTab);
     const opensInRulesTab = !onOpenRule && Boolean(onOpenInRulesTab);
     const hasConflicts = Boolean(rule.conflicts && rule.conflicts.length > 0);
@@ -55,7 +62,7 @@ const RuleCard: React.FC<RuleCardProps> = memo(
     return (
       <ListRow
         elementRef={cardRef}
-        state={rule.affectsCurrentGroup ? 'selected' : 'default'}
+        state={rule.affectsCurrentGroup || selected ? 'selected' : 'default'}
         flash={isFlashing}
         className="relative flex items-center justify-between gap-4"
       >
@@ -71,6 +78,14 @@ const RuleCard: React.FC<RuleCardProps> = memo(
             onClick={handleOpen}
           />
         )}
+
+        <div className={`relative z-10 flex items-center ${selected ? '' : REVEAL_ON_HOVER}`}>
+          <Checkbox
+            checked={selected}
+            onChange={handleToggleSelect}
+            aria-label={`Select ${rule.name}`}
+          />
+        </div>
 
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-(--sp-inline)">

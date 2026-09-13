@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { fn } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import GroupRulesSection from './GroupRulesSection';
 import { NavigationProvider } from '../../../contexts/NavigationContext';
+import { selectionStore } from '../../../selection/selectionStore';
 import type { FormattedRule } from '../../../../shared/types';
 
 const GROUP_NAMES: Record<string, string> = {
@@ -65,6 +66,10 @@ const meta = {
       </NavigationProvider>
     ),
   ],
+  beforeEach: () => {
+    selectionStore.clearAll();
+    return () => selectionStore.clearAll();
+  },
   argTypes: {
     assigningRules: { description: 'Rules whose `assignUserToGroups` targets this group.' },
     assigningStatus: { description: 'Status of the assigning-rules load.' },
@@ -125,4 +130,16 @@ export const OneAxisFailed: Story = {
 
 export const NoDeepLink: Story = {
   args: { onNavigateToRule: undefined },
+};
+
+export const TogglingASelection: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const checkbox = canvas.getByRole('checkbox', { name: `Select ${assigningRules[0].name}` });
+    await expect(checkbox).not.toBeChecked();
+
+    await userEvent.click(checkbox);
+
+    await expect(checkbox).toBeChecked();
+  },
 };

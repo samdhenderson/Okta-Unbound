@@ -18,6 +18,8 @@ interface MemberListProps {
   onRemoveMember?: (user: OktaUser) => void;
   memberSourceIndex?: MemberSourceIndex;
   proofs?: MembershipProofs;
+  selectedIds?: ReadonlySet<string>;
+  onToggleSelect?: (userId: string) => void;
 }
 
 const PAGE = 50;
@@ -33,6 +35,8 @@ const MemberList: React.FC<MemberListProps> = ({
   onRemoveMember,
   memberSourceIndex,
   proofs,
+  selectedIds,
+  onToggleSelect,
 }) => {
   const setStaggerRef = useStaggerReveal();
 
@@ -90,6 +94,8 @@ const MemberList: React.FC<MemberListProps> = ({
               expanded={openUserIds.has(user.id)}
               onToggle={toggleRow}
               onRemove={onRemoveMember}
+              selected={selectedIds?.has(user.id) ?? false}
+              onToggleSelect={onToggleSelect}
               membership={memberSourceIndex?.byUserId.get(user.id)?.membership}
               proofEnabled={proofs?.enabled ?? false}
               proofOutcome={proofs?.outcomeFor(user.id)}

@@ -13,6 +13,8 @@ interface RulesListPanelProps {
   onLoad: () => void;
   onOpenRule: (rule: FormattedRule) => void;
   selectedRuleId?: string | null;
+  selectedRuleIds: Set<string>;
+  onToggleSelect: (ruleId: string) => void;
 }
 
 const RulesListPanel: React.FC<RulesListPanelProps> = ({
@@ -22,6 +24,8 @@ const RulesListPanel: React.FC<RulesListPanelProps> = ({
   onLoad,
   onOpenRule,
   selectedRuleId,
+  selectedRuleIds,
+  onToggleSelect,
 }) => {
   const setStaggerRef = useStaggerReveal();
 
@@ -60,6 +64,8 @@ const RulesListPanel: React.FC<RulesListPanelProps> = ({
                   rule={rule}
                   onOpenRule={onOpenRule}
                   isHighlighted={selectedRuleId === rule.id}
+                  selected={selectedRuleIds.has(rule.id)}
+                  onToggleSelect={onToggleSelect}
                 />
               </div>
             ))}
