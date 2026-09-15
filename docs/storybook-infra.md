@@ -134,6 +134,13 @@ The static build is the whole documentation site, three sidebar sections:
 Both scripts write to `.storybook/generated/` (gitignored); `build-storybook` runs
 them first. Hook-coupled components carry a **"Related internals"** cross-link block
 (`parameters.docs.description.component`) to the API pages they use — add one when
-you build a new hook-coupled component. The site deploys to GitHub Pages via
-`.github/workflows/deploy-pages.yml` (enable Settings → Pages → Source = GitHub
-Actions once).
+you build a new hook-coupled component.
+
+`.github/workflows/deploy-pages.yml` builds the site here and pushes it to the
+public mirror's `gh-pages` branch, where it is served. It publishes across
+repositories for two reasons: this repo is private, and public Pages from a
+private repo needs a paid plan; and the mirror cannot build the site itself,
+because its source is comment-free and TypeDoc there would emit an empty
+Internals section. The comments only exist here, so the build only happens here.
+Setup is a `DOCS_DEPLOY_TOKEN` secret on this repo and Pages pointed at
+`gh-pages` on the mirror; the workflow header states both.
