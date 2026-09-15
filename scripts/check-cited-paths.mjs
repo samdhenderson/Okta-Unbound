@@ -129,11 +129,37 @@ const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' })
   .split('\n')
   .filter((f) => f && f.endsWith('.md') && IN_SCOPE(f));
 
+/**
+ * Paths this checkout deliberately does not carry, listed one per line in an
+ * optional `.citedpathsignore`.
+ *
+ * There is exactly one caller: the public mirror built by `publish/`, whose
+ * tree drops the agent instructions and the Pages workflow while keeping the
+ * `docs/` prose that refers to them. That prose is accurate where it is
+ * written — the workshop has those files — so the mirror should not be forced
+ * to vandalise its own docs to satisfy a gate. Naming the absences explicitly
+ * keeps the check honest: an unlisted broken citation still fails, and the
+ * list itself says what was removed and why.
+ *
+ * Absent in this repo, so this is the empty set here and the gate is unchanged.
+ */
+const IGNORED_ABSENT = (() => {
+  const file = resolve(repoRoot, '.citedpathsignore');
+  if (!existsSync(file)) return new Set();
+  return new Set(
+    readFileSync(file, 'utf8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#')),
+  );
+})();
+
 /** Resolve a cited path relative to its citing file, falling back to repo root. */
 function resolveCitation(file, rawPath) {
+  const stripped = rawPath.replace(/^(?:\.\.\/)+/, '');
+  if (IGNORED_ABSENT.has(stripped)) return true;
   const primary = resolve(dirname(file), rawPath);
   if (existsSync(primary)) return true;
-  const stripped = rawPath.replace(/^(?:\.\.\/)+/, '');
   const fallback = resolve(repoRoot, stripped);
   return existsSync(fallback);
 }
@@ -260,6 +286,15 @@ if (offenders.length > 0) {
  */
 const LEDGER_FILES = ['DEBT.md', 'IMPROVEMENTS.md'];
 
+/**
+ * The ledgers that are actually present. Same hazard the ADR directory is
+ * guarded against above: an unguarded `readFileSync` here takes the whole gate
+ * down with an ENOENT stack trace rather than a finding, in any checkout that
+ * does not carry the ledgers. A tree with no ledgers has no ledger rules to
+ * break, so the right answer is zero items, not a crash.
+ */
+const presentLedgers = () => LEDGER_FILES.filter((f) => existsSync(resolve(repoRoot, f)));
+
 /** `### D-007a · A failure result that can say what failed` — base id + optional letter suffix. */
 const ITEM_HEADING_RE = /^### ([DI]-[0-9]+)([a-z]*) · /;
 
@@ -280,7 +315,7 @@ const ARCHIVE_ITEM_RE = /^- \*\*([DI]-[0-9]+[a-z]*)\*\* — /;
  */
 function parseArchiveIds() {
   const ids = [];
-  for (const file of LEDGER_FILES) {
+  for (const file of presentLedgers()) {
     const lines = readFileSync(resolve(repoRoot, file), 'utf8').split('\n');
     let inArchive = false;
     for (let i = 0; i < lines.length; i++) {
@@ -299,7 +334,7 @@ function parseArchiveIds() {
 /** Every `### `/`- **Status:**` ledger item across both ledgers, in file order. */
 function parseLedgerItems() {
   const items = [];
-  for (const file of LEDGER_FILES) {
+  for (const file of presentLedgers()) {
     const lines = readFileSync(resolve(repoRoot, file), 'utf8').split('\n');
     let inFence = false;
     const headings = [];
