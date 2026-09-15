@@ -93,6 +93,13 @@ tries the next request rather than ending the pass. An observed bucket is
 charged its own in-flight count at the soft gate, while the backstop keeps the
 pessimistic whole-`activeRequests` charge.
 
+**The same charge governs the settle path.** A response's headers arm that
+response's bucket, so `shouldEnterCooldown` charges that bucket's in-flight count
+and no other family's — and not the settling request either, which is still
+listed active but whose spend Okta had already counted when it wrote the header.
+Only the unusable-quota fallback, which resolves against the most-restrictive
+bucket _elsewhere_, keeps the whole-`activeRequests` charge.
+
 **`interactive` gets no exemption.** It jumps the soft gate and the queue's
 priority order, but neither ceiling, and never a hard-exhausted bucket
 (`isLimitExceeded`).

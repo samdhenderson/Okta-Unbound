@@ -3,7 +3,8 @@
 [![CI](https://github.com/samdhenderson/okta-unbound/actions/workflows/ci.yml/badge.svg)](https://github.com/samdhenderson/okta-unbound/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-gated-brightgreen)](vitest.config.ts)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.0--beta.1-blue)](package.json)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pjgofecdjgljhpokbpjjbnbelcpkgibn?label=chrome%20web%20store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/okta-unbound/pjgofecdjgljhpokbpjjbnbelcpkgibn)
+[![Version](https://img.shields.io/github/package-json/v/samdhenderson/Okta-Unbound?label=version)](package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](package.json)
 [![Manifest V3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?logo=googlechrome&logoColor=white)](manifest.json)
@@ -210,7 +211,13 @@ Full policy: [`PRIVACY.md`](PRIVACY.md).
 
 ## Installation
 
-### Option A — Download from Releases
+### Option A — Chrome Web Store (recommended)
+
+Install from the store listing: **[Okta Unbound](https://chromewebstore.google.com/detail/okta-unbound/pjgofecdjgljhpokbpjjbnbelcpkgibn)**.
+
+Chrome keeps it updated, and the store build is the one the version badge above tracks.
+
+### Option B — Download from Releases
 
 1. Go to the [Releases](https://github.com/samdhenderson/okta-unbound/releases) page.
 2. Download the latest `okta-unbound-*.zip`.
@@ -221,7 +228,7 @@ Full policy: [`PRIVACY.md`](PRIVACY.md).
    - Click **Load unpacked**
    - Select the extracted `dist/` folder
 
-### Option B — Build from source
+### Option C — Build from source
 
 ```bash
 git clone https://github.com/samdhenderson/okta-unbound.git
@@ -230,7 +237,7 @@ npm install
 npm run build
 ```
 
-Then load the `dist/` folder as an unpacked extension (steps under Option A).
+Then load the `dist/` folder as an unpacked extension (steps under Option B).
 
 ---
 
@@ -315,9 +322,12 @@ build-storybook`, published to GitHub Pages).
 
 ## Project status & versioning
 
-Current release: **0.4.0 (beta)**. The project follows semantic versioning, with
-`package.json` as the single source of truth for the version; the Chrome-compatible
-numeric version in `manifest.json` is derived from it at build time.
+The project is in **beta** and follows semantic versioning. The version badges above read
+the live numbers — the repository's from `package.json`, the published extension's from the
+[store listing](https://chromewebstore.google.com/detail/okta-unbound/pjgofecdjgljhpokbpjjbnbelcpkgibn) — so neither is restated here to go stale.
+
+`package.json` is the single source of truth; the Chrome-compatible numeric version in
+`manifest.json` is derived from it at build time.
 
 ---
 

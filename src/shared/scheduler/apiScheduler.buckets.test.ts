@@ -172,6 +172,44 @@ describe('ApiScheduler per-bucket gating', () => {
     expect(result.success).toBe(true);
   });
 
+  it('does not cool a bucket for traffic another family is carrying', async () => {
+    sendMessage.mockImplementation(async (_tabId: number, msg: { endpoint: string }) => {
+      if (msg.endpoint.startsWith('/api/v1/users')) return new Promise(() => {});
+      return { success: true, data: msg.endpoint, headers: rateLimitHeaders(20) };
+    });
+    scheduler = new ApiScheduler({ maxRetries: 0, maxConcurrent: 12, maxConcurrentPerBucket: 10 });
+
+    for (let i = 0; i < 9; i++) {
+      void scheduler
+        .scheduleRequest(`/api/v1/users/00uFAKE${i}/groups?limit=200`, 'GET', undefined, 1, 'high')
+        .catch(() => {});
+    }
+    await new Promise((r) => setTimeout(r, 150));
+    expect(dispatchedEndpoints()).toHaveLength(9);
+
+    await scheduler.scheduleRequest('/api/v1/groups?limit=200', 'GET', undefined, 1, 'high');
+
+    expect(scheduler.getState().cooldownEndsAt).toBeNull();
+
+    const next = await scheduler.scheduleRequest(
+      '/api/v1/groups/00gFAKE1/users?limit=200',
+      'GET',
+      undefined,
+      1,
+      'normal',
+    );
+    expect(next.data).toBe('/api/v1/groups/00gFAKE1/users?limit=200');
+  });
+
+  it('does not charge a settling request against the header it just produced', async () => {
+    sendMessage.mockImplementation(respondPerBucket({ '/api/v1/groups': 11 }));
+    scheduler = new ApiScheduler({ maxRetries: 0 });
+
+    await scheduler.scheduleRequest('/api/v1/groups?limit=200', 'GET', undefined, 1, 'high');
+
+    expect(scheduler.getState().cooldownEndsAt).toBeNull();
+  });
+
   it('reports no cooldown once every gate has expired', async () => {
     sendMessage.mockImplementation(respondPerBucket({ '/api/v1/apps': 2 }));
     scheduler = new ApiScheduler({ maxRetries: 0, cooldownDuration: 60 });

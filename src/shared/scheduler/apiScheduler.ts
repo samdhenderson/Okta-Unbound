@@ -275,9 +275,10 @@ export class ApiScheduler {
     return { key: observed ? bucket : GLOBAL_GATE, observed };
   }
 
-  private activeInBucket(bucket: string): number {
+  private activeInBucket(bucket: string, excludeId?: string): number {
     let count = 0;
     for (const active of this.activeRequests.values()) {
+      if (active.id === excludeId) continue;
       if (bucketOf(active.endpoint) === bucket) count++;
     }
     return count;
@@ -371,7 +372,7 @@ export class ApiScheduler {
       if (result.headers) {
         const rateLimitInfo = this.rateLimitDetector.parseHeaders(result.headers, request.endpoint);
 
-        if (rateLimitInfo && this.shouldEnterCooldown(rateLimitInfo)) {
+        if (rateLimitInfo && this.shouldEnterCooldown(rateLimitInfo, request.id)) {
           this.enterCooldown(rateLimitInfo.bucket);
         }
       }
@@ -548,8 +549,8 @@ export class ApiScheduler {
     this.addToQueue(request);
   }
 
-  private shouldEnterCooldown(info: RateLimitInfo): boolean {
-    const percent = percentRemaining(info, this.activeRequests.size);
+  private shouldEnterCooldown(info: RateLimitInfo, settlingId: string): boolean {
+    const percent = percentRemaining(info, this.activeInBucket(info.bucket, settlingId));
     if (percent === null) {
       return this.rateLimitDetector.isApproachingLimit(
         this.config.minRemainingThreshold,
