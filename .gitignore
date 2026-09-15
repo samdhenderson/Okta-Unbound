@@ -86,3 +86,7 @@ seed/.state/
 # fast during a judging pass, which is exactly when nobody is watching git.
 
 # Demo reel: the CommonJS build `emit-plan.mjs` compiles into and deletes.
+
+# publish/: the replay is deterministic, so the SHA map is a local speed
+# optimisation only. Never commit it — a stale map is worse than none.
+publish/shamap.json

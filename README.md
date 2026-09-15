@@ -1,9 +1,10 @@
 # Okta Unbound
 
-[![CI](https://github.com/samdhenderson/okta-unbound/actions/workflows/ci.yml/badge.svg)](https://github.com/samdhenderson/okta-unbound/actions/workflows/ci.yml)
+[![CI](https://github.com/samdhenderson/Okta-Unbound/actions/workflows/ci.yml/badge.svg)](https://github.com/samdhenderson/Okta-Unbound/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-gated-brightgreen)](vitest.config.ts)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pjgofecdjgljhpokbpjjbnbelcpkgibn?label=chrome%20web%20store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/okta-unbound/pjgofecdjgljhpokbpjjbnbelcpkgibn)
+[![Docs](https://img.shields.io/badge/docs-storybook-FF4785?logo=storybook&logoColor=white)](https://samdhenderson.github.io/Okta-Unbound/)
 [![Version](https://img.shields.io/github/package-json/v/samdhenderson/Okta-Unbound?label=version)](package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](package.json)
@@ -219,7 +220,7 @@ Chrome keeps it updated, and the store build is the one the version badge above 
 
 ### Option B — Download from Releases
 
-1. Go to the [Releases](https://github.com/samdhenderson/okta-unbound/releases) page.
+1. Go to the [Releases](https://github.com/samdhenderson/Okta-Unbound/releases) page.
 2. Download the latest `okta-unbound-*.zip`.
 3. Extract the zip.
 4. Load in Chrome:
@@ -231,8 +232,8 @@ Chrome keeps it updated, and the store build is the one the version badge above 
 ### Option C — Build from source
 
 ```bash
-git clone https://github.com/samdhenderson/okta-unbound.git
-cd okta-unbound
+git clone https://github.com/samdhenderson/Okta-Unbound.git
+cd Okta-Unbound
 npm install
 npm run build
 ```
@@ -300,8 +301,11 @@ GitHub Pages ([`deploy-pages.yml`](.github/workflows/deploy-pages.yml)).
   single-purpose specs (architecture, design system, components, testing, UX, state).
 - **Architecture Decision Records:** [`docs/adr/`](docs/adr/) — the _why_ behind decisions
   significant enough to be worth a dated record.
-- **Component explorer & API reference:** the Storybook site (built via `npm run
-build-storybook`, published to GitHub Pages).
+- **Component explorer & API reference:**
+  [samdhenderson.github.io/Okta-Unbound](https://samdhenderson.github.io/Okta-Unbound/) —
+  every shared component as a live story, the generated API reference for the hooks,
+  scheduler and cache, and the `docs/` specs rendered alongside them. Build it locally
+  with `npm run build-storybook`.
 
 ---
 

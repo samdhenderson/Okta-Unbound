@@ -142,5 +142,5 @@ repositories for two reasons: this repo is private, and public Pages from a
 private repo needs a paid plan; and the mirror cannot build the site itself,
 because its source is comment-free and TypeDoc there would emit an empty
 Internals section. The comments only exist here, so the build only happens here.
-Setup is a `DOCS_DEPLOY_TOKEN` secret on this repo and Pages pointed at
+Setup is a `PUBLIC_REPO_TOKEN` secret on this repo and Pages pointed at
 `gh-pages` on the mirror; the workflow header states both.
