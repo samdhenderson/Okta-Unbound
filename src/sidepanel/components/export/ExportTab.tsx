@@ -28,6 +28,10 @@ interface ExportTabProps {
   isActive?: boolean;
 }
 
+function tickedNoun(count: number, label: string): string {
+  return count === 1 ? label.replace(/s$/, '') : label;
+}
+
 const ExportTab: React.FC<ExportTabProps> = ({
   targetTabId,
   oktaOrigin,
@@ -140,6 +144,27 @@ const ExportTab: React.FC<ExportTabProps> = ({
               <h2 className="text-lg font-semibold text-neutral-900">{descriptor.displayName}</h2>
               <p className="mt-0.5 text-sm text-neutral-600">{descriptor.description}</p>
             </div>
+
+            {tab.selectionCount !== null && tab.selectionLabel !== null && (
+              <p className="text-sm text-neutral-700">
+                {`This export is exactly the ${tab.selectionCount} ${tickedNoun(
+                  tab.selectionCount,
+                  tab.selectionLabel,
+                )} ticked in the selection basket.`}
+              </p>
+            )}
+
+            {tab.selectionShortfall && tab.selectionLabel !== null && (
+              <AlertMessage
+                message={{
+                  type: 'warning',
+                  text: `${tab.selectionShortfall.missing} of the ${tab.selectionShortfall.requested} ticked ${tickedNoun(
+                    tab.selectionShortfall.requested,
+                    tab.selectionLabel,
+                  )} could not be read from Okta and are not in this file. Its name records the shortfall.`,
+                }}
+              />
+            )}
 
             {descriptor.context.kind === 'search-to-select' && (
               <ExportContextBar

@@ -15,17 +15,19 @@ const meta = {
     docs: {
       description: {
         component:
-          'Reviews and prunes the entity-selection basket (`docs/adr/0005-session-chrome.md`). ' +
-          'One `DetailSection` per **non-empty** kind, in a stable declared order — a kind with ' +
-          'nothing ticked never appears, since `useSelection().counts` already omits it and this ' +
-          'component does not reintroduce the zero.\n\n' +
-          'Each section names its kind and count as a real phrase (`12 users selected`), lists the ' +
-          'entries with a per-row remove control, and carries its own `Clear` button scoped to that ' +
-          'partition — a section-scoped verb belongs to the section, not to the page strip ' +
-          '(`docs/action-bars.md`). `SelectionActionBar` carries only the whole-basket `Clear all`, ' +
-          'behind **More** with a confirm modal.\n\n' +
-          'An empty basket renders a shared `EmptyState` explaining how selection works, with no fake ' +
-          'affordance — there is nothing to click yet.',
+          'Reviews and spends the entity-selection basket (`docs/adr/0005-session-chrome.md`). ' +
+          'The body is a `Tabs` shell over four panes — **Selection** (the roster), **Actions** ' +
+          '(the verbs that spend a cohort), **Reports** (the read-only questions) and ' +
+          '**Collections** (the saved cohorts) — following `GroupDetailView`’s five-pane ' +
+          'precedent.\n\n' +
+          'A pane with nothing in it **stays**, stating why in a sentence: a strip that grew a seat ' +
+          'as each verb landed, or lost one as a partition emptied, would be chrome reshuffling ' +
+          'under the reader. Inside a pane the opposite rule still holds — an empty kind is absent ' +
+          'rather than stated as a zero.\n\n' +
+          'The tab strip is not a band; it scrolls with the body, so the rung’s sticky bands are ' +
+          'still the header and `SelectionActionBar`, which carries the whole-basket ' +
+          '`Save as collection` and, behind **More** with a confirm, `Clear all`. Its sub-row ' +
+          'search filters the roster and the saved collections alike.',
       },
     },
   },
@@ -170,5 +172,47 @@ export const FilterMatchingNothingSaysSo: Story = {
     );
     await expect(canvas.getByText('1 group selected')).toBeInTheDocument();
     await expect(canvas.getByText('No groups match "zzz".')).toBeInTheDocument();
+  },
+};
+
+export const PaneStrip: Story = {
+  beforeEach: () => {
+    selectionStore.toggle({ kind: 'user', id: '00uFAKE0001', name: 'Dana Example' });
+    selectionStore.toggle({ kind: 'group', id: '00gFAKE0001', name: 'Payments Team' });
+    return () => selectionStore.clearAll();
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const strip = within(canvas.getByRole('tablist', { name: 'Selection sections' }));
+
+    for (const name of ['Selection', 'Actions', 'Reports', 'Collections']) {
+      await expect(strip.getByRole('tab', { name: new RegExp(`^${name}`) })).toBeInTheDocument();
+    }
+
+    await expect(canvas.getByText('1 user selected')).toBeInTheDocument();
+
+    await userEvent.click(strip.getByRole('tab', { name: /^Actions/ }));
+    await expect(canvas.getByRole('tabpanel', { name: 'Actions' })).toBeInTheDocument();
+    await expect(canvas.queryByText('1 user selected')).not.toBeInTheDocument();
+
+    await userEvent.click(strip.getByRole('tab', { name: /^Reports/ }));
+    await expect(canvas.getByRole('tabpanel', { name: 'Reports' })).toBeInTheDocument();
+
+    await userEvent.click(strip.getByRole('tab', { name: /^Collections/ }));
+    await expect(canvas.getByRole('tabpanel', { name: 'Collections' })).toBeInTheDocument();
+    await expect(canvas.getByText('No saved collections')).toBeInTheDocument();
+
+    await userEvent.click(strip.getByRole('tab', { name: /^Selection/ }));
+    await expect(canvas.getByText('1 user selected')).toBeInTheDocument();
+    await expect(canvas.getByText('1 group selected')).toBeInTheDocument();
+  },
+};
+
+export const EmptyBasketKeepsThePanes: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const strip = within(canvas.getByRole('tablist', { name: 'Selection sections' }));
+    await expect(strip.getAllByRole('tab')).toHaveLength(4);
+    await expect(canvas.getByText('Nothing selected')).toBeInTheDocument();
   },
 };

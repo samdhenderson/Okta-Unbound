@@ -19,4 +19,24 @@ export const usersDescriptor: EntityExport<ExportUser> = {
   columnCatalog: userColumns,
 };
 
-export default usersDescriptor;
+export const selectedUsersDescriptor: EntityExport<ExportUser> = {
+  id: 'users-selected',
+  displayName: 'Selected Users',
+  icon: 'user',
+  description: 'The users ticked in the selection basket, with the same columns as Users.',
+  context: {
+    kind: 'from-selection',
+    kinds: ['user'],
+    label: 'users',
+    rows: 'entity',
+    endpoint: (ref) => `/api/v1/users/${ref.id}`,
+    identity: (u) => u.id,
+  },
+  defaultQuery: {},
+  schema: exportUserSchema,
+  filter: { kind: 'none' },
+  linkify: { idColumnId: 'id', target: (u) => ({ type: 'user', id: u.id }) },
+  columnCatalog: userColumns,
+};
+
+export default [usersDescriptor, selectedUsersDescriptor];

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import groupsDescriptor, { groupWithStatsSchema } from './groups';
+import { groupsDescriptor, groupWithStatsSchema, selectedGroupsDescriptor } from './groups';
 
 describe('groups descriptor', () => {
   it('declares stable identity, endpoint, and expand=stats default query', () => {
@@ -50,5 +50,23 @@ describe('groups descriptor', () => {
     const parsed = groupWithStatsSchema.parse({ id: '00gFAKE4', profile: { name: 'Legal' } });
     const col = groupsDescriptor.columnCatalog.find((c) => c.id === 'lastMembershipUpdated');
     expect(col!.format!(col!.accessor(parsed), parsed)).toBe('N/A');
+  });
+});
+
+describe('selectedGroupsDescriptor', () => {
+  it('scopes to the ticked groups and keeps expand=stats on the per-tick read', () => {
+    const { context } = selectedGroupsDescriptor;
+    if (context.kind !== 'from-selection') throw new Error('expected from-selection context');
+
+    expect(selectedGroupsDescriptor.id).toBe('groups-selected');
+    expect(context.kinds).toEqual(['group']);
+    expect(context.rows).toBe('entity');
+    expect(context.endpoint({ kind: 'group', id: '00gFAKE1' })).toBe('/api/v1/groups/00gFAKE1');
+    expect(context.query).toEqual({ expand: 'stats' });
+  });
+
+  it('reuses the whole-org catalog and schema rather than adding its own', () => {
+    expect(selectedGroupsDescriptor.columnCatalog).toBe(groupsDescriptor.columnCatalog);
+    expect(selectedGroupsDescriptor.schema).toBe(groupWithStatsSchema);
   });
 });

@@ -46,6 +46,8 @@ export interface ListRowProps {
   href?: string;
   target?: string;
   ariaLabel?: string;
+  role?: string;
+  ariaChecked?: boolean;
   title?: string;
   describedBy?: string;
   className?: string;
@@ -67,6 +69,8 @@ const ListRow: React.FC<ListRowProps> = ({
   href,
   target,
   ariaLabel,
+  role,
+  ariaChecked,
   title,
   describedBy,
   className = '',
@@ -111,6 +115,8 @@ const ListRow: React.FC<ListRowProps> = ({
     onClick,
     title,
     'aria-label': ariaLabel,
+    role,
+    'aria-checked': ariaChecked,
     'aria-describedby': describedBy,
     'data-testid': testId,
     ...dataAttributes,

@@ -3,6 +3,7 @@ import type { OktaAdminTarget } from '@/shared/utils/oktaUrl';
 import type { IconType } from '@/sidepanel/components/shared/Icon';
 import type { CountResolution } from '@/sidepanel/components/home/orgFigures';
 import type { OrgSnapshotView } from './snapshot';
+import type { SelectionKind } from '@/sidepanel/selection/selectionStore';
 
 export type ColumnGroup = 'base' | 'profile' | 'custom';
 
@@ -24,14 +25,30 @@ export interface EntityContextOption {
   sublabel?: string;
 }
 
-export type EntityContextMode =
+export interface SelectionTarget {
+  kind: SelectionKind;
+  id: string;
+}
+
+export interface FromSelectionContext<Row = unknown> {
+  kind: 'from-selection';
+  kinds: readonly SelectionKind[];
+  label: string;
+  rows: 'entity' | 'list';
+  endpoint(ref: SelectionTarget): string;
+  query?: Record<string, string | number>;
+  identity?(row: Row): string;
+}
+
+export type EntityContextMode<Row = unknown> =
   | { kind: 'whole-org' }
   | {
       kind: 'search-to-select';
       label: string;
       placeholder: string;
       endpoint: (contextId: string) => string;
-    };
+    }
+  | FromSelectionContext<Row>;
 
 export type FilterSupport =
   | { kind: 'none' }
@@ -68,7 +85,7 @@ export interface EntityExport<Row = unknown> {
   icon: IconType;
   description: string;
 
-  context: EntityContextMode;
+  context: EntityContextMode<Row>;
 
   source?: EntityRowSource<Row>;
 

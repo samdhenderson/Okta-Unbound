@@ -6,7 +6,8 @@ export type ActionType =
   | 'ACTIVATE_RULE'
   | 'DEACTIVATE_RULE'
   | 'CONSOLIDATE_RULE'
-  | 'UPDATE_USER_PROFILE';
+  | 'UPDATE_USER_PROFILE'
+  | 'BULK_UPDATE_USER_PROFILE';
 
 export interface UndoAction {
   id: string;
@@ -26,7 +27,8 @@ export type UndoActionMetadata =
   | ActivateRuleMetadata
   | DeactivateRuleMetadata
   | ConsolidateRuleMetadata
-  | UpdateUserProfileMetadata;
+  | UpdateUserProfileMetadata
+  | BulkUpdateUserProfileMetadata;
 
 export interface RemoveUserMetadata {
   type: 'REMOVE_USER_FROM_GROUP';
@@ -113,6 +115,23 @@ export interface UpdateUserProfileMetadata {
   userLogin: string;
   userName: string;
   changes: CapturedAttribute[];
+  undoOfActionId?: string;
+}
+
+export interface BulkProfileUserCapture {
+  userId: string;
+  beforeRaw?: unknown;
+  restorable: boolean;
+  omitted?: CaptureOmission;
+}
+
+export interface BulkUpdateUserProfileMetadata {
+  type: 'BULK_UPDATE_USER_PROFILE';
+  attributeName: string;
+  attributeLabel: string;
+  afterDisplay?: string;
+  users: BulkProfileUserCapture[];
+  unconfirmedUserIds: string[];
   undoOfActionId?: string;
 }
 

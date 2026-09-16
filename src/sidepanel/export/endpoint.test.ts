@@ -39,6 +39,27 @@ function searchToSelect(): EntityExport {
   };
 }
 
+function fromSelection(rows: 'entity' | 'list'): EntityExport {
+  return {
+    id: 'users-selected',
+    displayName: 'Selected Users',
+    icon: 'user',
+    description: '',
+    context: {
+      kind: 'from-selection',
+      kinds: ['user'],
+      label: 'users',
+      rows,
+      endpoint: (ref) => `/api/v1/users/${ref.id}`,
+      query: rows === 'list' ? { limit: 200 } : undefined,
+    },
+    defaultQuery: { limit: 200, expand: 'stats' },
+    schema: oktaUserListItemSchema,
+    filter: searchFilter,
+    columnCatalog: [],
+  };
+}
+
 describe('buildExportEndpoint whole-org', () => {
   it('merges defaultQuery and appends the trimmed, encoded filter as search=', () => {
     const url = buildExportEndpoint(wholeOrg(searchFilter), {
@@ -82,5 +103,33 @@ describe('buildExportEndpoint search-to-select', () => {
 
   it('throws when the required context id is missing', () => {
     expect(() => buildExportEndpoint(searchToSelect())).toThrow(/requires a selected Group/);
+  });
+});
+
+describe('buildExportEndpoint from-selection', () => {
+  it('builds the endpoint from the ticked entity, with no query when the context sets none', () => {
+    const url = buildExportEndpoint(fromSelection('entity'), {
+      selectionRef: { kind: 'user', id: '00uFAKE1' },
+    });
+    expect(url).toBe('/api/v1/users/00uFAKE1');
+  });
+
+  it('uses the context query rather than the descriptor defaultQuery', () => {
+    const url = buildExportEndpoint(fromSelection('list'), {
+      selectionRef: { kind: 'user', id: '00uFAKE1' },
+    });
+    expect(url).toBe('/api/v1/users/00uFAKE1?limit=200');
+  });
+
+  it('never appends the filter box, so the file cannot hold fewer rows than were ticked', () => {
+    const url = buildExportEndpoint(fromSelection('entity'), {
+      selectionRef: { kind: 'user', id: '00uFAKE1' },
+      filterText: 'status eq "ACTIVE"',
+    });
+    expect(url).toBe('/api/v1/users/00uFAKE1');
+  });
+
+  it('throws when no ticked entity is supplied', () => {
+    expect(() => buildExportEndpoint(fromSelection('entity'))).toThrow(/requires a ticked users/);
   });
 });

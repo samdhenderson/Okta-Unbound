@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, userEvent, within } from 'storybook/test';
 import ExportTab from './ExportTab';
 import { OrgEntityIndexProvider } from '../../contexts/OrgEntityIndexContext';
+import { selectionStore } from '../../selection/selectionStore';
 
 const meta = {
   title: 'Export/ExportTab',
@@ -53,6 +54,30 @@ export const PickingAnEntity: Story = {
 
     await userEvent.click(back);
     await expect(canvas.queryByRole('button', { name: 'All exports' })).toBeNull();
+  },
+};
+
+export const ScopedToTheSelectionBasket: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    selectionStore.clearAll();
+    try {
+      await expect(canvas.queryByRole('button', { name: /^Selected Users/ })).toBeNull();
+
+      selectionStore.replaceKind('user', [
+        { kind: 'user', id: '00uFAKE1', name: 'Ada Fake' },
+        { kind: 'user', id: '00uFAKE2', name: 'Grace Fake' },
+      ]);
+
+      const entry = await canvas.findByRole('button', { name: /^Selected Users/ });
+      await userEvent.click(entry);
+
+      await expect(
+        await canvas.findByText(/exactly the 2 users ticked in the selection basket/),
+      ).toBeVisible();
+    } finally {
+      selectionStore.clearAll();
+    }
   },
 };
 

@@ -108,4 +108,25 @@ export const groupsDescriptor: EntityExport<GroupWithStats> = {
   columnCatalog: groupColumns,
 };
 
-export default groupsDescriptor;
+export const selectedGroupsDescriptor: EntityExport<GroupWithStats> = {
+  id: 'groups-selected',
+  displayName: 'Selected Groups',
+  icon: 'building',
+  description: 'The groups ticked in the selection basket, with the same columns as Groups.',
+  context: {
+    kind: 'from-selection',
+    kinds: ['group'],
+    label: 'groups',
+    rows: 'entity',
+    endpoint: (ref) => `/api/v1/groups/${ref.id}`,
+    query: { expand: 'stats' },
+    identity: (g) => g.id,
+  },
+  defaultQuery: {},
+  schema: groupWithStatsSchema,
+  filter: { kind: 'none' },
+  linkify: { idColumnId: 'id', target: (g) => ({ type: 'group', id: g.id }) },
+  columnCatalog: groupColumns,
+};
+
+export default [groupsDescriptor, selectedGroupsDescriptor];

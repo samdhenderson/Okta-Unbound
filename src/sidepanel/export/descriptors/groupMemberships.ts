@@ -19,4 +19,25 @@ export const groupMembershipsDescriptor: EntityExport<ExportUser> = {
   columnCatalog: userColumns,
 };
 
-export default groupMembershipsDescriptor;
+export const selectedGroupMembershipsDescriptor: EntityExport<ExportUser> = {
+  id: 'group-memberships-selected',
+  displayName: 'Selected Group Memberships',
+  icon: 'users',
+  description: 'Members of every group ticked in the selection basket, de-duplicated by user.',
+  context: {
+    kind: 'from-selection',
+    kinds: ['group'],
+    label: 'groups',
+    rows: 'list',
+    endpoint: (ref) => `/api/v1/groups/${ref.id}/users`,
+    query: { limit: 200 },
+    identity: (u) => u.id,
+  },
+  defaultQuery: {},
+  schema: exportUserSchema,
+  filter: { kind: 'none' },
+  linkify: { idColumnId: 'id', target: (u) => ({ type: 'user', id: u.id }) },
+  columnCatalog: userColumns,
+};
+
+export default [groupMembershipsDescriptor, selectedGroupMembershipsDescriptor];

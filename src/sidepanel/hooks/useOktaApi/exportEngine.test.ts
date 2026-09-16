@@ -6,7 +6,9 @@ import { oktaUserListItemSchema, type OktaUserListItem } from '@/shared/schemas/
 import { OperationCancelledError } from '@/shared/scheduler/cancellation';
 import { downloadCSV } from '@/shared/utils/csvUtils';
 import { auditStore } from '@/shared/storage/auditStore';
-import { makeFakeCore, FAKE_ADMIN } from '@/test/factories/coreApi';
+import { makeFakeCore, FAKE_ADMIN, sequentialRunOperation } from '@/test/factories/coreApi';
+import type { SelectionBasket } from '@/sidepanel/selection/selectionStore';
+import type { RequestResult } from '@/shared/scheduler/types';
 
 vi.mock('@/shared/utils/csvUtils', async (importActual) => {
   const actual = await importActual<typeof import('@/shared/utils/csvUtils')>();
@@ -281,5 +283,198 @@ describe('runExport CSV projection + audit', () => {
 
     const [, filename] = mockedDownloadCSV.mock.calls[0];
     expect(filename).toMatch(/^sales_team-users-\d{4}-\d{2}-\d{2}\.csv$/);
+  });
+});
+
+function userBasket(count: number): SelectionBasket {
+  return {
+    picked: Array.from({ length: count }, (_, i) => ({
+      kind: 'user' as const,
+      id: `00uFAKE${i}`,
+      name: `Ticked ${i}`,
+      pickedAt: i,
+    })),
+  };
+}
+
+function makeSelectionDescriptor(
+  overrides: Partial<EntityExport<OktaUserListItem>> = {},
+): EntityExport<OktaUserListItem> {
+  return makeDescriptor({
+    id: 'users-selected',
+    displayName: 'My Selected Users',
+    endpoint: undefined,
+    defaultQuery: {},
+    context: {
+      kind: 'from-selection',
+      kinds: ['user'],
+      label: 'users',
+      rows: 'entity',
+      endpoint: (ref) => `/api/v1/users/${ref.id}`,
+      identity: (u) => u.id,
+    },
+    ...overrides,
+  });
+}
+
+describe('fetchSelectionRows', () => {
+  it('issues exactly one request per ticked entity, over runOperation', async () => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => ({
+      success: true,
+      data: makeUser(endpoint.split('/').pop() as string),
+      headers: {},
+    }));
+    const core = makeFakeCore({ makeApiRequest, runOperation: sequentialRunOperation() });
+    const { fetchSelectionRows } = createExportEngineOperations(core);
+
+    const result = await fetchSelectionRows(makeSelectionDescriptor(), userBasket(5));
+
+    expect(makeApiRequest).toHaveBeenCalledTimes(5);
+    expect(makeApiRequest.mock.calls.map(([endpoint]) => endpoint)).toEqual([
+      '/api/v1/users/00uFAKE0',
+      '/api/v1/users/00uFAKE1',
+      '/api/v1/users/00uFAKE2',
+      '/api/v1/users/00uFAKE3',
+      '/api/v1/users/00uFAKE4',
+    ]);
+    expect(result.rows.map((row) => row.id)).toEqual([
+      '00uFAKE0',
+      '00uFAKE1',
+      '00uFAKE2',
+      '00uFAKE3',
+      '00uFAKE4',
+    ]);
+    expect(result.requested).toBe(5);
+    expect(result.missing).toEqual([]);
+  });
+
+  it('counts a ticked entity that 404s as missing, with its true count', async () => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> =>
+      endpoint.endsWith('00uFAKE1') || endpoint.endsWith('00uFAKE2')
+        ? { success: false, status: 404, error: 'Not found' }
+        : { success: true, data: makeUser(endpoint.split('/').pop() as string), headers: {} },
+    );
+    const core = makeFakeCore({ makeApiRequest, runOperation: sequentialRunOperation() });
+    const { fetchSelectionRows } = createExportEngineOperations(core);
+
+    const result = await fetchSelectionRows(makeSelectionDescriptor(), userBasket(4));
+
+    expect(result.requested).toBe(4);
+    expect(result.rows).toHaveLength(2);
+    expect(result.missing).toEqual([
+      { kind: 'user', id: '00uFAKE1' },
+      { kind: 'user', id: '00uFAKE2' },
+    ]);
+  });
+
+  it('fails the whole export when a tick fails for a reason that is not "gone"', async () => {
+    const makeApiRequest = vi
+      .fn()
+      .mockResolvedValue({ success: false, status: 401, error: 'Session expired' });
+    const core = makeFakeCore({ makeApiRequest, runOperation: sequentialRunOperation() });
+    const { fetchSelectionRows } = createExportEngineOperations(core);
+
+    await expect(fetchSelectionRows(makeSelectionDescriptor(), userBasket(2))).rejects.toThrow(
+      'Session expired',
+    );
+  });
+
+  it('walks each list tick and de-duplicates across ticks by the declared identity', async () => {
+    const listDescriptor = makeSelectionDescriptor({
+      id: 'group-memberships-selected',
+      context: {
+        kind: 'from-selection',
+        kinds: ['group'],
+        label: 'groups',
+        rows: 'list',
+        endpoint: (ref) => `/api/v1/groups/${ref.id}/users`,
+        query: { limit: 200 },
+        identity: (u) => u.id,
+      },
+    });
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
+      if (endpoint.includes('00gFAKE0') && !endpoint.includes('after')) {
+        return {
+          success: true,
+          data: [makeUser('00uSHARED')],
+          headers: { link: nextLink('/api/v1/groups/00gFAKE0/users?after=p2') },
+        };
+      }
+      if (endpoint.includes('after=p2')) {
+        return { success: true, data: [makeUser('00uONLY0')], headers: {} };
+      }
+      return { success: true, data: [makeUser('00uSHARED')], headers: {} };
+    });
+    const core = makeFakeCore({ makeApiRequest, runOperation: sequentialRunOperation() });
+    const { fetchSelectionRows } = createExportEngineOperations(core);
+
+    const result = await fetchSelectionRows(listDescriptor, {
+      picked: [
+        { kind: 'group', id: '00gFAKE0', name: 'A', pickedAt: 1 },
+        { kind: 'group', id: '00gFAKE1', name: 'B', pickedAt: 2 },
+      ],
+    });
+
+    expect(makeApiRequest).toHaveBeenCalledTimes(3);
+    expect(result.rows.map((row) => row.id)).toEqual(['00uSHARED', '00uONLY0']);
+    expect(result.duplicates).toBe(1);
+    expect(result.requested).toBe(2);
+  });
+
+  it('issues nothing when the partition is empty', async () => {
+    const makeApiRequest = vi.fn();
+    const runOperation = sequentialRunOperation();
+    const core = makeFakeCore({ makeApiRequest, runOperation });
+    const { fetchSelectionRows } = createExportEngineOperations(core);
+
+    const result = await fetchSelectionRows(makeSelectionDescriptor(), { picked: [] });
+
+    expect(makeApiRequest).not.toHaveBeenCalled();
+    expect(runOperation).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      rows: [],
+      requested: 0,
+      missing: [],
+      duplicates: 0,
+      fetched: 0,
+      dropped: 0,
+      capped: false,
+    });
+  });
+});
+
+describe('runExport names a selection-scoped file for its cohort', () => {
+  it('stamps the tick count into the filename', async () => {
+    const core = makeCore();
+    const { runExport } = createExportEngineOperations(core);
+
+    await runExport({
+      descriptor: makeSelectionDescriptor(),
+      rows: [makeUser('00uFAKE0')],
+      enabledColumnIds: ['id'],
+      selection: { requested: 3, missing: 0 },
+    });
+    await flush();
+
+    const [, filename] = mockedDownloadCSV.mock.calls[0];
+    expect(filename).toMatch(/^my_selected_users-users-selected-3-ticked-\d{4}-\d{2}-\d{2}\.csv$/);
+  });
+
+  it('stamps the shortfall too, so a short file is identifiable before it is opened', async () => {
+    const core = makeCore();
+    const { runExport } = createExportEngineOperations(core);
+
+    await runExport({
+      descriptor: makeSelectionDescriptor(),
+      rows: [makeUser('00uFAKE0')],
+      enabledColumnIds: ['id'],
+      selection: { requested: 3, missing: 2 },
+    });
+    await flush();
+
+    const [, filename] = mockedDownloadCSV.mock.calls[0];
+    expect(filename).toMatch(
+      /^my_selected_users-users-selected-3-ticked-2-missing-\d{4}-\d{2}-\d{2}\.csv$/,
+    );
   });
 });

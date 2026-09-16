@@ -342,6 +342,7 @@ describe('undoing a save', () => {
       kind: 'undone',
       restored: 1,
       skipped: 0,
+      unit: 'attribute',
       actionId: 'action_2',
     });
 
@@ -357,6 +358,7 @@ describe('undoing a save', () => {
       kind: 'undone',
       restored: 1,
       skipped: 0,
+      unit: 'attribute',
       actionId: 'action_2',
     });
 
@@ -368,6 +370,7 @@ describe('undoing a save', () => {
       kind: 'undone',
       restored: 2,
       skipped: 1,
+      unit: 'attribute',
       actionId: 'action_2',
     });
 
@@ -399,6 +402,7 @@ describe('undoing a save', () => {
       kind: 'undone',
       restored: 1,
       skipped: 0,
+      unit: 'attribute',
       actionId: 'action_2',
     });
 

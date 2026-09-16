@@ -189,6 +189,7 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
       getAppAccessPolicyId: policyOps.getAppAccessPolicyId,
 
       fetchExportRows: exportEngineOps.fetchAllRows,
+      fetchSelectionExportRows: exportEngineOps.fetchSelectionRows,
       countExportRows: exportEngineOps.countRows,
       runExport: exportEngineOps.runExport,
 

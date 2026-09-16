@@ -29,6 +29,7 @@ the same routing `CLAUDE.md` enforces, to keep context lean.
 | [components.md](./components.md)                     | Building or using a shared/feature component                    |
 | [component-primitives.md](./component-primitives.md) | Looking up one primitive's prop contract                        |
 | [action-bars.md](./action-bars.md)                   | Placing a verb, ranking `primary`, or touching a strip          |
+| [selection-verbs.md](./selection-verbs.md)           | Adding a basket verb, or reading what a run's confirm quotes    |
 | [page-shell.md](./page-shell.md)                     | Working on the shell, the rail, sticky bands, or the view stack |
 | [ux-guidelines.md](./ux-guidelines.md)               | Working on modals, a11y, or loading/empty/error states          |
 | [motion.md](./motion.md)                             | Touching durations, easings, primitives, or reduced motion      |

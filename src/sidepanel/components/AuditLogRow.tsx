@@ -14,6 +14,7 @@ const TYPE_LABEL: Record<ActionType, string> = {
   DEACTIVATE_RULE: 'Rule Deactivated',
   CONSOLIDATE_RULE: 'Rules Consolidated',
   UPDATE_USER_PROFILE: 'Profile Updated',
+  BULK_UPDATE_USER_PROFILE: 'Profiles Updated',
 };
 
 const STATUS_BADGE: Partial<
@@ -66,6 +67,12 @@ function detailRows(action: UndoAction): Array<[string, string]> {
     rows.push(['New rule ID', metadata.createdRuleId]);
     rows.push(['Target groups', String(metadata.createdGroupIds.length)]);
     rows.push(['Rules retired', metadata.retiredRules.map((rule) => rule.name).join(', ')]);
+  } else if (metadata.type === 'BULK_UPDATE_USER_PROFILE') {
+    rows.push(['Attribute', metadata.attributeLabel]);
+    rows.push(['Users affected', String(metadata.users.length)]);
+    if (metadata.unconfirmedUserIds.length > 0) {
+      rows.push(['Unconfirmed', String(metadata.unconfirmedUserIds.length)]);
+    }
   } else {
     rows.push(['User', `${metadata.userName} (${metadata.userLogin})`]);
     rows.push(['User ID', metadata.userId]);

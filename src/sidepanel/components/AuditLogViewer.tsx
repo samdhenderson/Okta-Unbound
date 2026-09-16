@@ -92,12 +92,13 @@ const AuditLogViewer: React.FC<AuditLogViewerProps> = ({ targetTabId, isActive =
 
     closeUndo();
     if (outcome.kind === 'undone') {
+      const noun = `${outcome.unit}${outcome.restored === 1 ? '' : 's'}`;
       setNotice({
         type: 'success',
         text:
           outcome.skipped > 0
-            ? `Restored ${outcome.restored} attribute${outcome.restored === 1 ? '' : 's'}; ${outcome.skipped} had no captured previous value and were left unchanged.`
-            : `Restored ${outcome.restored} attribute${outcome.restored === 1 ? '' : 's'}.`,
+            ? `Restored ${outcome.restored} ${noun}; ${outcome.skipped} had no captured previous value and were left unchanged.`
+            : `Restored ${outcome.restored} ${noun}.`,
       });
     } else {
       setNotice({

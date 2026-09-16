@@ -3,6 +3,10 @@ import { useProgress } from '../contexts/ProgressContext';
 import { useExportPresets } from './useExportPresets';
 import { buildExportEndpoint } from '../export/endpoint';
 import { listDescriptors } from '../export/registry';
+import { selectionContextOf, selectionRefsFor } from '../export/fromSelection';
+import { useSelection } from '../selection/useSelection';
+import type { SelectionBasket } from '../selection/selectionStore';
+import type { SelectionTarget } from '../export/types';
 import type { EntityExport, ExportColumn, EntityContextOption } from '../export/types';
 import type { ExportApiDeps } from '../export/types.deps';
 import type { OrgSnapshotView } from '../export/snapshot';
@@ -23,12 +27,23 @@ interface FetchResult<Row> {
   capped: boolean;
 }
 
+interface SelectionFetchResult<Row> extends FetchResult<Row> {
+  requested: number;
+  missing: SelectionTarget[];
+  duplicates: number;
+}
+
 export interface ExportTabApi {
   fetchExportRows: <Row>(
     descriptor: EntityExport<Row>,
     resolvedEndpoint: string,
     onPage?: (rowsSoFar: number) => void,
   ) => Promise<FetchResult<Row>>;
+  fetchSelectionExportRows: <Row>(
+    descriptor: EntityExport<Row>,
+    basket: SelectionBasket,
+    onProgress?: (rowsSoFar: number) => void,
+  ) => Promise<SelectionFetchResult<Row>>;
   countExportRows: <Row>(
     descriptor: EntityExport<Row>,
     resolvedEndpoint: string,
@@ -39,6 +54,7 @@ export interface ExportTabApi {
     enabledColumnIds: string[];
     contextLabel?: string;
     resolution?: CountResolution;
+    selection?: { requested: number; missing: number };
   }) => Promise<void>;
 }
 
@@ -94,6 +110,10 @@ export interface UseExportTab {
   canExport: boolean;
   hasConnectedTab: boolean;
 
+  selectionCount: number | null;
+  selectionLabel: string | null;
+  selectionShortfall: { requested: number; missing: number } | null;
+
   snapshotStatus: OrgFigureStatus | null;
   snapshotNote: string | null;
 }
@@ -128,9 +148,20 @@ export function useExportTab({
   const [capped, setCapped] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
+  const [selectionShortfall, setSelectionShortfall] = useState<{
+    requested: number;
+    missing: number;
+  } | null>(null);
 
-  const descriptors = useMemo(() => listDescriptors(registry), [registry]);
+  const { basket } = useSelection();
+  const descriptors = useMemo(() => listDescriptors(registry, basket), [registry, basket]);
   const descriptor = selectedId ? (registry[selectedId] ?? null) : null;
+
+  const selectionContext = descriptor ? selectionContextOf(descriptor) : null;
+  const selectionRefs = useMemo(
+    () => (descriptor && selectionContext ? selectionRefsFor(descriptor, basket) : []),
+    [descriptor, selectionContext, basket],
+  );
 
   const snapshotSource = descriptor?.source?.kind === 'snapshot' ? descriptor.source : null;
 
@@ -175,6 +206,7 @@ export function useExportTab({
       setCapped(false);
       setActivePresetId(null);
       setMatchCount(null);
+      setSelectionShortfall(null);
       onError(null);
     },
     [registry, onError],
@@ -201,8 +233,16 @@ export function useExportTab({
     setPreviewRows(null);
     setActivePresetId(null);
     setMatchCount(null);
+    setSelectionShortfall(null);
     onError(null);
   }, [onError]);
+
+  useEffect(() => {
+    if (phase !== 'configure') return;
+    if (!selectionContext) return;
+    if (selectionRefs.length > 0) return;
+    backToPick();
+  }, [phase, selectionContext, selectionRefs.length, backToPick]);
 
   const toggleColumn = useCallback((id: string) => {
     setEnabledColumnIds((prev) => {
@@ -243,7 +283,11 @@ export function useExportTab({
       setMatchCount(null);
       return;
     }
-    if (!descriptor || descriptor.filter.kind === 'none') {
+    if (!descriptor || descriptor.context.kind === 'from-selection') {
+      setMatchCount(null);
+      return;
+    }
+    if (descriptor.filter.kind === 'none') {
       setMatchCount(null);
       return;
     }
@@ -301,15 +345,36 @@ export function useExportTab({
     [remove],
   );
 
+  const lastSelectionRef = useRef<{ requested: number; missing: number } | null>(null);
+
   const fetchRows = useCallback(
     async (target: EntityExport): Promise<unknown[]> => {
       if (snapshotResult) {
+        lastSelectionRef.current = null;
         setPreviewRows(snapshotResult.rows);
         setFetched(snapshotResult.rows.length + snapshotResult.dropped);
         setDropped(snapshotResult.dropped);
         setCapped(false);
         return snapshotResult.rows;
       }
+      if (target.context.kind === 'from-selection') {
+        const result = await api.fetchSelectionExportRows(target, basket);
+        setPreviewRows(result.rows);
+        setFetched(result.fetched);
+        setDropped(result.dropped);
+        setCapped(result.capped);
+        lastSelectionRef.current = {
+          requested: result.requested,
+          missing: result.missing.length,
+        };
+        setSelectionShortfall(
+          result.missing.length > 0
+            ? { requested: result.requested, missing: result.missing.length }
+            : null,
+        );
+        return result.rows;
+      }
+      lastSelectionRef.current = null;
       const endpoint = buildExportEndpoint(descriptor as EntityExport, {
         contextId: contextId ?? undefined,
         filterText,
@@ -329,6 +394,7 @@ export function useExportTab({
     [
       descriptor,
       snapshotResult,
+      basket,
       contextId,
       filterText,
       api,
@@ -363,6 +429,7 @@ export function useExportTab({
         enabledColumnIds: orderedEnabledIds,
         contextLabel: contextLabel ?? undefined,
         resolution: snapshotResult?.resolution,
+        selection: lastSelectionRef.current ?? undefined,
       });
       await saveLastUsed(orderedEnabledIds);
     } catch (error) {
@@ -427,6 +494,10 @@ export function useExportTab({
 
     canExport,
     hasConnectedTab,
+
+    selectionCount: selectionContext ? selectionRefs.length : null,
+    selectionLabel: selectionContext?.label ?? null,
+    selectionShortfall,
 
     snapshotStatus: snapshotSource ? (snapshotResult?.resolution.status ?? 'unavailable') : null,
     snapshotNote: snapshotSource

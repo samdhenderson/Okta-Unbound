@@ -44,6 +44,15 @@ const registry: Record<string, EntityExport> = {
 function makeApi(): ExportTabApi {
   return {
     fetchExportRows: vi.fn().mockResolvedValue({ rows: [], fetched: 0, dropped: 0, capped: false }),
+    fetchSelectionExportRows: vi.fn().mockResolvedValue({
+      rows: [],
+      fetched: 0,
+      dropped: 0,
+      capped: false,
+      requested: 0,
+      missing: [],
+      duplicates: 0,
+    }),
     countExportRows: vi.fn().mockResolvedValue({ count: 0, hasMore: false }),
     runExport: vi.fn().mockResolvedValue(undefined),
   };

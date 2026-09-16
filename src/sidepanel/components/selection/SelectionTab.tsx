@@ -1,30 +1,21 @@
-import React, { useMemo, useState } from 'react';
-import {
-  Button,
-  DetailSection,
-  EmptyState,
-  IconButton,
-  ListRow,
-  Modal,
-  PageHeader,
-  typeIcon,
-  typeNounForms,
-} from '../shared';
-import Icon from '../shared/Icon';
+import React, { useCallback, useMemo, useState } from 'react';
+import { PageHeader, Tabs, type TabItem } from '../shared';
 import { useSelection } from '../../selection/useSelection';
 import { useCollections } from '../../selection/useCollections';
-import { useCollectionLoader } from '../../selection/useCollectionLoader';
-import { userFetchCount } from '../../selection/collectionNames';
-import { SELECTION_LIMIT, type SelectionKind } from '../../selection/selectionStore';
-import type { Collection, CollectionRow } from '../../selection/collectionStore';
-import { pluralNoun, pluralize } from '../../../shared/utils/plural';
+import { useOktaApi } from '../../hooks/useOktaApi';
+import { buildVerbRegistry, verbsForPath } from '../../selection/verbs/registry';
+import type { VerbContext } from '../../selection/verbs/types';
+import type { CollectionRow } from '../../selection/collectionStore';
 import SelectionActionBar from './SelectionActionBar';
 import SaveCollectionModal, { type SaveScope } from './SaveCollectionModal';
-import CollectionsSection from './CollectionsSection';
+import SelectionPane from './panes/SelectionPane';
+import ActionsPane from './panes/ActionsPane';
+import ReportsPane from './panes/ReportsPane';
+import CollectionsPane from './panes/CollectionsPane';
+import VerbRunner from './run/VerbRunner';
+import { useVerbRun } from './run/useVerbRun';
 
-const KIND_ORDER: readonly SelectionKind[] = ['user', 'group', 'app', 'rule', 'policy'];
-
-const REQUEST = { one: 'request', other: 'requests' };
+type SelectionPaneKey = 'selection' | 'actions' | 'reports' | 'collections';
 
 export interface SelectionTabProps {
   isActive?: boolean;
@@ -45,52 +36,50 @@ const SelectionTab: React.FC<SelectionTabProps> = ({
     rename,
     remove: removeCollection,
   } = useCollections(oktaOrigin);
-  const loader = useCollectionLoader({ targetTabId, oktaOrigin });
 
-  const [pendingClearKind, setPendingClearKind] = useState<SelectionKind | null>(null);
+  const api = useOktaApi({ targetTabId, oktaOrigin });
+
+  const registry = useMemo(() => buildVerbRegistry(), []);
+  const converters = useMemo(() => verbsForPath(registry, 'convert'), [registry]);
+  const writes = useMemo(() => verbsForPath(registry, 'write'), [registry]);
+  const reads = useMemo(() => verbsForPath(registry, 'read'), [registry]);
+
+  const makeContext = useCallback(
+    (
+      report: (message: string) => void,
+      values: Record<string, string>,
+      memo: Map<string, unknown>,
+    ): VerbContext => ({
+      basket,
+      counts,
+      addMany,
+      report,
+      api,
+      oktaOrigin: oktaOrigin ?? null,
+      values,
+      memo,
+    }),
+    [basket, counts, addMany, api, oktaOrigin],
+  );
+  const run = useVerbRun({ makeContext });
+
+  const [pane, setPane] = useState<SelectionPaneKey>('selection');
   const [saveOpen, setSaveOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [pendingLoad, setPendingLoad] = useState<{ collection: Collection; cost: number } | null>(
-    null,
-  );
-  const [unnamed, setUnnamed] = useState<CollectionRow[] | null>(null);
-  const [refusedCount, setRefusedCount] = useState<number | null>(null);
-
-  const needle = query.trim().toLowerCase();
-  const matches = (name: string) => needle.length === 0 || name.toLowerCase().includes(needle);
-
-  const nonEmptyKinds = KIND_ORDER.filter((kind) => (counts[kind] ?? 0) > 0);
-  const pendingCount = pendingClearKind ? (counts[pendingClearKind] ?? 0) : 0;
-  const pendingNoun = pendingClearKind
-    ? pluralNoun(pendingCount, typeNounForms[pendingClearKind])
-    : '';
 
   const existingNames = useMemo(() => collections.map((entry) => entry.name), [collections]);
 
-  const runLoad = async (collection: Collection) => {
-    const { refs, unnamed: blocked } = await loader.load(collection);
-    if (blocked.length > 0) {
-      setUnnamed(blocked);
-      return;
-    }
-    const outcome = addMany(refs);
-    if (outcome.refused > 0) setRefusedCount(outcome.refused);
-  };
-
-  const handleLoad = (collection: Collection) => {
-    const plan = loader.plan(collection);
-    const cost =
-      userFetchCount(plan) +
-      (plan.needsFetch.group?.length ?? 0) +
-      (plan.needsFetch.app?.length ?? 0) +
-      (plan.needsFetch.policy?.length ? 1 : 0);
-
-    if (cost === 0) {
-      void runLoad(collection);
-      return;
-    }
-    setPendingLoad({ collection, cost });
-  };
+  const tabs: TabItem[] = [
+    { key: 'selection', label: 'Selection', count: total, countDisplay: 'nonzero' },
+    { key: 'actions', label: 'Actions' },
+    { key: 'reports', label: 'Reports' },
+    {
+      key: 'collections',
+      label: 'Collections',
+      count: collections.length,
+      countDisplay: 'nonzero',
+    },
+  ];
 
   const handleSave = (name: string, scope: SaveScope, rememberNames: boolean) => {
     const picked = scope === 'all' ? basket.picked : basket.picked.filter((r) => r.kind === scope);
@@ -120,84 +109,52 @@ const SelectionTab: React.FC<SelectionTabProps> = ({
         sticky={isActive}
       />
 
-      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
-        <CollectionsSection
-          collections={collections}
-          isReading={isReading}
-          query={query}
-          onLoad={handleLoad}
-          onDelete={removeCollection}
-          onRename={rename}
+      <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter)">
+        <Tabs
+          tabs={tabs}
+          activeKey={pane}
+          onChange={(key) => setPane(key as SelectionPaneKey)}
+          variant="underline"
+          ariaLabel="Selection sections"
         />
 
-        {total === 0
-          ? // Only a page with nothing saved *and* nothing ticked is empty. With
-            collections.length === 0 &&
-            !isReading && (
-              <EmptyState
-                icon="clipboard-check"
-                title="Nothing selected"
-                description="Tick rows on any rung — a group's member list, the Users tab, wherever you're working — and they land here. The running count shows up beside Refresh at the top of the panel."
-              />
-            )
-          : nonEmptyKinds.map((kind) => {
-              const count = counts[kind] ?? 0;
-              const forms = typeNounForms[kind];
-              const entries = basket.picked.filter((ref) => ref.kind === kind);
-              const shown = entries.filter((ref) => matches(ref.name));
+        <div className="mt-(--sp-rung)">
+          {pane === 'selection' && (
+            <SelectionPane
+              basket={basket}
+              counts={counts}
+              query={query}
+              onRemove={remove}
+              onClearKind={clearKind}
+              converters={converters}
+              onRunConverter={run.start}
+            />
+          )}
 
-              return (
-                <DetailSection
-                  key={kind}
-                  title={`${count.toLocaleString()} ${pluralNoun(count, forms)} selected`}
-                  actions={
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      icon="trash"
-                      ariaLabel={`Clear ${forms.other}`}
-                      onClick={() => setPendingClearKind(kind)}
-                    >
-                      Clear
-                    </Button>
-                  }
-                >
-                  {needle.length > 0 && (
-                    <p className="mb-(--sp-inline) text-xs text-neutral-600">
-                      {shown.length === 0
-                        ? `No ${forms.other} match "${query.trim()}".`
-                        : `Showing ${shown.length.toLocaleString()} of ${count.toLocaleString()}.`}
-                    </p>
-                  )}
-                  <div className="space-y-(--sp-inline)">
-                    {shown.map((ref) => (
-                      <ListRow key={ref.id} density="compact">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-2">
-                            <Icon
-                              type={typeIcon[kind]}
-                              size="sm"
-                              className="shrink-0 text-neutral-400"
-                            />
-                            <span className="truncate text-sm font-semibold text-neutral-900">
-                              {ref.name}
-                            </span>
-                          </span>
-                          <IconButton
-                            label={`Remove ${ref.name} from the selection`}
-                            variant="ghost"
-                            onClick={() => remove({ kind: ref.kind, id: ref.id })}
-                          >
-                            <Icon type="close" size="sm" />
-                          </IconButton>
-                        </div>
-                      </ListRow>
-                    ))}
-                  </div>
-                </DetailSection>
-              );
-            })}
+          {pane === 'actions' && (
+            <ActionsPane verbs={writes} basket={basket} counts={counts} onRun={run.start} />
+          )}
+
+          {pane === 'reports' && (
+            <ReportsPane verbs={reads} basket={basket} counts={counts} onRun={run.start} />
+          )}
+
+          {pane === 'collections' && (
+            <CollectionsPane
+              collections={collections}
+              isReading={isReading}
+              query={query}
+              oktaOrigin={oktaOrigin}
+              targetTabId={targetTabId}
+              addMany={addMany}
+              onDelete={removeCollection}
+              onRename={rename}
+            />
+          )}
+        </div>
       </div>
+
+      <VerbRunner run={run} basket={basket} />
 
       <SaveCollectionModal
         isOpen={saveOpen}
@@ -206,99 +163,6 @@ const SelectionTab: React.FC<SelectionTabProps> = ({
         existingNames={existingNames}
         onSave={handleSave}
       />
-
-      <Modal
-        isOpen={pendingClearKind !== null}
-        onClose={() => setPendingClearKind(null)}
-        title={pendingClearKind ? `Clear selected ${pendingNoun}?` : ''}
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setPendingClearKind(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => {
-                if (pendingClearKind) clearKind(pendingClearKind);
-                setPendingClearKind(null);
-              }}
-            >
-              Clear
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-neutral-700">
-          Clear {pendingCount.toLocaleString()} selected {pendingNoun}? This cannot be undone.
-        </p>
-      </Modal>
-
-      <Modal
-        isOpen={pendingLoad !== null}
-        onClose={() => setPendingLoad(null)}
-        title="Look up the names first?"
-        size="sm"
-        footer={
-          <>
-            <Button variant="secondary" size="sm" onClick={() => setPendingLoad(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                const target = pendingLoad?.collection;
-                setPendingLoad(null);
-                if (target) void runLoad(target);
-              }}
-            >
-              Look up and load
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-neutral-700">
-          This collection was saved without display names, so loading it takes{' '}
-          {pluralize(pendingLoad?.cost ?? 0, REQUEST)}.
-        </p>
-      </Modal>
-
-      <Modal
-        isOpen={refusedCount !== null}
-        onClose={() => setRefusedCount(null)}
-        title="Nothing was loaded"
-        size="sm"
-        footer={
-          <Button variant="secondary" size="sm" onClick={() => setRefusedCount(null)}>
-            Close
-          </Button>
-        }
-      >
-        <p className="text-sm text-neutral-700">
-          Loading this collection would take one kind past the {SELECTION_LIMIT.toLocaleString()}
-          -entry limit, so the selection is unchanged. Clear a partition and load it again.
-        </p>
-      </Modal>
-
-      <Modal
-        isOpen={unnamed !== null}
-        onClose={() => setUnnamed(null)}
-        title="Nothing was loaded"
-        size="sm"
-        footer={
-          <Button variant="secondary" size="sm" onClick={() => setUnnamed(null)}>
-            Close
-          </Button>
-        }
-      >
-        <p className="text-sm text-neutral-700">
-          {(unnamed?.length ?? 0).toLocaleString()} of this collection&rsquo;s entries could not be
-          named, so the selection is unchanged. Loading part of a saved cohort would hand the next
-          verb a smaller set than the one you kept.
-        </p>
-      </Modal>
     </div>
   );
 };

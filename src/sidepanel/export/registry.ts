@@ -1,3 +1,5 @@
+import { EMPTY_BASKET, type SelectionBasket } from '@/sidepanel/selection/selectionStore';
+import { isExportAvailable } from './fromSelection';
 import type { EntityExport } from './types';
 import type { ExportApiDeps } from './types.deps';
 
@@ -22,6 +24,11 @@ export function buildRegistry(deps: ExportApiDeps): Record<string, EntityExport>
   return Object.fromEntries(descriptors.map((descriptor) => [descriptor.id, descriptor]));
 }
 
-export function listDescriptors(registry: Record<string, EntityExport>): EntityExport[] {
-  return Object.values(registry).sort((a, b) => a.displayName.localeCompare(b.displayName));
+export function listDescriptors(
+  registry: Record<string, EntityExport>,
+  basket: SelectionBasket = EMPTY_BASKET,
+): EntityExport[] {
+  return Object.values(registry)
+    .filter((descriptor) => isExportAvailable(descriptor, basket))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
 }

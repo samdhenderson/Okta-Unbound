@@ -2,6 +2,16 @@ import type { CoreApi } from './core';
 import type { AuditLogEntry } from './types';
 import type { EntityExport, CellValue } from '@/sidepanel/export/types';
 import type { CountResolution } from '@/sidepanel/components/home/orgFigures';
+import type { SelectionBasket } from '@/sidepanel/selection/selectionStore';
+import {
+  buildSelectionRequests,
+  collectSelectionRows,
+  parseSelectionEntity,
+  type SelectionOutcome,
+  type SelectionRequest,
+  type SelectionRowsResult,
+} from '@/sidepanel/export/fromSelection';
+import { OperationCancelledError } from '@/shared/scheduler/cancellation';
 import { parseNextLink, nextPageUrl } from '@/shared/utils/oktaPagination';
 import { openingWalkEstimate, refinedWalkEstimate } from '@/shared/scheduler/planEstimate';
 import { parseOktaList } from '@/shared/schemas/okta';
@@ -17,6 +27,8 @@ import { createLogger } from '@/shared/utils/logger';
 const log = createLogger('useOktaApi');
 
 const DEFAULT_MAX_ROWS = 50_000;
+
+const ENTITY_GONE_STATUSES: readonly number[] = [404, 410];
 
 export interface FetchAllResult<Row> {
   rows: Row[];
@@ -36,6 +48,13 @@ export interface RunExportArgs<Row> {
   enabledColumnIds: string[];
   contextLabel?: string;
   resolution?: CountResolution;
+  selection?: { requested: number; missing: number };
+}
+
+export interface SelectionFetchResult<Row> extends SelectionRowsResult<Row> {
+  fetched: number;
+  dropped: number;
+  capped: boolean;
 }
 
 export function createExportEngineOperations(coreApi: CoreApi) {
@@ -111,8 +130,114 @@ export function createExportEngineOperations(coreApi: CoreApi) {
     return { count: page.length, hasMore: parseNextLink(response.headers?.link) !== null };
   };
 
+  const fetchSelectionRows = async <Row>(
+    descriptor: EntityExport<Row>,
+    basket: SelectionBasket,
+    onProgress?: (rowsSoFar: number) => void,
+  ): Promise<SelectionFetchResult<Row>> => {
+    const requests = buildSelectionRequests(descriptor, basket);
+    const cap = descriptor.maxRows ?? DEFAULT_MAX_ROWS;
+    const context = `EXPORT ${descriptor.id}`;
+
+    if (requests.length === 0) {
+      return {
+        rows: [],
+        requested: 0,
+        missing: [],
+        duplicates: 0,
+        fetched: 0,
+        dropped: 0,
+        capped: false,
+      };
+    }
+
+    let fetched = 0;
+    let dropped = 0;
+    let capped = false;
+    let rowsSoFar = 0;
+
+    const batch = await coreApi.runOperation<SelectionRequest, SelectionOutcome<Row>>(
+      `Export: ${descriptor.displayName}`,
+      requests,
+      async (request, _index, planId) => {
+        coreApi.checkCancelled();
+        const rows: Row[] = [];
+        let nextUrl: string | null = request.endpoint;
+
+        while (nextUrl) {
+          const response = await coreApi.makeApiRequest(nextUrl, {
+            method: 'GET',
+            priority: 'low',
+            reason: `Export: ${descriptor.displayName}`,
+            planId,
+          });
+
+          if (!response.success) {
+            if (!ENTITY_GONE_STATUSES.includes(response.status)) {
+              throw new Error(response.error || `Export fetch failed (${descriptor.id})`);
+            }
+            log.warn('Ticked entity is gone; counted as missing', {
+              entity: descriptor.id,
+              kind: request.ref.kind,
+              id: request.ref.id,
+              status: response.status,
+            });
+            return { status: 'missing', ref: request.ref };
+          }
+
+          if (request.rows === 'entity') {
+            fetched += 1;
+            const row = parseSelectionEntity(descriptor, response.data);
+            if (!row) {
+              dropped += 1;
+              return { status: 'missing', ref: request.ref };
+            }
+            rows.push(row);
+            break;
+          }
+
+          const rawLength = Array.isArray(response.data) ? response.data.length : 0;
+          fetched += rawLength;
+          const page = parseOktaList(descriptor.schema, response.data, context) as Row[];
+          dropped += rawLength - page.length;
+          rows.push(...page);
+
+          if (rows.length >= cap) {
+            capped = true;
+            break;
+          }
+          nextUrl = nextPageUrl(nextUrl, response.headers?.link, rawLength);
+          coreApi.checkCancelled();
+        }
+
+        rowsSoFar += rows.length;
+        onProgress?.(rowsSoFar);
+        return { status: 'rows', ref: request.ref, rows };
+      },
+      {
+        plan: { endpoint: requests[0].endpoint, method: 'GET', requestsPerItem: 1 },
+        message: (progress) =>
+          `Read ${progress.completed} of ${progress.total} ticked ${descriptor.context.kind === 'from-selection' ? descriptor.context.label : 'entities'}…`,
+      },
+    );
+
+    if (batch.cancelled) throw new OperationCancelledError();
+    const rejected = batch.results.find((result) => result.status === 'rejected');
+    if (rejected) {
+      throw rejected.error instanceof Error ? rejected.error : new Error(String(rejected.error));
+    }
+
+    const outcomes = batch.results.flatMap((result) => (result.value ? [result.value] : []));
+    const collected = collectSelectionRows(descriptor, outcomes);
+    if (collected.rows.length > cap) {
+      collected.rows.length = cap;
+      capped = true;
+    }
+    return { ...collected, fetched, dropped, capped };
+  };
+
   const runExport = async <Row>(args: RunExportArgs<Row>): Promise<void> => {
-    const { descriptor, rows, enabledColumnIds, contextLabel, resolution } = args;
+    const { descriptor, rows, enabledColumnIds, contextLabel, resolution, selection } = args;
     const startTime = Date.now();
 
     const snapshotSource = descriptor.source?.kind === 'snapshot' ? descriptor.source : null;
@@ -133,12 +258,18 @@ export function createExportEngineOperations(coreApi: CoreApi) {
     const csv = generateCSV(headers, dataRows);
     const stem = sanitizeFilename(contextLabel ?? descriptor.displayName);
     const partialMarker = isPartial ? '-partial' : '';
-    downloadCSV(csv, `${stem}-${descriptor.id}${partialMarker}-${getDateForFilename()}.csv`);
+    const selectionMarker = selection
+      ? `-${selection.requested}-ticked${selection.missing > 0 ? `-${selection.missing}-missing` : ''}`
+      : '';
+    downloadCSV(
+      csv,
+      `${stem}-${descriptor.id}${selectionMarker}${partialMarker}-${getDateForFilename()}.csv`,
+    );
 
     await logExportAudit(coreApi, descriptor, rows.length, startTime);
   };
 
-  return { fetchAllRows, countRows, runExport };
+  return { fetchAllRows, fetchSelectionRows, countRows, runExport };
 }
 
 async function logExportAudit(

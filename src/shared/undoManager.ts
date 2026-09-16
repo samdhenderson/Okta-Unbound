@@ -3,7 +3,9 @@ import type {
   UndoAction,
   UndoActionMetadata,
   UndoHistory,
+  BulkProfileUserCapture,
   BulkRemoveUsersMetadata,
+  BulkUpdateUserProfileMetadata,
   BulkUserInfo,
   CapturedAttribute,
   UpdateUserProfileMetadata,
@@ -17,6 +19,10 @@ const MAX_UNDO_SIZE = 50;
 export const MAX_CAPTURED_VALUE_CHARS = 1024;
 
 export const MAX_CAPTURED_ATTRIBUTES = 25;
+
+export const MAX_CAPTURED_BULK_VALUE_CHARS = 256;
+
+export const MAX_CAPTURED_COHORT = 100;
 
 const DESCRIPTION_NAME_LIMIT = 3;
 
@@ -185,6 +191,63 @@ export async function logProfileUpdateAction(
     options.undoOfActionId,
     options.originalAttributeCount,
   );
+
+  return logAction(description, metadata, options.status ?? 'completed');
+}
+
+export interface BulkProfileChange {
+  userId: string;
+  beforeRaw: unknown;
+  beforeDisplay: string;
+}
+
+export function captureBulkProfileUsers(
+  changes: readonly BulkProfileChange[],
+): BulkProfileUserCapture[] {
+  if (changes.length > MAX_CAPTURED_COHORT) {
+    throw new Error(
+      `Refusing to capture ${changes.length} users; ${MAX_CAPTURED_COHORT} is the most one bulk entry holds`,
+    );
+  }
+
+  return changes.map((change) =>
+    change.beforeDisplay.length > MAX_CAPTURED_BULK_VALUE_CHARS
+      ? { userId: change.userId, restorable: false, omitted: 'too-large' as const }
+      : // `null`, never `undefined`, for an attribute that was unset: `undefined`
+        { userId: change.userId, beforeRaw: change.beforeRaw ?? null, restorable: true },
+  );
+}
+
+export interface BulkProfileUpdateLogOptions {
+  unconfirmedUserIds?: string[];
+  undoOfActionId?: string;
+  status?: UndoAction['status'];
+}
+
+export async function logBulkProfileUpdateAction(
+  attributeName: string,
+  attributeLabel: string,
+  afterDisplay: string | undefined,
+  changes: readonly BulkProfileChange[],
+  options: BulkProfileUpdateLogOptions = {},
+): Promise<UndoAction> {
+  const users = captureBulkProfileUsers(changes);
+  const unconfirmedUserIds = options.unconfirmedUserIds ?? [];
+
+  const metadata: BulkUpdateUserProfileMetadata = {
+    type: 'BULK_UPDATE_USER_PROFILE',
+    attributeName,
+    attributeLabel,
+    afterDisplay,
+    users,
+    unconfirmedUserIds,
+    undoOfActionId: options.undoOfActionId,
+  };
+
+  const people = `${users.length} user${users.length !== 1 ? 's' : ''}`;
+  const description = options.undoOfActionId
+    ? `Restored ${attributeLabel} on ${people}`
+    : `Set ${attributeLabel} on ${people}`;
 
   return logAction(description, metadata, options.status ?? 'completed');
 }
