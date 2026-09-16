@@ -15,6 +15,7 @@ restarts at **0001**, and the shelf is deliberately near-empty.
 | [0005](0005-session-chrome.md)             | `ContextBar` carries session chrome — refresh and selection — and that list is closed at two         |
 | [0006](0006-saved-collections.md)          | A saved collection stores ids; a display name is stored only for users, and only on request          |
 | [0007](0007-verb-cost-in-two-quotes.md)    | A basket verb quotes its cost twice — preflight, then run — and names a walk rather than guessing it |
+| [0008](0008-a-verb-scoped-to-a-filter.md)  | A strip may host a verb scoped to a pane's filter, run over an ad-hoc basket that is not the basket  |
 
 ## What went wrong the first time
 

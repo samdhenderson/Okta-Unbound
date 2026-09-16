@@ -1,6 +1,5 @@
 import React, { useCallback, useId, useMemo, useState } from 'react';
 import type { OktaUser, MemberMfaResult, MfaScanStatus } from '../../../shared/types';
-import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { mfaScanNeedsConfirm } from '../../hooks/useMemberMfaScan';
 import AlertMessage from '../shared/AlertMessage';
 import Button from '../shared/Button';
@@ -16,17 +15,14 @@ import CopyMembersModal from './CopyMembersModal';
 import BreakdownDetailsModal from './BreakdownDetailsModal';
 import MemberList from './MemberList';
 import { useMembershipProofs } from '../users/GroupMembershipsListProof';
-import { useMemberFilters } from '../../hooks/useMemberFilters';
+import { useMemberCohort, type MemberCohort } from './useMemberCohort';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
 import type { GroupMembership } from '../../../shared/types';
 import type { MemberSourceContext } from './memberSourceContext';
 import {
   type MemberFilter,
-  type SortField,
   computeDimensionBreakdown,
   discoverAttributeBreakdowns,
-  filterMembers,
-  sortMembers,
   getObservedFactorLabels,
   dimensionTitle,
 } from './memberAnalytics';
@@ -49,6 +45,7 @@ interface MemberExplorerProps {
   ) => Promise<MemberRuleAttribution>;
   onOpenInsights?: () => void;
   pendingFilter?: MemberFilter | null;
+  cohort?: MemberCohort;
 }
 
 const PAGE = 50;
@@ -70,69 +67,46 @@ const MemberExplorer: React.FC<MemberExplorerProps> = ({
   onProveMemberSource,
   onOpenInsights,
   pendingFilter,
+  cohort,
 }) => {
   const drawerId = useId();
-  const [query, setQuery] = useState('');
-  const memberFilters = useMemberFilters({ pendingFilter });
+  const ownCohort = useMemberCohort({
+    members,
+    mfaResults,
+    memberSource,
+    pendingFilter,
+    enabled: cohort === undefined,
+  });
+  const {
+    query,
+    setQuery,
+    filters: memberFilters,
+    sortBy,
+    sortDesc,
+    toggleSort,
+    sorted,
+    resetKey,
+  } = cohort ?? ownCohort;
   const { filters } = memberFilters;
   const [visibleCount, setVisibleCount] = useState(PAGE);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sortBy, setSortBy] = useState<SortField>('name');
-  const [sortDesc, setSortDesc] = useState(false);
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
 
   const selection = useRungSelection('user', members, memberName);
 
-  const debouncedQuery = useDebouncedValue(query, 200);
-
   const attributes = useMemo(() => discoverAttributeBreakdowns(members), [members]);
   const statusRows = useMemo(() => computeDimensionBreakdown(members, 'status'), [members]);
   const factorLabels = useMemo(() => getObservedFactorLabels(mfaResults), [mfaResults]);
 
-  const sourceBuckets = useMemo(() => {
-    if (!memberSource) return null;
-    const named = new Set(memberSource.segments.map((segment) => segment.key));
-    const merged = new Map<string, ReadonlySet<string>>(memberSource.index.userIdsByBucket);
-    const tail = new Set<string>();
-    for (const [key, userIds] of memberSource.index.userIdsByBucket) {
-      if (key.startsWith('rule:') && !named.has(key)) {
-        for (const userId of userIds) tail.add(userId);
-      }
-    }
-    if (tail.size > 0) merged.set('otherRules', tail);
-    return merged;
-  }, [memberSource]);
-
   const proofs = useMembershipProofs(onProveMemberSource);
 
-  const filtered = useMemo(
-    () => filterMembers(members, debouncedQuery, filters, mfaResults, sourceBuckets),
-    [members, debouncedQuery, filters, mfaResults, sourceBuckets],
-  );
-  const sorted = useMemo(
-    () => sortMembers(filtered, sortBy, sortDesc, mfaResults),
-    [filtered, sortBy, sortDesc, mfaResults],
-  );
-
-  const resetKey = `${debouncedQuery}__${memberFilters.key}__${members.length}__${sortBy}__${sortDesc}`;
   const [lastResetKey, setLastResetKey] = useState(resetKey);
   if (resetKey !== lastResetKey) {
     setLastResetKey(resetKey);
     setVisibleCount(PAGE);
   }
-
-  const toggleSort = useCallback((field: SortField) => {
-    setSortBy((prevField) => {
-      if (prevField === field) {
-        setSortDesc((d) => !d);
-        return prevField;
-      }
-      setSortDesc(false);
-      return field;
-    });
-  }, []);
 
   const selectedHere = selection.selectedEntities.length;
   const allFilteredSelected =

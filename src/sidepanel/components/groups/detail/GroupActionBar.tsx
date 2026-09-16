@@ -8,6 +8,7 @@ import {
   type ActionDescriptor,
 } from '../../shared';
 import type { GroupSummary } from '../../../../shared/types';
+import { MAX_CAPTURED_COHORT } from '../../../../shared/undoManager';
 
 export interface GroupActionBarProps {
   group: GroupSummary;
@@ -19,6 +20,8 @@ export interface GroupActionBarProps {
   onRemoveDeprovisioned?: () => void;
   isRemoving?: boolean;
   removeError?: string | null;
+  filteredMemberCount?: number;
+  onSetProfileAttribute?: () => void;
   onCreateFeedingRule: () => void;
   sticky?: boolean;
 }
@@ -33,6 +36,8 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
   onRemoveDeprovisioned,
   isRemoving = false,
   removeError = null,
+  filteredMemberCount,
+  onSetProfileAttribute,
   onCreateFeedingRule,
   sticky = true,
 }) => {
@@ -43,6 +48,11 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
     group.type !== 'APP_GROUP' &&
     deprovisionedCount !== undefined &&
     deprovisionedCount > 0;
+  const canSetProfileAttribute =
+    onSetProfileAttribute !== undefined &&
+    targetTabId !== null &&
+    filteredMemberCount !== undefined &&
+    filteredMemberCount > 0;
   const actions: ActionDescriptor[] = [
     {
       id: 'add-member',
@@ -89,6 +99,21 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
           } satisfies ActionDescriptor,
         ]
       : []),
+    ...(canSetProfileAttribute
+      ? [
+          {
+            id: 'set-profile-attribute',
+            label: `Set attribute on ${filteredMemberCount.toLocaleString()} member${filteredMemberCount === 1 ? '' : 's'}`,
+            icon: 'pencil',
+            priority: 'tier',
+            onClick: onSetProfileAttribute,
+            title:
+              `Set one profile attribute on the ${filteredMemberCount.toLocaleString()} member` +
+              `${filteredMemberCount === 1 ? '' : 's'} matching the Members tab’s current ` +
+              'search and filters — not the selected users',
+          } satisfies ActionDescriptor,
+        ]
+      : []),
   ];
 
   return (
@@ -98,29 +123,44 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
         sticky={sticky}
         actions={actions}
         expansion={
-          <div className="space-y-(--sp-field)">
-            <div className="flex items-center justify-between gap-2">
-              <Eyebrow>Automated intake</Eyebrow>
-              <span className="text-xs text-neutral-600">Asks to confirm</span>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-(--sp-field)">
-              <span className="text-xs text-danger-text">
-                Memberships a rule grants outlive the rule
-              </span>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon="plus"
-                onClick={onCreateFeedingRule}
-                disabled={targetTabId === null}
-                title={
-                  targetTabId === null
-                    ? 'Connect an Okta tab to create a rule'
-                    : 'Create a rule that assigns users to this group'
-                }
-              >
-                Create feeding rule
-              </Button>
+          <div className="space-y-(--sp-rung)">
+            {canSetProfileAttribute && (
+              <div className="space-y-(--sp-field)">
+                <div className="flex items-center justify-between gap-2">
+                  <Eyebrow>Filtered cohort</Eyebrow>
+                  <span className="text-xs text-neutral-600">Asks what to set</span>
+                </div>
+                <span className="block text-xs text-neutral-600">
+                  Acts on the members matching the Members tab’s search and filters, not on the
+                  selected users. Previous values are recorded for up to{' '}
+                  {MAX_CAPTURED_COHORT.toLocaleString()}, so a larger cohort is refused whole.
+                </span>
+              </div>
+            )}
+            <div className="space-y-(--sp-field)">
+              <div className="flex items-center justify-between gap-2">
+                <Eyebrow>Automated intake</Eyebrow>
+                <span className="text-xs text-neutral-600">Asks to confirm</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-(--sp-field)">
+                <span className="text-xs text-danger-text">
+                  Memberships a rule grants outlive the rule
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="plus"
+                  onClick={onCreateFeedingRule}
+                  disabled={targetTabId === null}
+                  title={
+                    targetTabId === null
+                      ? 'Connect an Okta tab to create a rule'
+                      : 'Create a rule that assigns users to this group'
+                  }
+                >
+                  Create feeding rule
+                </Button>
+              </div>
             </div>
           </div>
         }

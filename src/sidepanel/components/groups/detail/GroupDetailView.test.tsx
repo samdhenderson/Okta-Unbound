@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import GroupDetailView from './GroupDetailView';
-import type { GroupSummary } from '../../../../shared/types';
+import { selectionStore } from '../../../selection/selectionStore';
+import type { GroupSummary, OktaUser } from '../../../../shared/types';
 
 const groupSource = vi.hoisted(() => ({
   open: vi.fn(),
@@ -120,9 +121,9 @@ vi.mock('./GroupOverviewPane', () => ({
   default: () => <div data-testid="stub-overview" />,
 }));
 vi.mock('./GroupMembersSection', () => ({
-  default: ({ pendingFilter }: { pendingFilter?: { label: string } | null }) => (
+  default: ({ cohort }: { cohort?: { filters: { filters: { label: string }[] } } }) => (
     <div data-testid="stub-members">
-      {pendingFilter ? `filtered by ${pendingFilter.label}` : ''}
+      {(cohort?.filters.filters ?? []).map((filter) => `filtered by ${filter.label}`).join(', ')}
     </div>
   ),
 }));
@@ -153,6 +154,21 @@ vi.mock('./GroupInsightsPane', () => ({
     </div>
   ),
 }));
+vi.mock('../../selection/run/VerbRunner', () => ({
+  default: ({
+    run,
+    basket,
+  }: {
+    run: { verb: { id: string } | null };
+    basket: { picked: { id: string }[] };
+  }) =>
+    run.verb ? (
+      <div data-testid="stub-runner" data-verb={run.verb.id}>
+        {basket.picked.map((ref) => ref.id).join(',')}
+      </div>
+    ) : null,
+}));
+
 vi.mock('./AddGroupMemberModal', () => ({
   default: () => <div data-testid="stub-add-modal" />,
 }));
@@ -178,6 +194,8 @@ describe('GroupDetailView', () => {
     vi.clearAllMocks();
     groupSource.group = null;
     groupSource.memberStatus = 'idle';
+    membersSectionState.members = null;
+    selectionStore.clearAll();
   });
 
   it('defaults to the Overview tab, rendering the overview pane and hiding every other pane', () => {
@@ -380,5 +398,107 @@ describe('GroupDetailView', () => {
     render(<GroupDetailView group={group} targetTabId={1} />);
     expect(groupSource.analyzeMembers).not.toHaveBeenCalled();
     expect(screen.getByRole('tab', { name: 'Overview' })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  describe('the filtered-cohort profile verb', () => {
+    function roster(n: number): OktaUser[] {
+      return Array.from({ length: n }, (_, i) => ({
+        id: `00uFAKE000000000${i}`,
+        status: 'ACTIVE' as const,
+        profile: {
+          firstName: 'Ada',
+          lastName: `Lovelace ${i}`,
+          email: `member${i}@example.com`,
+          login: `member${i}@example.com`,
+        },
+      }));
+    }
+
+    async function openTier(): Promise<HTMLElement> {
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /More/ }));
+      const tierId = screen.getByRole('button', { name: /More/ }).getAttribute('aria-controls');
+      const tier = tierId ? document.getElementById(tierId) : null;
+      if (!tier) throw new Error('the More control names no region');
+      return tier;
+    }
+
+    async function renderOnMembers(members: OktaUser[] | null): Promise<void> {
+      const user = userEvent.setup();
+      membersSectionState.members = members;
+      render(<GroupDetailView group={makeGroup()} targetTabId={1} initialPane="members" />);
+      await user.click(screen.getByRole('tab', { name: 'Members' }));
+    }
+
+    it('offers the verb behind More, naming the measured count', async () => {
+      await renderOnMembers(roster(3));
+
+      const tier = await openTier();
+      expect(
+        within(tier).getByRole('button', { name: 'Set attribute on 3 members' }),
+      ).toBeInTheDocument();
+      expect(within(tier).getByText(/not on the\s+selected users/)).toBeInTheDocument();
+      expect(within(tier).getByText(/recorded for up to\s+100/)).toBeInTheDocument();
+    });
+
+    it('says one member, not 1 members', async () => {
+      await renderOnMembers(roster(1));
+
+      const tier = await openTier();
+      expect(
+        within(tier).getByRole('button', { name: 'Set attribute on 1 member' }),
+      ).toBeInTheDocument();
+    });
+
+    it('is absent while another pane is on screen, not offered against an unseen filter', async () => {
+      membersSectionState.members = roster(3);
+      render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+
+      const tier = await openTier();
+      expect(within(tier).queryByRole('button', { name: /Set attribute/ })).not.toBeInTheDocument();
+      expect(within(tier).queryByText(/not on the\s+selected users/)).not.toBeInTheDocument();
+    });
+
+    it('is absent before the gated roster read has landed', async () => {
+      await renderOnMembers(null);
+
+      const tier = await openTier();
+      expect(within(tier).queryByRole('button', { name: /Set attribute/ })).not.toBeInTheDocument();
+    });
+
+    it('is absent with no Okta tab connected, rather than greyed', async () => {
+      const user = userEvent.setup();
+      membersSectionState.members = roster(3);
+      render(<GroupDetailView group={makeGroup()} targetTabId={null} initialPane="members" />);
+      await user.click(screen.getByRole('tab', { name: 'Members' }));
+
+      const tier = await openTier();
+      expect(within(tier).queryByRole('button', { name: /Set attribute/ })).not.toBeInTheDocument();
+    });
+
+    it('starts the bulk profile verb over exactly the cohort on screen', async () => {
+      const user = userEvent.setup();
+      await renderOnMembers(roster(3));
+
+      const tier = await openTier();
+      await user.click(within(tier).getByRole('button', { name: /Set attribute/ }));
+
+      const runner = screen.getByTestId('stub-runner');
+      expect(runner).toHaveAttribute('data-verb', 'bulk-update-user-profile');
+      expect(runner).toHaveTextContent('00uFAKE0000000000,00uFAKE0000000001,00uFAKE0000000002');
+    });
+
+    it("leaves the reader's own basket untouched", async () => {
+      const user = userEvent.setup();
+      selectionStore.toggle({ kind: 'group', id: '00gFAKE0000000001', name: 'Marketing' });
+      await renderOnMembers(roster(3));
+
+      const tier = await openTier();
+      await user.click(within(tier).getByRole('button', { name: /Set attribute/ }));
+
+      expect(selectionStore.getSnapshot().picked).toEqual([
+        expect.objectContaining({ kind: 'group', id: '00gFAKE0000000001' }),
+      ]);
+    });
   });
 });

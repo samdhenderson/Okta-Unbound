@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { AlertMessage, Button, DetailSection, EmptyState, Modal, Skeleton } from '../../shared';
 import MemberExplorer from '../../members/MemberExplorer';
-import type { MemberSourceContext } from '../../members/memberSourceContext';
+import { toMemberSourceContext } from '../../members/memberSourceContext';
+import type { MemberCohort } from '../../members/useMemberCohort';
 import type { MemberFilter } from '../../members/memberAnalytics';
 import MemberSourceNotes from './MemberSourceNotes';
-import { toMemberSourceSegments } from '../memberSourceBuckets';
 import type {
   GroupMembership,
   GroupSummary,
@@ -54,6 +54,7 @@ export interface GroupMembersSectionProps {
   removeError: string | null;
   onOpenInsights?: () => void;
   pendingFilter?: MemberFilter | null;
+  cohort?: MemberCohort;
 }
 
 const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
@@ -82,14 +83,15 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
   removeError,
   onOpenInsights,
   pendingFilter,
+  cohort,
 }) => {
   const hasMembers = memberCount > 0;
   const readOnlyReason = READ_ONLY_REASON[groupType];
 
-  const memberSource = useMemo<MemberSourceContext | undefined>(() => {
-    if (!breakdown || !memberSourceIndex) return undefined;
-    return { index: memberSourceIndex, segments: toMemberSourceSegments(breakdown) };
-  }, [breakdown, memberSourceIndex]);
+  const memberSource = useMemo(
+    () => toMemberSourceContext(breakdown, memberSourceIndex),
+    [breakdown, memberSourceIndex],
+  );
 
   const proveMemberSource = useMemo(
     () =>
@@ -152,6 +154,7 @@ const GroupMembersSection: React.FC<GroupMembersSectionProps> = ({
           onProveMemberSource={proveMemberSource}
           onOpenInsights={onOpenInsights}
           pendingFilter={pendingFilter}
+          cohort={cohort}
           onRemoveMember={readOnlyReason ? undefined : onRequestRemove}
         />
       )}

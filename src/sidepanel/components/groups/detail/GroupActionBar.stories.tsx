@@ -33,7 +33,13 @@ const meta = {
           'deprovisioned** as a descriptor behind a confirm `Modal`, and **Create feeding ' +
           'rule** in the `expansion` slot, where it can carry the line of prose stating what ' +
           'a rule leaves behind. A verb that cannot honestly run is absent, never disabled ' +
-          'forever — no wire, an `APP_GROUP`, or an unknown deprovisioned count all omit it.',
+          'forever — no wire, an `APP_GROUP`, or an unknown deprovisioned count all omit it.\n\n' +
+          '**Set attribute on N members** is the rung\u2019s one *filter-scoped* verb and the ' +
+          'documented tier carve-out to the rule that a verb whose object is not the whole ' +
+          'page belongs to a section. It names the count the Members pane measured, it is ' +
+          'absent unless that pane is the one on screen, and `expansion` carries the sentence ' +
+          'saying whose profiles it would write \u2014 because a descriptor carries no JSX and ' +
+          '\u201cmembers\u201d alone would read as all of them.',
       },
     },
   },
@@ -45,6 +51,8 @@ const meta = {
     onCompare: fn(),
     onRemoveDeprovisioned: fn(),
     deprovisionedCount: 3,
+    filteredMemberCount: 47,
+    onSetProfileAttribute: fn(),
     onCreateFeedingRule: fn(),
     sticky: false,
   },
@@ -68,6 +76,14 @@ const meta = {
     },
     removeError: {
       description: 'The last error the run reported, shown inside the confirm modal.',
+    },
+    filteredMemberCount: {
+      description:
+        'Members surviving the Members pane\u2019s search and filters. `undefined` \u2014 another ' +
+        'pane on screen, or the roster unread \u2014 and `0` both omit the action.',
+    },
+    onSetProfileAttribute: {
+      description: 'Opens the run surface for the bulk profile write. Omitted \u2192 no action.',
     },
     onCreateFeedingRule: { description: 'Opens the create-feeding-rule confirm dialog.' },
     sticky: { description: 'Pin the strip below the header.' },
@@ -204,5 +220,63 @@ export const TierWithoutConnectedTab: Story = {
     const create = canvas.getByRole('button', { name: 'Create feeding rule' });
     await expect(create).toBeDisabled();
     await expect(create).toHaveAttribute('title', 'Connect an Okta tab to create a rule');
+  },
+};
+
+export const FilteredCohortVerb: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    const more = canvas.getByRole('button', { name: 'More' });
+    const tier = document.getElementById(more.getAttribute('aria-controls') ?? '');
+    if (!tier) throw new Error('the More control names no region');
+
+    const verb = within(tier).getByRole('button', { name: 'Set attribute on 47 members' });
+    await expect(verb).toBeInTheDocument();
+
+    await expect(within(tier).getByText(/not on the\s+selected users/)).toBeInTheDocument();
+    await expect(within(tier).getByText(/recorded for up to\s+100/)).toBeInTheDocument();
+
+    await userEvent.click(more);
+    await userEvent.click(verb);
+    await expect(args.onSetProfileAttribute).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const NoFilteredCohort: Story = {
+  args: { filteredMemberCount: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const more = canvas.getByRole('button', { name: 'More' });
+    const tier = document.getElementById(more.getAttribute('aria-controls') ?? '');
+    if (!tier) throw new Error('the More control names no region');
+
+    await expect(
+      within(tier).queryByRole('button', { name: /Set attribute/ }),
+    ).not.toBeInTheDocument();
+    await expect(within(tier).queryByText(/not on the\s+selected users/)).not.toBeInTheDocument();
+
+    await expect(
+      within(tier).getByRole('button', { name: /Remove 3 deprovisioned/ }),
+    ).toBeVisible();
+  },
+};
+
+export const FilteredCohortOfOne: Story = {
+  args: { filteredMemberCount: 1 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByRole('button', { name: 'Set attribute on 1 member' }),
+    ).toBeInTheDocument();
+  },
+};
+
+export const FilteredCohortEmpty: Story = {
+  args: { filteredMemberCount: 0 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: /Set attribute/ })).not.toBeInTheDocument();
   },
 };

@@ -59,7 +59,7 @@ Ask these in order.
 
 1. **Is its object the whole page?** No — it belongs to a section, a selection or a
    filter, not this row. A selection-scoped verb goes in the `register` (below); a
-   section-scoped one goes in that section.
+   section-scoped one goes in that section. One carve-out, below.
 2. **Is the handler wired, and does the verb have an object right now?** No — the
    descriptor **does not exist yet**. Omit it. Never ship a control with no path to
    firing and a tooltip that reads like a permission message.
@@ -77,6 +77,32 @@ Ask these in order.
    **only** move a verb down, never up, and never brings a confirm `Modal` with
    it. (The two verbs that used to illustrate this, `Collections` and `Cleanup`,
    were retired from the Groups rung; the rule outlived them.)
+
+### The one carve-out: a verb scoped to a pane's filter
+
+A verb whose object is what a pane's filter selected **may** sit in the tier. It is a
+tier carve-out, never a row one, and all four conditions are required:
+
+1. The filter is owned by a pane **of this rung** — not another screen's, not the
+   panel-wide selection.
+2. The label carries the **measured** surviving count: `Set attribute on 47 members`.
+   Measured from a loaded list, never projected from an entity's own count.
+3. The descriptor is **absent** unless that pane is the one on screen. A strip is
+   visible across every pane, and a count quoting a filter the reader cannot see is a
+   claim they cannot check (`docs/claims.md`).
+4. `expansion` carries one sentence naming the scope. A descriptor carries no JSX, and
+   "members" alone reads as all of them — so the sentence says whose it is not, too.
+
+The reference is `set-profile-attribute` in `GroupActionBar`, whose object is the
+Members pane's filtered roster. It runs the same basket verb the Selection tab's
+Actions pane runs, over an ad-hoc basket (`selection/cohortBasket`); the reasoning is
+in `docs/adr/0008`.
+
+Note what it does **not** do: it is absent rather than disabled with no tab connected,
+unlike its neighbour _Remove deprovisioned_. "N members are deprovisioned" stays true
+about a loaded roster whatever the connection, so that row may grey; a verb naming a
+live filter _and_ a write path that does not exist without a tab fails question 2
+instead.
 
 Then decide the fill separately, below.
 

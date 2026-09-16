@@ -201,6 +201,32 @@ which is a thing they can do; doing it for them silently is not.
 Whenever a run cannot proceed — refused, nothing to do, or a verb whose object is
 not ticked — the control that would proceed is **omitted**, never disabled.
 
+## A verb may be run from outside the Selection tab
+
+A `SelectionBasket` is `{ picked: SelectionRef[] }` — a plain value, not a handle on
+the store. So a surface that already knows its cohort may build one and run a verb
+over it, and the verb cannot tell the difference, because there is none to tell. The
+group detail rung does this to offer the bulk profile write over the Members pane's
+filtered roster (`docs/adr/0008`, and the tier carve-out in `docs/action-bars.md`).
+
+The contract, if you add a second one:
+
+- **Build the basket as a value** — `selection/cohortBasket.userCohortBasket`. Never
+  write to `selectionStore` to stage a run. The reader's basket is not your surface's
+  business, and ticking their cohort away as a side effect of an unrelated button is
+  the bug this rule exists to prevent.
+- **Derive `counts` with `countsByKind`**, so an empty partition stays absent rather
+  than becoming a `0`.
+- **Pass the real `addMany`.** This verb never calls it, but a no-op stub would
+  silently swallow the ticks of one that did — a lie told in the type.
+- **Share the rung's one `useOktaApi` instance.** A second is a second
+  `wrapOperation` island, and the `ActivityBar`'s single cancel control could then
+  target the wrong operation.
+- **Let the verb's own refusals speak.** A surface does not re-derive
+  `MAX_CAPTURED_COHORT` or `RUN_WRITE_CAP` to pre-empt a refusal: it would collapse
+  several distinct facts into one absence and drop the remedy the refusal carries. It
+  may _state_ a standing bound beside the control, by importing the constant.
+
 ## Undo, and what a confirm may not say
 
 Most of these writes are **audited, not undoable**, and `NOT_UNDOABLE` in

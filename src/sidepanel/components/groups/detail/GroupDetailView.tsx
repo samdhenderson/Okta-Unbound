@@ -6,6 +6,10 @@ import GroupRulesSection from './GroupRulesSection';
 import GroupPushSection from './GroupPushSection';
 import GroupInsightsPane from './GroupInsightsPane';
 import type { MemberFilter } from '../../members/memberAnalytics';
+import { useMemberCohort } from '../../members/useMemberCohort';
+import { toMemberSourceContext } from '../../members/memberSourceContext';
+import VerbRunner from '../../selection/run/VerbRunner';
+import { useGroupCohortVerb } from './useGroupCohortVerb';
 import GroupActionBar from './GroupActionBar';
 import AddGroupMemberModal from './AddGroupMemberModal';
 import CompareGroupModal from './CompareGroupModal';
@@ -143,9 +147,11 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   useRefreshSubject(group.name, refreshRung, isActive);
   const removeDeprovisioned = useRemoveDeprovisioned(group.id, targetTabId, onCleanupDone);
 
-  const { getMembershipRuleProof, compareGroups } = useOktaApi({
+  const api = useOktaApi({
     targetTabId: targetTabId ?? null,
+    oktaOrigin: oktaOrigin ?? null,
   });
+  const { getMembershipRuleProof, compareGroups } = api;
   const proveMemberSource = useMemo(
     () =>
       targetTabId !== null
@@ -153,6 +159,24 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
         : undefined,
     [targetTabId, group.id, getMembershipRuleProof],
   );
+
+  const memberSource = useMemo(
+    () => toMemberSourceContext(source.breakdown, source.memberSourceIndex),
+    [source.breakdown, source.memberSourceIndex],
+  );
+  const memberCohort = useMemberCohort({
+    members: membersSection.members,
+    mfaResults: mfaScan.mfaResults,
+    memberSource,
+    pendingFilter: pendingMemberFilter,
+  });
+
+  const cohortVerb = useGroupCohortVerb({
+    cohort: memberCohort.sorted,
+    api,
+    oktaOrigin,
+    enabled: activeTab === 'members' && membersSection.members !== null && targetTabId !== null,
+  });
 
   const [addMemberError, setAddMemberError] = useState<string | null>(null);
   const addMember = useAddGroupMember({
@@ -202,6 +226,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
           onRemoveDeprovisioned={removeDeprovisioned.run}
           isRemoving={removeDeprovisioned.isRemoving}
           removeError={removeDeprovisioned.error}
+          filteredMemberCount={cohortVerb.count}
+          onSetProfileAttribute={cohortVerb.start}
           onCreateFeedingRule={createFeedingRule.open}
         />
 
@@ -259,7 +285,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
                   removeStatus={membersSection.removeStatus}
                   removeError={membersSection.removeError}
                   onOpenInsights={openInsights}
-                  pendingFilter={pendingMemberFilter}
+                  cohort={memberCohort}
                 />
               </div>
             )}
@@ -375,6 +401,8 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
         onConfirm={createFeedingRule.confirm}
         onNavigateToRule={onNavigateToRule}
       />
+
+      <VerbRunner run={cohortVerb.run} basket={cohortVerb.basket} />
 
       <GroupComparisonModal
         isOpen={comparison.comparedWith !== null}
