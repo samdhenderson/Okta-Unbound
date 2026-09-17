@@ -46,7 +46,8 @@ export type WithheldReason =
   | 'membership-not-credited-to-rule'
   | 'membership-attribution-deduced'
   | 'rule-inactive'
-  | 'app-mastered-group';
+  | 'app-mastered-group'
+  | 'rule-excludes-user';
 
 export type CascadeDirection = 'toward-match' | 'away-from-match' | 'undetermined';
 

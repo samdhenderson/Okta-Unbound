@@ -23,7 +23,7 @@ export interface ProfileDisplayCustomizeControls {
 export interface UserProfilePaneHeaderProps {
   shown: number;
   total: number;
-  ruleReadCount: number;
+  ruleReadCount: number | undefined;
   customize?: ProfileDisplayCustomizeControls;
   edit?: ProfileEditControls;
 }
@@ -55,7 +55,10 @@ const UserProfilePaneHeader: React.FC<UserProfilePaneHeaderProps> = ({
 }) => (
   <div className="flex flex-wrap items-start justify-between gap-(--sp-inline) p-(--sp-card)">
     <p className="min-w-0 flex-1 text-xs text-neutral-600 text-pretty">
-      {shown} of {total} attributes shown &middot; {ruleReadCount} read by rules that grant access
+      {shown} of {total} attributes shown
+      {ruleReadCount === undefined ? null : (
+        <> &middot; {ruleReadCount} read by rules that grant access</>
+      )}
     </p>
 
     <div className="flex shrink-0 items-center gap-(--sp-field)">

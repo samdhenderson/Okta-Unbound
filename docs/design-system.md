@@ -27,7 +27,63 @@ Semantic (each has base + variants where defined):
 
 Neutral scale: `neutral-50, 100, 200, 300, 400, 500, 600, 700, 900`
 (note: no `800`). Use for text (`neutral-900` headings, `neutral-700` body,
-`neutral-400` disabled), borders (`neutral-200`), and surfaces (`neutral-50`).
+`neutral-400` **disabled controls and decoration only** — see Contrast below),
+borders (`neutral-200`), and surfaces (`neutral-50`).
+
+## Contrast, and the muted register
+
+Measured 2026-09-17 against the surfaces these strings actually render on — the
+diff row (`bg-white`, hover `bg-neutral-50/70`), `ListRow`'s default (`bg-white`)
+and selected (`bg-primary-light`) states, and the canvas (`bg-canvas`, the same
+value as `neutral-50`):
+
+| Text token    | on `white` | on `neutral-50` / `canvas` | on `primary-light` |
+| ------------- | ---------- | -------------------------- | ------------------ |
+| `neutral-400` | 2.22:1     | 2.02:1                     | 2.01:1             |
+| `neutral-600` | 5.10:1     | 4.64:1                     | 4.62:1             |
+
+**`neutral-600` is the floor for a non-answer.** A string that tells a reader the
+app does _not_ know something — `Source unknown`, `Source not compared`, a
+deduction that must not be read as proven — is the text a reader most needs to
+notice, so it clears 4.5:1 on every surface above. `AppScopeIndicator` and
+`GroupSourceIndicator` set the register: `italic text-neutral-600`, un-chipped,
+beside a `neutral-100` chip for the proven answer. Muted means "not a chip", never
+"hard to read".
+
+`neutral-400` is not a text colour on any of those surfaces. It remains correct on
+`disabled:` variants (WCAG 1.4.3 exempts disabled controls) and on `aria-hidden`
+decoration.
+
+**Open, and deliberately not settled here:** whether the wider `neutral-500`
+(secondary) / `neutral-400` (tertiary) two-step hierarchy — 168 and 58 uses
+respectively across the panel — keeps its two tones, and at what size and weight
+each is allowed. `neutral-500` is 3.02:1 on `neutral-50`, so the question is real,
+but re-tuning a hierarchy is a visual-design decision for the design-polish pass,
+not a find-and-replace. Only the two non-answer sites above have been measured
+against their rendered background.
+
+## The story a11y gate does not check contrast
+
+`.storybook/preview.tsx` sets `a11y.test: 'error'`, and a story with an axe
+violation does fail the browser suite. It fails on **structural** rules only.
+
+Proven by probe on 2026-09-17: a temporary story rendering
+`text-neutral-400` on `bg-white` was run through `npm run test:storybook`, with a
+play function calling `axe.run(canvasElement, { runOnly: ['color-contrast'] })`
+directly. Axe reported `passes: 1` — not a violation, and not `incomplete`. The
+same story logged `getComputedStyle`: `color: rgb(0, 0, 0)`,
+`background-color: rgba(0, 0, 0, 0)`, `font-size: 16px`, and
+`--color-neutral-400` resolving to the empty string, with three stylesheets and 79
+rules in the document (Storybook's own chrome). **The vitest browser runner
+applies no Tailwind**, so every story renders as unstyled black-on-default-white
+and axe measures 21:1 on text whose real ratio is 2.22:1. A control story in the
+same run (`<button type="button" />`) did fail on `button-name`, which is what
+confirms the gate itself is live.
+
+So: **contrast is established by measurement, never inferred from a green story
+run.** Compute the ratio against the surface token the component actually renders
+on, the way the table above was built. This also voids any story assertion about
+layout, spacing or colour — the classes are not applied in that environment.
 
 ## Surfaces
 

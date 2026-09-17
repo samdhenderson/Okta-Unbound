@@ -18,6 +18,7 @@ import GroupComparisonModal from '../GroupComparisonModal';
 import { Tabs, type TabItem } from '../../shared';
 import { useGroupSource } from '../../../hooks/useGroupSource';
 import { useOktaApi } from '../../../hooks/useOktaApi';
+import { useOperationResultBus } from '../../../hooks/useOperationResultBus';
 import { useOwedLoad } from '../../../hooks/useOwedLoad';
 import { useGroupRuleReferences } from '../../../hooks/useGroupRuleReferences';
 import { useGroupNameResolver } from '../../../hooks/useGroupNameResolver';
@@ -113,9 +114,16 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   useEffect(() => {
     if (referencedGroupIds.length > 0) requestGroupNames(referencedGroupIds);
   }, [referencedGroupIds, requestGroupNames]);
+  const results = useOperationResultBus();
+  const api = useOktaApi({
+    targetTabId: targetTabId ?? null,
+    oktaOrigin: oktaOrigin ?? null,
+    onResult: results.onResult,
+  });
+
   const membersSection = useGroupMembersSection(
     group,
-    targetTabId,
+    api,
     source.memberStatus,
     source.resummarize,
   );
@@ -145,12 +153,13 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
   }, [group.id, source, references, accessGrants, membersLoaded]);
 
   useRefreshSubject(group.name, refreshRung, isActive);
-  const removeDeprovisioned = useRemoveDeprovisioned(group.id, targetTabId, onCleanupDone);
-
-  const api = useOktaApi({
-    targetTabId: targetTabId ?? null,
-    oktaOrigin: oktaOrigin ?? null,
+  const removeDeprovisioned = useRemoveDeprovisioned({
+    groupId: group.id,
+    api,
+    subscribeToResults: results.subscribe,
+    onDone: onCleanupDone,
   });
+
   const { getMembershipRuleProof, compareGroups } = api;
   const proveMemberSource = useMemo(
     () =>

@@ -25,7 +25,7 @@ import {
   type AttributeDescriptor,
 } from '../components/users/profileAttributes';
 import { profileMastering } from '../components/users/profileEditability';
-import { profileRuleReads } from '../components/users/profileRuleReads';
+import { profileRuleReads, type ProfileRuleReads } from '../components/users/profileRuleReads';
 import { useGroupNameResolver } from './useGroupNameResolver';
 import { extractReferencedGroupIds } from '../../shared/rules/groupRuleIndex';
 import type { OktaUser, GroupMembership } from '../../shared/types';
@@ -38,15 +38,10 @@ const NO_ATTRIBUTE_PARITY: AttributeParityResult = Object.freeze({
   differenceCount: 0,
 });
 
-const NO_RULE_READS: Record<string, string[]> = Object.freeze({});
-
 const NO_ATTRIBUTES: readonly AttributeDescriptor[] = Object.freeze([]);
 
-function mergeRuleReads(
-  first: Record<string, string[]>,
-  second: Record<string, string[]>,
-): Record<string, string[]> {
-  const merged: Record<string, string[]> = { ...first };
+function mergeRuleReads(first: ProfileRuleReads, second: ProfileRuleReads): ProfileRuleReads {
+  const merged: ProfileRuleReads = { ...first };
   for (const [name, ruleNames] of Object.entries(second)) {
     const held = merged[name];
     if (!held) {
@@ -217,11 +212,11 @@ export function useUserComparison({
     [contextUser, comparedUser, userSchema, attributeConfig],
   );
 
-  const attributeRuleReads = useMemo(() => {
-    if (ruleInventory.status !== 'available' || !contextGroups) return NO_RULE_READS;
+  const attributeRuleReads = useMemo((): ProfileRuleReads | undefined => {
+    if (ruleInventory.status !== 'available' || !contextGroups) return undefined;
     const contextReads = profileRuleReads(ruleInventory.rules, contextUser, contextGroups);
     if (!comparedUser) return contextReads;
-    if (!comparedGroups) return contextReads;
+    if (!comparedGroups) return undefined;
     return mergeRuleReads(
       contextReads,
       profileRuleReads(ruleInventory.rules, comparedUser, comparedGroups),

@@ -16,6 +16,17 @@ const makeCore = (overrides: Partial<CoreApi> = {}): CoreApi =>
     ...overrides,
   });
 
+const validUser = (id: string) => ({
+  id,
+  status: 'ACTIVE',
+  profile: {
+    login: `${id}@example.com`,
+    email: `${id}@example.com`,
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+  },
+});
+
 describe('getUserLastLogin', () => {
   it('returns a Date when lastLogin is present', async () => {
     const core = makeCore({
@@ -123,8 +134,7 @@ describe('batchGetUserDetails', () => {
     const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
       if (endpoint.endsWith('/00uFAKE2')) return { success: true, data: null }; // omitted
       if (endpoint.endsWith('/00uFAKE4')) throw new Error('boom'); // omitted via catch
-      const id = endpoint.split('/').pop();
-      return { success: true, data: { id, profile: {} } };
+      return { success: true, data: validUser(endpoint.split('/').pop() ?? '') };
     });
     const core = makeCore({ makeApiRequest });
     const { batchGetUserDetails } = createUserOperations(core);
@@ -147,7 +157,7 @@ describe('batchGetUserDetails', () => {
 
   it('works without an onProgress callback', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: { id: 'x', profile: {} } }),
+      makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: validUser('00uFAKEX') }),
     });
     const { batchGetUserDetails } = createUserOperations(core);
     const map = await batchGetUserDetails(['00uFAKE1']);
@@ -172,7 +182,7 @@ describe('batchGetUserDetails', () => {
     const core = makeCore({
       makeApiRequest: vi.fn(async (endpoint: string): Promise<RequestResult> => ({
         success: true,
-        data: { id: endpoint.split('/').pop(), profile: {} },
+        data: validUser(endpoint.split('/').pop() ?? ''),
       })),
       runOperation,
     });
@@ -181,6 +191,20 @@ describe('batchGetUserDetails', () => {
     const map = await batchGetUserDetails(['00uFAKE1', '00uFAKE2', '00uFAKE3']);
 
     expect([...map.keys()]).toEqual(['00uFAKE1']);
+  });
+
+  it('drops a row that fails schema validation and keeps a valid row beside it', async () => {
+    const makeApiRequest = vi.fn(async (endpoint: string): Promise<RequestResult> => {
+      if (endpoint.endsWith('/00uFAKE2')) {
+        return { success: true, data: { id: '00uFAKE2', status: 'NOT_A_STATUS' } };
+      }
+      return { success: true, data: validUser(endpoint.split('/').pop() ?? '') };
+    });
+    const { batchGetUserDetails } = createUserOperations(makeCore({ makeApiRequest }));
+
+    const map = await batchGetUserDetails(['00uFAKE1', '00uFAKE2', '00uFAKE3']);
+
+    expect([...map.keys()].sort()).toEqual(['00uFAKE1', '00uFAKE3']);
   });
 });
 

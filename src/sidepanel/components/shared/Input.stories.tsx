@@ -30,7 +30,7 @@ const meta = {
     label: { description: 'Optional field label rendered above the input.' },
     ariaLabel: {
       description:
-        'Accessible name for the control when no visible `label` is rendered (e.g. an inline field).',
+        'Accessible name for a field that renders no visible `label`. A `label` is enough on its own — it renders a `<label htmlFor>` bound to the input — so reach for `ariaLabel` only in its absence; supplying both makes `aria-label` win and the spoken name can drift from the text on screen.',
     },
     hint: { description: 'Helper text below the input, shown only when there is no `error`.' },
     fullWidth: { description: 'Stretch to fill the container width. Defaults to `true`.' },
@@ -74,6 +74,12 @@ export const WithValue: Story = {
 
 export const WithLabel: Story = {
   args: { label: 'Username' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByLabelText('Username')).toBe(
+      canvas.getByRole('textbox', { name: 'Username' }),
+    );
+  },
 };
 
 export const WithHint: Story = {

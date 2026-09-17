@@ -13,7 +13,7 @@ const meta = {
       description: {
         component:
           'Small two-state toggle pill for filter panels — solid primary when active, neutral outline when inactive.\n\n' +
-          'Reflects its state as `aria-pressed` and supports a disabled (dimmed, non-interactive) state. For icon-only buttons use `IconButton`; for text CTAs use `Button`.',
+          'Reflects its state as `aria-pressed`. Two ways to stand a pill down: `disabled` (native — dimmed, click-proof, skipped by Tab) for a pill whose own label says why, and `unavailableReason` (`aria-disabled` — dimmed, activation suppressed, **still focusable**) for a pill that has to state a reason a keyboard user can reach. For icon-only buttons use `IconButton`; for text CTAs use `Button`.',
       },
     },
   },
@@ -24,7 +24,14 @@ const meta = {
     onClick: { description: 'Called when the pill is toggled.' },
     children: { description: 'Pill label content.' },
     title: { description: 'Native tooltip text for the pill.' },
-    disabled: { description: 'When true the pill is dimmed and non-interactive.' },
+    disabled: {
+      description:
+        'When true the pill is dimmed and natively disabled — click-proof and skipped by Tab. Only for a pill that explains itself.',
+    },
+    unavailableReason: {
+      description:
+        'Why the pill cannot be used. Present stands the pill down as `aria-disabled` — focusable, with this sentence as its accessible description.',
+    },
     inactiveClassName: {
       description: 'Optional custom classes for the inactive state (e.g. semantic colors).',
     },
@@ -52,6 +59,30 @@ export const Disabled: Story = {
 
 export const DisabledActive: Story = {
   args: { active: true, disabled: true },
+};
+
+export const Unavailable: Story = {
+  args: {
+    active: false,
+    children: 'Used by rules',
+    unavailableReason:
+      'The group rules have not been read, so which attributes they use is unknown.',
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    const pill = canvas.getByRole('button', { name: 'Used by rules' });
+
+    await userEvent.tab();
+    await expect(pill).toHaveFocus();
+
+    await expect(pill).toHaveAttribute('aria-disabled', 'true');
+    await expect(pill).toHaveAccessibleDescription(
+      'The group rules have not been read, so which attributes they use is unknown.',
+    );
+
+    await userEvent.click(pill);
+    await expect(args.onClick).not.toHaveBeenCalled();
+  },
 };
 
 export const WithTitle: Story = {

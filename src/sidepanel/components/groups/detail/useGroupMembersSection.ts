@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { GroupSummary, OktaUser } from '../../../../shared/types';
-import { useOktaApi } from '../../../hooks/useOktaApi';
+import type { VerbApi } from '../../../selection/verbs/types';
 import { peek, setEntry } from '../../../cache/entityCache';
 import { cacheKeys } from '../../../cache/keys';
 import type { SourceStatus } from '../../../hooks/useGroupSource';
@@ -25,11 +25,10 @@ export interface UseGroupMembersSectionReturn {
 
 export function useGroupMembersSection(
   group: GroupSummary,
-  targetTabId: number | null,
+  api: Pick<VerbApi, 'removeUserFromGroup'>,
   memberStatus: SourceStatus,
   onRosterChanged?: (members: OktaUser[]) => void,
 ): UseGroupMembersSectionReturn {
-  const api = useOktaApi({ targetTabId });
   const { removeUserFromGroup } = api;
 
   const [cacheTick, setCacheTick] = useState(0);

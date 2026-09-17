@@ -236,7 +236,9 @@ export const ComposeWithheldUntilAnswered: Story = {
     const dialog = within(canvas.getByRole('dialog', { name: CLEANUP.title }));
 
     await expect(dialog.getByRole('combobox', { name: 'Attribute' })).toBeInTheDocument();
-    await expect(dialog.getByRole('textbox', { name: 'New value' })).toBeInTheDocument();
+    await expect(dialog.getByLabelText('New value')).toBe(
+      dialog.getByRole('textbox', { name: 'New value' }),
+    );
     await expect(dialog.queryByRole('button', { name: 'Continue' })).not.toBeInTheDocument();
 
     await userEvent.selectOptions(dialog.getByRole('combobox', { name: 'Attribute' }), 'title');

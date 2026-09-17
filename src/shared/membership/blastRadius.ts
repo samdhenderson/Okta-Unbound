@@ -13,6 +13,7 @@ import {
   type LeafClauseNode,
 } from '../rules/explainExpression';
 import { matchSafeRegex } from '../rules/safeRegex';
+import { isUserExcluded } from '../utils/membershipAnalysis';
 import { groupContextOf } from './groupContext';
 import { conditionExpressionOf } from './ruleExpression';
 import {
@@ -79,6 +80,7 @@ interface RuleEvaluation {
   readonly effect: RuleEffect;
   readonly after: RuleMatchResult;
   readonly targetGroupIds: readonly string[];
+  readonly excludesUser: boolean;
 }
 
 function evaluateRule(
@@ -97,6 +99,7 @@ function evaluateRule(
   return {
     after,
     targetGroupIds,
+    excludesUser: isUserExcluded(rule, user.id, context),
     effect: {
       ruleId: rule.id,
       ruleName: rule.name,
@@ -171,7 +174,10 @@ function additionEffect(
   const active = candidates.filter((candidate) => candidate.effect.active);
   if (active.length === 0) return withheld(groupId, candidates, context, 'rule-inactive');
 
-  return predicted(groupId, active, context, 'added');
+  const placing = active.filter((candidate) => !candidate.excludesUser);
+  if (placing.length === 0) return withheld(groupId, active, context, 'rule-excludes-user');
+
+  return predicted(groupId, placing, context, 'added');
 }
 
 function removalEffect(
@@ -188,11 +194,14 @@ function removalEffect(
   const decline = (reason: WithheldReason, blockingRuleName?: string): GroupEffect =>
     withheld(groupId, active, context, reason, blockingRuleName);
 
+  const placing = active.filter((candidate) => !candidate.excludesUser);
+  if (placing.length === 0) return decline('rule-excludes-user');
+
   if (held.group.type === 'APP_GROUP') return decline('app-mastered-group');
   if (membershipBucket(held) !== 'rule') return decline('membership-not-credited-to-rule');
   if (isMembershipAttributionDeduced(held)) return decline('membership-attribution-deduced');
 
-  const stopping = new Set(active.map((candidate) => candidate.effect.ruleId));
+  const stopping = new Set(placing.map((candidate) => candidate.effect.ruleId));
   const others = context.evaluations.filter(
     (evaluation) =>
       evaluation.effect.active &&
@@ -208,7 +217,7 @@ function removalEffect(
     return decline('rule-unevaluable-after');
   }
 
-  return predicted(groupId, active, context, 'removed');
+  return predicted(groupId, placing, context, 'removed');
 }
 
 interface AffectedGroup {

@@ -3,6 +3,7 @@ import { Badge } from '../shared';
 import ProfileEditCell from './ProfileEditCell';
 import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
 import type { AttributeDescriptor } from './profileAttributes';
+import type { ProfileRuleReads } from './profileRuleReads';
 import type { AttributeEditCell } from '../../hooks/useProfileEdit';
 
 export type ProfileAttributeLayout = ProfileDisplayConfig['layout'];
@@ -12,7 +13,7 @@ export interface UserProfileAttributeListProps {
   layout: ProfileAttributeLayout;
   showApiNames: boolean;
   showRuleChips: boolean;
-  ruleReads: Record<string, string[]>;
+  ruleReads: ProfileRuleReads | undefined;
   cells?: Readonly<Record<string, AttributeEditCell>>;
 }
 
@@ -58,7 +59,7 @@ const UserProfileAttributeList: React.FC<UserProfileAttributeListProps> = ({
 }) => (
   <dl className={listClasses[layout]}>
     {attributes.map((attribute) => {
-      const readers = ruleReads[attribute.name];
+      const readers = ruleReads?.[attribute.name];
       const chip = showRuleChips && readers && readers.length > 0 ? readers : undefined;
       const cell = cells?.[attribute.name];
 

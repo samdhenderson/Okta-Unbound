@@ -207,6 +207,21 @@ export const NotPredictedAppMastered: Story = {
   },
 };
 
+export const NotPredictedRuleExcludesUser: Story = {
+  args: {
+    effect: effect({
+      groupId: '00gFAKE00000000000011',
+      groupName: 'Contractors-All',
+      kind: 'not-predicted',
+      withheldReason: 'rule-excludes-user',
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/exclusion list names this user/i)).toBeInTheDocument();
+  },
+};
+
 export const Compact: Story = {
   parameters: { viewport: { value: 'sidepanelCompact' } },
   args: {

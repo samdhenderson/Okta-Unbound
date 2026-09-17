@@ -794,3 +794,105 @@ describe('rule rows carry the evidence without carrying prose', () => {
     expect(report.groups).toEqual([]);
   });
 });
+
+describe('a rule that excludes this user predicts nothing for them', () => {
+  const newHireFeeder = (overrides: Partial<MembershipRule> = {}) =>
+    ruleOf({
+      id: '0prFAKEexcl',
+      name: 'New hire feeder',
+      groupIds: [NEW_HIRES.id],
+      conditionExpression: 'user.department=="Sales"',
+      userAttributes: ['department'],
+      ...overrides,
+    });
+
+  it('withholds the addition when the rule names this user in its exclusion list', () => {
+    const report = analyze({ rules: [newHireFeeder({ excludedUserIds: [USER.id] })] });
+
+    expect(report.rules[0].transition).toBe('starts-matching');
+    expect(onlyGroup(report)).toMatchObject({
+      groupId: NEW_HIRES.id,
+      kind: 'not-predicted',
+      withheldReason: 'rule-excludes-user',
+      currentlyHeld: false,
+    });
+    expect(report.counts).toMatchObject({ added: 0, notPredicted: 1 });
+  });
+
+  it('MIRROR: the same rule excluding somebody else predicts the gain', () => {
+    const report = analyze({ rules: [newHireFeeder({ excludedUserIds: ['00uFAKEother'] })] });
+
+    expect(onlyGroup(report)).toMatchObject({ groupId: NEW_HIRES.id, kind: 'added' });
+    expect(report.counts.added).toBe(1);
+  });
+
+  it('withholds the addition when the rule excludes a group this user is in', () => {
+    const report = analyze({ rules: [newHireFeeder({ excludedGroupIds: [ENGINEERING.id] })] });
+
+    expect(onlyGroup(report)).toMatchObject({
+      groupId: NEW_HIRES.id,
+      kind: 'not-predicted',
+      withheldReason: 'rule-excludes-user',
+    });
+  });
+
+  it('MIRROR: an excluded group this user is not in predicts the gain', () => {
+    const report = analyze({ rules: [newHireFeeder({ excludedGroupIds: [FINANCE.id] })] });
+
+    expect(onlyGroup(report)).toMatchObject({ groupId: NEW_HIRES.id, kind: 'added' });
+  });
+
+  it('reads the raw conditions shape as well as the formatted carrier', () => {
+    const report = analyze({
+      rules: [
+        newHireFeeder({
+          conditions: { people: { users: { exclude: [USER.id] } } },
+        }),
+      ],
+    });
+
+    expect(onlyGroup(report)).toMatchObject({
+      kind: 'not-predicted',
+      withheldReason: 'rule-excludes-user',
+    });
+  });
+
+  it('withholds the removal when the only stopping rule never placed this user', () => {
+    const report = analyze({ rules: [ruleOf({ ...ENG_FEEDER, excludedUserIds: [USER.id] })] });
+
+    expect(report.rules[0].transition).toBe('stops-matching');
+    expect(onlyGroup(report)).toMatchObject({
+      groupId: ENGINEERING.id,
+      kind: 'not-predicted',
+      withheldReason: 'rule-excludes-user',
+      currentlyHeld: true,
+    });
+    expect(report.counts).toMatchObject({ removed: 0, notPredicted: 1 });
+  });
+
+  it('MIRROR: without the exclusion the same fixture predicts the loss', () => {
+    const report = analyze({ rules: [ENG_FEEDER] });
+
+    expect(onlyGroup(report)).toMatchObject({ groupId: ENGINEERING.id, kind: 'removed' });
+    expect(report.counts.removed).toBe(1);
+  });
+
+  it('still predicts the gain when a second rule targeting the group excludes nobody', () => {
+    const openFeeder = ruleOf({
+      id: '0prFAKEopen',
+      name: 'Open feeder',
+      groupIds: [NEW_HIRES.id],
+      conditionExpression: 'user.department=="Sales"',
+      userAttributes: ['department'],
+    });
+    const report = analyze({
+      rules: [newHireFeeder({ excludedUserIds: [USER.id] }), openFeeder],
+    });
+
+    expect(onlyGroup(report)).toMatchObject({
+      groupId: NEW_HIRES.id,
+      kind: 'added',
+      ruleId: openFeeder.id,
+    });
+  });
+});

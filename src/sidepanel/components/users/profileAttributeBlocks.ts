@@ -1,5 +1,6 @@
 import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
 import type { AttributeDescriptor } from './profileAttributes';
+import type { ProfileRuleReads } from './profileRuleReads';
 
 export const UNCATEGORIZED = '';
 
@@ -28,7 +29,7 @@ function matchesFilter(attribute: AttributeDescriptor, needle: string): boolean 
 export function buildAttributeBlocks(
   attributes: readonly AttributeDescriptor[],
   config: ProfileDisplayConfig,
-  ruleReads: Record<string, string[]>,
+  ruleReads: ProfileRuleReads | undefined,
   filters: AttributeBlockFilters,
 ): AttributeBlock[] {
   const needle = filters.filter.trim().toLowerCase();
@@ -51,7 +52,7 @@ export function buildAttributeBlocks(
     if (!attribute) continue;
     if (config.hidden[name]) continue;
     if (attribute.isEmpty && !config.showEmpty) continue;
-    if (filters.onlyRuleRead && !ruleReads[name]?.length) continue;
+    if (ruleReads && filters.onlyRuleRead && !ruleReads[name]?.length) continue;
     if (!matchesFilter(attribute, needle)) continue;
 
     const assigned = config.assign[name];

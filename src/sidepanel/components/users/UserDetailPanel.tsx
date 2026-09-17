@@ -6,6 +6,7 @@ import UserProfilePane from './UserProfilePane';
 import ProfileSaveModal from './ProfileSaveModal';
 import { userDisplayName } from '../../../shared/utils/userDisplay';
 import type { AttributeDescriptor } from './profileAttributes';
+import type { ProfileRuleReads } from './profileRuleReads';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
 import type { MemberRuleAttribution } from '../../../shared/membership/memberRuleAttribution';
 import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
@@ -38,7 +39,7 @@ export interface UserDetailPanelProps {
   isLoadingProfile: boolean;
   profileConfig: ProfileDisplayConfig;
   onProfileConfigChange: (patch: Partial<ProfileDisplayConfig>) => void;
-  ruleReads: Record<string, string[]>;
+  ruleReads: ProfileRuleReads | undefined;
   profileEdit?: UserProfileEditing;
 }
 

@@ -10,6 +10,7 @@ import {
   isProfileSourceApp,
   type AppAssignmentScope,
   oktaFactorSchema,
+  oktaUserSchema,
   parseOktaList,
 } from '@/shared/schemas/okta';
 import { createLogger } from '../../../shared/utils/logger';
@@ -98,7 +99,18 @@ export function createUserOperations(coreApi: CoreApi) {
             planId,
           });
           if (response.success && response.data) {
-            userDetailsMap.set(userId, response.data);
+            const parsed = oktaUserSchema.safeParse(response.data);
+            if (!parsed.success) {
+              log.error('User response failed validation', {
+                userId,
+                issues: parsed.error.issues.map((issue) => ({
+                  path: issue.path.join('.'),
+                  code: issue.code,
+                })),
+              });
+              return;
+            }
+            userDetailsMap.set(userId, parsed.data);
           }
         } catch (error) {
           log.error(`Failed to fetch user ${userId}:`, error);

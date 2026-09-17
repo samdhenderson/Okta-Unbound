@@ -130,6 +130,63 @@ export const AssignmentCountsUnavailable: Story = {
   },
 };
 
+export const HeaderClickToggles: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Show details' }));
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Collapse Salesforce' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      ),
+    );
+    await expect(canvas.getByRole('button', { name: 'Hide details' })).toBeInTheDocument();
+  },
+};
+
+export const KeyboardExpandsTheHeader: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const header = canvas.getByRole('button', { name: 'Show details' });
+    await expect(header).not.toHaveAttribute('aria-expanded');
+
+    header.focus();
+    await expect(header).toHaveFocus();
+    await userEvent.keyboard('{Enter}');
+
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Collapse Salesforce' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      ),
+    );
+    await waitFor(() => expect(canvas.getByText('128 users')).toBeInTheDocument());
+  },
+};
+
+export const SpaceCollapsesAgain: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    canvas.getByRole('button', { name: 'Show details' }).focus();
+    await userEvent.keyboard(' ');
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Collapse Salesforce' })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      ),
+    );
+
+    canvas.getByRole('button', { name: 'Hide details' }).focus();
+    await userEvent.keyboard(' ');
+    await waitFor(() =>
+      expect(canvas.getByRole('button', { name: 'Expand Salesforce' })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      ),
+    );
+  },
+};
+
 export const Selectable: Story = {
   args: { onToggleSelect: fn() },
   play: async ({ args, canvas }) => {
@@ -138,6 +195,10 @@ export const Selectable: Story = {
 
     await userEvent.click(box);
     await expect(args.onToggleSelect).toHaveBeenCalledWith(salesforce.id);
+    await expect(canvas.getByRole('button', { name: 'Expand Salesforce' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   },
 };
 

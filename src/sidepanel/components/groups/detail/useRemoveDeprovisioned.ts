@@ -1,9 +1,16 @@
 import { useCallback, useState } from 'react';
-import { useOktaApi } from '../../../hooks/useOktaApi';
 import { createLogger } from '../../../../shared/utils/logger';
-import type { OperationResult } from '../../../hooks/useOktaApi/types';
+import type { VerbApi } from '../../../selection/verbs/types';
+import type { OperationResultListener } from '../../../hooks/useOperationResultBus';
 
 const log = createLogger('useRemoveDeprovisioned');
+
+export interface UseRemoveDeprovisionedOptions {
+  groupId: string;
+  api: Pick<VerbApi, 'removeDeprovisioned'>;
+  subscribeToResults: (listener: OperationResultListener) => () => void;
+  onDone: () => void;
+}
 
 export interface UseRemoveDeprovisionedReturn {
   run: () => void;
@@ -12,32 +19,33 @@ export interface UseRemoveDeprovisionedReturn {
 }
 
 export function useRemoveDeprovisioned(
-  groupId: string,
-  targetTabId: number | null,
-  onDone: () => void,
+  options: UseRemoveDeprovisionedOptions,
 ): UseRemoveDeprovisionedReturn {
+  const { groupId, subscribeToResults, onDone } = options;
+  const { removeDeprovisioned } = options.api;
+
   const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const onResult = useCallback(({ message, type }: OperationResult) => {
-    if (type === 'error') setError(message);
-  }, []);
-
-  const { removeDeprovisioned } = useOktaApi({ targetTabId, onResult });
 
   const run = useCallback(() => {
     setError(null);
     setIsRemoving(true);
+
+    const unsubscribe = subscribeToResults(({ message, type }) => {
+      if (type === 'error') setError(message);
+    });
+
     void removeDeprovisioned(groupId)
       .catch((err: unknown) => {
         log.error('Bulk deprovisioned-member removal failed:', err);
         setError((current) => current ?? 'Removal failed. See the activity log for detail.');
       })
       .finally(() => {
+        unsubscribe();
         setIsRemoving(false);
         onDone();
       });
-  }, [removeDeprovisioned, groupId, onDone]);
+  }, [removeDeprovisioned, groupId, subscribeToResults, onDone]);
 
   return { run, isRemoving, error };
 }

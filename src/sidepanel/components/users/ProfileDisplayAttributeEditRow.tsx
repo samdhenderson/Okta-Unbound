@@ -9,7 +9,7 @@ export interface ProfileDisplayAttributeEditRowProps {
   attribute: AttributeDescriptor;
   isHidden: boolean;
   isLifted: boolean;
-  ruleNames: readonly string[];
+  ruleNames: readonly string[] | undefined;
   isReorderDisabled?: boolean;
   gripDescribedBy?: string;
   onToggleHidden: () => void;
@@ -62,7 +62,7 @@ const ProfileDisplayAttributeEditRow: React.FC<ProfileDisplayAttributeEditRowPro
         <span className="shrink-0 truncate font-mono text-xs text-neutral-500">
           {attribute.name}
         </span>
-        {ruleNames.length > 0 && (
+        {ruleNames !== undefined && ruleNames.length > 0 && (
           <Badge variant="primary" className="shrink-0" title={`Read by ${ruleNames.join(', ')}`}>
             rules
           </Badge>

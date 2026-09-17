@@ -130,7 +130,7 @@ const comparison = (over: Partial<UserComparisonState> = {}): UserComparisonStat
   causes: undefined,
   attributeParity: { rows: [], hiddenRows: [], hiddenDifferences: 0, differenceCount: 0 },
   attributeConfig: DEFAULT_PROFILE_DISPLAY_CONFIG,
-  attributeRuleReads: {},
+  attributeRuleReads: undefined,
   attributeEdit: {
     context: idleSide('context', 'First11 Last11'),
     compared: idleSide('compared', 'First12 Last12'),

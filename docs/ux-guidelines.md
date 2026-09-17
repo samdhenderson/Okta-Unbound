@@ -173,6 +173,15 @@ single control that stops the operation and drains the queue.
   for you — every glyph is hidden unless you pass `label`, which is reserved for
   the rare icon that _is_ the answer rather than decorating one. An icon-only
   control still takes its name from the control, never from the glyph (`D-041`).
+- **A control that stands down with a reason stays focusable.** The native
+  `disabled` attribute takes an element out of the tab order, so anything it
+  carries — a `title`, an `aria-describedby` — is reachable by pointer hover and
+  by nothing else. When the control's own label does not say why it is
+  unavailable, render `aria-disabled` instead and wire the reason to it as an
+  accessible description (shared `FilterPill`'s `unavailableReason` is the
+  reference shape). `aria-disabled` does not block activation, so the component
+  must suppress its own handler. Keep native `disabled` for a control that
+  explains itself, like `Conflicts (0)`.
 
 ## Copy
 

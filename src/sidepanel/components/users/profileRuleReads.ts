@@ -5,6 +5,8 @@ import {
 } from '../../../shared/rules/explainExpression';
 import { isExcludedProfileField } from '../../../shared/utils/profileFields';
 
+export type ProfileRuleReads = Record<string, string[]>;
+
 function attributeNameOf(path: string): string | undefined {
   if (path.startsWith('user.')) return path.slice('user.'.length) || undefined;
   if (path.startsWith('user["') && path.endsWith('"]')) {
@@ -51,9 +53,9 @@ export function profileRuleReads(
   rules: readonly FormattedRule[],
   user: OktaUser,
   memberships: readonly GroupMembership[],
-): Record<string, string[]> {
+): ProfileRuleReads {
   const memberGroupIds = new Set(memberships.map((membership) => membership.group.id));
-  const reads: Record<string, string[]> = {};
+  const reads: ProfileRuleReads = {};
 
   for (const rule of rules) {
     if (!grantsAccess(rule, memberGroupIds)) continue;

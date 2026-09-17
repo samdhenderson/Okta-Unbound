@@ -60,6 +60,8 @@ function withheldReasonText(effect: GroupEffect): string {
       return 'Okta is not applying this rule — it is deactivated or no longer evaluable — so it grants nothing either way.';
     case 'app-mastered-group':
       return 'This group is managed by its application, not by group rules.';
+    case 'rule-excludes-user':
+      return 'This rule’s exclusion list names this user, so the rule never applies to them whatever its condition says.';
     default:
       return 'This effect was not predicted.';
   }

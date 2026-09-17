@@ -4,6 +4,7 @@ import ComparisonAttributeRow from './ComparisonAttributeRow';
 import ComparisonAttributesToolbar, { type AttributeFilter } from './ComparisonAttributesToolbar';
 import { UNCATEGORIZED, UNCATEGORIZED_LABEL } from '../profileAttributeBlocks';
 import type { AttributeParityRow, AttributeVerdict } from './attributeParity';
+import type { ProfileRuleReads } from '../profileRuleReads';
 import type { ComparisonEditSide } from '../../../hooks/useComparisonProfileEdit';
 import type { ProfileDisplayConfig } from '../../../../shared/storage/profileDisplayStore';
 
@@ -14,7 +15,7 @@ export interface ComparisonAttributesTabProps {
   hiddenRows: readonly AttributeParityRow[];
   hiddenDifferences: number;
   config: ProfileDisplayConfig;
-  ruleReads: Record<string, string[]>;
+  ruleReads: ProfileRuleReads | undefined;
   contextEdit?: ComparisonEditSide;
   comparedEdit?: ComparisonEditSide;
 }
@@ -152,7 +153,7 @@ const ComparisonAttributesTab: React.FC<ComparisonAttributesTabProps> = ({
                       contextName={contextName}
                       comparedName={comparedName}
                       showApiNames={config.showApiNames}
-                      readers={config.showRuleChips ? ruleReads[row.name] : undefined}
+                      readers={config.showRuleChips ? ruleReads?.[row.name] : undefined}
                       contextCell={contextCells?.[row.name]}
                       comparedCell={comparedCells?.[row.name]}
                     />

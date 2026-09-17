@@ -26,7 +26,11 @@ const meta = {
     config: { description: 'The reconciled configuration the draft starts from.' },
     onCommit: { description: 'Done — receives the whole edited configuration.' },
     onCancel: { description: 'Cancel — the draft is discarded and nothing is written.' },
-    ruleReads: { description: 'Attribute Okta name → the rules that read it.' },
+    ruleReads: {
+      description:
+        'Attribute Okta name → the rules that read it. Absent means no rule was consulted, ' +
+        'and then no row carries a mark.',
+    },
     filter: { description: "The pane's live free-text filter; non-empty disables reordering." },
   },
   args: {
@@ -45,6 +49,14 @@ export const Default: Story = {};
 
 export const WithHiddenAttribute: Story = {
   args: { config: { ...fixtureConfig, hidden: { ...fixtureConfig.hidden, lastName: true } } },
+};
+
+export const RuleReadsNotLoaded: Story = {
+  args: { ruleReads: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText('rules')).toBeNull();
+  },
 };
 
 export const Filtered: Story = { args: { filter: 'name' } };

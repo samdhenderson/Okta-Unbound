@@ -8,7 +8,7 @@ const baseClasses = 'min-w-0 truncate text-xs';
 
 const chipClasses = 'rounded bg-neutral-100 px-1.5 py-0.5 font-medium text-neutral-700';
 
-const nonAnswerClasses = 'italic text-neutral-400';
+const nonAnswerClasses = 'italic text-neutral-600';
 
 const toneClasses: Record<SourceTone, string> = {
   answer: chipClasses,

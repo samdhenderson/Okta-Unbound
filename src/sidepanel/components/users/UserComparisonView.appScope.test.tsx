@@ -89,7 +89,7 @@ const comparison = (appBuckets: AppBucketFixture = DEFAULT_APPS): UserComparison
     causes: [],
     attributeParity: { rows: [], hiddenRows: [], hiddenDifferences: 0, differenceCount: 0 },
     attributeConfig: DEFAULT_PROFILE_DISPLAY_CONFIG,
-    attributeRuleReads: {},
+    attributeRuleReads: undefined,
     attributeEdit: NO_ATTRIBUTE_EDITING,
     groupSimilarity: 0,
     appSimilarity: 20,

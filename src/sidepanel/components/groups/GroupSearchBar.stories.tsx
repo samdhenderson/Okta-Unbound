@@ -84,7 +84,7 @@ export const TypingACachedQuery: Story = {
   render: (args) => <SearchHarness {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByPlaceholderText('Search groups...');
+    const field = canvas.getByRole('textbox', { name: 'Filter loaded groups' });
     await userEvent.type(field, 'engineering');
     await expect(field).toHaveValue('engineering');
   },
@@ -95,7 +95,7 @@ export const TypingALiveQuery: Story = {
   render: (args) => <SearchHarness {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const field = canvas.getByPlaceholderText('Search groups by name...');
+    const field = canvas.getByRole('textbox', { name: 'Search all groups in Okta' });
     await userEvent.type(field, 'admins');
     await expect(field).toHaveValue('admins');
   },

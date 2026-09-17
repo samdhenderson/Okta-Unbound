@@ -8,13 +8,14 @@ import ProfileDisplayDragGhost from './ProfileDisplayDragGhost';
 import ProfileDisplayOptions from './ProfileDisplayOptions';
 import ProfileDisplaySectionEditor from './ProfileDisplaySectionEditor';
 import { useProfileDisplayEditor } from '../../hooks/useProfileDisplayEditor';
+import type { ProfileRuleReads } from './profileRuleReads';
 
 export interface ProfileDisplayEditorProps {
   attributes: readonly AttributeDescriptor[];
   config: ProfileDisplayConfig;
   onCommit: (config: ProfileDisplayConfig) => void;
   onCancel: () => void;
-  ruleReads?: Record<string, string[]>;
+  ruleReads?: ProfileRuleReads;
   filter?: string;
 }
 
@@ -118,7 +119,7 @@ const ProfileDisplayEditor: React.FC<ProfileDisplayEditorProps> = ({
           attribute={attribute}
           isHidden={editor.draft.hidden[name] === true}
           isLifted={isLifted}
-          ruleNames={ruleReads?.[name] ?? []}
+          ruleNames={ruleReads?.[name]}
           isReorderDisabled={isFiltering}
           gripDescribedBy={HELP_ID}
           onToggleHidden={() => editor.toggleHidden(name)}

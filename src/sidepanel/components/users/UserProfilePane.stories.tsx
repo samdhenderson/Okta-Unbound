@@ -3,6 +3,7 @@ import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
 import UserProfilePane from './UserProfilePane';
 import type { ProfileDisplayCustomizeControls, ProfileEditControls } from './UserProfilePaneHeader';
 import type { AttributeDescriptor } from './profileAttributes';
+import type { ProfileRuleReads } from './profileRuleReads';
 import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
 import type { AttributeEditCell } from '../../hooks/useProfileEdit';
 
@@ -157,7 +158,7 @@ const CUSTOMIZE_CONTROLS: ProfileDisplayCustomizeControls = {
   onCancel: fn(),
 };
 
-const RULE_READS: Record<string, string[]> = {
+const RULE_READS: ProfileRuleReads = {
   department: ['Engineering → VPN Access', 'Engineering → Wiki'],
   title: ['Staff+ → On-call Rotation'],
 };
@@ -186,7 +187,11 @@ const meta = {
   argTypes: {
     attributes: { description: 'Every attribute of the profile, empty ones included.' },
     config: { description: "The admin's reconciled display configuration." },
-    ruleReads: { description: 'Attribute name → the granting rules that read it.' },
+    ruleReads: {
+      description:
+        'Attribute name → the granting rules that read it. `undefined` is "no rule was ' +
+        'consulted", and the pane withholds the whole rule axis rather than reporting zero.',
+    },
     edit: { description: 'The pane-level edit verbs; absent means the pane is read-only.' },
     cells: { description: 'Attribute name → its edit cell. Empty outside edit mode.' },
     customize: {
@@ -273,6 +278,28 @@ export const UsedByRulesOnly: Story = {
     await waitFor(() => expect(canvas.queryByText('CC-4471')).not.toBeInTheDocument());
     await expect(canvas.getByText('Engineering')).toBeInTheDocument();
     await expect(canvas.getByText('Staff Platform Engineer')).toBeInTheDocument();
+  },
+};
+
+export const RuleReadsNotLoaded: Story = {
+  args: { ruleReads: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText(/attributes shown/)).toBeInTheDocument();
+    await expect(canvas.queryByText(/read by rules that grant access/)).not.toBeInTheDocument();
+    const pill = canvas.getByRole('button', { name: 'Used by rules' });
+    await expect(pill).toHaveAttribute('aria-disabled', 'true');
+    await expect(pill).toHaveAccessibleDescription(
+      'The group rules have not been read, so which attributes they use is unknown.',
+    );
+    await expect(canvas.queryByText('2 rules')).not.toBeInTheDocument();
+
+    await userEvent.click(pill);
+    await expect(pill).toHaveAttribute('aria-pressed', 'false');
+    await expect(canvas.getByText(/attributes shown/)).toBeInTheDocument();
+
+    await expect(canvas.getByText('Engineering')).toBeInTheDocument();
   },
 };
 

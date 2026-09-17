@@ -8,7 +8,7 @@ const baseClasses = 'shrink-0 whitespace-nowrap text-xs';
 const chipClasses =
   'rounded-md border border-neutral-200 bg-neutral-100 px-2 py-0.5 font-medium text-neutral-700';
 
-const nonAnswerClasses = 'italic text-neutral-400';
+const nonAnswerClasses = 'italic text-neutral-600';
 
 const stateStyles: Record<
   AppScopeIndicatorState,

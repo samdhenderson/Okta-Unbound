@@ -2,6 +2,7 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, within } from 'storybook/test';
 import UserProfileAttributeList from './UserProfileAttributeList';
+import type { ProfileRuleReads } from './profileRuleReads';
 import type { AttributeDescriptor } from './profileAttributes';
 import type { AttributeEditCell } from '../../hooks/useProfileEdit';
 
@@ -90,7 +91,7 @@ const editCells: Readonly<Record<string, AttributeEditCell>> = {
   },
 };
 
-const ruleReads: Record<string, string[]> = {
+const ruleReads: ProfileRuleReads = {
   department: ['Platform engineers'],
   employeeType: ['Full-time staff', 'Badge holders', 'Payroll sync'],
 };
@@ -137,7 +138,9 @@ const meta = {
     },
     showRuleChips: { description: 'Whether the "read by rules" chips render at all.' },
     ruleReads: {
-      description: 'Attribute name → the rules that read it; an absent name gets no chip.',
+      description:
+        'Attribute name → the rules that read it; an absent name gets no chip, and an absent ' +
+        'map — no rule was consulted at all — gets no chip anywhere.',
     },
     cells: {
       description: 'Attribute name → its edit cell while editing; absent is the read-only path.',
@@ -198,6 +201,16 @@ export const WithRuleChips: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText('1 rule')).toBeInTheDocument();
     await expect(canvas.getByText('3 rules')).toBeInTheDocument();
+  },
+};
+
+export const RuleReadsNotLoaded: Story = {
+  args: { ruleReads: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText('1 rule')).toBeNull();
+    await expect(canvas.queryByText('3 rules')).toBeNull();
+    await expect(canvas.getByText('Platform Engineering')).toBeInTheDocument();
   },
 };
 

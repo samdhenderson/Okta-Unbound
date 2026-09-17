@@ -190,16 +190,17 @@ does not hold" are different answers and an admin acts on them differently.
 `'added' | 'removed' | 'not-predicted'`. `not-predicted` always carries a
 `WithheldReason`; it is a quieter way of saying no, never a shrug.
 
-**Withholding is always explained.** `WithheldReason` names six causes:
+**Withholding is always explained.** `WithheldReason` names seven causes:
 
-| Code                                | Meaning                                                                                          |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `rule-unevaluable-after`            | Another active rule on the group could not be evaluated, so we do not know it fails to hold them |
-| `another-active-rule-still-matches` | A different active rule keeps the membership; it is named                                        |
-| `membership-not-credited-to-rule`   | Not rule-bucketed at all, so no rule's verdict can take it away                                  |
-| `membership-attribution-deduced`    | Rule-bucketed, but _which_ rule was deduced rather than established                              |
-| `rule-inactive`                     | The only implicated rules are `INACTIVE`; they place nobody                                      |
-| `app-mastered-group`                | An `APP_GROUP` roster is managed by its application                                              |
+| Code                                | Meaning                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `rule-unevaluable-after`            | Another active rule on the group could not be evaluated, so we do not know it fails to hold them    |
+| `another-active-rule-still-matches` | A different active rule keeps the membership; it is named                                           |
+| `membership-not-credited-to-rule`   | Not rule-bucketed at all, so no rule's verdict can take it away                                     |
+| `membership-attribution-deduced`    | Rule-bucketed, but _which_ rule was deduced rather than established                                 |
+| `rule-inactive`                     | The only implicated rules are `INACTIVE`; they place nobody                                         |
+| `app-mastered-group`                | An `APP_GROUP` roster is managed by its application                                                 |
+| `rule-excludes-user`                | Every implicated rule's exclusion list names the user, or a group they are in; it never placed them |
 
 **A membership states its source.** `membershipVerdict()` returns `Rule`,
 `Rule · N`, `Direct`, `App`, or `Unresolved`, each with `deduced` set truthfully.

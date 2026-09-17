@@ -132,7 +132,9 @@ const meta = {
     hiddenDifferences: { description: 'How many of `hiddenRows` actually differ.' },
     config: { description: "The admin's reconciled display configuration." },
     ruleReads: {
-      description: 'Okta attribute name → the rules that read it and grant either user access.',
+      description:
+        'Okta attribute name → the rules that read it and grant either user access. Absent ' +
+        'means no rule was consulted for this pair, and then no row carries a chip.',
     },
     contextEdit: {
       description: "The context user's editor. Absent leaves the left column read-only.",
@@ -147,6 +149,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const RuleReadsNotLoaded: Story = {
+  args: { ruleReads: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByText('1 rule')).toBeNull();
+    await expect(canvas.getByText('Department')).toBeInTheDocument();
+  },
+};
 
 export const AllVerdicts: Story = {
   play: async ({ canvasElement }) => {

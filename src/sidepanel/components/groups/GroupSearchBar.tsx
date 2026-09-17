@@ -23,6 +23,7 @@ const GroupSearchBar: React.FC<GroupSearchBarProps> = ({
     {searchMode === 'live' ? (
       <Input
         type="text"
+        ariaLabel="Search all groups in Okta"
         placeholder="Search groups by name..."
         value={liveSearchQuery}
         onChange={onLiveSearchQueryChange}
@@ -32,6 +33,7 @@ const GroupSearchBar: React.FC<GroupSearchBarProps> = ({
     ) : (
       <Input
         type="text"
+        ariaLabel="Filter loaded groups"
         placeholder="Search groups..."
         value={searchQuery}
         onChange={onSearchQueryChange}

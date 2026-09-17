@@ -91,7 +91,6 @@ const ComposeField: React.FC<ComposeFieldProps> = ({ field, value, onChange }) =
       {spread && <BreakdownReport rows={[...spread]} activeValues={EMPTY_ACTIVE} />}
       <Input
         label={field.label}
-        ariaLabel={field.label}
         value={value}
         onChange={onChange}
         placeholder={field.placeholder}

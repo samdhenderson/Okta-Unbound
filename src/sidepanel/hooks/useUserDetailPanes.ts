@@ -9,7 +9,7 @@ import {
   type AttributeDescriptor,
 } from '../components/users/profileAttributes';
 import { profileMastering, type ProfileMastering } from '../components/users/profileEditability';
-import { profileRuleReads } from '../components/users/profileRuleReads';
+import { profileRuleReads, type ProfileRuleReads } from '../components/users/profileRuleReads';
 import { useOktaApi } from './useOktaApi';
 import { useProfileDisplayConfig } from './useProfileDisplayConfig';
 import { useUserApps, type AppsByGroupId } from './useUserApps';
@@ -49,7 +49,7 @@ export interface UseUserDetailPanesReturn {
   isLoadingProfile: boolean;
   profileConfig: ProfileDisplayConfig;
   updateProfileConfig: (patch: Partial<ProfileDisplayConfig>) => void;
-  ruleReads: Record<string, string[]>;
+  ruleReads: ProfileRuleReads | undefined;
   mastering: ProfileMastering;
 }
 
@@ -119,7 +119,7 @@ export function useUserDetailPanes({
     () =>
       user && rules.status === 'available' && memberships
         ? profileRuleReads(rules.rules, user, memberships)
-        : {},
+        : undefined,
     [rules, user, memberships],
   );
 

@@ -2,41 +2,52 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useRemoveDeprovisioned } from './useRemoveDeprovisioned';
 import type { OperationResult } from '../../../hooks/useOktaApi/types';
+import type { OperationResultListener } from '../../../hooks/useOperationResultBus';
 
-const facade = vi.hoisted(() => ({
-  removeDeprovisioned: vi.fn<(groupId: string) => Promise<void>>(),
-  lastOnResult: null as ((result: OperationResult) => void) | null,
-}));
+const removeDeprovisioned = vi.fn<(groupId: string) => Promise<void>>();
 
-vi.mock('../../../hooks/useOktaApi', () => ({
-  useOktaApi: ({ onResult }: { onResult?: (result: OperationResult) => void }) => {
-    facade.lastOnResult = onResult ?? null;
-    return { removeDeprovisioned: facade.removeDeprovisioned };
-  },
-}));
+const listeners = new Set<OperationResultListener>();
+const subscribeToResults = (listener: OperationResultListener): (() => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+const emit = (result: OperationResult): void => {
+  for (const listener of [...listeners]) listener(result);
+};
 
 const GROUP_ID = '00gFAKEgroup00001';
+
+function mount(onDone: () => void = vi.fn()) {
+  return renderHook(() =>
+    useRemoveDeprovisioned({
+      groupId: GROUP_ID,
+      api: { removeDeprovisioned },
+      subscribeToResults,
+      onDone,
+    }),
+  );
+}
 
 describe('useRemoveDeprovisioned', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    facade.lastOnResult = null;
+    listeners.clear();
   });
 
   it('calls the facade operation with the group id and clears the flag when it settles', async () => {
     let release!: () => void;
-    facade.removeDeprovisioned.mockReturnValue(
+    removeDeprovisioned.mockReturnValue(
       new Promise<void>((resolve) => {
         release = resolve;
       }),
     );
     const onDone = vi.fn();
-    const { result } = renderHook(() => useRemoveDeprovisioned(GROUP_ID, 1, onDone));
+    const { result } = mount(onDone);
 
     expect(result.current.isRemoving).toBe(false);
 
     act(() => result.current.run());
-    expect(facade.removeDeprovisioned).toHaveBeenCalledWith(GROUP_ID);
+    expect(removeDeprovisioned).toHaveBeenCalledWith(GROUP_ID);
     expect(result.current.isRemoving).toBe(true);
     expect(onDone).not.toHaveBeenCalled();
 
@@ -49,9 +60,9 @@ describe('useRemoveDeprovisioned', () => {
   });
 
   it('still refreshes the roster when the operation rejects, and says so', async () => {
-    facade.removeDeprovisioned.mockRejectedValue(new Error('network died'));
+    removeDeprovisioned.mockRejectedValue(new Error('network died'));
     const onDone = vi.fn();
-    const { result } = renderHook(() => useRemoveDeprovisioned(GROUP_ID, 1, onDone));
+    const { result } = mount(onDone);
 
     act(() => result.current.run());
 
@@ -61,22 +72,52 @@ describe('useRemoveDeprovisioned', () => {
   });
 
   it("keeps the operation's error line, and ignores its non-error chatter", async () => {
-    facade.removeDeprovisioned.mockResolvedValue(undefined);
-    const { result } = renderHook(() => useRemoveDeprovisioned(GROUP_ID, 1, vi.fn()));
+    let release!: () => void;
+    removeDeprovisioned.mockReturnValue(
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+    );
+    const { result } = mount();
+
+    act(() => result.current.run());
 
     act(() => {
-      facade.lastOnResult?.({ message: 'Found 3 deprovisioned users', type: 'warning' });
-      facade.lastOnResult?.({ message: 'Removed: ada@example.com', type: 'success' });
+      emit({ message: 'Found 3 deprovisioned users', type: 'warning' });
+      emit({ message: 'Removed: ada@example.com', type: 'success' });
     });
     expect(result.current.error).toBeNull();
 
     act(() => {
-      facade.lastOnResult?.({ message: '403 Forbidden: grace@example.com', type: 'error' });
+      emit({ message: '403 Forbidden: grace@example.com', type: 'error' });
     });
     expect(result.current.error).toBe('403 Forbidden: grace@example.com');
 
     await act(async () => {
+      release();
+    });
+
+    await act(async () => {
       result.current.run();
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it('ignores results reported while its own run is not in flight', async () => {
+    removeDeprovisioned.mockResolvedValue(undefined);
+    const { result } = mount();
+
+    act(() => {
+      emit({ message: 'A different operation failed', type: 'error' });
+    });
+    expect(result.current.error).toBeNull();
+
+    await act(async () => {
+      result.current.run();
+    });
+
+    act(() => {
+      emit({ message: 'A later, unrelated failure', type: 'error' });
     });
     expect(result.current.error).toBeNull();
   });

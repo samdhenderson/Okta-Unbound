@@ -4,6 +4,7 @@ import Icon from '../shared/Icon';
 import type { ProfileDisplayConfig } from '../../../shared/storage/profileDisplayStore';
 import type { AttributeDescriptor } from './profileAttributes';
 import { buildAttributeBlocks } from './profileAttributeBlocks';
+import type { ProfileRuleReads } from './profileRuleReads';
 import UserProfileAttributeList from './UserProfileAttributeList';
 import UserProfilePaneHeader, {
   type ProfileDisplayCustomizeControls,
@@ -15,7 +16,7 @@ import type { AttributeEditCell } from '../../hooks/useProfileEdit';
 export interface UserProfilePaneProps {
   attributes: readonly AttributeDescriptor[];
   config: ProfileDisplayConfig;
-  ruleReads: Record<string, string[]>;
+  ruleReads: ProfileRuleReads | undefined;
   customize?: ProfileDisplayCustomizeControls;
   isLoading?: boolean;
   edit?: ProfileEditControls;
@@ -40,29 +41,35 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
 
   const isCustomizing = customize?.isCustomizing ?? false;
 
+  const canFilterByRuleRead = ruleReads !== undefined;
+  const isOnlyRuleRead = onlyRuleRead && canFilterByRuleRead;
+
   const beginCustomizing = (): void => {
     setOnlyRuleRead(false);
     customize?.onBegin();
   };
 
   const blocks = useMemo(
-    () => buildAttributeBlocks(attributes, config, ruleReads, { filter, onlyRuleRead }),
-    [attributes, config, ruleReads, filter, onlyRuleRead],
+    () =>
+      buildAttributeBlocks(attributes, config, ruleReads, { filter, onlyRuleRead: isOnlyRuleRead }),
+    [attributes, config, ruleReads, filter, isOnlyRuleRead],
   );
 
   const shown = blocks.reduce((sum, block) => sum + block.attributes.length, 0);
   const total = new Set(attributes.map((attribute) => attribute.name)).size;
-  const readCount = blocks.reduce(
-    (sum, block) =>
-      sum + block.attributes.filter((attribute) => ruleReads[attribute.name]?.length).length,
-    0,
-  );
+  const readCount = ruleReads
+    ? blocks.reduce(
+        (sum, block) =>
+          sum + block.attributes.filter((attribute) => ruleReads[attribute.name]?.length).length,
+        0,
+      )
+    : undefined;
 
   const configureActions = customize
     ? [{ label: 'Configure display', onClick: beginCustomizing, variant: 'secondary' as const }]
     : undefined;
 
-  const isFiltered = filter.trim() !== '' || onlyRuleRead;
+  const isFiltered = filter.trim() !== '' || isOnlyRuleRead;
   const clearFilters = (): void => {
     setFilter('');
     setOnlyRuleRead(false);
@@ -101,10 +108,18 @@ const UserProfilePane: React.FC<UserProfilePaneProps> = ({
           }
         />
         <div className="flex flex-wrap gap-(--sp-inline)">
-          <FilterPill active={!onlyRuleRead} onClick={() => setOnlyRuleRead(false)}>
+          <FilterPill active={!isOnlyRuleRead} onClick={() => setOnlyRuleRead(false)}>
             All attributes
           </FilterPill>
-          <FilterPill active={onlyRuleRead} onClick={() => setOnlyRuleRead(true)}>
+          <FilterPill
+            active={isOnlyRuleRead}
+            onClick={() => setOnlyRuleRead(true)}
+            unavailableReason={
+              canFilterByRuleRead
+                ? undefined
+                : 'The group rules have not been read, so which attributes they use is unknown.'
+            }
+          >
             Used by rules
           </FilterPill>
         </div>

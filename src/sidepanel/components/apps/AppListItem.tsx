@@ -7,6 +7,7 @@ import {
   LoadingSpinner,
   OpenInOktaLink,
   REVEAL_ON_HOVER,
+  StretchedButton,
 } from '../shared';
 import Icon from '../shared/Icon';
 import { useEntityQuery } from '../../cache/useEntityQuery';
@@ -70,6 +71,7 @@ const AppListItem: React.FC<AppListItemProps> = memo(
   ({ app, oktaOrigin, fetchAssignmentCounts, selected = false, onToggleSelect }) => {
     const [expanded, setExpanded] = useState(false);
     const detailsId = useId();
+    const labelId = useId();
     const toggleExpanded = useCallback(() => setExpanded((prev) => !prev), []);
 
     const label = appDisplayLabel(app);
@@ -139,9 +141,16 @@ const AppListItem: React.FC<AppListItemProps> = memo(
           </div>
         }
       >
-        <div className="flex items-start gap-3">
+        <div className="relative flex items-start gap-3">
+          <StretchedButton
+            label={expanded ? 'Hide details' : 'Show details'}
+            describedBy={labelId}
+            onClick={toggleExpanded}
+          />
           {onToggleSelect && (
-            <div className={`flex items-center pt-0.5 ${selected ? '' : REVEAL_ON_HOVER}`}>
+            <div
+              className={`relative z-10 flex items-center pt-0.5 ${selected ? '' : REVEAL_ON_HOVER}`}
+            >
               <Checkbox
                 checked={selected}
                 onChange={() => onToggleSelect(app.id)}
@@ -149,10 +158,13 @@ const AppListItem: React.FC<AppListItemProps> = memo(
               />
             </div>
           )}
-          <div className="press-subtle flex-1 min-w-0 cursor-pointer" onClick={toggleExpanded}>
+          <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-neutral-900 truncate group-hover/item:text-primary-text transition-colors duration-(--dur-instant)">
+                <h3
+                  id={labelId}
+                  className="text-sm font-semibold text-neutral-900 truncate group-hover/item:text-primary-text transition-colors duration-(--dur-instant)"
+                >
                   {label}
                 </h3>
 
@@ -173,14 +185,12 @@ const AppListItem: React.FC<AppListItemProps> = memo(
               <div className="flex items-center gap-1 shrink-0">
                 <IconButton
                   label={expanded ? `Collapse ${label}` : `Expand ${label}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleExpanded();
-                  }}
+                  onClick={toggleExpanded}
                   variant="ghost"
                   size="md"
                   expanded={expanded}
                   controls={detailsId}
+                  className="relative z-10"
                 >
                   <Icon
                     type="chevron-right"
