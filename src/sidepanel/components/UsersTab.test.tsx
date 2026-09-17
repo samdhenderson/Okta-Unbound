@@ -506,7 +506,9 @@ describe('lifecycle actions', () => {
     });
     await flush();
 
-    expect(await screen.findByText('Password reset email sent successfully.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Password reset email sent. The link is one-time and expires.'),
+    ).toBeInTheDocument();
     expect(schedulerEndpoints()).not.toContain('/api/v1/users/u1');
     expect(userGroupsCalls()).toHaveLength(0);
   });

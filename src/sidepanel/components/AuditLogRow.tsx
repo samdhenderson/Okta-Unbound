@@ -15,6 +15,7 @@ const TYPE_LABEL: Record<ActionType, string> = {
   CONSOLIDATE_RULE: 'Rules Consolidated',
   UPDATE_USER_PROFILE: 'Profile Updated',
   BULK_UPDATE_USER_PROFILE: 'Profiles Updated',
+  CHANGE_USER_PASSWORD: 'Password Changed',
 };
 
 const STATUS_BADGE: Partial<

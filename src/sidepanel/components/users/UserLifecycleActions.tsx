@@ -1,7 +1,13 @@
 import React from 'react';
-import { Button, Eyebrow, Modal } from '../shared';
+import { AlertMessage, Button, CopyButton, Eyebrow, Modal } from '../shared';
 import type { OktaUser } from '../../../shared/types';
-import type { LifecycleAction } from '../../hooks/useUserLifecycleActions';
+import type {
+  LifecycleAction,
+  PasswordChangeMode,
+  PasswordConfirmInput,
+} from '../../hooks/useUserLifecycleActions';
+import PasswordChangeFields from './PasswordChangeFields';
+import { CONFIRM_LABEL, canRunPasswordChange } from './passwordModes';
 
 export interface UserLifecycleActionsProps {
   user: OktaUser;
@@ -9,7 +15,9 @@ export interface UserLifecycleActionsProps {
   pendingLifecycleAction: LifecycleAction | null;
   onRequestAction: (action: LifecycleAction) => void;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm: (input?: PasswordConfirmInput) => void;
+  tempPassword?: string | null;
+  onDismissTempPassword?: () => void;
 }
 
 const RESET_PASSWORD_STATUSES: ReadonlySet<OktaUser['status']> = new Set([
@@ -19,6 +27,12 @@ const RESET_PASSWORD_STATUSES: ReadonlySet<OktaUser['status']> = new Set([
   'PASSWORD_EXPIRED',
 ]);
 
+const MODAL_TITLE: Record<LifecycleAction, string> = {
+  suspend: 'Suspend User',
+  unsuspend: 'Unsuspend User',
+  resetPassword: 'Reset Password',
+};
+
 const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
   user,
   isLifecycleLoading,
@@ -26,10 +40,42 @@ const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
   onRequestAction,
   onCancel,
   onConfirm,
+  tempPassword = null,
+  onDismissTempPassword,
 }) => {
   const canResetPassword = RESET_PASSWORD_STATUSES.has(user.status);
   const isSuspended = user.status === 'SUSPENDED';
   const hasDestructive = user.status === 'ACTIVE' || isSuspended;
+
+  const [passwordMode, setPasswordMode] = React.useState<PasswordChangeMode>('email-reset');
+  const [password, setPassword] = React.useState('');
+
+  const forgetPassword = React.useCallback(() => {
+    setPassword('');
+    setPasswordMode('email-reset');
+  }, []);
+
+  const handleCancel = () => {
+    forgetPassword();
+    onCancel();
+  };
+
+  const handleConfirm = () => {
+    if (pendingLifecycleAction === 'resetPassword') {
+      onConfirm({ mode: passwordMode, password });
+    } else {
+      onConfirm();
+    }
+    forgetPassword();
+  };
+
+  const isPassword = pendingLifecycleAction === 'resetPassword';
+  const confirmLabel = isPassword
+    ? CONFIRM_LABEL[passwordMode]
+    : pendingLifecycleAction === 'suspend'
+      ? 'Suspend'
+      : 'Unsuspend';
+  const confirmDisabled = isPassword && !canRunPasswordChange(passwordMode, password);
 
   return (
     <>
@@ -93,60 +139,86 @@ const UserLifecycleActions: React.FC<UserLifecycleActionsProps> = ({
 
       <Modal
         isOpen={pendingLifecycleAction !== null}
-        onClose={onCancel}
-        title={
-          pendingLifecycleAction === 'suspend'
-            ? 'Suspend User'
-            : pendingLifecycleAction === 'unsuspend'
-              ? 'Unsuspend User'
-              : 'Reset Password'
-        }
+        onClose={handleCancel}
+        title={pendingLifecycleAction ? MODAL_TITLE[pendingLifecycleAction] : ''}
         size="sm"
         footer={
           <>
-            <Button variant="secondary" size="sm" onClick={onCancel}>
+            <Button variant="secondary" size="sm" onClick={handleCancel}>
               Cancel
             </Button>
             <Button
               variant={pendingLifecycleAction === 'suspend' ? 'danger' : 'primary'}
               size="sm"
-              onClick={onConfirm}
+              disabled={confirmDisabled}
+              onClick={handleConfirm}
             >
-              {pendingLifecycleAction === 'suspend'
-                ? 'Suspend'
-                : pendingLifecycleAction === 'unsuspend'
-                  ? 'Unsuspend'
-                  : 'Send Reset Email'}
+              {confirmLabel}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-neutral-700">
-          {pendingLifecycleAction === 'suspend' && (
-            <>
-              Are you sure you want to suspend{' '}
-              <strong className="text-neutral-900">
-                {user.profile.firstName} {user.profile.lastName}
-              </strong>
-              ? They will be unable to sign in until unsuspended.
-            </>
-          )}
-          {pendingLifecycleAction === 'unsuspend' && (
-            <>
-              Unsuspend{' '}
-              <strong className="text-neutral-900">
-                {user.profile.firstName} {user.profile.lastName}
-              </strong>
-              ? They will regain the ability to sign in.
-            </>
-          )}
-          {pendingLifecycleAction === 'resetPassword' && (
-            <>
-              Send a password reset email to{' '}
-              <strong className="text-neutral-900">{user.profile.email}</strong>?
-            </>
-          )}
-        </p>
+        {isPassword ? (
+          <PasswordChangeFields
+            email={user.profile.email}
+            mode={passwordMode}
+            onModeChange={setPasswordMode}
+            password={password}
+            onPasswordChange={setPassword}
+            disabled={isLifecycleLoading}
+          />
+        ) : (
+          <p className="text-sm text-neutral-700">
+            {pendingLifecycleAction === 'suspend' ? (
+              <>
+                Are you sure you want to suspend{' '}
+                <strong className="text-neutral-900">
+                  {user.profile.firstName} {user.profile.lastName}
+                </strong>
+                ? They will be unable to sign in until unsuspended.
+              </>
+            ) : (
+              <>
+                Unsuspend{' '}
+                <strong className="text-neutral-900">
+                  {user.profile.firstName} {user.profile.lastName}
+                </strong>
+                ? They will regain the ability to sign in.
+              </>
+            )}
+          </p>
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={tempPassword !== null}
+        onClose={() => onDismissTempPassword?.()}
+        title="Temporary password"
+        size="sm"
+        footer={
+          <Button variant="primary" size="sm" onClick={() => onDismissTempPassword?.()}>
+            Done
+          </Button>
+        }
+      >
+        <div className="space-y-(--sp-field)">
+          <AlertMessage
+            message={{
+              text: 'Okta showed this once. Closing this dialog is the last you will see of it.',
+              type: 'warning',
+            }}
+          />
+          <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
+            <code className="font-mono text-sm break-all text-neutral-900">{tempPassword}</code>
+            <CopyButton getText={() => tempPassword ?? ''} label="Copy" />
+          </div>
+          <p className="text-sm text-neutral-700">
+            <strong className="text-neutral-900">
+              {user.profile.firstName} {user.profile.lastName}
+            </strong>{' '}
+            must replace it at their next sign-in.
+          </p>
+        </div>
       </Modal>
     </>
   );

@@ -263,3 +263,63 @@ export const ErrorStateLarge: Story = {
     icon: <Icon type="search" size="sm" />,
   },
 };
+
+export const Combobox: Story = {
+  render: () => (
+    <div>
+      <Input
+        value="/api/v1/gr"
+        onChange={fn()}
+        ariaLabel="API path"
+        combobox={{
+          expanded: true,
+          listboxId: 'story-listbox',
+          activeOptionId: 'story-option-1',
+        }}
+      />
+      <ul
+        id="story-listbox"
+        role="listbox"
+        aria-label="Endpoint suggestions"
+        className="mt-1 rounded-md border border-neutral-200 bg-white py-1 text-sm"
+      >
+        <li role="presentation" className="px-3 py-1 text-xs tracking-wide text-neutral-500">
+          GROUPS
+        </li>
+        <li
+          id="story-option-1"
+          role="option"
+          aria-selected="true"
+          className="bg-neutral-100 px-3 py-1.5 font-mono text-neutral-900"
+        >
+          /api/v1/groups
+        </li>
+        <li
+          id="story-option-2"
+          role="option"
+          aria-selected="false"
+          className="px-3 py-1.5 font-mono text-neutral-900"
+        >
+          /api/v1/groups/&#123;groupId&#125;/users
+        </li>
+      </ul>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole('combobox', { name: 'API path' });
+
+    await expect(field).toHaveAttribute('aria-expanded', 'true');
+    await expect(field).toHaveAttribute('aria-controls', 'story-listbox');
+    await expect(field).toHaveAttribute('aria-activedescendant', 'story-option-1');
+    await expect(canvas.getByRole('listbox', { name: 'Endpoint suggestions' })).toBeInTheDocument();
+  },
+};
+
+export const ComboboxClosed: Story = {
+  args: {
+    value: '/api/v1/groups',
+    ariaLabel: 'API path',
+    combobox: { expanded: false, listboxId: 'closed-listbox' },
+  },
+};

@@ -75,6 +75,28 @@ describe('handleMakeApiRequest failure statuses', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('refuses a path that resolves somewhere other than where it reads', async () => {
+    const result = await handleMakeApiRequest('/api/v1/../admin/users');
+
+    expect(result).toEqual({
+      success: false,
+      error: 'Rejected request: endpoint path is not normalized',
+      status: NO_HTTP_STATUS,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('still sends a query string carrying spaces and quotes', async () => {
+    fetchMock.mockResolvedValue(res({ ok: true }));
+
+    await handleMakeApiRequest('/api/v1/users?search=status eq "ACTIVE"');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/users?search=status eq "ACTIVE"'),
+      expect.anything(),
+    );
+  });
+
   it('uses the sentinel when the method allow-list rejects the request', async () => {
     const result = await handleMakeApiRequest('/api/v1/apps', 'TRACE');
 

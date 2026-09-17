@@ -8,6 +8,8 @@ import type {
   BulkUpdateUserProfileMetadata,
   BulkUserInfo,
   CapturedAttribute,
+  ChangeUserPasswordMetadata,
+  PasswordChangeMode,
   UpdateUserProfileMetadata,
 } from './undoTypes';
 
@@ -109,6 +111,37 @@ export async function logBulkRemoveAction(
   };
 
   return logAction(description, metadata);
+}
+
+export async function logPasswordChangeAction(
+  userId: string,
+  userLogin: string,
+  userName: string,
+  mode: PasswordChangeMode,
+  options: { expired?: boolean; status?: UndoAction['status'] } = {},
+): Promise<UndoAction> {
+  const who = userName || userLogin;
+  const description =
+    mode === 'email-reset'
+      ? `Sent a password reset email to ${who}`
+      : mode === 'temp'
+        ? `Generated a temporary password for ${who}`
+        : mode === 'set-and-expire'
+          ? options.expired === false
+            ? `Set a password for ${who}; the forced change was not applied`
+            : `Set a one-time password for ${who}`
+          : `Set a password for ${who}`;
+
+  const metadata: ChangeUserPasswordMetadata = {
+    type: 'CHANGE_USER_PASSWORD',
+    userId,
+    userLogin,
+    userName,
+    mode,
+    ...(options.expired === undefined ? {} : { expired: options.expired }),
+  };
+
+  return logAction(description, metadata, options.status ?? 'completed');
 }
 
 export interface AttributeChange {

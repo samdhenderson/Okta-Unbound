@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test';
+import React from 'react';
 import ApiExplorerTab from './ApiExplorerTab';
+import { OrgEntityIndexProvider } from '../contexts/OrgEntityIndexContext';
 import { useOktaApi, makeUseOktaApiValue } from '../../../.storybook/mocks/useOktaApi.mock';
 
 const meta = {
@@ -32,6 +34,13 @@ const meta = {
     targetTabId: 1,
     oktaOrigin: 'https://example.okta.com',
   },
+  decorators: [
+    (Story: React.ComponentType) => (
+      <OrgEntityIndexProvider oktaOrigin={null} targetTabId={null} enabled={false}>
+        <Story />
+      </OrgEntityIndexProvider>
+    ),
+  ],
   beforeEach: () => {
     useOktaApi.mockReturnValue(makeUseOktaApiValue());
   },
@@ -60,7 +69,7 @@ export const Sent: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const input = canvas.getByRole('textbox', { name: 'API path' });
+    const input = canvas.getByRole('combobox', { name: 'API path' });
     await userEvent.type(input, '/api/v1/users/00uFAKE000000000001');
     await userEvent.click(canvas.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(canvas.getByText('200')).toBeInTheDocument());
@@ -77,7 +86,7 @@ export const ErrorState: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const input = canvas.getByRole('textbox', { name: 'API path' });
+    const input = canvas.getByRole('combobox', { name: 'API path' });
     await userEvent.type(input, '/api/v1/nope');
     await userEvent.click(canvas.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(canvas.getByText('Endpoint not found')).toBeInTheDocument());
@@ -86,4 +95,19 @@ export const ErrorState: Story = {
 
 export const Disconnected: Story = {
   args: { targetTabId: null },
+};
+
+export const RefusingAnUnfilledHole: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const field = canvas.getByRole('combobox', { name: 'API path' });
+
+    await userEvent.clear(field);
+    await userEvent.type(field, '/api/v1/users/{{userId}}/factors');
+    await userEvent.click(canvas.getByRole('button', { name: 'Send' }));
+
+    await waitFor(() =>
+      expect(canvas.getByText('Fill in {userId} before sending.')).toBeInTheDocument(),
+    );
+  },
 };

@@ -11,7 +11,9 @@ import { createGroupBulkOperations } from './useOktaApi/groupBulkOps';
 import { createGroupDiscoveryOperations } from './useOktaApi/groupDiscovery';
 import { createUserOperations } from './useOktaApi/userOperations';
 import { createProfileOperations } from './useOktaApi/profileOperations';
+import { createPasswordOperations } from './useOktaApi/passwordOperations';
 import { createAppOperations } from './useOktaApi/appOperations';
+import { createSamlOperations } from './useOktaApi/samlOperations';
 import { createPolicyOperations } from './useOktaApi/policyOperations';
 import { createExportEngineOperations } from './useOktaApi/exportEngine';
 import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
@@ -112,7 +114,9 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
   );
   const userOps = useMemo(() => createUserOperations(coreApi), [coreApi]);
   const profileOps = useMemo(() => createProfileOperations(coreApi), [coreApi]);
+  const passwordOps = useMemo(() => createPasswordOperations(coreApi), [coreApi]);
   const appOps = useMemo(() => createAppOperations(coreApi), [coreApi]);
+  const samlOps = useMemo(() => createSamlOperations(coreApi), [coreApi]);
   const policyOps = useMemo(() => createPolicyOperations(coreApi), [coreApi]);
   const exportEngineOps = useMemo(() => createExportEngineOperations(coreApi), [coreApi]);
   const groupAnalysisOps = useMemo(
@@ -179,10 +183,15 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
       suspendUser: userOps.suspendUser,
       unsuspendUser: userOps.unsuspendUser,
       resetPassword: userOps.resetPassword,
+      setUserPassword: passwordOps.setUserPassword,
+      expirePassword: passwordOps.expirePassword,
+      expirePasswordWithTempPassword: passwordOps.expirePasswordWithTempPassword,
 
       getAppById: appOps.getAppById,
       getAppAssignmentCounts: appOps.getAppAssignmentCounts,
       getAppGroupAssignments: appOps.getAppGroupAssignments,
+
+      fetchAppAssertion: samlOps.fetchAppAssertion,
 
       listPolicies: policyOps.listPolicies,
       getPolicyRules: policyOps.getPolicyRules,
@@ -214,7 +223,9 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
       groupBulkOps,
       userOps,
       profileOps,
+      passwordOps,
       appOps,
+      samlOps,
       policyOps,
       exportEngineOps,
       groupAnalysisOps,

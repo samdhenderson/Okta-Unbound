@@ -70,6 +70,24 @@ Ask these in order.
    what changes, not what the button is called. **A wizard in front of a verb does
    not move it into the row** — the test asks what the verb does, not what stands
    between the press and the doing.
+
+   **One question, one verb — the fork goes inside the confirm.** Where Okta
+   offers several operations that answer the same admin question, they are modes
+   in one confirm rather than sibling verbs in the strip. _Reset password_ is the
+   reference shape: four operations (a reset email, a direct set, a one-time set,
+   a generated temporary value) behind one button, each carrying the sentence that
+   distinguishes it. Four buttons would make the reader choose before any of the
+   consequences are in front of them.
+   3b. **Is there prior state to capture at all?** Usually yes, and the verb records
+   it so undo can restore. Where there is none — a password change, where Okta
+   returns no previous value at any cost — the verb may still ship, on three
+   conditions: the audit entry is written anyway (the history answers _who changed
+   this, and when_ without the value); the refusal is **declared** in
+   `useUndoAction`'s `NOT_UNDOABLE` table rather than inferred; and the confirm
+   says the change cannot be undone, beside the control, before it is pressed.
+   Never capture a stand-in — a hash, a length — so the row resembles a
+   restorable one. See `docs/adr/0009-a-write-with-no-prior-state.md`.
+
 4. **Yes to both?** It starts in the row, `priority: 'flex'`.
 5. **Is it rare enough that the row is not its to spend?** Frequency may move a
    row verb down to the tier — a panel toggle an admin reaches for once a quarter

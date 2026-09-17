@@ -8,6 +8,7 @@ import {
   extractPolicyNameFromPage,
 } from './pageContext';
 import { handleMakeApiRequest } from './apiRequest';
+import { handleExtractSamlResponse } from './samlRequest';
 import { injectIndicator } from './indicator';
 import { handleGetGroupInfo } from './groupHandlers';
 import { handleGetUserInfo } from './userHandlers';
@@ -76,6 +77,14 @@ function handleMessage(
         return true;
       }
       handleMakeApiRequest(request.endpoint, request.method, request.body).then(sendResponse);
+      return true;
+
+    case 'extractSamlResponse':
+      if (!request.endpoint) {
+        sendResponse({ success: false, error: 'Missing endpoint' });
+        return true;
+      }
+      handleExtractSamlResponse(request.endpoint).then(sendResponse);
       return true;
 
     case 'getOktaOrigin':

@@ -22,18 +22,19 @@ the same routing `CLAUDE.md` enforces, to keep context lean.
 
 ## Interface
 
-| Doc                                                  | Read it when you are…                                           |
-| ---------------------------------------------------- | --------------------------------------------------------------- |
-| [design-system.md](./design-system.md)               | Touching colors, typography, spacing roles, or density          |
-| [surfaces.md](./surfaces.md)                         | Touching card chrome, elevation, or a list row                  |
-| [components.md](./components.md)                     | Building or using a shared/feature component                    |
-| [component-primitives.md](./component-primitives.md) | Looking up one primitive's prop contract                        |
-| [action-bars.md](./action-bars.md)                   | Placing a verb, ranking `primary`, or touching a strip          |
-| [selection-verbs.md](./selection-verbs.md)           | Adding a basket verb, or reading what a run's confirm quotes    |
-| [page-shell.md](./page-shell.md)                     | Working on the shell, the rail, sticky bands, or the view stack |
-| [ux-guidelines.md](./ux-guidelines.md)               | Working on modals, a11y, or loading/empty/error states          |
-| [motion.md](./motion.md)                             | Touching durations, easings, primitives, or reduced motion      |
-| [motion-recipes.md](./motion-recipes.md)             | Building a scroll-driven or multi-band choreography             |
+| Doc                                                  | Read it when you are…                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| [design-system.md](./design-system.md)               | Touching colors, typography, spacing roles, or density                    |
+| [surfaces.md](./surfaces.md)                         | Touching card chrome, elevation, or a list row                            |
+| [components.md](./components.md)                     | Building or using a shared/feature component                              |
+| [component-primitives.md](./component-primitives.md) | Looking up one primitive's prop contract                                  |
+| [action-bars.md](./action-bars.md)                   | Placing a verb, ranking `primary`, or touching a strip                    |
+| [selection-verbs.md](./selection-verbs.md)           | Adding a basket verb, or reading what a run's confirm quotes              |
+| [page-shell.md](./page-shell.md)                     | Working on the shell, the rail, sticky bands, or the view stack           |
+| [api-explorer.md](./api-explorer.md)                 | Touching the Explorer's endpoint catalog, its path field, or hole filling |
+| [ux-guidelines.md](./ux-guidelines.md)               | Working on modals, a11y, or loading/empty/error states                    |
+| [motion.md](./motion.md)                             | Touching durations, easings, primitives, or reduced motion                |
+| [motion-recipes.md](./motion-recipes.md)             | Building a scroll-driven or multi-band choreography                       |
 
 ## Working on the repo
 
@@ -48,11 +49,10 @@ the same routing `CLAUDE.md` enforces, to keep context lean.
 
 ## Backlogs and records
 
-| Doc                                                  | Read it when you are…                                     |
-| ---------------------------------------------------- | --------------------------------------------------------- |
-| [features-plan.md](./features-plan.md)               | Scoping or picking up new feature work                    |
-| [rockstar-parity-plan.md](./rockstar-parity-plan.md) | Building toward full rockstar replacement                 |
-| [adr/](./adr/README.md)                              | Writing down a decision whose _reasoning_ must outlive it |
+| Doc                                    | Read it when you are…                                     |
+| -------------------------------------- | --------------------------------------------------------- |
+| [features-plan.md](./features-plan.md) | Scoping or picking up new feature work                    |
+| [adr/](./adr/README.md)                | Writing down a decision whose _reasoning_ must outlive it |
 
 ---
 

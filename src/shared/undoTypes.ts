@@ -7,7 +7,8 @@ export type ActionType =
   | 'DEACTIVATE_RULE'
   | 'CONSOLIDATE_RULE'
   | 'UPDATE_USER_PROFILE'
-  | 'BULK_UPDATE_USER_PROFILE';
+  | 'BULK_UPDATE_USER_PROFILE'
+  | 'CHANGE_USER_PASSWORD';
 
 export interface UndoAction {
   id: string;
@@ -28,7 +29,8 @@ export type UndoActionMetadata =
   | DeactivateRuleMetadata
   | ConsolidateRuleMetadata
   | UpdateUserProfileMetadata
-  | BulkUpdateUserProfileMetadata;
+  | BulkUpdateUserProfileMetadata
+  | ChangeUserPasswordMetadata;
 
 export interface RemoveUserMetadata {
   type: 'REMOVE_USER_FROM_GROUP';
@@ -107,6 +109,17 @@ export interface CapturedAttribute {
   afterDisplay: string;
   restorable: boolean;
   omitted?: CaptureOmission;
+}
+
+export type PasswordChangeMode = 'email-reset' | 'set' | 'set-and-expire' | 'temp';
+
+export interface ChangeUserPasswordMetadata {
+  type: 'CHANGE_USER_PASSWORD';
+  userId: string;
+  userLogin: string;
+  userName: string;
+  mode: PasswordChangeMode;
+  expired?: boolean;
 }
 
 export interface UpdateUserProfileMetadata {

@@ -6,16 +6,17 @@ Seventy-four records were deleted on 2026-09-09 and the rules that were still
 live were folded into the specs in `docs/` as plain house rules. Numbering
 restarts at **0001**, and the shelf is deliberately near-empty.
 
-| Record                                     | Decision                                                                                             |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| [0001](0001-rule-assessment-certainty.md)  | Rule assessment: the certainty ladder, and which expression functions the evaluator refuses          |
-| [0002](0002-linear-time-tenant-regex.md)   | Evaluate tenant-authored group-name regexes with a linear-time matcher, never `RegExp`               |
-| [0003](0003-stringswitch-matched-cases.md) | Support `String.stringSwitch` — Okta's own docs pin its match, order, and default behaviour          |
-| [0004](0004-absent-attribute-is-null.md)   | An absent profile attribute is `null`, because that is the only way Okta reports "no value"          |
-| [0005](0005-session-chrome.md)             | `ContextBar` carries session chrome — refresh and selection — and that list is closed at two         |
-| [0006](0006-saved-collections.md)          | A saved collection stores ids; a display name is stored only for users, and only on request          |
-| [0007](0007-verb-cost-in-two-quotes.md)    | A basket verb quotes its cost twice — preflight, then run — and names a walk rather than guessing it |
-| [0008](0008-a-verb-scoped-to-a-filter.md)  | A strip may host a verb scoped to a pane's filter, run over an ad-hoc basket that is not the basket  |
+| Record                                      | Decision                                                                                             |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [0001](0001-rule-assessment-certainty.md)   | Rule assessment: the certainty ladder, and which expression functions the evaluator refuses          |
+| [0002](0002-linear-time-tenant-regex.md)    | Evaluate tenant-authored group-name regexes with a linear-time matcher, never `RegExp`               |
+| [0003](0003-stringswitch-matched-cases.md)  | Support `String.stringSwitch` — Okta's own docs pin its match, order, and default behaviour          |
+| [0004](0004-absent-attribute-is-null.md)    | An absent profile attribute is `null`, because that is the only way Okta reports "no value"          |
+| [0005](0005-session-chrome.md)              | `ContextBar` carries session chrome — refresh and selection — and that list is closed at two         |
+| [0006](0006-saved-collections.md)           | A saved collection stores ids; a display name is stored only for users, and only on request          |
+| [0007](0007-verb-cost-in-two-quotes.md)     | A basket verb quotes its cost twice — preflight, then run — and names a walk rather than guessing it |
+| [0008](0008-a-verb-scoped-to-a-filter.md)   | A strip may host a verb scoped to a pane's filter, run over an ad-hoc basket that is not the basket  |
+| [0009](0009-a-write-with-no-prior-state.md) | A password change is recorded and refused an undo, because Okta returns no previous value to restore |
 
 ## What went wrong the first time
 

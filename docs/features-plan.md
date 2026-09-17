@@ -31,10 +31,6 @@ tenants at once is impossible. See [architecture.md](./architecture.md).
   state so undo can _restore_, not just log. Components < ~300 lines; logic in hooks.
 - Document exports with TypeDoc.
 
-> **Rockstar replacement:** the drive to fully replace rockstar has its own roadmap in
-> [rockstar-parity-plan.md](./rockstar-parity-plan.md). Features **C** and **D** below are
-> absorbed there as Phase 5.
-
 Status legend: `[ ]` todo · `[~]` partially done · `[x]` done.
 
 ---
@@ -214,6 +210,38 @@ to answer: what the confirm shows (exact `from → to` per user, capped and pagi
 cancellation semantics mid-run; what lands in the undo log; and the hard refusal —
 **never write an attribute a feeding rule reads without naming the rule and the
 membership change it would cause.**
+
+---
+
+## Export and org-surface gaps
+
+Three items that outlived the reporting push. Each is small, independent, and
+blocked on a decision rather than on code.
+
+- **Administrators export.** Every other entity has a clean paginated list
+  endpoint; admin role assignments do not. The two routes are per-user role
+  assignments (linear in user count — a real cost worth stating before it runs)
+  and the newer IAM `assignees` API, whose response envelope has not been
+  confirmed against a live tenant. Blocked on that confirmation, not on the
+  descriptor: shipping a guessed envelope would put a wrong report in front of an
+  admin, which is worse than not shipping one. Done when: `/api/v1/iam/assignees`
+  is verified against a tenant, a zod schema pins the envelope, and the descriptor
+  states its call cost up front like every other.
+- **SAML IdP certificate expiry.** The IdP reader already returns the signing
+  certificate's validity window, so "days until this IdP's certificate expires"
+  falls out of a call the Export tab already makes. Worth surfacing because an
+  expired IdP certificate takes an entire federation down with no warning. Assert
+  or withhold applies: render the date and the days remaining from the response,
+  never an inferred "probably fine". Done when: the IdP descriptor carries an
+  expiry column and the value is absent — not zero, not a guess — when the
+  response omits it.
+- **`X-Okta-User-Agent-Extended` on content fetches.** Okta's convention for
+  naming the client making a call, which shows up in the System Log and in
+  support conversations. One header at the single fetch choke point
+  (`content/apiRequest.ts`), so an admin reading their own log can tell this
+  extension's traffic from the console's. Done when: the header is set once at
+  that choke point, a test pins it, and `docs/security.md` records that it is the
+  only request header the extension adds beyond XSRF.
 
 ---
 

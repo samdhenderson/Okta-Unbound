@@ -48,7 +48,7 @@ export { default as SelectionSummaryButton } from './SelectionSummaryButton';
 
 export type { ButtonVariant, ButtonSize } from './Button';
 export type { IconButtonVariant, IconButtonSize } from './IconButton';
-export type { InputSize } from './Input';
+export type { InputSize, InputComboboxProps } from './Input';
 export type { SpinnerSize } from './LoadingSpinner';
 export type { SkeletonVariant, SkeletonSize } from './Skeleton';
 export type { ListRowDensity, ListRowState, ListRowAs, ListRowProps } from './ListRow';

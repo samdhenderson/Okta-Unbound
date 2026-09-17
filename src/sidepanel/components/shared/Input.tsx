@@ -2,9 +2,17 @@ import React from 'react';
 
 export type InputSize = 'sm' | 'md' | 'lg';
 
+export interface InputComboboxProps {
+  expanded: boolean;
+  listboxId: string;
+  activeOptionId?: string;
+  autocomplete?: 'list' | 'none';
+}
+
 interface InputProps {
   value: string;
   onChange: (value: string) => void;
+  combobox?: InputComboboxProps;
   placeholder?: string;
   type?: 'text' | 'email' | 'password' | 'number' | 'search';
   disabled?: boolean;
@@ -21,6 +29,8 @@ interface InputProps {
   autoFocus?: boolean;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+  onSelect?: (e: React.SyntheticEvent<HTMLInputElement>) => void;
   inputRef?: React.Ref<HTMLInputElement>;
 }
 
@@ -73,8 +83,17 @@ const Input: React.FC<InputProps> = ({
   autoFocus = false,
   onKeyDown,
   onBlur,
+  onFocus,
+  onSelect,
+  combobox,
   inputRef,
 }) => {
+  const generatedId = React.useId();
+  const inputId = `${generatedId}-input`;
+  const hintId = `${generatedId}-hint`;
+  const errorId = `${generatedId}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
   const inputClasses = `
     ${sizeClasses[size]}
     border rounded-md bg-white
@@ -100,7 +119,11 @@ const Input: React.FC<InputProps> = ({
 
   return (
     <div className={`${fullWidth ? 'w-full' : ''} ${className}`}>
-      {label && <label className="block text-sm font-medium text-neutral-700 mb-2">{label}</label>}
+      {label && (
+        <label htmlFor={inputId} className="block text-sm font-medium text-neutral-700 mb-2">
+          {label}
+        </label>
+      )}
       <div className="relative">
         {icon && (
           <div
@@ -112,12 +135,27 @@ const Input: React.FC<InputProps> = ({
         )}
         <input
           ref={inputRef}
+          id={inputId}
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           onBlur={onBlur}
+          onFocus={onFocus}
+          onSelect={onSelect}
           aria-label={ariaLabel}
+          aria-describedby={describedBy}
+          aria-invalid={error ? true : undefined}
+          {...(combobox
+            ? {
+                role: 'combobox' as const,
+                'aria-expanded': combobox.expanded,
+                'aria-controls': combobox.listboxId,
+                'aria-activedescendant': combobox.activeOptionId,
+                'aria-autocomplete': combobox.autocomplete ?? ('list' as const),
+                autoComplete: 'off',
+              }
+            : {})}
           placeholder={placeholder}
           disabled={disabled}
           autoFocus={autoFocus}
@@ -126,9 +164,13 @@ const Input: React.FC<InputProps> = ({
         />
         {trailing && <div className={trailingClasses}>{trailing}</div>}
       </div>
-      {hint && !error && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
+      {hint && !error && (
+        <p id={hintId} className="mt-1 text-xs text-neutral-500">
+          {hint}
+        </p>
+      )}
       {error && (
-        <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+        <p id={errorId} className="mt-1 text-xs text-red-600 flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"

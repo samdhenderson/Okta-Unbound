@@ -36,6 +36,23 @@ live counts, no cancel. A cursor chain that cannot parallelise
 work uses `coreApi.withPlan(name, legs, run)`. `runBatch`'s 5 is a runner
 default, not a scheduler ceiling.
 
+## Not every message is a scheduled request
+
+`makeApiRequest` is the only emitter of `scheduleApiRequest`, and every Okta
+`/api/v1` call goes through it. `coreApi.sendMessage` is the other transport —
+side panel straight to the content script, no scheduler — and it carries the page
+readers (`getGroupInfo`, `getUserInfo`, `getAppInfo`, `getPolicyInfo`) plus one
+action that is not a read at all.
+
+**`extractSamlResponse` mints a real Okta sign-on.** The Explorer's SAML pane can
+follow an app's sign-on link, which issues an assertion and records an app sign-on
+in the org's System Log. It is off the scheduler deliberately: the scheduler
+manages `/api/v1` rate-limit buckets, and this is a page load — user-initiated,
+one at a time, refused while one is in flight, never looped and never batched. It
+is the only unthrottled message with a live side effect, so it is named here
+rather than left for a reader of this doc to assume it does not exist. See
+`docs/api-explorer.md` § The SAML pane and `docs/security.md` § 4.
+
 ## Every request carries a `reason`
 
 `makeApiRequest(endpoint, options)` takes `MakeApiRequestOptions` whose `reason`

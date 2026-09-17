@@ -118,6 +118,8 @@ const UsersTab: React.FC<UsersTabProps> = ({
                 onRequestLifecycleAction={lifecycle.setPendingLifecycleAction}
                 onCancelLifecycleAction={() => lifecycle.setPendingLifecycleAction(null)}
                 onConfirmLifecycleAction={lifecycle.confirmLifecycleAction}
+                tempPassword={lifecycle.tempPassword}
+                onDismissTempPassword={lifecycle.clearTempPassword}
               />
 
               <UserDetailPanel

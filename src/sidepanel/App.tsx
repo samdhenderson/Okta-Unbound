@@ -30,6 +30,7 @@ import { useAppRefresh } from './hooks/useRefreshSubject';
 import { useEntityHandoff } from './hooks/useEntityHandoff';
 import { selectionStore } from './selection/selectionStore';
 import type { JumpKind } from './hooks/useJumpResolver';
+import type { TabEntity } from './hooks/useHoleCandidates';
 import { SchedulerProvider } from './contexts/SchedulerContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import { OrgEntityIndexProvider } from './contexts/OrgEntityIndexContext';
@@ -74,6 +75,25 @@ const App: React.FC = () => {
     currentGroupId: groupInfo?.groupId,
     oktaOrigin,
   };
+
+  const tabEntity: TabEntity | null =
+    page.pageType === 'group' && page.groupInfo
+      ? { kind: 'group', id: page.groupInfo.groupId, label: page.groupInfo.groupName }
+      : page.pageType === 'user' && page.userInfo
+        ? { kind: 'user', id: page.userInfo.userId, label: page.userInfo.userName }
+        : page.pageType === 'app' && page.appInfo
+          ? {
+              kind: 'app',
+              id: page.appInfo.appId,
+              label: page.appInfo.appLabel ?? page.appInfo.appName,
+            }
+          : page.pageType === 'policy' && page.policyInfo
+            ? {
+                kind: 'policy',
+                id: page.policyInfo.policyId,
+                label: page.policyInfo.policyName ?? page.policyInfo.policyId,
+              }
+            : null;
 
   const entityName =
     page.pageType === 'group'
@@ -347,10 +367,12 @@ const App: React.FC = () => {
                   onExportRequestConsumed={() => setExportRequest(null)}
                 />
               ))}
-              {renderTabPanel('explorer', () => (
+              {renderTabPanel('explorer', (isActive) => (
                 <ApiExplorerTab
+                  isActive={isActive}
                   targetTabId={tabContext.targetTabId ?? null}
                   oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                  tabEntity={tabEntity}
                 />
               ))}
               {renderTabPanel('history', (isActive) => (

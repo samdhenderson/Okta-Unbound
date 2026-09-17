@@ -3,7 +3,7 @@ import { ActionBar, type ActionDescriptor } from '../shared';
 import UserLifecycleActions from './UserLifecycleActions';
 import { userDisplayName } from '../../../shared/utils/userDisplay';
 import type { OktaUser } from '../../../shared/types';
-import type { LifecycleAction } from '../../hooks/useUserLifecycleActions';
+import type { LifecycleAction, PasswordConfirmInput } from '../../hooks/useUserLifecycleActions';
 
 export interface UserActionBarProps {
   user: OktaUser;
@@ -16,7 +16,9 @@ export interface UserActionBarProps {
   pendingLifecycleAction: LifecycleAction | null;
   onRequestLifecycleAction: (action: LifecycleAction) => void;
   onCancelLifecycleAction: () => void;
-  onConfirmLifecycleAction: () => void;
+  onConfirmLifecycleAction: (input?: PasswordConfirmInput) => void;
+  tempPassword?: string | null;
+  onDismissTempPassword?: () => void;
   sticky?: boolean;
 }
 
@@ -32,6 +34,8 @@ const UserActionBar: React.FC<UserActionBarProps> = ({
   onRequestLifecycleAction,
   onCancelLifecycleAction,
   onConfirmLifecycleAction,
+  tempPassword = null,
+  onDismissTempPassword,
   sticky = true,
 }) => {
   const actions: ActionDescriptor[] = [
@@ -68,6 +72,8 @@ const UserActionBar: React.FC<UserActionBarProps> = ({
           onRequestAction={onRequestLifecycleAction}
           onCancel={onCancelLifecycleAction}
           onConfirm={onConfirmLifecycleAction}
+          tempPassword={tempPassword}
+          onDismissTempPassword={onDismissTempPassword}
         />
       }
     />

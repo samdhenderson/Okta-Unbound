@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface TextareaProps {
   value: string;
@@ -7,6 +7,7 @@ interface TextareaProps {
   disabled?: boolean;
   error?: string;
   label?: string;
+  ariaLabel?: string;
   hint?: string;
   rows?: number;
   fullWidth?: boolean;
@@ -20,11 +21,15 @@ const Textarea: React.FC<TextareaProps> = ({
   disabled = false,
   error,
   label,
+  ariaLabel,
   hint,
   rows = 4,
   fullWidth = true,
   className = '',
 }) => {
+  const fieldId = useId();
+  const hintId = `${fieldId}-hint`;
+  const errorId = `${fieldId}-error`;
   const textareaClasses = `
     px-3 py-2 text-sm
     border rounded-md
@@ -40,8 +45,13 @@ const Textarea: React.FC<TextareaProps> = ({
 
   return (
     <div className={`${fullWidth ? 'w-full' : ''} ${className}`}>
-      {label && <label className="block text-sm font-medium text-neutral-700 mb-2">{label}</label>}
+      {label && (
+        <label htmlFor={fieldId} className="block text-sm font-medium text-neutral-700 mb-2">
+          {label}
+        </label>
+      )}
       <textarea
+        id={fieldId}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -49,10 +59,17 @@ const Textarea: React.FC<TextareaProps> = ({
         rows={rows}
         className={textareaClasses}
         style={{ fontFamily: 'var(--font-primary)' }}
+        aria-label={label ? undefined : ariaLabel}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : hint ? hintId : undefined}
       />
-      {hint && !error && <p className="mt-1 text-xs text-neutral-500">{hint}</p>}
+      {hint && !error && (
+        <p id={hintId} className="mt-1 text-xs text-neutral-500">
+          {hint}
+        </p>
+      )}
       {error && (
-        <p className="mt-1 text-xs text-red-600 flex items-center gap-1">
+        <p id={errorId} className="mt-1 text-xs text-red-600 flex items-center gap-1">
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
             <path
               fillRule="evenodd"

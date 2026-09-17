@@ -161,10 +161,28 @@ an inline `§3 exception` (or `CHARACTERIZED:`) comment at the call site:
   has the Okta console as its only route, and a link nested inside the row button is a
   `nested-interactive` axe violation (`home/JumpResultRow` makes the same call with `as`). One
   interactive element per row, chosen by what the row can do. (The same file records why the palette
-  uses roving focus rather than combobox ARIA: `Input` deliberately does not spread arbitrary props,
-  and adding `role`/`aria-expanded`/`aria-controls`/`aria-activedescendant` to a shared primitive
-  for one consumer is the wrong trade. An `Input`-level combobox mode is accepted future work, gated
-  on a second consumer.)
+  uses roving focus rather than combobox ARIA, and that an `Input`-level combobox mode was accepted
+  future work gated on a second consumer. **That gate has been met and the mode shipped**: `Input`
+  takes a `combobox` prop group — see the row below — and the palette keeps roving focus, because
+  activating one of its rows navigates away and nothing there cares where the caret was. The two
+  models are not interchangeable and the choice is made per surface, not once for the app.)
+- **Combobox rows:** `explorer/PathCombobox`'s suggestions are `<li role="option">` inside a
+  `role="listbox"`, which is the opposite of the palette's call and made for the opposite reason.
+  Accepting a suggestion there **edits the text and the reader keeps typing**, and the suggester's
+  entire input is `selectionStart` — so focus must never leave the field, the active row is pointed
+  at with `aria-activedescendant`, and an option must not be interactive (a `<button>` inside
+  `role="option"` is a `nested-interactive` violation, and a focusable option defeats the model).
+  The visual identity is shared rather than duplicated: `palette/PaletteRowBody` renders the
+  interior and `palette/paletteRowStyles` the class string, and each surface supplies its own
+  element. Headings are `<li role="presentation">` **inside** the listbox here, so the row list stays
+  one flat array and `activeIndex` stays index arithmetic.
+- **Tree disclosure rows:** `explorer/SamlXmlTree`'s expandable node is a raw
+  `<button>`. `Button` is a centred CTA and `IconButton` is icon-only; the node needs a
+  chevron plus a wrapping run of element name and attributes, one per tree row, nested
+  many levels deep. `CollapsibleSection` is the shared disclosure and is the wrong scale
+  here — it is a bordered card per section, so a tree of them nests cards inside cards.
+  Each node carries `type="button"` and `aria-expanded`, which is the whole contract a
+  disclosure owes.
 - **Genuinely custom controls:** the dynamic-color banner, radio-cards, the `AttributeFacet` and
   `AttributeSpreadBar` data-viz spread bars, the Activity Bar's `BucketRow` lane (a track whose
   fills, hatches and folded badges encode scheduler state — dataviz, not a list row, so `ListRow`

@@ -26,7 +26,12 @@ const meta = {
           'Offers only the actions valid for the current status: Reset password + Suspend for ' +
           'ACTIVE, Unsuspend for SUSPENDED, Reset password alone for RECOVERY / LOCKED_OUT / ' +
           'PASSWORD_EXPIRED, and a notice for DEPROVISIONED. Presentational: the parent owns ' +
-          'the pending-action state and the API call.',
+          'the pending-action state and the API call.\n\n' +
+          '**Reset password is one verb with four modes.** The strip shows one button because ' +
+          'the admin has one question; the confirm is where it forks into a reset email, a ' +
+          'direct set, a one-time set, and a generated temporary value — each with its ' +
+          'consequence beside it. A generated value is shown once, in its own dialog, because ' +
+          'Okta will not return it again.',
       },
     },
   },
@@ -44,6 +49,8 @@ const meta = {
     onRequestAction: fn(),
     onCancel: fn(),
     onConfirm: fn(),
+    tempPassword: null,
+    onDismissTempPassword: fn(),
   },
   argTypes: {
     user: { description: 'The selected user the actions apply to.' },
@@ -56,6 +63,10 @@ const meta = {
     onRequestAction: { description: 'Arm the confirm modal for an action.' },
     onCancel: { description: 'Dismiss the confirm modal without running the action.' },
     onConfirm: { description: 'Run the armed action (the confirm button).' },
+    tempPassword: {
+      description: 'The one-time password Okta generated, or null when there is none to read out.',
+    },
+    onDismissTempPassword: { description: 'Drop the one-time password when its dialog closes.' },
   },
 } satisfies Meta<typeof UserLifecycleActions>;
 
@@ -100,6 +111,67 @@ export const ConfirmingSuspend: Story = {
 
 export const ConfirmingResetPassword: Story = {
   args: { pendingLifecycleAction: 'resetPassword' },
+  play: async () => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await expect(dialog.getByRole('button', { name: 'Send Reset Email' })).toBeEnabled();
+    await expect(dialog.queryByLabelText('New password')).not.toBeInTheDocument();
+  },
+};
+
+export const SettingAPassword: Story = {
+  args: { pendingLifecycleAction: 'resetPassword' },
+  play: async ({ args }) => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await userEvent.selectOptions(
+      dialog.getByRole('combobox', { name: 'What should happen' }),
+      'set',
+    );
+
+    const confirm = dialog.getByRole('button', { name: 'Set Password' });
+    await expect(confirm).toBeDisabled();
+
+    await userEvent.type(dialog.getByLabelText('New password'), 'FAKE-value-1');
+    await expect(confirm).toBeEnabled();
+
+    await userEvent.click(confirm);
+    await expect(args.onConfirm).toHaveBeenCalledWith({
+      mode: 'set',
+      password: 'FAKE-value-1',
+    });
+  },
+};
+
+export const RevealingAGeneratedPassword: Story = {
+  args: { pendingLifecycleAction: 'resetPassword' },
+  play: async () => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await userEvent.selectOptions(
+      dialog.getByRole('combobox', { name: 'What should happen' }),
+      'set',
+    );
+    await expect(dialog.getByLabelText('New password')).toHaveAttribute('type', 'password');
+
+    await userEvent.click(dialog.getByRole('button', { name: 'Generate' }));
+
+    const field = dialog.getByLabelText('New password') as HTMLInputElement;
+    await expect(field).toHaveAttribute('type', 'text');
+    await expect(field.value.length).toBeGreaterThan(11);
+  },
+};
+
+export const ShowingATemporaryPassword: Story = {
+  args: { tempPassword: 'TempFAKE123' },
+  play: async ({ args }) => {
+    const dialog = within(await within(document.body).findByRole('dialog'));
+
+    await expect(dialog.getByText('TempFAKE123')).toBeInTheDocument();
+
+    await userEvent.click(dialog.getByRole('button', { name: 'Done' }));
+    await expect(args.onDismissTempPassword).toHaveBeenCalled();
+  },
 };
 
 export const Narrow: Story = {

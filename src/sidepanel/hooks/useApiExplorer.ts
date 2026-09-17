@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useOktaApi } from './useOktaApi';
 import { redactJson } from '../../shared/utils/redact';
 import { shapeOutline } from '../../shared/utils/shapeInference';
+import { substitutePathHoles } from '../../shared/utils/apiPath';
 
 export interface ApiExplorerResult {
   raw: unknown;
@@ -40,6 +41,17 @@ export function useApiExplorer({
   const send = useCallback(() => {
     const trimmed = path.trim();
     if (!targetTabId || !trimmed) return;
+
+    const filled = substitutePathHoles(trimmed, {});
+    if (!filled.ok) {
+      setResponse(null);
+      setError(
+        filled.error.reason === 'unfilled'
+          ? `Fill in {${filled.error.token}} before sending.`
+          : `The value for {${filled.error.token}} cannot be used in a path.`,
+      );
+      return;
+    }
 
     setError(null);
     setIsLoading(true);

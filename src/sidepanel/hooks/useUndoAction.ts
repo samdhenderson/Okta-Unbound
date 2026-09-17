@@ -44,6 +44,9 @@ const NOT_UNDOABLE: Record<
   CONSOLIDATE_RULE:
     'Consolidations cannot be undone here. It would mean recreating the retired rules and deleting ' +
     'the rule that replaced them, all under new ids.',
+  CHANGE_USER_PASSWORD:
+    'Password changes cannot be undone. Okta never returns a password, so no previous value was ' +
+    'captured and none can be restored — set a new one instead.',
 };
 
 const STATUS_REASON: Record<Exclude<UndoAction['status'], 'completed'>, string> = {

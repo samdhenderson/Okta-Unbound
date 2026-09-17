@@ -232,7 +232,8 @@ export interface MessageRequest {
     | 'getAppInfo'
     | 'getPolicyInfo'
     | 'makeApiRequest'
-    | 'getOktaOrigin';
+    | 'getOktaOrigin'
+    | 'extractSamlResponse';
   endpoint?: string;
   method?: string;
   body?: unknown;

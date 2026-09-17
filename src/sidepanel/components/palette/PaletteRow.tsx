@@ -1,5 +1,7 @@
 import React from 'react';
-import Icon, { type IconType } from '../shared/Icon';
+import type { IconType } from '../shared/Icon';
+import PaletteRowBody from './PaletteRowBody';
+import { paletteRowClassName } from './paletteRowStyles';
 
 export interface PaletteRowProps {
   icon: IconType;
@@ -28,24 +30,14 @@ const PaletteRow: React.FC<PaletteRowProps> = ({
   onKeyDown,
   ariaLabel,
 }) => {
-  const className = `press press-subtle w-full flex items-center gap-(--sp-inline) px-(--sp-row-x) py-(--sp-row-y) rounded-md text-left text-sm
-      transition-colors duration-(--dur-instant)
-      focus:outline-2 focus:outline-offset-2 focus:outline-primary
-      ${isCurrent ? 'bg-primary-light text-primary-text font-semibold' : 'text-neutral-900 hover:bg-neutral-50'}`;
-
   const body = (
-    <>
-      <Icon
-        type={icon}
-        size="sm"
-        className={`shrink-0 ${isCurrent ? 'text-primary-text' : 'text-neutral-500'}`}
-      />
-      <span className="flex-1 min-w-0">
-        <span className="block truncate">{label}</span>
-        {secondary && <span className="block truncate text-xs text-neutral-600">{secondary}</span>}
-      </span>
-      {trailing && <span className="shrink-0 text-xs font-medium">{trailing}</span>}
-    </>
+    <PaletteRowBody
+      icon={icon}
+      label={label}
+      secondary={secondary}
+      trailing={trailing}
+      isCurrent={isCurrent}
+    />
   );
 
   const shared = {
@@ -54,7 +46,7 @@ const PaletteRow: React.FC<PaletteRowProps> = ({
     'aria-current': isCurrent ? ('page' as const) : undefined,
     'aria-label': ariaLabel,
     onKeyDown,
-    className,
+    className: paletteRowClassName(isCurrent),
   };
 
   return href ? (

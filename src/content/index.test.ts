@@ -172,6 +172,7 @@ describe('message router', () => {
     { action: 'getUserInfo' },
     { action: 'getAppInfo' },
     { action: 'makeApiRequest', endpoint: '/api/v1/users/me' },
+    { action: 'extractSamlResponse', endpoint: '/app/example/0oaFAKE000000000000/sso/saml' },
     { action: 'getOktaOrigin' },
   ];
 
@@ -242,6 +243,11 @@ describe('message router', () => {
   describe('missing-field guards', () => {
     const guards: Array<[string, Partial<MessageRequest> & { action: string }, string]> = [
       ['makeApiRequest without endpoint', { action: 'makeApiRequest' }, 'Missing endpoint'],
+      [
+        'extractSamlResponse without endpoint',
+        { action: 'extractSamlResponse' },
+        'Missing endpoint',
+      ],
     ];
 
     it.each(guards)('%s short-circuits with the exact error', (_name, request, error) => {

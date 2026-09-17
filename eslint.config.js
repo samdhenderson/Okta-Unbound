@@ -64,6 +64,14 @@ export default [
         HTMLDivElement: 'readonly',
         IntersectionObserver: 'readonly',
         IDBKeyRange: 'readonly',
+        // XML and base64, for the SAML decoder (`sidepanel/saml/decodeSaml.ts`).
+        DOMParser: 'readonly',
+        XMLDocument: 'readonly',
+        Node: 'readonly',
+        Element: 'readonly',
+        ParentNode: 'readonly',
+        atob: 'readonly',
+        TextDecoder: 'readonly',
       },
     },
     plugins: {

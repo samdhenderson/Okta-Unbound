@@ -98,6 +98,8 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     getAppAssignmentCounts: asyncFn(null),
     getAppGroupAssignments: asyncFn([]),
 
+    fetchAppAssertion: asyncFn({ ok: false, reason: 'no-sso-link' }),
+
     listPolicies: asyncFn([]),
     getPolicyRules: asyncFn([]),
     getAppAccessPolicyId: asyncFn(null),

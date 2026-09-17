@@ -1,6 +1,7 @@
 import type { ApiResponse } from '../shared/types';
 import { NO_HTTP_STATUS } from '../shared/scheduler/requestResult';
 import { createLogger } from '../shared/utils/logger';
+import { isNormalizedPath } from '../shared/utils/apiPath';
 
 const log = createLogger('Content');
 
@@ -57,6 +58,11 @@ export async function handleMakeApiRequest(
   if (!isSameOriginPath(endpoint)) {
     log.warn('Rejected API request: endpoint is not a same-origin path');
     return failure('Rejected request: endpoint must be a same-origin path', NO_HTTP_STATUS);
+  }
+
+  if (!isNormalizedPath(endpoint)) {
+    log.warn('Rejected API request: endpoint path does not survive normalization');
+    return failure('Rejected request: endpoint path is not normalized', NO_HTTP_STATUS);
   }
 
   const normalizedMethod = (method || 'GET').toUpperCase();

@@ -532,6 +532,13 @@ describe('every ActionType is accounted for', () => {
       users: [capturedUser('00uFAKE1', 'Marketing')],
       unconfirmedUserIds: [],
     },
+    CHANGE_USER_PASSWORD: {
+      type: 'CHANGE_USER_PASSWORD',
+      userId: '00uFAKE1',
+      userLogin: 'user@example.com',
+      userName: 'Ada',
+      mode: 'set',
+    },
   };
 
   const undoable: ActionType[] = ['UPDATE_USER_PROFILE', 'BULK_UPDATE_USER_PROFILE'];

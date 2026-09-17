@@ -156,6 +156,20 @@ All controls below are in [`background/index.ts`](../src/background/index.ts) un
   non-API only (e.g. streaming a CSV export to a download) and carries no Okta API calls.
 - **No external surface.** No `externally_connectable` key in the manifest and no
   `onMessageExternal` listener anywhere in `src/` (grep-verified).
+- **The one non-API fetch: `extractSamlResponse`.** The Explorer's SAML pane can follow
+  an app's sign-on link ([`content/samlRequest.ts`](../src/content/samlRequest.ts)). It is
+  its own action rather than a loosening of `makeApiRequest`, which parses a body only for
+  JSON: the sign-on page is fetched inside the content script and **only the base64
+  `SAMLResponse` crosses back** — never the HTML, never a fragment of it, never a header,
+  and a fetch failure is reported without the URL. It runs the same same-origin and
+  normalisation guards as every other fetch there, is validated for sender identically, and
+  takes a **path only** — the panel strips Okta's absolute `appLinks` URL to
+  `pathname + search` and refuses any link off the org's origin, so no message can point an
+  authenticated fetch at another host. It stays off the scheduler deliberately: the
+  scheduler manages `/api/v1` rate-limit buckets, and this is a user-initiated page load,
+  never looped or batched. **It is not a read** — it mints a real assertion and records an
+  app sign-on in the org's System Log, which the UI states before the control that causes
+  it (`docs/api-explorer.md`).
 
 ---
 
@@ -170,9 +184,18 @@ Enforced at the single fetch choke point,
   Okta page. This is a **second, independent** copy of the background's check — genuine
   defense in depth at the fetch site. The request URL is always
   `window.location.origin + endpoint`; the origin is never taken from the message.
+- **Path-normalisation guard.** `isNormalizedPath(endpoint)`
+  ([`shared/utils/apiPath.ts`](../src/shared/utils/apiPath.ts)) requires the path to survive
+  a parse unchanged — `new URL(path, origin).pathname === path`. Same-origin is only half
+  the question: the request URL is built by concatenation, so `/api/v1/../admin/users` is
+  same-origin, reads as an API call, and fetches the admin console. Only the path is
+  normalised; the query string is left exactly as assembled, because Okta's `search` and
+  `filter` expressions carry spaces and quotes that a round-trip comparison would reject
+  and `fetch` encodes correctly anyway. `apiPath.test.ts` proves the guard accepts every
+  path the app actually builds before proving it refuses traversal.
 - **HTTP-method allow-list.** `ALLOWED_METHODS = {GET, POST, PUT, PATCH, DELETE}`; anything
-  else is rejected. There is deliberately no path allow-list; the same-origin guard plus
-  the method list is the whole contract.
+  else is rejected. There is deliberately no path allow-list; the same-origin guard, the
+  normalisation guard and the method list are the whole contract.
 - **Response-header allow-list (outbound).** Only five headers cross the message boundary
   back to the background: `FORWARDED_RESPONSE_HEADERS` = `link`, `x-rate-limit-limit`,
   `x-rate-limit-remaining`, `x-rate-limit-reset`, `x-total-count`, projected by

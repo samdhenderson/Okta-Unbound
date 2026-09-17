@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   captureAttribute,
   captureAttributes,
+  logPasswordChangeAction,
   logProfileUpdateAction,
   markActionUndone,
   logAction,
@@ -10,7 +11,7 @@ import {
   MAX_CAPTURED_VALUE_CHARS,
   type AttributeChange,
 } from './undoManager';
-import type { UpdateUserProfileMetadata } from './undoTypes';
+import type { ChangeUserPasswordMetadata, UpdateUserProfileMetadata } from './undoTypes';
 
 const storage = chrome.storage.local as unknown as {
   get: ReturnType<typeof vi.fn>;
@@ -192,5 +193,62 @@ describe('markActionUndone', () => {
     expect(history.actions).toHaveLength(1);
     expect(history.actions[0].id).toBe(kept.id);
     expect(history.actions[0].status).toBe('completed');
+  });
+});
+
+describe('logPasswordChangeAction', () => {
+  const onlyEntry = async () => (await getUndoHistory()).actions[0];
+
+  it('records the change with no prior state, because none exists', async () => {
+    await logPasswordChangeAction('00uFAKE1', 'ada@example.com', 'Ada Lovelace', 'set');
+
+    const entry = await onlyEntry();
+    const metadata = entry.metadata as ChangeUserPasswordMetadata;
+
+    expect(entry.type).toBe('CHANGE_USER_PASSWORD');
+    expect(entry.status).toBe('completed');
+    expect(metadata.mode).toBe('set');
+    expect(metadata.userId).toBe('00uFAKE1');
+    expect(metadata).not.toHaveProperty('changes');
+  });
+
+  it.each([
+    ['email-reset', /reset email/i],
+    ['set', /Set a password/i],
+    ['temp', /temporary password/i],
+  ] as const)('names the operation for mode %s', async (mode, matcher) => {
+    await logPasswordChangeAction('00uFAKE1', 'ada@example.com', 'Ada Lovelace', mode);
+
+    expect((await onlyEntry()).description).toMatch(matcher);
+  });
+
+  it('says so when the forced change did not land', async () => {
+    await logPasswordChangeAction('00uFAKE1', 'ada@example.com', 'Ada', 'set-and-expire', {
+      expired: false,
+    });
+
+    const entry = await onlyEntry();
+    expect(entry.description).toMatch(/forced change was not applied/i);
+    expect((entry.metadata as ChangeUserPasswordMetadata).expired).toBe(false);
+  });
+
+  it('carries an unconfirmed outcome as partial, not completed', async () => {
+    await logPasswordChangeAction('00uFAKE1', 'ada@example.com', 'Ada', 'set', {
+      status: 'partial',
+    });
+
+    expect((await onlyEntry()).status).toBe('partial');
+  });
+
+  it('falls back to the login when no display name is known', async () => {
+    await logPasswordChangeAction('00uFAKE1', 'ada@example.com', '', 'set');
+
+    expect((await onlyEntry()).description).toContain('ada@example.com');
+  });
+
+  it('stores no password value anywhere in the entry', async () => {
+    await logPasswordChangeAction('00uFAKE1', 'ada@example.com', 'Ada', 'temp');
+
+    expect(JSON.stringify(await onlyEntry())).not.toMatch(/password['"]?\s*:/i);
   });
 });

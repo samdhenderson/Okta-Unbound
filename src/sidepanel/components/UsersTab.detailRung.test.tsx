@@ -324,6 +324,115 @@ describe('detail rung: lifecycle verbs are gated by status', () => {
   });
 });
 
+describe('detail rung: the four password modes', () => {
+  const passwordWrites = () =>
+    runtimeSendMessage.mock.calls
+      .map((c: any) => c[0])
+      .filter(
+        (m: any) =>
+          m?.method === 'POST' &&
+          (m?.endpoint === `/api/v1/users/${ADA_ID}` ||
+            String(m?.endpoint ?? '').includes('password')),
+      );
+
+  async function openConfirm(uev: ReturnType<typeof userEvent.setup>) {
+    render(<UsersTab targetTabId={1} selectedUserId={ADA_ID} />);
+    await loadDetectedUser();
+    await uev.click(detail().getByRole('button', { name: 'More' }));
+    await uev.click(detail().getByRole('button', { name: 'Reset password' }));
+    return screen.getByRole('dialog');
+  }
+
+  async function chooseMode(
+    uev: ReturnType<typeof userEvent.setup>,
+    dialog: HTMLElement,
+    label: string,
+  ) {
+    await uev.selectOptions(
+      within(dialog).getByRole('combobox', { name: 'What should happen' }),
+      within(dialog).getByRole('option', { name: label }) as HTMLOptionElement,
+    );
+  }
+
+  it('opens on the reset email, so the default costs nobody a password', async () => {
+    const uev = userEvent.setup();
+    const dialog = await openConfirm(uev);
+
+    expect(within(dialog).getByRole('button', { name: 'Send Reset Email' })).toBeEnabled();
+    expect(within(dialog).queryByLabelText('New password')).not.toBeInTheDocument();
+  });
+
+  it('will not set a password until one is supplied', async () => {
+    const uev = userEvent.setup();
+    const dialog = await openConfirm(uev);
+    await chooseMode(uev, dialog, 'Set a password now');
+
+    const confirm = within(dialog).getByRole('button', { name: 'Set Password' });
+    expect(confirm).toBeDisabled();
+    expect(passwordWrites()).toEqual([]);
+
+    await uev.type(within(dialog).getByLabelText('New password'), 'FAKE-value-1');
+    expect(confirm).toBeEnabled();
+  });
+
+  it('sets the password through the user endpoint, not a lifecycle call', async () => {
+    const uev = userEvent.setup();
+    const dialog = await openConfirm(uev);
+    await chooseMode(uev, dialog, 'Set a password now');
+    await uev.type(within(dialog).getByLabelText('New password'), 'FAKE-value-1');
+    await uev.click(within(dialog).getByRole('button', { name: 'Set Password' }));
+
+    await waitFor(() => expect(passwordWrites().length).toBeGreaterThan(0));
+    expect(passwordWrites()[0]).toMatchObject({
+      endpoint: `/api/v1/users/${ADA_ID}`,
+      method: 'POST',
+      body: { credentials: { password: { value: 'FAKE-value-1' } } },
+    });
+    expect(lifecycleCalls()).toEqual([]);
+  });
+
+  it('a one-time password sets, then expires — two writes, in that order', async () => {
+    const uev = userEvent.setup();
+    const dialog = await openConfirm(uev);
+    await chooseMode(uev, dialog, 'Set a one-time password');
+    await uev.type(within(dialog).getByLabelText('New password'), 'FAKE-value-2');
+    await uev.click(within(dialog).getByRole('button', { name: 'Set One-Time Password' }));
+
+    await waitFor(() => expect(passwordWrites().length).toBe(2));
+    expect(passwordWrites().map((m: any) => m.endpoint)).toEqual([
+      `/api/v1/users/${ADA_ID}`,
+      `/api/v1/users/${ADA_ID}/lifecycle/expire_password`,
+    ]);
+  });
+
+  it('shows a generated temporary password once, and asks for no value first', async () => {
+    const uev = userEvent.setup();
+    const dialog = await openConfirm(uev);
+    await chooseMode(uev, dialog, 'Generate a temporary password');
+
+    expect(within(dialog).queryByLabelText('New password')).not.toBeInTheDocument();
+
+    route(/expire_password_with_temp_password/, () => ({
+      success: true,
+      data: ada({ status: 'PASSWORD_EXPIRED', tempPassword: 'TempFAKE123' }),
+    }));
+    await uev.click(within(dialog).getByRole('button', { name: 'Generate Temporary Password' }));
+
+    expect(await screen.findByText('TempFAKE123')).toBeInTheDocument();
+  });
+
+  it('drops a typed value when the mode changes', async () => {
+    const uev = userEvent.setup();
+    const dialog = await openConfirm(uev);
+    await chooseMode(uev, dialog, 'Set a password now');
+    await uev.type(within(dialog).getByLabelText('New password'), 'FAKE-value-3');
+
+    await chooseMode(uev, dialog, 'Set a one-time password');
+
+    expect(within(dialog).getByLabelText('New password')).toHaveValue('');
+  });
+});
+
 describe('detail rung: proving one membership costs exactly one request', () => {
   const proofEndpoint = (group: OktaGroup) =>
     `/api/v1/groups/${group.id}/users/${ADA_ID}/group-rules`;

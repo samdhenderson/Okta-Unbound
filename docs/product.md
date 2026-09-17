@@ -134,8 +134,8 @@ what makes rules 1–4 above satisfiable.
 
 ## What we deliberately do not build
 
-Recorded so it is not re-litigated. See also the parked lists in
-`features-plan.md` and `rockstar-parity-plan.md`.
+Recorded so it is not re-litigated. See also the parked list in
+`features-plan.md`.
 
 - **Free-form Explorer writes.** A generic method-and-body box is the one write
   surface that cannot be preflighted, explained, audited meaningfully, or undone,
@@ -153,7 +153,3 @@ Recorded so it is not re-litigated. See also the parked lists in
 
 - **This doc** — purpose, outcomes, tiers, and the bar a feature must clear.
 - [features-plan.md](./features-plan.md) — the ranked backlog and UX sketches.
-- [rockstar-parity-plan.md](./rockstar-parity-plan.md) — **evidence, not a goal.**
-  Its triage table is a useful survey of what admins reach for. "Stop needing
-  rockstar" is not a purpose and cannot tell us what to build once parity lands;
-  this doc supersedes it as the source of direction.
