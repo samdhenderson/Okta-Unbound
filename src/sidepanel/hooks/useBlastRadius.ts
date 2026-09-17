@@ -25,7 +25,7 @@ interface ReportState {
   readonly report: BlastRadiusReport;
   readonly groupNames: ReadonlyMap<string, string>;
   readonly drafted: OktaUser | null;
-  readonly groupContext: RuleGroupContext;
+  readonly groupContext: RuleGroupContext | undefined;
 }
 
 const IDLE: ReportState = {
@@ -33,12 +33,12 @@ const IDLE: ReportState = {
   report: NOT_COMPUTED,
   groupNames: new Map(),
   drafted: null,
-  groupContext: [],
+  groupContext: undefined,
 };
 
 export interface UseBlastRadiusOptions {
   user: OktaUser | null;
-  memberships: readonly GroupMembership[];
+  memberships: readonly GroupMembership[] | undefined;
   rules: RuleInventoryState;
   oktaOrigin?: string | null;
 }
@@ -50,7 +50,7 @@ export interface UseBlastRadiusReturn {
   isAnalyzing: boolean;
   resolveGroupName: (groupId: string) => string | undefined;
   drafted: OktaUser | null;
-  groupContext: RuleGroupContext;
+  groupContext: RuleGroupContext | undefined;
 }
 
 export function useBlastRadius({
@@ -87,7 +87,7 @@ export function useBlastRadius({
 
   const committedNames = state.userId === currentUserId ? state.groupNames : undefined;
   const drafted = state.userId === currentUserId ? state.drafted : null;
-  const groupContext = state.userId === currentUserId ? state.groupContext : [];
+  const groupContext = state.userId === currentUserId ? state.groupContext : undefined;
   const resolveGroupName = useCallback(
     (groupId: string) => committedNames?.get(groupId),
     [committedNames],
@@ -95,7 +95,7 @@ export function useBlastRadius({
 
   const analyze = useCallback(
     (draft: Readonly<Record<string, unknown>>) => {
-      if (!user) {
+      if (!user || !memberships) {
         reset();
         return;
       }

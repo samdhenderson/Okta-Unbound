@@ -93,8 +93,13 @@ label.
 ```ts
 interface VerbCost {
   requests: number; // arithmetic over the basket
-  walks?: number; // paginated walks, named rather than guessed at
+  walks?: readonly VerbWalk[]; // paginated walks, named rather than guessed at
   writes: number; // entities changed; 0 for read and convert
+}
+
+interface VerbWalk {
+  count: number;
+  kind: 'membership' | 'app-assignment' | 'group-rule';
 }
 ```
 
@@ -112,6 +117,12 @@ Okta's data, not by our arithmetic. _"3 requests and 3 membership walks"_ is a
 complete true statement; folding an invented page count into `requests` is not.
 Each walk declares its own per-page estimate to the scheduler, which is how
 every other walk in this app is priced (`docs/scheduler.md`).
+
+It is a **list**, because one run can walk two different things and a single
+total would name neither: the bulk profile verb reads an app-assignment list per
+ticked user _and_ the org's group-rule listing, and says so —
+_"Takes 5 requests, 4 app-assignment walks and 1 group-rule walk."_ One entry per
+kind. The kind is a code; `costSentence` owns the words.
 
 Counts, never durations. How many requests a run issues is a fact this app can
 state; how long they will take is one it would be guessing at.
@@ -248,6 +259,39 @@ Two asymmetries worth knowing before writing copy:
 
 The one undoable write is the bulk attribute editor, which extends
 `UPDATE_USER_PROFILE`.
+
+## A write that feeds a rule names the rule
+
+`docs/product.md` states the rule this section implements: **never write an
+attribute a feeding rule reads without naming the rule and the membership change
+it would cause.** A group rule is _"if a profile looks like this, put them in
+that group"_, so a bulk profile write is silently an access change.
+
+The preflight answers it with `shared/membership/cohortRuleImpact` — the
+cohort-wide counterpart to the per-user `blastRadius` behind the single-user
+save. Three properties decide what the confirm says:
+
+- **A rule is named only when its answer moves.** Referencing the attribute is
+  not enough. A rule testing `user.department == "Marketing"` is silent when
+  nobody in the cohort holds `"Marketing"` and nobody is being given it: it fails
+  before, fails after, and places no one differently. Naming it would train the
+  reader to skim the one line that matters. Relevance is a **before/after
+  difference**, evaluated per user.
+- **Group membership is never assumed.** A condition asking `isMemberOfGroup`
+  needs the user's complete group list, which costs one request per user and
+  which this verb deliberately does not buy. Those rules are reported as
+  undetermined **with the reason**, never as "no change" — the evaluator answers
+  group clauses two-valued over the list it is given, so passing an empty one
+  invents a confident `false` (the defect `docs/claims.md` names).
+- **An unreadable inventory is not an empty one.** A failed listing says so.
+  Silence there would present "we could not look" as "we looked and nothing
+  moves".
+
+Only `ACTIVE` rules count — an inactive rule places nobody — and only the users
+the run actually writes to, since a user already holding the value cannot be
+moved by the write. Both filters are why the analysis is cheap: a handful of
+candidate rules, evaluated twice each, with no per-user request at all. The one
+cost is the org-wide rule listing, quoted as a `group-rule` walk.
 
 ## Mastering, for a cohort
 

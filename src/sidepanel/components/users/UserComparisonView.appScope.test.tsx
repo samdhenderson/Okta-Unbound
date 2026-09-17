@@ -81,6 +81,7 @@ const comparison = (appBuckets: AppBucketFixture = DEFAULT_APPS): UserComparison
     setSearchQuery: vi.fn(),
     searchResults: [],
     isSearching: false,
+    resultsTruncated: false,
     activeTab: 'apps',
     setActiveTab: vi.fn(),
     groupBuckets: { onlyCompared: [], shared: [], onlyContext: [] },

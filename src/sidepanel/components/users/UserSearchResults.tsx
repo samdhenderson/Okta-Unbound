@@ -14,6 +14,7 @@ import {
 
 interface UserSearchResultsProps {
   results: OktaUser[];
+  truncated: boolean;
   onSelectUser: (user: OktaUser) => void;
   selectedIds?: ReadonlySet<string>;
   onToggleSelect?: (userId: string) => void;
@@ -22,6 +23,7 @@ interface UserSearchResultsProps {
 
 const UserSearchResults: React.FC<UserSearchResultsProps> = ({
   results,
+  truncated,
   onSelectUser,
   selectedIds,
   onToggleSelect,
@@ -36,7 +38,9 @@ const UserSearchResults: React.FC<UserSearchResultsProps> = ({
   return (
     <div className="space-y-2 animate-rise-in">
       <Eyebrow as="div">
-        {results.length} {results.length === 1 ? 'match' : 'matches'}
+        {truncated
+          ? `Showing the first ${results.length} matches — narrow the search to see the rest`
+          : `${results.length} ${results.length === 1 ? 'match' : 'matches'}`}
       </Eyebrow>
       <div ref={setStaggerRef} className="space-y-(--sp-rung) rise-in-stagger">
         {results.map((user) => {

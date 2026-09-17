@@ -18,7 +18,7 @@ const CLEANUP: BasketVerb = {
   title: 'Remove deactivated, suspended and locked-out members from these groups',
   path: 'write',
   needs: ['group'],
-  cost: () => ({ requests: 0, walks: 2, writes: 0 }),
+  cost: () => ({ requests: 0, walks: [{ count: 2, kind: 'membership' as const }], writes: 0 }),
   run: async () => ({ status: 'done', summary: 'Done.' }),
 };
 
@@ -97,7 +97,7 @@ export const ConfirmAWrite: Story = {
   args: {
     run: runAt({
       preflight: {
-        cost: { requests: 14, walks: 2, writes: 12 },
+        cost: { requests: 14, walks: [{ count: 2, kind: 'membership' as const }], writes: 12 },
         items: 12,
         lines: [
           'Payments Team — 9 of 340 members are deactivated, suspended or locked out',

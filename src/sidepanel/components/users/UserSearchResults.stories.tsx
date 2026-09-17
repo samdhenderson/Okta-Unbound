@@ -46,10 +46,15 @@ const meta = {
   ],
   args: {
     results: [active, suspended, provisioned],
+    truncated: false,
     onSelectUser: fn(),
   },
   argTypes: {
     results: { description: 'Matching users to render; an empty array renders nothing.' },
+    truncated: {
+      description:
+        "Whether Okta held matches back, read from the search response's `Link` header. True, the count line says the page is a page and states no total.",
+    },
     onSelectUser: { description: 'Invoked with the chosen user when a result row is clicked.' },
     selectedIds: {
       description:
@@ -81,6 +86,26 @@ export const SingleResult: Story = {
 
 export const Empty: Story = {
   args: { results: [] },
+};
+
+export const Truncated: Story = {
+  args: { results: everyStatus, truncated: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText('Showing the first 6 matches — narrow the search to see the rest'),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText('6 matches')).not.toBeInTheDocument();
+  },
+};
+
+export const FullPageButComplete: Story = {
+  args: { results: everyStatus, truncated: false },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('6 matches')).toBeInTheDocument();
+    await expect(canvas.queryByText(/Showing the first/)).not.toBeInTheDocument();
+  },
 };
 
 export const Compact360: Story = {

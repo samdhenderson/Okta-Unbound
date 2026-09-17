@@ -189,6 +189,9 @@ const ActionBar: React.FC<ActionBarProps> = ({
   const overflowed = [...ordered.slice(inBar), ...tierOnly, ...registerOverflowed];
   const hasTier = overflowed.length > 0 || expansion !== undefined;
 
+  const hasActionRow = inBarActions.length > 0 || hasTier;
+  const topPadding = hasActionRow ? '' : 'pt-3';
+
   const band = (
     <div
       ref={bandRef}
@@ -208,45 +211,49 @@ const ActionBar: React.FC<ActionBarProps> = ({
         .trim()
         .replace(/\s+/g, ' ')}
     >
-      <div ref={rowRef} className="flex flex-wrap items-center gap-2 p-3">
-        {inBarActions.map((action) => (
-          <Action key={action.id} action={action} compact={compact} />
-        ))}
+      {hasActionRow && (
+        <div ref={rowRef} className="flex flex-wrap items-center gap-2 p-3">
+          {inBarActions.map((action) => (
+            <Action key={action.id} action={action} compact={compact} />
+          ))}
 
-        {hasTier && (
-          <span
-            ref={(node) => {
-              clusterRef.current = node;
-              moreRef.current = node?.querySelector('button') ?? null;
-            }}
-            className="ms-auto inline-flex items-center"
-          >
-            <span aria-hidden="true" className="mx-1 w-px self-stretch bg-neutral-200" />
-            <Button
-              variant="ghost"
-              size="sm"
-              icon="chevron-down"
-              iconPosition="right"
-              onClick={toggle}
-              expanded={open}
-              controls={tierId}
-              title={open ? 'Hide more actions' : 'Show more actions'}
-              className="[&_svg]:transition-transform [&_svg]:duration-(--dur-quick) aria-expanded:[&_svg]:rotate-180"
+          {hasTier && (
+            <span
+              ref={(node) => {
+                clusterRef.current = node;
+                moreRef.current = node?.querySelector('button') ?? null;
+              }}
+              className="ms-auto inline-flex items-center"
             >
-              More
-            </Button>
-          </span>
-        )}
-      </div>
+              <span aria-hidden="true" className="mx-1 w-px self-stretch bg-neutral-200" />
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="chevron-down"
+                iconPosition="right"
+                onClick={toggle}
+                expanded={open}
+                controls={tierId}
+                title={open ? 'Hide more actions' : 'Show more actions'}
+                className="[&_svg]:transition-transform [&_svg]:duration-(--dur-quick) aria-expanded:[&_svg]:rotate-180"
+              >
+                More
+              </Button>
+            </span>
+          )}
+        </div>
+      )}
 
-      {subRow !== undefined && <div className="px-3 pb-2">{subRow}</div>}
+      {subRow !== undefined && <div className={`px-3 pb-2 ${topPadding}`.trim()}>{subRow}</div>}
 
       {register !== undefined && (
         <div
           role="group"
           aria-label={register.ariaLabel}
           data-testid="action-bar-register"
-          className="flex flex-wrap items-center gap-2 px-3.5 pb-2"
+          className={`flex flex-wrap items-center justify-end gap-2 px-3.5 pb-2 ${
+            subRow === undefined ? topPadding : ''
+          }`.trim()}
         >
           <span
             ref={registerAnchorRef}

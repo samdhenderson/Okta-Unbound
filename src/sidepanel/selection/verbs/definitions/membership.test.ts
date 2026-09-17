@@ -174,7 +174,7 @@ describe('remove-users-from-groups', () => {
   it('prices the preflight — one membership walk per ticked group', () => {
     expect(removeUsersFromGroups.cost(basketOf(['00u1'], ['00g1', '00g2']))).toEqual({
       requests: 0,
-      walks: 2,
+      walks: [{ count: 2, kind: 'membership' }],
       writes: 0,
     });
   });

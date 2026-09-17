@@ -32,6 +32,7 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
     searchQuery,
     setSearchQuery,
     searchResults,
+    resultsTruncated,
     isSearching,
     activeTab,
     setActiveTab,
@@ -70,6 +71,7 @@ const UserComparisonView: React.FC<UserComparisonViewProps> = ({
           setSearchQuery={setSearchQuery}
           isSearching={isSearching}
           searchResults={searchResults}
+          resultsTruncated={resultsTruncated}
           onSelectUser={selectUser}
         />
       )}

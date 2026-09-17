@@ -119,8 +119,9 @@ rule targets + exclusions and labeled as such inline.
 `ruleEvaluator` evaluates and returns a **tree** (`ConnectiveNode`/`LeafClauseNode`),
 not a flat clause list — an `&&`/`||` group is a node with its own Kleene verdict and
 `decidedByChildIndices`, not a leaf carrying "alternatives". The shared `ClauseLedger`
-family (`docs/components.md`) renders it; `MembershipRuleEvidence`, the comparison
-surfaces, and `rules/RuleDetailView.tsx` are the adopters. Group-membership functions, including
+family (`docs/components.md`) renders it; `MembershipRuleEvidence` and the comparison
+surfaces are the adopters. `rules/RuleDetailView.tsx` is **not** one — it still renders
+its condition as flat text, which is the open half of this item. Group-membership functions, including
 `isMemberOfGroupNameRegex`, resolve once a caller supplies the user's complete group
 list (ADR-0001, ADR-0002); a clause the evaluator still cannot resolve renders
 `not-evaluated` with a reason code, never a fail.
@@ -313,9 +314,10 @@ Four detail-page surfaces still need the `DetailSection` / `ActionBar` /
   reactivate + trigger reset/activation emails. Extends existing lifecycle ops; the
   "comms engine" is just Okta's built-in `sendEmail` flag. Only new bits:
   `lifecycle/activate` + `reactivate`. Reuses `BulkTargetList` + preflight from C.
-- **E. Group Push deploy** — the extension only **reads** push mappings
-  (`getAppPushGroupMappings`); writing app group-push config is deep provisioning.
-  High effort, parked.
+- **E. Group Push deploy** — the extension only **reads** push mappings, and not
+  even through a call of its own: `useGroupsLoader`'s `mappingsByGroup` derives
+  them from the org snapshot's app-assignment records, at no request cost.
+  Writing app group-push config is deep provisioning. High effort, parked.
 - **F. OEL Sandbox (full)** — only the _full_ sandbox (arbitrary expression authoring
   against arbitrary users) is parked. The interpreter it needed exists:
   `shared/ruleEvaluator.ts` parses with `jsep` and evaluates against an explicit

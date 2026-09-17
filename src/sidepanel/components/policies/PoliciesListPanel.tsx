@@ -1,86 +1,82 @@
 import React, { memo } from 'react';
 import { useStaggerReveal } from '../../hooks/useStaggerReveal';
 import PolicyCard from './PolicyCard';
-import Button from '../shared/Button';
 import ScrollableList from '../shared/ScrollableList';
 import EmptyState from '../shared/EmptyState';
 import Skeleton from '../shared/Skeleton';
+import ListCountLine from '../shared/ListCountLine';
 import type { OktaPolicyListItem, OktaPolicyRule } from '../../../shared/schemas/okta';
+import type { PolicyReadState } from '../../hooks/usePoliciesData';
 
 interface PoliciesListPanelProps {
   isLoading: boolean;
   policies: OktaPolicyListItem[];
+  totalCount: number;
   hasPolicies: boolean;
+  readState: PolicyReadState;
   onLoad: () => void;
   loadRules: (policyId: string) => Promise<OktaPolicyRule[]>;
   selectedIds: Set<string>;
   onToggleSelect: (policyId: string) => void;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
 }
 
-const noPoliciesState = (onLoad: () => void) => (
-  <EmptyState
-    icon="shield"
-    title="No App Authentication Policies"
-    description="No app authentication policies found — or your admin role can't read policies."
-    actions={[{ label: 'Reload Policies', onClick: onLoad, variant: 'primary' }]}
-  />
-);
+const noPoliciesState = (readState: PolicyReadState, onLoad: () => void) => {
+  if (readState === 'forbidden') {
+    return (
+      <EmptyState
+        icon="shield"
+        title="Policies are not readable by this admin role"
+        description="Okta refused the read. An admin role with policy read access can list app authentication policies; this one cannot, so the panel has nothing to show."
+        actions={[{ label: 'Check again', onClick: onLoad, variant: 'secondary' }]}
+      />
+    );
+  }
+
+  if (readState === 'listed') {
+    return (
+      <EmptyState
+        icon="shield"
+        title="No app authentication policies"
+        description="Okta reports this org has no app authentication policies."
+        actions={[{ label: 'Reload policies', onClick: onLoad, variant: 'primary' }]}
+      />
+    );
+  }
+
+  return (
+    <EmptyState
+      icon="shield"
+      title="App authentication policies not loaded"
+      description="Nothing has been read from Okta yet."
+      actions={[{ label: 'Load policies', onClick: onLoad, variant: 'primary' }]}
+    />
+  );
+};
 
 const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function PoliciesListPanel({
   isLoading,
   policies,
+  totalCount,
   hasPolicies,
+  readState,
   onLoad,
   loadRules,
   selectedIds,
   onToggleSelect,
-  onSelectAll,
-  onDeselectAll,
 }) {
   const setStaggerRef = useStaggerReveal();
   const selectedHere = selectedIds.size;
-  const allFilteredSelected =
-    policies.length > 0 && policies.every((policy) => selectedIds.has(policy.id));
 
   return (
     <div className="min-h-[400px]">
       {policies.length > 0 && (
-        <div className="mb-(--sp-toolbar) flex items-center justify-between gap-3">
-          {selectedHere > 0 ? (
-            <p className="text-xs tabular-nums text-primary-text">
-              {selectedHere.toLocaleString()} selected
-            </p>
-          ) : (
-            <span />
-          )}
-          <div className="flex shrink-0 items-center gap-(--sp-inline)">
-            {selectedHere > 0 && (
-              <Button
-                variant="link"
-                size="xs"
-                onClick={onDeselectAll}
-                title="Clear every selected policy, including any picked on another screen"
-              >
-                Deselect all
-              </Button>
-            )}
-            <Button
-              variant="link"
-              size="xs"
-              onClick={onSelectAll}
-              disabled={allFilteredSelected}
-              title={
-                allFilteredSelected
-                  ? `All ${policies.length.toLocaleString()} policies matching the current search are already selected`
-                  : `Replace the policy selection with the ${policies.length.toLocaleString()} policies matching the current search`
-              }
-            >
-              Select all
-            </Button>
-          </div>
-        </div>
+        <ListCountLine
+          shown={policies.length}
+          of={totalCount}
+          selected={selectedHere}
+          className="mb-(--sp-toolbar)"
+          testId="policies-count-line"
+        />
       )}
       <ScrollableList
         loading={isLoading}
@@ -96,7 +92,7 @@ const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function Polici
               description="No auth policies match your search."
             />
           ) : (
-            noPoliciesState(onLoad)
+            noPoliciesState(readState, onLoad)
           )
         }
       >

@@ -59,3 +59,33 @@ describe('useUserMemberships load failure logging (D-051)', () => {
     }
   });
 });
+
+describe('a membership list nobody read is not an empty one', () => {
+  it('leaves memberships undefined after a load that failed', async () => {
+    const { result } = renderHook(() => useUserMemberships({ targetTabId: 1 }));
+
+    await act(async () => {
+      await result.current.loadMemberships(user);
+    });
+
+    expect(result.current.error).toBe('boundary validation failed');
+    expect(result.current.memberships).toBeUndefined();
+  });
+
+  it('starts undefined and returns there on clear, never at []', async () => {
+    setEntry(['userMemberships', user.id], []);
+    const { result } = renderHook(() => useUserMemberships({ targetTabId: 1 }));
+
+    expect(result.current.memberships).toBeUndefined();
+
+    await act(async () => {
+      await result.current.loadMemberships(user);
+    });
+    expect(result.current.memberships).toEqual([]);
+
+    act(() => {
+      result.current.clearMemberships();
+    });
+    expect(result.current.memberships).toBeUndefined();
+  });
+});

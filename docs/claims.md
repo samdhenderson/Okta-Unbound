@@ -116,6 +116,25 @@ rests on the zod boundary preserving org-custom attributes (`oktaProfileSchema` 
 trimmed profile ever reaches the evaluator, that is the bug** — the guarantee above is
 what would be wrong, not the table.
 
+The same three facts appear one level up, at a **list** rather than an attribute, and
+the same rule applies: an empty collection, a refused read, and a read that has not
+happened are three different answers, and a surface may print only the one that
+happened. A 403 flattened into `[]` is the worst of the three, because it reads as an
+assertion about the org that the app was never in a position to make.
+
+`listPolicies` is the reference shape
+([`hooks/useOktaApi/policyOperations.ts`](../src/sidepanel/hooks/useOktaApi/policyOperations.ts)):
+it returns `listed` / `forbidden` / `failed` rather than rows-or-nothing, the
+status comes off the response that already failed the walk, and
+[`usePoliciesData`](../src/sidepanel/hooks/usePoliciesData.ts) keeps the verdict as
+a three-valued `readState` all the way to the empty state. Two properties are worth
+copying: a refusal is **not cached**, because it is a fact about the signed-in role
+and not about the org, so a widened role is picked up by the next load; and a
+refusal does **not** go through the error banner, because a standing fact is not a
+transient failure to dismiss. A caller that genuinely cannot act on the difference
+collapses it at the call site through a named helper, so the collapse is visible
+rather than implied by a `?? []`.
+
 ### Never guess a function's semantics
 
 Expression coverage grows only where Okta's behaviour is exactly pinnable. A
@@ -244,6 +263,37 @@ admin a group is empty when the app simply has not looked.
 The same discipline applies one level up: a verb with no wired handler is
 **omitted**, not shipped permanently `disabled`. A section that cannot answer its
 question says so, and nothing is promoted to fill the empty slot.
+
+## A page is not a total
+
+Rows on screen and people who match are two different numbers, and a capped fetch
+knows only the first. Counting the array and printing it as "N matches" turns a
+page size into a population: an org where five hundred people match `smith` reads
+**"20 matches"** — not a truncated answer but a false one, and the kind this whole
+doc exists to forbid.
+
+The rule: **a count line states the population only when the app knows it.**
+
+- Okta's own answer is in the response. `Link; rel="next"` says rows were held
+  back; `X-Total-Count`, where the endpoint sends it, gives the population
+  outright. Both ride in with the data, so establishing this costs no request.
+  Read them ([`shared/utils/oktaPagination.ts`](../src/shared/utils/oktaPagination.ts),
+  [`shared/snapshot/syncMeta.ts`](../src/shared/snapshot/syncMeta.ts)) rather than
+  inferring from `results.length`, which cannot tell a complete page of twenty
+  from the first twenty of five hundred.
+- Nothing held back ⇒ the page _is_ the answer, and the count is stated flat.
+- Rows held back ⇒ say how many are on screen and that there are more, and invent
+  no total: _"Showing the first 20 matches — narrow the search to see the rest"_.
+  A total nobody counted is never written, not even approximately — "about 500"
+  is the hedge this doc bans, wearing a number.
+- The truncation flag is **required, not defaulted**. A host that has not worked
+  the answer out must fail to compile rather than silently publish "these are all
+  of them" ([`users/UserSearchResults.tsx`](../src/sidepanel/components/users/UserSearchResults.tsx)).
+  It travels with the rows it describes and is cleared by every path that
+  replaces them, so a stale `true` cannot outlive its page.
+
+The same holds for any capped read: a member walk stopped at its bound, a
+findings list cut to fit. State the cap, never the guess.
 
 ## Every withheld answer is scheduled work
 

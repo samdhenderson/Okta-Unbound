@@ -14,7 +14,7 @@ export interface UserRungHeaderProps {
   isDetailOpen: boolean;
   isCompareOpen: boolean;
   selectedUser: OktaUser | null;
-  membershipCount: number;
+  membershipCount?: number;
   isLoadingMemberships: boolean;
   appCount?: number;
   oktaOrigin: string | null;
@@ -71,7 +71,7 @@ const UserRungHeader: React.FC<UserRungHeaderProps> = ({
       badge={
         identity
           ? identity.badge
-          : selectedUser
+          : selectedUser && membershipCount !== undefined
             ? { text: `${membershipCount} Groups`, variant: 'primary' }
             : undefined
       }

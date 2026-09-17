@@ -151,6 +151,12 @@ Where that leaves an export is a **ranking**, not a ban:
    fill — a row of evenly-weighted `secondary` peers, or `RuleActionBar`'s empty
    row when a rule targets no groups and _Preview impact_ is dropped. Nothing is
    promoted to take the slot.
+4. **A read-only rung may have no page verbs at all.** `actions` is then `[]`, and
+   `ActionBar` draws **no action row** rather than a band of padding above nothing
+   — an empty row is not a row. `AppsListActionBar` and `PoliciesListActionBar` are
+   both this shape: search as the `subRow`, selection furniture in the `register`,
+   nothing above either. The enumeration below is still owed, and is the only thing
+   separating "this rung has no page verb" from "nobody wired one".
 
 Rule 2 needs policing, because "this rung has no acting verb" is the easy thing to
 claim. **It is an enumeration, written as a comment above the descriptor array**:
@@ -176,7 +182,15 @@ control whose worst outcome is another click.** Ordering by weight alone puts a
 destructive verb (_Merge_ copies members into a survivor and empties the sources)
 under the pixel that a moment earlier was _Select all_. On a rung with a selection,
 position one is always a selection control: `Deselect all` leads the moment anything
-is ticked, `Select all (M)` follows, and both are `pinned`.
+is ticked, `Select all` follows, and both are `pinned`. This holds on a register
+whose verbs are all harmless today — `AppsListActionBar` declares it with nothing
+in the register but the two controls — so that a verb added later has to be placed
+rather than appended.
+
+This is also why `Select all` is **disabled rather than omitted** once everything is
+taken. It is furniture, not a verb, and it holds position one whenever nothing is
+ticked; a control that vanished at its boundary would hand that position to whatever
+came next. The `title` names which boundary it is sitting on.
 
 ## The open panel says so in words
 
@@ -199,13 +213,32 @@ reader has ticked. It renders on the band's own white surface, at the band's own
 rule, no divider, no wash.
 
 **What separates the two families is the controls, not the surface.** Selection
-furniture — `Select all (M)`, `Deselect all`: the things that say how many rows the
-filter matched and how to stop ticking them — takes `variant: 'link'`. A verb that
-acts on the ticked rows (`Compare (N)`) keeps `secondary`, however small. Never give
-the register a wash: a wash says _different_ but never _subordinate_, says nothing to
+furniture — `Select all`, `Deselect all`: the things that say how to start and stop
+ticking — takes `variant: 'link'`. A verb that acts on the ticked rows (`Compare`)
+keeps `secondary`, however small. Never give the register a wash: a wash says _different_ but never _subordinate_, says nothing to
 a reader who cannot see it, and its inset stacks on the band's own. The band's left
 edge is one line, top to bottom, and a `link` keeps the vertical half of its size
 scale, so row height is unchanged.
+
+**No label in the register carries a count.** How many rows the filter matched and
+how many are ticked are one fact each, stated once, by the rung's `ListCountLine`
+above the list — `Showing 50 of 128 · 3 selected`. A count in a label is a second
+copy of a number the reader can already see, free to disagree with it, and a label
+that grows a digit re-measures the row it sits in every time a checkbox is ticked.
+What a verb would act on goes in its `title`, which is also its accessible
+description. The rule is the rung's, not just the register's: the Applications
+toolbar used to carry its own _Showing X of Y_ two inches from the count line, and
+lost it for the same reason.
+
+The register is **ranged right**, against the action row's leading edge. With the
+counts gone it is a row of short controls with nothing anchoring it left, and two
+ragged-left rows read as one broken column.
+
+This does not touch the tier carve-out above, whose second condition **requires** the
+measured count in the label (`Set attribute on 47 members`). That verb writes to a
+cohort the reader cannot otherwise see the extent of, and the count is a safety
+property rather than a readout. A register control takes what is on screen, beside a
+line that already says how much that is.
 
 **Pass it whenever the rung has a selection at all, not only once something is
 ticked.** The row holds its space in both states, so the first tick adds controls to

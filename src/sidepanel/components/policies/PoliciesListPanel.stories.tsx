@@ -67,24 +67,17 @@ const meta = {
       description: "Every basket id of kind 'policy', including ones ticked elsewhere.",
     },
     onToggleSelect: { description: "Tick or untick one card's policy." },
-    onSelectAll: {
-      description:
-        'Replaces the policy selection with every currently filtered policy. A request, not a resolved outcome.',
-    },
-    onDeselectAll: {
-      description: "Empties the policy partition, leaving other kinds' picks alone.",
-    },
   },
   args: {
     isLoading: false,
     policies: samplePolicies,
     hasPolicies: true,
+    readState: 'listed',
     onLoad: fn(),
     loadRules: fn(async () => sampleRules),
+    totalCount: 3,
     selectedIds: new Set<string>(),
     onToggleSelect: fn(),
-    onSelectAll: fn(),
-    onDeselectAll: fn(),
   },
   beforeEach: () => {
     resetEntityCache();
@@ -110,11 +103,35 @@ export const Loading: Story = {
 };
 
 export const NoPolicies: Story = {
-  args: { policies: [], hasPolicies: false },
+  args: { policies: [], hasPolicies: false, readState: 'listed' },
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole('button', { name: 'Reload Policies' }));
+    await expect(
+      canvas.getByText('Okta reports this org has no app authentication policies.'),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Reload policies' }));
     await expect(args.onLoad).toHaveBeenCalled();
+  },
+};
+
+export const ReadForbidden: Story = {
+  args: { policies: [], hasPolicies: false, readState: 'forbidden' },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      canvas.getByText('Policies are not readable by this admin role'),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText(/ — or /)).not.toBeInTheDocument();
+    await userEvent.click(canvas.getByRole('button', { name: 'Check again' }));
+    await expect(args.onLoad).toHaveBeenCalled();
+  },
+};
+
+export const NotLoaded: Story = {
+  args: { policies: [], hasPolicies: false, readState: 'unread' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText('Nothing has been read from Okta yet.')).toBeInTheDocument();
   },
 };
 

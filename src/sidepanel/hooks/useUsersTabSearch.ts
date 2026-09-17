@@ -19,6 +19,7 @@ interface UseUsersTabSearchReturn {
   searchResults: OktaUser[];
   setSearchResults: (users: OktaUser[]) => void;
   isSearching: boolean;
+  resultsTruncated: boolean;
 }
 
 export function useUsersTabSearch({

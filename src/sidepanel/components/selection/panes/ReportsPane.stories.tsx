@@ -33,7 +33,12 @@ const OVERLAP: BasketVerb = {
   unavailableReason: 'Needs at least two groups — an overlap of one group is not a question.',
   cost: (basket) => ({
     requests: 0,
-    walks: basket.picked.filter((ref) => ref.kind === 'group').length,
+    walks: [
+      {
+        count: basket.picked.filter((ref) => ref.kind === 'group').length,
+        kind: 'membership' as const,
+      },
+    ],
     writes: 0,
   }),
   run: async () => ({ status: 'done', summary: 'Done.' }),

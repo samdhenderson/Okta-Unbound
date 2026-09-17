@@ -30,7 +30,7 @@ export interface UseUserDetailPanesOptions {
   user: OktaUser | null;
   targetTabId?: number;
   oktaOrigin: string | null;
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   rules: RuleInventoryState;
   enabled?: boolean;
 }
@@ -117,7 +117,9 @@ export function useUserDetailPanes({
 
   const ruleReads = useMemo(
     () =>
-      user && rules.status === 'available' ? profileRuleReads(rules.rules, user, memberships) : {},
+      user && rules.status === 'available' && memberships
+        ? profileRuleReads(rules.rules, user, memberships)
+        : {},
     [rules, user, memberships],
   );
 

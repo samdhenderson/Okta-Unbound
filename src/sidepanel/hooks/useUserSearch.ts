@@ -17,6 +17,7 @@ interface UseUserSearchReturn {
   setSearchQuery: (query: string) => void;
   searchResults: OktaUser[];
   isSearching: boolean;
+  resultsTruncated: boolean;
   error: string | null;
   clearSearch: () => void;
 }
@@ -29,15 +30,21 @@ export function useUserSearch({
 }: UseUserSearchOptions): UseUserSearchReturn {
   const [error, setError] = useState<string | null>(null);
 
-  const { searchQuery, setSearchQuery, searchResults, setSearchResults, isSearching } =
-    useDebouncedUserSearch({
-      targetTabId,
-      onError: setError,
-      debounceMs,
-      minQueryLength,
-      log,
-      enabled,
-    });
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    setSearchResults,
+    isSearching,
+    resultsTruncated,
+  } = useDebouncedUserSearch({
+    targetTabId,
+    onError: setError,
+    debounceMs,
+    minQueryLength,
+    log,
+    enabled,
+  });
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
@@ -50,6 +57,7 @@ export function useUserSearch({
     setSearchQuery,
     searchResults,
     isSearching,
+    resultsTruncated,
     error,
     clearSearch,
   };

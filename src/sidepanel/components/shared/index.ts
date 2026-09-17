@@ -33,6 +33,7 @@ export { default as EmptyState } from './EmptyState';
 export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as Skeleton } from './Skeleton';
 export { default as ListRow } from './ListRow';
+export { default as ListCountLine } from './ListCountLine';
 export { default as ScrollableList } from './ScrollableList';
 export { default as SearchDropdown } from './SearchDropdown';
 export { default as SelectionChips } from './SelectionChips';
@@ -61,6 +62,7 @@ export type { BadgeVariant, BadgeProps } from './Badge';
 export type { EntityLinkProps } from './EntityLink';
 export type { FilterToggleProps } from './FilterToggle';
 export type { EyebrowProps } from './Eyebrow';
+export type { ListCountLineProps } from './ListCountLine';
 export type {
   RuleExpressionTextProps,
   RuleExpressionTone,

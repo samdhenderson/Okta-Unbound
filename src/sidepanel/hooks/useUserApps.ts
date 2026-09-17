@@ -14,7 +14,7 @@ const log = createLogger('useUserApps');
 
 export interface UseUserAppsOptions {
   targetTabId: number | null;
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   oktaOrigin?: string | null;
   enabled?: boolean;
 }
@@ -156,7 +156,7 @@ export function useUserApps(
 
   const membershipIdsRef = useRef<string[]>([]);
   // eslint-disable-next-line react-hooks/refs
-  membershipIdsRef.current = memberships.map((m) => m.group.id);
+  membershipIdsRef.current = (memberships ?? []).map((m) => m.group.id);
   const apiRef = useRef({ getAppGroupAssignments, runOperation });
   // eslint-disable-next-line react-hooks/refs
   apiRef.current = { getAppGroupAssignments, runOperation };
@@ -204,7 +204,7 @@ export function useUserApps(
   }, [data, resolved]);
 
   const appsByGroupId = useMemo(
-    () => indexAppsByGroup(summarizeAppSources(apps, memberships).rows),
+    () => indexAppsByGroup(summarizeAppSources(apps, memberships ?? []).rows),
     [apps, memberships],
   );
 

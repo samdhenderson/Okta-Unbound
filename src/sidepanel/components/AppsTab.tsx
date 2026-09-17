@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertMessage, PageHeader } from './shared';
 import AppsToolbar from './apps/AppsToolbar';
 import AppsListPanel from './apps/AppsListPanel';
+import AppsListActionBar from './apps/AppsListActionBar';
 import {
   appDisplayLabel,
   computeActiveAppFilterCount,
@@ -97,6 +98,9 @@ const AppsTab: React.FC<AppsTabProps> = ({
   const selection = useRungSelection('app', apps, appDisplayLabel);
   const { replaceSelection } = selection;
 
+  const allFilteredSelected =
+    filteredApps.length > 0 && filteredApps.every((app) => selection.selectedIds.has(app.id));
+
   const handleSelectAll = useCallback(() => {
     const outcome = replaceSelection(filteredApps.map((app) => app.id));
     if (outcome.refused > 0) {
@@ -175,18 +179,25 @@ const AppsTab: React.FC<AppsTabProps> = ({
       <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
         <div className="flex flex-col h-[calc(100vh-280px)] min-h-[400px]">
           <div className="shrink-0 space-y-(--sp-toolbar)">
-            <AppsToolbar
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              groupsFilter={groupsFilter}
-              onGroupsFilterChange={setGroupsFilter}
-              sortBy={sortBy}
-              sortDesc={sortDesc}
-              onToggleSort={handleToggleSort}
-              resultCount={filteredApps.length}
-              totalCount={apps.length}
+            <AppsListActionBar
+              search={
+                <AppsToolbar
+                  searchQuery={searchQuery}
+                  onSearchQueryChange={setSearchQuery}
+                  statusFilter={statusFilter}
+                  onStatusFilterChange={setStatusFilter}
+                  groupsFilter={groupsFilter}
+                  onGroupsFilterChange={setGroupsFilter}
+                  sortBy={sortBy}
+                  sortDesc={sortDesc}
+                  onToggleSort={handleToggleSort}
+                />
+              }
+              selectedCount={selection.selectedIds.size}
+              filteredCount={filteredApps.length}
+              allFilteredSelected={allFilteredSelected}
+              onSelectAll={handleSelectAll}
+              onDeselectAll={selection.deselectAll}
             />
 
             {error && (
@@ -200,6 +211,7 @@ const AppsTab: React.FC<AppsTabProps> = ({
           <AppsListPanel
             loading={isLoading}
             apps={filteredApps}
+            totalCount={apps.length}
             hasApps={apps.length > 0}
             activeFilterCount={activeFilterCount}
             hasSearchQuery={searchQuery.trim().length > 0}
@@ -209,8 +221,6 @@ const AppsTab: React.FC<AppsTabProps> = ({
             fetchAssignmentCounts={api.getAppAssignmentCounts}
             selectedIds={selection.selectedIds}
             onToggleSelect={selection.toggleSelect}
-            onSelectAll={handleSelectAll}
-            onDeselectAll={selection.deselectAll}
           />
         </div>
       </div>

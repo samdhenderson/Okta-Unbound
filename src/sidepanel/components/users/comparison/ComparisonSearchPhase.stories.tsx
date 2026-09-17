@@ -27,9 +27,14 @@ const meta = {
     setSearchQuery: fn(),
     isSearching: false,
     searchResults: [],
+    resultsTruncated: false,
     onSelectUser: fn(),
   },
   argTypes: {
+    resultsTruncated: {
+      description:
+        'Whether Okta held matches back from `searchResults`. It describes the page the search returned, so filtering the context user out of it does not change the answer.',
+    },
     contextUser: {
       description:
         "The context user; excluded from results so users can't compare with themselves.",

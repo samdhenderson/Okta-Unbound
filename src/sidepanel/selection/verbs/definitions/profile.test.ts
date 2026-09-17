@@ -3,7 +3,7 @@ import setUserProfileAttribute from './profile';
 import { logBulkProfileUpdateAction, MAX_CAPTURED_COHORT } from '../../../../shared/undoManager';
 import type { VerbContext, VerbPreflight } from '../types';
 import type { SelectionBasket, SelectionRef } from '../../selectionStore';
-import type { OktaUser } from '../../../../shared/types';
+import type { FormattedRule, OktaUser } from '../../../../shared/types';
 import type { OktaUserProfileSchema } from '../../../../shared/schemas/okta';
 import { resetEntityCache } from '../../../cache/entityCache';
 
@@ -72,6 +72,7 @@ interface Fakes {
     string,
     { apps: { id: string; label: string; isProfileSource: boolean }[]; complete: boolean }
   >;
+  rules?: FormattedRule[] | null;
 }
 
 function contextOf(
@@ -94,6 +95,7 @@ function contextOf(
       };
     }),
     getUserProfileSchema: vi.fn(async () => (fakes.schema === undefined ? schema : fakes.schema)),
+    ensureGroupRulesLoaded: vi.fn(async () => (fakes.rules === undefined ? [] : fakes.rules)),
     getUserApps: vi.fn(
       async (userId: string) => fakes.apps?.[userId] ?? { apps: [], complete: true },
     ),
@@ -139,11 +141,13 @@ beforeEach(() => {
 });
 
 describe('cost', () => {
-  it('prices reaching the confirm: the schema, plus a read and an app walk per user', () => {
+  it('prices reaching the confirm: the schema, a read and an app walk per user, and the rules', () => {
     expect(setUserProfileAttribute.cost(basketOf(4))).toEqual({
       requests: 5,
-      walks: 4,
-      walkKind: 'app-assignment',
+      walks: [
+        { count: 4, kind: 'app-assignment' },
+        { count: 1, kind: 'group-rule' },
+      ],
       writes: 0,
     });
   });
@@ -152,8 +156,18 @@ describe('cost', () => {
     expect(setUserProfileAttribute.cost(basketOf(1)).requests).toBe(2);
   });
 
-  it('names what the walk walks, so it cannot read as a membership walk', () => {
-    expect(setUserProfileAttribute.cost(basketOf(9)).walkKind).toBe('app-assignment');
+  it('names what each walk walks, so neither can read as a membership walk', () => {
+    expect(setUserProfileAttribute.cost(basketOf(9)).walks?.map((walk) => walk.kind)).toEqual([
+      'app-assignment',
+      'group-rule',
+    ]);
+  });
+
+  it('does not scale the rules walk with the cohort', () => {
+    for (const size of [1, 9, 40]) {
+      const walks = setUserProfileAttribute.cost(basketOf(size)).walks ?? [];
+      expect(walks.find((walk) => walk.kind === 'group-rule')?.count).toBe(1);
+    }
   });
 });
 
@@ -604,5 +618,161 @@ describe('the cohort read', () => {
     await expect(prepare(context)).rejects.toMatchObject({ code: 'over-capture-cohort' });
     expect(context.api.getUserRaw).not.toHaveBeenCalled();
     expect(context.api.getUserProfileSchema).not.toHaveBeenCalled();
+  });
+});
+
+describe('the confirm names the rules this write moves people across', () => {
+  const rule = (over: Partial<FormattedRule>): FormattedRule =>
+    ({
+      id: '0prFAKE1',
+      name: 'Sales by department',
+      status: 'ACTIVE',
+      condition: '',
+      conditionExpression: 'user.department == "Sales"',
+      groupIds: ['00gFAKE1'],
+      groupNames: ['Sales EMEA'],
+      userAttributes: ['department'],
+      ...over,
+    }) as FormattedRule;
+
+  const marketingCohort = {
+    profiles: {
+      '00uFAKE0': { department: 'Marketing' },
+      '00uFAKE1': { department: 'Marketing' },
+    },
+  };
+
+  it('says who starts matching, and which group that adds them to', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Sales' },
+        {
+          ...marketingCohort,
+          rules: [rule({})],
+        },
+      ),
+    );
+
+    expect(preflight.lines).toContain(
+      '2 users would start matching Sales by department, which adds them to Sales EMEA',
+    );
+  });
+
+  it('says who stops matching, and that Okta drops the membership', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Support' },
+        {
+          ...marketingCohort,
+          rules: [
+            rule({
+              id: '0prFAKE2',
+              name: 'Marketing by department',
+              conditionExpression: 'user.department == "Marketing"',
+              groupNames: ['Marketing All'],
+            }),
+          ],
+        },
+      ),
+    );
+
+    expect(preflight.lines).toContain(
+      '2 users would stop matching Marketing by department, so Okta drops them from Marketing All',
+    );
+  });
+
+  it('says nothing about a rule nobody in the cohort moves across', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Sales' },
+        {
+          ...marketingCohort,
+          rules: [
+            rule({
+              id: '0prFAKE3',
+              name: 'Finance by department',
+              conditionExpression: 'user.department == "Finance"',
+            }),
+          ],
+        },
+      ),
+    );
+
+    expect(preflight.lines.join('\n')).not.toMatch(/Finance by department/);
+  });
+
+  it('names a rule it could not answer, rather than passing over it', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Sales' },
+        {
+          ...marketingCohort,
+          rules: [
+            rule({
+              id: '0prFAKE4',
+              name: 'Sales staff only',
+              conditionExpression: 'user.department == "Sales" && isMemberOfGroupName("Staff")',
+            }),
+          ],
+        },
+      ),
+    );
+
+    expect(preflight.lines.join('\n')).toContain('Sales staff only');
+    expect(preflight.lines.join('\n')).toContain("needs each user's full group list");
+  });
+
+  it('says the rules could not be read, rather than saying nothing moves', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Sales' },
+        {
+          ...marketingCohort,
+          rules: null,
+        },
+      ),
+    );
+
+    expect(preflight.lines.join('\n')).toContain("The org's group rules could not be read");
+  });
+
+  it('adds no line at all for an org that genuinely has no rules', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Sales' },
+        {
+          ...marketingCohort,
+          rules: [],
+        },
+      ),
+    );
+
+    expect(preflight.lines.join('\n')).not.toMatch(/rule/i);
+  });
+
+  it('measures the rules against who actually changes, not who was ticked', async () => {
+    const preflight = await measure(
+      contextOf(
+        basketOf(2),
+        { attribute: 'department', value: 'Sales' },
+        {
+          profiles: {
+            '00uFAKE0': { department: 'Marketing' },
+            '00uFAKE1': { department: 'Sales' },
+          },
+          rules: [rule({})],
+        },
+      ),
+    );
+
+    expect(preflight.lines).toContain(
+      '1 user would start matching Sales by department, which adds them to Sales EMEA',
+    );
   });
 });

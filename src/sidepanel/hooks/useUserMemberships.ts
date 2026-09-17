@@ -32,7 +32,7 @@ interface UseUserMembershipsOptions {
 }
 
 interface UseUserMembershipsReturn {
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   isLoading: boolean;
   error: string | null;
   rules: RuleInventoryState;
@@ -46,7 +46,7 @@ export function useUserMemberships({
   onError,
   onLoadingChange,
 }: UseUserMembershipsOptions): UseUserMembershipsReturn {
-  const [memberships, setMemberships] = useState<GroupMembership[]>([]);
+  const [memberships, setMemberships] = useState<GroupMembership[] | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ruleInventory, setRuleInventory] = useState<RuleInventoryState>({ status: 'unresolved' });
@@ -187,7 +187,7 @@ export function useUserMemberships({
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to load user memberships';
         reportError(message);
-        setMemberships([]);
+        setMemberships(undefined);
         log.error('Membership loading error:', message);
       } finally {
         reportLoading(false);
@@ -204,7 +204,7 @@ export function useUserMemberships({
   );
 
   const clearMemberships = useCallback(() => {
-    setMemberships([]);
+    setMemberships(undefined);
     reportError(null);
   }, [reportError]);
 

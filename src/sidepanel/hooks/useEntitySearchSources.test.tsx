@@ -6,6 +6,7 @@ import { NavigationProvider, type EntityType } from '../contexts/NavigationConte
 import { resetEntityCache } from '../cache/entityCache';
 import type { OrgEntityIndex, IndexedEntity, IndexedKind } from './useOrgEntityIndex';
 import type { JumpKind } from './useJumpResolver';
+import type { PolicyListResult } from './useOktaApi/policyOperations';
 import type { OktaPolicyListItem } from '../../shared/schemas/okta';
 
 const ALL_KINDS = ['group', 'app', 'rule', 'policy', 'user'] as const;
@@ -14,13 +15,13 @@ const api = {
   searchGroups: vi.fn(async () => [{ id: '00gFAKE1', name: 'Engineering' }]),
   searchUsers: vi.fn(async () => [{ id: '00uFAKE1', login: 'ada@example.com' }]),
   searchApps: vi.fn(async () => [{ id: '0oaFAKE9', label: 'Live Only App' }]),
-  listPolicies: vi.fn(
-    async () =>
-      [
-        { id: 'rstFAKE1', name: 'Any two factors' },
-        { id: 'rstFAKE2', name: 'Default Policy' },
-      ] as OktaPolicyListItem[],
-  ),
+  listPolicies: vi.fn(async (): Promise<PolicyListResult> => ({
+    outcome: 'listed',
+    policies: [
+      { id: 'rstFAKE1', name: 'Any two factors' },
+      { id: 'rstFAKE2', name: 'Default Policy' },
+    ] as OktaPolicyListItem[],
+  })),
   getGroupById: vi.fn(async () => null),
   getUserById: vi.fn(async () => null),
   getAppById: vi.fn(async () => ({ kind: 'missing' as const })),

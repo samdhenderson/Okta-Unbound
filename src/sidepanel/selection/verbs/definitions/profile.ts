@@ -4,6 +4,12 @@ import {
   type BulkProfileChange,
 } from '../../../../shared/undoManager';
 import { createLogger } from '../../../../shared/utils/logger';
+import {
+  analyzeCohortRuleImpact,
+  type CohortRuleImpact,
+} from '../../../../shared/membership/cohortRuleImpact';
+import type { RuleInventoryState } from '../../../../shared/membership/blastRadiusTypes';
+import type { FormattedRule } from '../../../../shared/types';
 import { pluralize, pluralNoun, type NounForms } from '../../../../shared/utils/plural';
 import type { OktaUser } from '../../../../shared/types';
 import type { OktaUserProfileSchema } from '../../../../shared/schemas/okta';
@@ -173,6 +179,19 @@ const COHORT_KEY = 'bulk-profile:cohort';
 
 const SCHEMA_KEY = 'bulk-profile:schema';
 
+const RULES_KEY = 'bulk-profile:rules';
+
+async function readRuleInventory(context: VerbContext): Promise<RuleInventoryState> {
+  const parked = context.memo.get(RULES_KEY);
+  if (parked) return parked as RuleInventoryState;
+
+  const rules = await context.api.ensureGroupRulesLoaded();
+  const state: RuleInventoryState =
+    rules === null ? { status: 'unavailable' } : { status: 'available', rules };
+  context.memo.set(RULES_KEY, state);
+  return state;
+}
+
 async function readSchema(context: VerbContext): Promise<OktaUserProfileSchema | null> {
   const parked = context.memo.get(SCHEMA_KEY);
   if (parked) return parked as OktaUserProfileSchema;
@@ -304,6 +323,60 @@ function refuse(
   return { cost: { requests: 0, writes: 0 }, items: 0, lines, refusal: { code, message } };
 }
 
+function targetGroupLabel(
+  rules: RuleInventoryState,
+  targetGroupIds: readonly string[],
+): string | undefined {
+  if (targetGroupIds.length === 0 || rules.status !== 'available') return undefined;
+  const byId = new Map<string, string>();
+  for (const rule of rules.rules as readonly FormattedRule[]) {
+    const names = rule.groupNames ?? [];
+    (rule.groupIds ?? []).forEach((id, index) => {
+      const name = names[index] ?? rule.allGroupNamesMap?.[id];
+      if (name) byId.set(id, name);
+    });
+  }
+  return targetGroupIds.map((id) => byId.get(id) ?? id).join(', ');
+}
+
+function ruleImpactLines(impact: CohortRuleImpact, rules: RuleInventoryState): string[] {
+  if (impact.status === 'not-computed') {
+    return impact.reason === 'rules-unavailable'
+      ? [
+          "The org's group rules could not be read, so whether this changes anyone's group membership was not checked",
+        ]
+      : [];
+  }
+
+  const lines: string[] = [];
+  for (const flip of impact.flips) {
+    const into = targetGroupLabel(rules, flip.targetGroupIds);
+    if (flip.transition === 'starts-matching') {
+      lines.push(
+        into === undefined
+          ? `${pluralize(flip.userCount, USER)} would start matching ${flip.ruleName}`
+          : `${pluralize(flip.userCount, USER)} would start matching ${flip.ruleName}, which adds them to ${into}`,
+      );
+    } else {
+      lines.push(
+        into === undefined
+          ? `${pluralize(flip.userCount, USER)} would stop matching ${flip.ruleName}, so Okta drops the membership it was keeping`
+          : `${pluralize(flip.userCount, USER)} would stop matching ${flip.ruleName}, so Okta drops them from ${into}`,
+      );
+    }
+  }
+
+  if (impact.undetermined.length > 0) {
+    const names = impact.undetermined.map((entry) => entry.ruleName).join(', ');
+    const count = impact.undetermined.length;
+    lines.push(
+      `${count === 1 ? 'One rule reads' : `${count} rules read`} this attribute and could not be checked here (${names}): answering ${count === 1 ? 'it' : 'them'} needs each user's full group list, which this run does not read`,
+    );
+  }
+
+  return lines;
+}
+
 function overwriteLine(targets: readonly ProfileTarget[]): string {
   const counts = new Map<string, number>();
   for (const target of targets) {
@@ -332,8 +405,10 @@ export const setUserProfileAttribute: BasketVerb = {
   cost(basket: SelectionBasket): VerbCost {
     return {
       requests: pickedUsers(basket).length + 1,
-      walks: pickedUsers(basket).length,
-      walkKind: 'app-assignment',
+      walks: [
+        { count: pickedUsers(basket).length, kind: 'app-assignment' },
+        { count: 1, kind: 'group-rule' },
+      ],
       writes: 0,
     };
   },
@@ -381,7 +456,11 @@ export const setUserProfileAttribute: BasketVerb = {
     const answer = context.values[VALUE_FIELD] ?? '';
     const users = pickedUsers(context.basket);
 
-    const [schema, cohort] = await Promise.all([readSchema(context), readCohort(context, users)]);
+    const [schema, cohort, ruleInventory] = await Promise.all([
+      readSchema(context),
+      readCohort(context, users),
+      readRuleInventory(context),
+    ]);
     const offered = schema
       ? offerableAttributes(
           schema,
@@ -460,6 +539,20 @@ export const setUserProfileAttribute: BasketVerb = {
     if (unreadable.length > 0) {
       lines.push(`${pluralize(unreadable.length, USER)} could not be read, and will be left alone`);
     }
+
+    lines.push(
+      ...ruleImpactLines(
+        analyzeCohortRuleImpact({
+          attributeName,
+          newValue: newRaw,
+          targets: ordered
+            .map((target) => cohort.users.get(target.userId))
+            .filter((user): user is OktaUser => user !== undefined),
+          rules: ruleInventory,
+        }),
+        ruleInventory,
+      ),
+    );
 
     if (ordered.length === 0) {
       return refuse(

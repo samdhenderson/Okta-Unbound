@@ -214,7 +214,11 @@ export const removeUsersFromGroups: BasketVerb = {
   needs: ['user', 'group'],
 
   cost(basket: SelectionBasket): VerbCost {
-    return { requests: 0, walks: pickedOfKind(basket, 'group').length, writes: 0 };
+    return {
+      requests: 0,
+      walks: [{ count: pickedOfKind(basket, 'group').length, kind: 'membership' }],
+      writes: 0,
+    };
   },
 
   async preflight(context: VerbContext): Promise<VerbPreflight> {

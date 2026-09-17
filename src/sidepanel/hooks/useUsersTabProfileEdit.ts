@@ -61,7 +61,7 @@ async function recordedSave(userId: string): Promise<UndoAction | null> {
 export interface UseUsersTabProfileEditOptions {
   user: OktaUser | null;
   attributes: readonly AttributeDescriptor[];
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   rules: RuleInventoryState;
   oktaOrigin?: string | null;
   mastering?: ProfileMastering;

@@ -1,15 +1,13 @@
 import { useMemo } from 'react';
 import { useEntityNavigation } from '../contexts/NavigationContext';
 import { navigationTarget } from '../components/home/jumpDestinations';
-import { getOrFetch } from '../cache/entityCache';
-import { AUTH_POLICY_TYPE, POLICIES_CACHE_KEY } from './usePoliciesData';
+import { fetchPolicyList } from './usePoliciesData';
 import { filterPolicies } from '../components/policies/policyFilters';
 import type { JumpKind, JumpResult } from './useJumpResolver';
 import { ruleSearchSecondary, type OrgEntityIndex } from './useOrgEntityIndex';
 import type { GroupRuleStatus } from '../../shared/types';
 import type { OktaIdKind } from '../../shared/utils/oktaId';
-import type { OktaPolicyListItem } from '../../shared/schemas/okta';
-import type { OktaPolicyType } from './useOktaApi/policyOperations';
+import type { OktaPolicyType, PolicyListResult } from './useOktaApi/policyOperations';
 
 export interface EntitySearchApi {
   searchGroups: (
@@ -25,7 +23,7 @@ export interface EntitySearchApi {
     }>
   >;
   searchApps: (query: string) => Promise<Array<{ id: string; label: string; name?: string }>>;
-  listPolicies: (type?: OktaPolicyType) => Promise<OktaPolicyListItem[]>;
+  listPolicies: (type?: OktaPolicyType) => Promise<PolicyListResult>;
   getGroupById: (id: string) => Promise<{ id: string; name: string; description?: string } | null>;
   getUserById: (id: string) => Promise<{
     id: string;
@@ -118,9 +116,7 @@ export function useEntitySearchSources({
 
     if (wants('policy')) {
       built.policy = async (query) => {
-        const policies = await getOrFetch<OktaPolicyListItem[]>(POLICIES_CACHE_KEY, () =>
-          listPolicies(AUTH_POLICY_TYPE),
-        );
+        const policies = await fetchPolicyList(listPolicies).catch(() => []);
         return filterPolicies(policies, query)
           .slice(0, POLICY_RESULT_LIMIT)
           .map((policy) => ({

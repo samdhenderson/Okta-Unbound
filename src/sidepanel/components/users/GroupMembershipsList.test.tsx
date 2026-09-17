@@ -764,3 +764,19 @@ describe('GroupMembershipsList selection', () => {
     expect(screen.getByRole('checkbox', { name: 'Select Ops Handbook' })).toBeChecked();
   });
 });
+
+describe('GroupMembershipsList — an unread list is not an empty one', () => {
+  it('says the groups could not be read rather than that there are none', () => {
+    render(<GroupMembershipsList {...base} memberships={undefined} user={user} />);
+
+    expect(screen.getByText('This user’s groups could not be read')).toBeInTheDocument();
+    expect(screen.queryByText('This user is not a member of any groups')).not.toBeInTheDocument();
+  });
+
+  it('still says "not a member of any groups" for a list that was read and is empty', () => {
+    render(<GroupMembershipsList {...base} memberships={[]} user={user} />);
+
+    expect(screen.getByText('This user is not a member of any groups')).toBeInTheDocument();
+    expect(screen.queryByText('This user’s groups could not be read')).not.toBeInTheDocument();
+  });
+});

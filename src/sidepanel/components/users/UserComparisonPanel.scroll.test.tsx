@@ -44,6 +44,7 @@ function comparisonState(): UserComparisonState {
     setSearchQuery: vi.fn(),
     searchResults: [],
     isSearching: false,
+    resultsTruncated: false,
     activeTab: 'overview',
     setActiveTab: vi.fn(),
     groupBuckets: { onlyCompared: [], shared: [], onlyContext: [] },

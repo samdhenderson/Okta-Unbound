@@ -4,6 +4,7 @@ import EmptyState from '../shared/EmptyState';
 import ScrollableList from '../shared/ScrollableList';
 import Skeleton from '../shared/Skeleton';
 import Button from '../shared/Button';
+import ListCountLine from '../shared/ListCountLine';
 import GroupListItem from './GroupListItem';
 import type { GroupSummary } from '../../../shared/types';
 
@@ -89,6 +90,15 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
 
   return (
     <>
+      {visibleGroups.length > 0 && (
+        <ListCountLine
+          shown={visibleGroups.length}
+          of={filteredGroups.length}
+          selected={selectedCount}
+          className="shrink-0 pt-(--sp-rung)"
+          testId="groups-count-line"
+        />
+      )}
       <ScrollableList
         loading={loading}
         loadingMessage="Loading groups from Okta..."
@@ -140,18 +150,11 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
         {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden="true" />}
       </ScrollableList>
 
-      {visibleGroups.length > 0 && (
-        <div className="shrink-0 flex items-center justify-between gap-2 pt-(--sp-rung) text-xs text-neutral-500">
-          <span>
-            Showing {visibleGroups.length.toLocaleString()} of{' '}
-            {filteredGroups.length.toLocaleString()}
-            {selectedCount > 0 && ` · ${selectedCount.toLocaleString()} selected`}
-          </span>
-          {hasMore && (
-            <Button variant="secondary" size="sm" onClick={loadMore}>
-              Load more (+{Math.min(PAGE, filteredGroups.length - visibleCount)})
-            </Button>
-          )}
+      {hasMore && (
+        <div className="flex shrink-0 justify-end pt-(--sp-rung)">
+          <Button variant="secondary" size="sm" onClick={loadMore}>
+            Load more (+{Math.min(PAGE, filteredGroups.length - visibleCount)})
+          </Button>
         </div>
       )}
     </>

@@ -22,7 +22,7 @@ export interface UserDetailPanelProps {
   pane: UserDetailPane;
   onPaneChange: (pane: UserDetailPane) => void;
 
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   isLoadingMemberships: boolean;
   currentGroupId?: string;
   recentlyAddedGroupId?: string | null;
@@ -71,7 +71,7 @@ const UserDetailPanel: React.FC<UserDetailPanelProps> = ({
     {
       key: 'groups',
       label: 'Groups',
-      count: isLoadingMemberships ? undefined : memberships.length,
+      count: isLoadingMemberships ? undefined : memberships?.length,
     },
     { key: 'apps', label: 'Apps', count: appCount },
     { key: 'profile', label: 'Profile', count: attributes.length || undefined },

@@ -115,7 +115,7 @@ export const groupMembersToUsers: BasketVerb = {
   needs: ['group'],
   cost: (basket) => ({
     requests: countOfKind(basket, 'group'),
-    walks: countOfKind(basket, 'group'),
+    walks: [{ count: countOfKind(basket, 'group'), kind: 'membership' }],
     writes: 0,
   }),
   async run(context) {
@@ -221,7 +221,11 @@ export const rulesToUpstreamRules: BasketVerb = {
   title: "Add the rules that feed these rules' condition groups to the rule selection",
   path: 'convert',
   needs: ['rule'],
-  cost: (basket) => ({ requests: countOfKind(basket, 'rule') + 1, walks: 1, writes: 0 }),
+  cost: (basket) => ({
+    requests: countOfKind(basket, 'rule') + 1,
+    walks: [{ count: 1, kind: 'membership' }],
+    writes: 0,
+  }),
   async run(context) {
     const { rules, unreadable } = await readTickedRules(
       context,

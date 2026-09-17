@@ -71,7 +71,7 @@ const meta = {
     selectedGroupIds: { description: 'Ids of the currently selected groups.' },
     selectedCount: {
       description:
-        'How many groups are selected — the `· N selected` half of the line beneath the list, omitted entirely when zero.',
+        'How many groups are selected — the `· N selected` half of the count line above the list, omitted entirely when zero.',
     },
     onToggleSelect: { description: 'Toggles selection for a group id.' },
     oktaOrigin: { description: 'Okta origin passed to each row for deep-linking.' },
@@ -114,7 +114,9 @@ export const WithSelection: Story = {
   args: { selectedGroupIds: new Set([sampleGroups[0].id]), selectedCount: 1 },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/Showing 3 of 3 · 1 selected/)).toBeInTheDocument();
+    await expect(canvas.getByTestId('groups-count-line')).toHaveTextContent(
+      'Showing 3 of 3 · 1 selected',
+    );
   },
 };
 

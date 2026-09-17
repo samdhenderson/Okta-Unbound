@@ -30,8 +30,6 @@ export interface AppsToolbarProps {
   sortBy: AppSortField;
   sortDesc: boolean;
   onToggleSort: (field: AppSortField) => void;
-  resultCount: number;
-  totalCount: number;
 }
 
 const AppsToolbar: React.FC<AppsToolbarProps> = ({
@@ -44,8 +42,6 @@ const AppsToolbar: React.FC<AppsToolbarProps> = ({
   sortBy,
   sortDesc,
   onToggleSort,
-  resultCount,
-  totalCount,
 }) => (
   <div className="space-y-(--sp-field)">
     <Input
@@ -109,10 +105,6 @@ const AppsToolbar: React.FC<AppsToolbarProps> = ({
           />
         ))}
       </div>
-
-      <span className="ml-auto text-xs text-neutral-500">
-        Showing {resultCount.toLocaleString()} of {totalCount.toLocaleString()}
-      </span>
     </div>
   </div>
 );

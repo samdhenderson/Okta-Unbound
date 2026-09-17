@@ -18,10 +18,12 @@ import { extractReferencedGroupIds } from '../../../shared/rules/groupRuleIndex'
 import { useGroupNameResolver } from '../../hooks/useGroupNameResolver';
 import type { GroupMembership, OktaUser } from '../../../shared/types';
 
+const NONE: GroupMembership[] = [];
+
 const BUCKET_ORDER: readonly MembershipBucket[] = ['rule', 'direct', 'app', 'unresolved'];
 
 interface GroupMembershipsListProps {
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   user?: OktaUser;
   isLoading: boolean;
   currentGroupId?: string;
@@ -34,7 +36,7 @@ interface GroupMembershipsListProps {
 }
 
 const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
-  memberships,
+  memberships: read,
   user,
   isLoading,
   currentGroupId,
@@ -48,6 +50,9 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   const [query, setQuery] = useState('');
   const [bucket, setBucket] = useState<MembershipBucketFilter>('all');
   const [openGroupIds, setOpenGroupIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  const notRead = read === undefined;
+  const memberships = useMemo(() => read ?? NONE, [read]);
   const groupEntities = useMemo(
     () => memberships.map((m) => ({ id: m.group.id, name: m.group.profile.name })),
     [memberships],
@@ -70,8 +75,8 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
   );
 
   const groupContext = useMemo(
-    () => (isLoading ? undefined : groupContextOf(memberships)),
-    [isLoading, memberships],
+    () => (isLoading || notRead ? undefined : groupContextOf(memberships)),
+    [isLoading, notRead, memberships],
   );
 
   const knownGroupNames = useMemo(
@@ -178,6 +183,10 @@ const GroupMembershipsList: React.FC<GroupMembershipsListProps> = ({
       {isLoading ? (
         <div className="space-y-(--sp-rung) p-(--sp-card)">
           <Skeleton variant="row" size="lg" count={4} label="Loading group memberships..." />
+        </div>
+      ) : notRead ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <p className="text-sm text-neutral-500">This user’s groups could not be read</p>
         </div>
       ) : !hasMemberships ? (
         <div className="flex flex-col items-center justify-center py-12">

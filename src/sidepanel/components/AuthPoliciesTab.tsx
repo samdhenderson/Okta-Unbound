@@ -3,6 +3,7 @@ import PageHeader from './shared/PageHeader';
 import Input from './shared/Input';
 import AlertMessage from './shared/AlertMessage';
 import PoliciesListPanel from './policies/PoliciesListPanel';
+import PoliciesListActionBar from './policies/PoliciesListActionBar';
 import Icon from './shared/Icon';
 import { useOktaApi } from '../hooks/useOktaApi';
 import type { OperationResult } from '../hooks/useOktaApi/types';
@@ -39,7 +40,7 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
   }, []);
 
   const api = useOktaApi({ targetTabId: targetTabId ?? null, onResult: handleResult });
-  const { policies, isLoading, lastFetchTime, loadPolicies } = usePoliciesData({
+  const { policies, readState, isLoading, lastFetchTime, loadPolicies } = usePoliciesData({
     targetTabId,
     onError: handleError,
   });
@@ -55,6 +56,10 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
 
   const selection = useRungSelection('policy', policies, policyName);
   const { replaceSelection } = selection;
+
+  const allFilteredSelected =
+    filteredPolicies.length > 0 &&
+    filteredPolicies.every((policy) => selection.selectedIds.has(policy.id));
 
   const handleSelectAll = useCallback(() => {
     const outcome = replaceSelection(filteredPolicies.map((policy) => policy.id));
@@ -111,13 +116,22 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
 
         {hasPolicies && (
           <div className="space-y-(--sp-toolbar)">
-            <Input
-              value={searchQuery}
-              onChange={setSearchQuery}
-              type="search"
-              icon={<Icon type="search" size="md" />}
-              ariaLabel="Search auth policies"
-              placeholder="Search policies by name or description…"
+            <PoliciesListActionBar
+              search={
+                <Input
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  type="search"
+                  icon={<Icon type="search" size="md" />}
+                  ariaLabel="Search auth policies"
+                  placeholder="Search policies by name or description…"
+                />
+              }
+              selectedCount={selection.selectedIds.size}
+              filteredCount={filteredPolicies.length}
+              allFilteredSelected={allFilteredSelected}
+              onSelectAll={handleSelectAll}
+              onDeselectAll={selection.deselectAll}
             />
             {lastUpdatedLabel && (
               <p className="text-xs text-neutral-600">Last updated {lastUpdatedLabel}</p>
@@ -128,13 +142,13 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
         <PoliciesListPanel
           isLoading={isLoading}
           policies={filteredPolicies}
+          totalCount={policies.length}
           hasPolicies={hasPolicies}
+          readState={readState}
           onLoad={handleLoad}
           loadRules={api.getPolicyRules}
           selectedIds={selection.selectedIds}
           onToggleSelect={selection.toggleSelect}
-          onSelectAll={handleSelectAll}
-          onDeselectAll={selection.deselectAll}
         />
       </div>
     </div>

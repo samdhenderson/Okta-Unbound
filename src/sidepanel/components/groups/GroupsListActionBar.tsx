@@ -51,7 +51,7 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
       : []),
     {
       id: 'select-all',
-      label: `Select all (${filteredCount})`,
+      label: 'Select all',
       variant: 'link',
       onClick: onSelectAll,
       disabled: filteredCount === 0 || selectedCount === filteredCount,
@@ -67,9 +67,10 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
       ? [
           {
             id: 'compare',
-            label: `Compare (${selectedCount})`,
+            label: 'Compare',
             icon: 'chart' as const,
             onClick: onCompare,
+            title: `Compare the ${selectedCount} selected groups`,
           },
         ]
       : []),
@@ -78,9 +79,10 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
       ? [
           {
             id: 'export-selection',
-            label: `Export (${selectedCount})`,
+            label: 'Export',
             icon: 'download' as const,
             onClick: onExportSelection,
+            title: `Export the ${selectedCount} selected ${selectedCount === 1 ? 'group' : 'groups'}`,
             priority: 'tier' as const,
           },
         ]

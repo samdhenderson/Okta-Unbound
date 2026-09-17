@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { OktaPolicyListItem } from '../../shared/schemas/okta';
+import type { PolicyListResult } from './useOktaApi/policyOperations';
 
 const policies: OktaPolicyListItem[] = [
   { id: 'rstFAKE000000000001', name: 'Any two factors', status: 'ACTIVE', type: 'ACCESS_POLICY' },
 ];
 
 const api = vi.hoisted(() => ({
-  listPolicies: vi.fn(async () => [] as OktaPolicyListItem[]),
+  listPolicies: vi.fn(async (): Promise<PolicyListResult> => ({ outcome: 'listed', policies: [] })),
   getPolicyRules: vi.fn(async () => []),
 }));
 
@@ -21,7 +22,7 @@ const onError = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
   resetEntityCache();
-  api.listPolicies.mockResolvedValue(policies);
+  api.listPolicies.mockResolvedValue({ outcome: 'listed', policies });
 });
 
 describe('usePoliciesData', () => {
@@ -101,5 +102,71 @@ describe('usePoliciesData', () => {
 
     expect(onError).toHaveBeenCalledWith('scheduler unavailable');
     expect(result.current.isLoading).toBe(false);
+  });
+
+  describe('readState (D-D)', () => {
+    it('starts unread, even when the cache seeded rows', () => {
+      setEntry(POLICIES_CACHE_KEY, policies);
+
+      const { result } = renderHook(() => usePoliciesData({ targetTabId: 1, onError }));
+
+      expect(result.current.readState).toBe('unread');
+    });
+
+    it('is listed once Okta answers, including when it answers with nothing', async () => {
+      api.listPolicies.mockResolvedValue({ outcome: 'listed', policies: [] });
+      const { result } = renderHook(() => usePoliciesData({ targetTabId: 1, onError }));
+
+      await act(async () => {
+        await result.current.loadPolicies();
+      });
+
+      expect(result.current.readState).toBe('listed');
+      expect(result.current.policies).toEqual([]);
+    });
+
+    it('is forbidden on a 403, and says nothing through the error banner', async () => {
+      api.listPolicies.mockResolvedValue({ outcome: 'forbidden' });
+      const { result } = renderHook(() => usePoliciesData({ targetTabId: 1, onError }));
+
+      await act(async () => {
+        await result.current.loadPolicies();
+      });
+
+      expect(result.current.readState).toBe('forbidden');
+      expect(result.current.policies).toEqual([]);
+      expect(onError).not.toHaveBeenCalledWith(expect.stringContaining('olic'));
+    });
+
+    it('does not cache a refusal, so a widened role is picked up on the next load', async () => {
+      api.listPolicies.mockResolvedValue({ outcome: 'forbidden' });
+      const { result } = renderHook(() => usePoliciesData({ targetTabId: 1, onError }));
+
+      await act(async () => {
+        await result.current.loadPolicies();
+      });
+      expect(result.current.readState).toBe('forbidden');
+
+      api.listPolicies.mockResolvedValue({ outcome: 'listed', policies });
+      await act(async () => {
+        await result.current.loadPolicies();
+      });
+
+      expect(api.listPolicies).toHaveBeenCalledTimes(2);
+      expect(result.current.readState).toBe('listed');
+      expect(result.current.policies).toEqual(policies);
+    });
+
+    it('stays unread on a non-403 failure, which does reach the error banner', async () => {
+      api.listPolicies.mockResolvedValue({ outcome: 'failed', message: 'Bad gateway' });
+      const { result } = renderHook(() => usePoliciesData({ targetTabId: 1, onError }));
+
+      await act(async () => {
+        await result.current.loadPolicies();
+      });
+
+      expect(result.current.readState).toBe('unread');
+      expect(onError).toHaveBeenCalledWith('Bad gateway');
+    });
   });
 });

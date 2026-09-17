@@ -61,7 +61,8 @@ const sizeClasses: Record<FooSize, string> = { sm: '…', md: '…', lg: '…' }
 `CopyableId`, `CopyIconButton`, `OpenInOktaLink`, `Modal`, `Input`, `Checkbox`, `Select`,
 `Textarea`, `PageHeader`, `EntityIdentity`, `EntityLink`, `Badge`, `Breadcrumbs`, `Tabs`, `Tooltip`,
 `CollapsibleSection`, `DetailSection`, `ActionBar`, `AlertMessage`, `EmptyState`, `Eyebrow`,
-`StableWidth`, `LoadingSpinner`, `Skeleton`, `ListRow`, `ScrollableList`, `SearchDropdown`,
+`StableWidth`, `LoadingSpinner`, `Skeleton`, `ListRow`, `ListCountLine`, `ScrollableList`,
+`SearchDropdown`,
 `SelectionChips`, `RuleExpressionText`, `ClauseLedger`, `ClauseLedgerBranch`, `ClauseLedgerClause`,
 `GroupReferenceChip`, `RawExpressionWell`.
 
@@ -92,6 +93,12 @@ These carry a written contract; read it before using one:
 - [`Breadcrumbs` / `PageHeader`](./component-primitives.md#breadcrumbs-and-pageheader) — the in-tab
   trail, and the rung's header
 - [`ListRow`](./surfaces.md) — the row chrome primitive; props and interior contract in surfaces.md
+- `ListCountLine` — the line above a selectable list saying how much is on screen and how much is
+  ticked: `Showing 50 of 128 · 3 selected`. It is the rung's **only** statement of either number,
+  which is why no register label carries a count ([action-bars.md](./action-bars.md)). Omit `of`
+  when no honest total exists — a server-side search holding one page knows what it fetched and
+  nothing about what matched, and a page size rendered as a total is the confidently-wrong number
+  [claims.md](./claims.md) forbids. A zero selection renders no clause at all, never `0 selected`.
 - [`Eyebrow`](./design-system.md) — the one uppercase section-label recipe, fixed in
   design-system.md. `as` picks `span` (default), `div` or `h3`; use `h3` only for a heading that
   joins the document outline. A label, not a control: one needing a verb sits beside a `Button`.

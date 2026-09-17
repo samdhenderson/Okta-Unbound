@@ -65,11 +65,6 @@ const meta = {
     },
     selectedIds: { description: "Every basket id of kind 'app', including ones ticked elsewhere." },
     onToggleSelect: { description: "Tick or untick one row's app." },
-    onSelectAll: {
-      description:
-        'Replaces the app selection with every currently filtered app. A request, not a resolved outcome.',
-    },
-    onDeselectAll: { description: "Empties the app partition, leaving other kinds' picks alone." },
   },
   args: {
     loading: false,
@@ -77,14 +72,13 @@ const meta = {
     hasApps: true,
     activeFilterCount: 0,
     hasSearchQuery: false,
+    totalCount: 3,
     onClearFilters: fn(),
     onReload: fn(),
     oktaOrigin: 'https://example.okta.com',
     fetchAssignmentCounts: fn(async () => ({ users: 128, groups: 4 })),
     selectedIds: new Set<string>(),
     onToggleSelect: fn(),
-    onSelectAll: fn(),
-    onDeselectAll: fn(),
   },
 } satisfies Meta<typeof AppsListPanel>;
 

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AppsTab from './AppsTab';
+import { selectionStore } from '../selection/selectionStore';
 import type { OktaAppListItem } from '../../shared/schemas/okta';
 
 const api = vi.hoisted(() => ({
@@ -104,6 +105,7 @@ const SAMPLE_APPS: OktaAppListItem[] = [
 beforeEach(() => {
   vi.clearAllMocks();
   idbTables.clear();
+  selectionStore.clearAll();
   api.getAppAssignmentCounts.mockResolvedValue({ users: 12, groups: 3 });
   sendMessage.mockImplementation(async (msg: { action?: string; origin?: string }) => {
     if (msg?.action !== 'syncSnapshot') return undefined;
@@ -261,5 +263,62 @@ describe('AppsTab', () => {
     rerender(<AppsTab targetTabId={1} oktaOrigin={ORIGIN} isActive />);
     expect(await screen.findByText('Salesforce')).toBeInTheDocument();
     expect(syncCalls()).toHaveLength(1);
+  });
+});
+
+describe("AppsTab's selection controls", () => {
+  const checkbox = (label: string) => screen.getByRole('checkbox', { name: `Select ${label}` });
+
+  it('takes the filtered apps, not the whole inventory', async () => {
+    const user = userEvent.setup();
+    render(<AppsTab targetTabId={1} oktaOrigin={ORIGIN} />);
+    await screen.findByText('Salesforce');
+
+    await user.type(screen.getByLabelText('Search applications'), 'workday');
+    await waitFor(() => expect(screen.queryByText('Salesforce')).not.toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(checkbox('Workday HR')).toBeChecked();
+
+    await user.clear(screen.getByLabelText('Search applications'));
+    expect(await screen.findByText('Salesforce')).toBeInTheDocument();
+    expect(checkbox('Workday HR')).toBeChecked();
+    expect(checkbox('Salesforce')).not.toBeChecked();
+  });
+
+  it('disables select-all once it has nothing left to take, and deselect-all gives it back', async () => {
+    const user = userEvent.setup();
+    render(<AppsTab targetTabId={1} oktaOrigin={ORIGIN} />);
+    await screen.findByText('Salesforce');
+
+    const selectAll = () => screen.getByRole('button', { name: 'Select all' });
+    expect(selectAll()).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Deselect all' })).not.toBeInTheDocument();
+
+    await user.click(selectAll());
+    expect(checkbox('Salesforce')).toBeChecked();
+    expect(checkbox('Workday HR')).toBeChecked();
+    await waitFor(() => expect(selectAll()).toBeDisabled());
+
+    await user.click(screen.getByRole('button', { name: 'Deselect all' }));
+    expect(checkbox('Salesforce')).not.toBeChecked();
+    expect(checkbox('Workday HR')).not.toBeChecked();
+    expect(selectAll()).toBeEnabled();
+  });
+
+  it('states the counts once, above the rows', async () => {
+    const user = userEvent.setup();
+    render(<AppsTab targetTabId={1} oktaOrigin={ORIGIN} />);
+    await screen.findByText('Salesforce');
+
+    const line = () => screen.getByTestId('apps-count-line');
+    expect(line().textContent).toBe('Showing 2 of 2');
+
+    await user.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(line().textContent).toBe('Showing 2 of 2 \u00b7 2 selected');
+
+    for (const name of ['Select all', 'Deselect all']) {
+      expect(screen.getByRole('button', { name }).textContent).toBe(name);
+    }
   });
 });

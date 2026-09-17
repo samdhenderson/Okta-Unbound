@@ -12,6 +12,7 @@ export interface UserSearchPanelProps {
   onClearSearch: () => void;
   isSearching: boolean;
   searchResults: OktaUser[];
+  resultsTruncated: boolean;
   onSelectUser: (user: OktaUser) => void;
   hasSelectedUser: boolean;
   hasError: boolean;
@@ -24,6 +25,7 @@ const UserSearchPanel: React.FC<UserSearchPanelProps> = ({
   onClearSearch,
   isSearching,
   searchResults,
+  resultsTruncated,
   onSelectUser,
   hasSelectedUser,
   hasError,
@@ -58,6 +60,7 @@ const UserSearchPanel: React.FC<UserSearchPanelProps> = ({
           )}
           <UserSearchResults
             results={searchResults}
+            truncated={resultsTruncated}
             onSelectUser={onSelectUser}
             selectedIds={selection.selectedIds}
             onToggleSelect={selection.toggleSelect}

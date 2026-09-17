@@ -122,6 +122,7 @@ const comparison = (over: Partial<UserComparisonState> = {}): UserComparisonStat
   setSearchQuery: fn(),
   searchResults: [],
   isSearching: false,
+  resultsTruncated: false,
   activeTab: 'overview',
   setActiveTab: fn(),
   groupBuckets: { onlyCompared: [], shared: [], onlyContext: [] },

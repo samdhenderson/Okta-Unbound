@@ -11,6 +11,7 @@ interface ComparisonSearchPhaseProps {
   setSearchQuery: (v: string) => void;
   isSearching: boolean;
   searchResults: OktaUser[];
+  resultsTruncated: boolean;
   onSelectUser: (u: OktaUser) => void;
 }
 
@@ -20,6 +21,7 @@ const ComparisonSearchPhase: React.FC<ComparisonSearchPhaseProps> = ({
   setSearchQuery,
   isSearching,
   searchResults,
+  resultsTruncated,
   onSelectUser,
 }) => {
   const filtered = searchResults.filter((u) => u.id !== contextUser.id);
@@ -44,6 +46,7 @@ const ComparisonSearchPhase: React.FC<ComparisonSearchPhaseProps> = ({
 
       <UserSearchResults
         results={filtered}
+        truncated={resultsTruncated}
         onSelectUser={onSelectUser}
         actionLabel="Compare with this user"
       />

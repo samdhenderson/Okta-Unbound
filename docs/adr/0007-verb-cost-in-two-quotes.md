@@ -51,7 +51,7 @@ invented one. The confirm is built entirely from the preflight — its per-entit
 measured.
 
 **And a paginated walk is named, not folded in.** `VerbCost` carries an optional
-`walks` beside `requests`:
+`walks` list beside `requests`:
 
 > _"Takes 14 requests and 2 membership walks."_
 
@@ -71,6 +71,22 @@ only the DELETEs, which would understate it. Buying it back by having the
 preflight hand its member lists to the run is possible, and was not done: the
 run would then act on a membership snapshot taken before the reader read the
 confirm, which trades an honest cost for a stale one.
+
+**A run may walk more than one kind of thing, so `walks` is a list.** The
+original shape was a count plus a single `walkKind`, which was enough while every
+verb walked one thing. The bulk profile verb walks two: an app-assignment list
+per ticked user, to decide whose profile this client may write, and the org's
+group-rule listing, to say whether the write moves anyone between groups. A
+single total would have named neither, and folding the rules listing into
+`requests` is the invented page count this record rejects. One entry per kind,
+each named: _"Takes 5 requests, 4 app-assignment walks and 1 group-rule walk."_
+
+**An org-wide walk is quoted whether or not it is cached.** The rules listing is
+served free from `RulesCache` when it is warm, and `cost(basket)` is synchronous
+and cannot ask. So it is quoted unconditionally — generous rather than exact, in
+the direction that never surprises a reader with spend they did not agree to.
+That is the same accounting `D-147` records for the rule verbs, and it is the
+only direction of inexactness this record accepts.
 
 **`writes` is separate from `requests`.** The scheduler budgets requests; the
 1,000-entity run cap budgets entities changed. They are different quantities

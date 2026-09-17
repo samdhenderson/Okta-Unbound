@@ -63,11 +63,17 @@ function contextOf(
 describe('cost', () => {
   it('prices the preflight — one membership walk per ticked group, and no writes', () => {
     const cost = removeInactiveMembers.cost(basketOf(['A', 'B', 'C']));
-    expect(cost).toEqual({ requests: 0, walks: 3, writes: 0 });
+    expect(cost).toEqual({
+      requests: 0,
+      walks: [{ count: 3, kind: 'membership' }],
+      writes: 0,
+    });
   });
 
   it('counts only groups — a ticked user is not this verb’s object', () => {
-    expect(removeInactiveMembers.cost(basketOf(['A'])).walks).toBe(1);
+    expect(removeInactiveMembers.cost(basketOf(['A'])).walks).toEqual([
+      { count: 1, kind: 'membership' },
+    ]);
   });
 });
 
@@ -81,7 +87,11 @@ describe('preflight', () => {
     const preflight = await measure(context);
 
     expect(preflight.items).toBe(3);
-    expect(preflight.cost).toEqual({ requests: 5, walks: 2, writes: 3 });
+    expect(preflight.cost).toEqual({
+      requests: 5,
+      walks: [{ count: 2, kind: 'membership' }],
+      writes: 3,
+    });
   });
 
   it('states every group that contributes a removal, and omits the ones that do not', async () => {

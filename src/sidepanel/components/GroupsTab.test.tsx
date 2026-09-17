@@ -303,6 +303,10 @@ function renderedGroupNames() {
     .map((l) => l.slice('Select '.length));
 }
 
+function countLine() {
+  return screen.getByTestId('groups-count-line');
+}
+
 function section(label: string) {
   return within(screen.getByText(label).parentElement as HTMLElement);
 }
@@ -1135,17 +1139,17 @@ describe('selection', () => {
     for (const name of ['AppOne', 'OktaOne', 'OktaTwo']) {
       await uev.click(screen.getByRole('checkbox', { name: `Select ${name}` }));
     }
-    expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeInTheDocument();
-    expect(screen.getByText(/Showing 3 of 3 · 3 selected/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select all' })).toBeInTheDocument();
+    expect(countLine()).toHaveTextContent('Showing 3 of 3 · 3 selected');
 
     await uev.click(screen.getByRole('button', { name: /^Filters/ }));
     await uev.click(section('Group Type').getByRole('button', { name: 'App' }));
 
     expect(renderedGroupNames()).toEqual(['AppOne']);
-    expect(screen.getByRole('button', { name: 'Select all (1)' })).toBeInTheDocument();
-    expect(screen.getByText(/Showing 1 of 1 · 3 selected/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select all' })).toBeInTheDocument();
+    expect(countLine()).toHaveTextContent('Showing 1 of 1 · 3 selected');
 
-    await uev.click(screen.getByRole('button', { name: /Export \(3\)/ }));
+    await uev.click(screen.getByRole('button', { name: 'Export' }));
     expect(
       screen
         .getAllByTestId('export-modal-group')
@@ -1188,18 +1192,18 @@ describe('selection', () => {
     await uev.click(screen.getByRole('button', { name: /^Filters/ }));
     await uev.click(section('Group Type').getByRole('button', { name: 'Okta' }));
 
-    await uev.click(screen.getByRole('button', { name: 'Select all (2)' }));
-    expect(screen.getByText(/Showing 2 of 2 · 2 selected/)).toBeInTheDocument();
+    await uev.click(screen.getByRole('button', { name: 'Select all' }));
+    expect(countLine()).toHaveTextContent('Showing 2 of 2 · 2 selected');
 
     await uev.click(section('Group Type').getByRole('button', { name: 'All' }));
-    expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeInTheDocument();
-    expect(screen.getByText(/Showing 3 of 3 · 2 selected/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select all' })).toBeInTheDocument();
+    expect(countLine()).toHaveTextContent('Showing 3 of 3 · 2 selected');
     expect(screen.getByRole('checkbox', { name: 'Select AppOne' })).not.toBeChecked();
 
     await uev.click(screen.getByRole('button', { name: 'Deselect all' }));
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Showing 3 of 3/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Select all (3)' })).toBeEnabled();
+    expect(countLine().textContent).toBe('Showing 3 of 3');
+    expect(screen.getByRole('button', { name: 'Select all' })).toBeEnabled();
   });
 
   it('shows Compare only for 2-5 selections', async () => {
@@ -1213,7 +1217,7 @@ describe('selection', () => {
     expect(compare()).not.toBeInTheDocument();
 
     await uev.click(screen.getByRole('checkbox', { name: 'Select OktaOne' }));
-    expect(compare()).toHaveTextContent('Compare (2)');
+    expect(compare()).toHaveAccessibleDescription('Compare the 2 selected groups');
   });
 });
 
@@ -1358,7 +1362,7 @@ describe('prop brokering', () => {
     ]);
     await uev.click(screen.getByRole('checkbox', { name: 'Select Alpha' }));
     await uev.click(screen.getByRole('checkbox', { name: 'Select Beta' }));
-    await uev.click(screen.getByRole('button', { name: /Export \(2\)/ }));
+    await uev.click(screen.getByRole('button', { name: 'Export' }));
 
     expect(screen.getAllByTestId('export-modal-group')).toHaveLength(2);
 
@@ -1515,7 +1519,7 @@ describe('page header', () => {
 
     expect(screen.getByText('1 Cached')).toBeInTheDocument();
     expect(screen.queryByText('1 Selected')).not.toBeInTheDocument();
-    expect(screen.getByText(/Showing 1 of 1 · 1 selected/)).toBeInTheDocument();
+    expect(countLine()).toHaveTextContent('Showing 1 of 1 · 1 selected');
   });
 
   it('shows the Live badge in live mode', () => {

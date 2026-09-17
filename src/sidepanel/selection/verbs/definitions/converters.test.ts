@@ -152,7 +152,11 @@ describe('group-members-to-users', () => {
       ['group', 'g2'],
       ['user', 'u9'],
     ]).getSnapshot();
-    expect(groupMembersToUsers.cost(basket)).toEqual({ requests: 2, walks: 2, writes: 0 });
+    expect(groupMembersToUsers.cost(basket)).toEqual({
+      requests: 2,
+      walks: [{ count: 2, kind: 'membership' }],
+      writes: 0,
+    });
   });
 
   it('ticks every member once, and leaves the groups it read exactly as they were', async () => {
@@ -326,7 +330,11 @@ describe('rules-to-upstream-rules', () => {
       ['rule', 'r1'],
       ['rule', 'r2'],
     ]).getSnapshot();
-    expect(rulesToUpstreamRules.cost(basket)).toEqual({ requests: 3, walks: 1, writes: 0 });
+    expect(rulesToUpstreamRules.cost(basket)).toEqual({
+      requests: 3,
+      walks: [{ count: 1, kind: 'membership' }],
+      writes: 0,
+    });
   });
 
   it('walks both hops: condition groups first, then the rules that feed them', async () => {

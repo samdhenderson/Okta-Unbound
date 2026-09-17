@@ -62,7 +62,7 @@ export interface UseUserComparisonOptions {
   isActive: boolean;
   searchEnabled?: boolean;
   contextUser: OktaUser;
-  contextGroups: GroupMembership[];
+  contextGroups: GroupMembership[] | undefined;
   targetTabId: number;
   oktaOrigin?: string | null;
   onGroupsChanged: () => void;
@@ -79,10 +79,11 @@ export function useUserComparison({
   onGroupsChanged,
   onContextUserUpdated,
 }: UseUserComparisonOptions) {
-  const { searchQuery, setSearchQuery, searchResults, isSearching, clearSearch } = useUserSearch({
-    targetTabId,
-    enabled: searchEnabled ?? isActive,
-  });
+  const { searchQuery, setSearchQuery, searchResults, isSearching, resultsTruncated, clearSearch } =
+    useUserSearch({
+      targetTabId,
+      enabled: searchEnabled ?? isActive,
+    });
 
   const {
     memberships: comparedGroups,
@@ -156,7 +157,13 @@ export function useUserComparison({
   }, [resetApps, resetForChangeUser, clearMemberships, clearSearch]);
 
   const groupBuckets = useMemo(
-    () => bucketGroups(contextGroups, comparedGroups, addedToContextIds, addedToComparedIds),
+    () =>
+      bucketGroups(
+        contextGroups ?? [],
+        comparedGroups ?? [],
+        addedToContextIds,
+        addedToComparedIds,
+      ),
     [contextGroups, comparedGroups, addedToContextIds, addedToComparedIds],
   );
 
@@ -211,9 +218,10 @@ export function useUserComparison({
   );
 
   const attributeRuleReads = useMemo(() => {
-    if (ruleInventory.status !== 'available') return NO_RULE_READS;
+    if (ruleInventory.status !== 'available' || !contextGroups) return NO_RULE_READS;
     const contextReads = profileRuleReads(ruleInventory.rules, contextUser, contextGroups);
     if (!comparedUser) return contextReads;
+    if (!comparedGroups) return contextReads;
     return mergeRuleReads(
       contextReads,
       profileRuleReads(ruleInventory.rules, comparedUser, comparedGroups),
@@ -254,7 +262,7 @@ export function useUserComparison({
 
   const knownGroupNames = useMemo(() => {
     const byId = new Map<string, string>();
-    for (const membership of [...contextGroups, ...comparedGroups]) {
+    for (const membership of [...(contextGroups ?? []), ...(comparedGroups ?? [])]) {
       byId.set(membership.group.id, membership.group.profile.name);
     }
     return byId;
@@ -304,7 +312,11 @@ export function useUserComparison({
   const similarityScope: 'both' | 'groups-only' = appSimilarity === null ? 'groups-only' : 'both';
 
   const isLoading = isLoadingGroups || isLoadingApps;
-  const loadError = groupsError;
+  const loadError =
+    groupsError ??
+    (contextGroups
+      ? null
+      : `${userDisplayName(contextUser)}’s groups could not be read, so there is nothing to compare against.`);
 
   return {
     comparedUser,
@@ -312,6 +324,7 @@ export function useUserComparison({
     setSearchQuery,
     searchResults,
     isSearching,
+    resultsTruncated,
     activeTab,
     setActiveTab,
     groupBuckets,

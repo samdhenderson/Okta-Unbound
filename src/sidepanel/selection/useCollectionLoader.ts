@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useOktaApi } from '../hooks/useOktaApi';
 import { useOrgEntityIndex } from '../contexts/OrgEntityIndexContext';
-import { getOrFetch, peek } from '../cache/entityCache';
-import { AUTH_POLICY_TYPE, POLICIES_CACHE_KEY } from '../hooks/usePoliciesData';
+import { peek } from '../cache/entityCache';
+import { fetchPolicyList, POLICIES_CACHE_KEY } from '../hooks/usePoliciesData';
 import type { OktaPolicyListItem } from '../../shared/schemas/okta';
 import type { Collection, CollectionRow } from './collectionStore';
 import type { SelectionKind } from './selectionStore';
@@ -69,9 +69,7 @@ export function useCollectionLoader(options: {
       const fetched = new Map<string, string>();
 
       if (current.needsFetch.policy?.length) {
-        const policies = await getOrFetch<OktaPolicyListItem[]>(POLICIES_CACHE_KEY, () =>
-          listPolicies(AUTH_POLICY_TYPE),
-        );
+        const policies = await fetchPolicyList(listPolicies).catch(() => []);
         for (const id of current.needsFetch.policy) {
           const found = policies?.find((policy) => policy.id === id);
           if (found?.name) fetched.set(nameKey('policy', id), found.name);

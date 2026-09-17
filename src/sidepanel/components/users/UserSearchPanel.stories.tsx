@@ -38,12 +38,17 @@ const meta = {
     onClearSearch: fn(),
     isSearching: false,
     searchResults: [],
+    resultsTruncated: false,
     onSelectUser: fn(),
     hasSelectedUser: false,
     hasError: false,
   },
   argTypes: {
     searchQuery: { description: 'Current search box value.' },
+    resultsTruncated: {
+      description:
+        'Whether Okta held matches back from `searchResults`; forwarded to the results list so one capped page is never rendered as a total.',
+    },
     onSearchQueryChange: {
       description: "Invoked on every keystroke; the caller's debounce decides when to search.",
     },

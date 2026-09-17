@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { useStaggerReveal } from '../../hooks/useStaggerReveal';
-import { Button, EmptyState, ScrollableList, Skeleton } from '../shared';
+import { EmptyState, ListCountLine, ScrollableList, Skeleton } from '../shared';
 import AppListItem from './AppListItem';
 import type { AppAssignmentCounts } from '../../hooks/useOktaApi/appOperations';
 import type { OktaAppListItem } from '../../../shared/schemas/okta';
@@ -8,6 +8,7 @@ import type { OktaAppListItem } from '../../../shared/schemas/okta';
 export interface AppsListPanelProps {
   loading: boolean;
   apps: OktaAppListItem[];
+  totalCount: number;
   hasApps: boolean;
   activeFilterCount: number;
   hasSearchQuery: boolean;
@@ -17,13 +18,12 @@ export interface AppsListPanelProps {
   fetchAssignmentCounts?: (appId: string) => Promise<AppAssignmentCounts | null>;
   selectedIds: Set<string>;
   onToggleSelect: (appId: string) => void;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
 }
 
 const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel({
   loading,
   apps,
+  totalCount,
   hasApps,
   activeFilterCount,
   hasSearchQuery,
@@ -33,50 +33,19 @@ const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel(
   fetchAssignmentCounts,
   selectedIds,
   onToggleSelect,
-  onSelectAll,
-  onDeselectAll,
 }) {
   const setStaggerRef = useStaggerReveal();
   const selectedHere = selectedIds.size;
-  const allFilteredSelected = apps.length > 0 && apps.every((app) => selectedIds.has(app.id));
 
   return (
     <>
       {apps.length > 0 && (
-        <div className="flex items-center justify-between gap-3">
-          {selectedHere > 0 ? (
-            <p className="text-xs tabular-nums text-primary-text">
-              {selectedHere.toLocaleString()} selected
-            </p>
-          ) : (
-            <span />
-          )}
-          <div className="flex shrink-0 items-center gap-(--sp-inline)">
-            {selectedHere > 0 && (
-              <Button
-                variant="link"
-                size="xs"
-                onClick={onDeselectAll}
-                title="Clear every selected app, including any picked on another screen"
-              >
-                Deselect all
-              </Button>
-            )}
-            <Button
-              variant="link"
-              size="xs"
-              onClick={onSelectAll}
-              disabled={allFilteredSelected}
-              title={
-                allFilteredSelected
-                  ? `All ${apps.length.toLocaleString()} apps matching the current search and filters are already selected`
-                  : `Replace the app selection with the ${apps.length.toLocaleString()} apps matching the current search and filters`
-              }
-            >
-              Select all
-            </Button>
-          </div>
-        </div>
+        <ListCountLine
+          shown={apps.length}
+          of={totalCount}
+          selected={selectedHere}
+          testId="apps-count-line"
+        />
       )}
       <ScrollableList
         loading={loading}

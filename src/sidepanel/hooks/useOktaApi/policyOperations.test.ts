@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   createPolicyOperations,
   extractAccessPolicyId,
+  policiesOrNone,
   OKTA_POLICY_TYPES,
 } from './policyOperations';
 import type { CoreApi } from './core';
@@ -30,6 +31,13 @@ describe('OKTA_POLICY_TYPES', () => {
   });
 });
 
+function listed(
+  result: Awaited<ReturnType<ReturnType<typeof createPolicyOperations>['listPolicies']>>,
+) {
+  expect(result.outcome).toBe('listed');
+  return result.outcome === 'listed' ? result.policies : [];
+}
+
 describe('listPolicies', () => {
   it('defaults to type=ACCESS_POLICY and returns the validated page', async () => {
     const core = makeCore({
@@ -41,7 +49,7 @@ describe('listPolicies', () => {
     });
     const { listPolicies } = createPolicyOperations(core);
 
-    const result = await listPolicies();
+    const result = listed(await listPolicies());
 
     expect(core.makeApiRequest).toHaveBeenCalledWith(
       '/api/v1/policies?type=ACCESS_POLICY&limit=200',
@@ -84,7 +92,7 @@ describe('listPolicies', () => {
     const core = makeCore({ makeApiRequest });
     const { listPolicies } = createPolicyOperations(core);
 
-    const result = await listPolicies();
+    const result = listed(await listPolicies());
 
     expect(makeApiRequest).toHaveBeenCalledTimes(2);
     expect(makeApiRequest.mock.calls[1][0]).toBe('/api/v1/policies?type=ACCESS_POLICY&after=1');
@@ -102,7 +110,7 @@ describe('listPolicies', () => {
     });
     const { listPolicies } = createPolicyOperations(core);
 
-    const result = await listPolicies();
+    const result = listed(await listPolicies());
 
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('rstFAKEpolicy00000009');
@@ -124,28 +132,73 @@ describe('listPolicies', () => {
     });
     const { listPolicies } = createPolicyOperations(core);
 
-    const [result] = await listPolicies();
+    const [result] = listed(await listPolicies());
 
     expect(result._links).toBeDefined();
     expect((result as Record<string, unknown>).conditions).toBeDefined();
   });
 
-  it('returns [] (never throws) when a page fails', async () => {
+  it('reports an empty org as a listed answer, not an absence', async () => {
     const core = makeCore({
-      makeApiRequest: vi.fn().mockResolvedValue({ success: false, error: 'forbidden' }),
+      makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: [], headers: {} }),
     });
     const { listPolicies } = createPolicyOperations(core);
 
-    expect(await listPolicies()).toEqual([]);
+    expect(await listPolicies()).toEqual({ outcome: 'listed', policies: [] });
   });
 
-  it('returns [] (never throws) when the transport rejects', async () => {
+  it('reports a 403 as forbidden, never as an empty list', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'Forbidden', status: 403 }),
+    });
+    const { listPolicies } = createPolicyOperations(core);
+
+    expect(await listPolicies()).toEqual({ outcome: 'forbidden' });
+  });
+
+  it('reports a non-403 page failure as failed, carrying the message', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'Bad gateway', status: 502 }),
+    });
+    const { listPolicies } = createPolicyOperations(core);
+
+    expect(await listPolicies()).toEqual({ outcome: 'failed', message: 'Bad gateway' });
+  });
+
+  it('does not treat a 401 as forbidden', async () => {
+    const core = makeCore({
+      makeApiRequest: vi
+        .fn()
+        .mockResolvedValue({ success: false, error: 'Unauthorized', status: 401 }),
+    });
+    const { listPolicies } = createPolicyOperations(core);
+
+    expect((await listPolicies()).outcome).toBe('failed');
+  });
+
+  it('reports a rejected transport as failed (never throws)', async () => {
     const core = makeCore({
       makeApiRequest: vi.fn().mockRejectedValue(new Error('network')),
     });
     const { listPolicies } = createPolicyOperations(core);
 
-    expect(await listPolicies()).toEqual([]);
+    expect(await listPolicies()).toEqual({ outcome: 'failed', message: 'network' });
+  });
+});
+
+describe('policiesOrNone', () => {
+  it('passes the rows of a listed result straight through', () => {
+    const rows = [policy('rstFAKEpolicy00000001')];
+    expect(policiesOrNone({ outcome: 'listed', policies: rows })).toBe(rows);
+  });
+
+  it('collapses a refusal and a failure to no rows', () => {
+    expect(policiesOrNone({ outcome: 'forbidden' })).toEqual([]);
+    expect(policiesOrNone({ outcome: 'failed', message: 'network' })).toEqual([]);
   });
 });
 

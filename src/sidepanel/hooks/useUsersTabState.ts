@@ -40,7 +40,7 @@ export type UsersViewEntry =
 export interface UseUsersTabStateReturn {
   oktaOrigin: string | null;
   selectedUser: OktaUser | null;
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   isLoadingMemberships: boolean;
   error: string | null;
   dismissError: () => void;
@@ -51,6 +51,8 @@ export interface UseUsersTabStateReturn {
   setSearchQuery: (query: string) => void;
   searchResults: OktaUser[];
   isSearching: boolean;
+  resultsTruncated: boolean;
+
   selectUser: (user: OktaUser) => Promise<void>;
   clearSearch: () => void;
   nav: ViewStack<UsersViewEntry>;
@@ -116,13 +118,19 @@ export function useUsersTabState({
     clearMemberships();
   }, [clearMemberships]);
 
-  const { searchQuery, setSearchQuery, searchResults, setSearchResults, isSearching } =
-    useUsersTabSearch({
-      targetTabId,
-      onError: setError,
-      onSearchStart,
-      enabled: isActive && nav.isRoot,
-    });
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    setSearchResults,
+    isSearching,
+    resultsTruncated,
+  } = useUsersTabSearch({
+    targetTabId,
+    onError: setError,
+    onSearchStart,
+    enabled: isActive && nav.isRoot,
+  });
 
   const detailUserIdRef = useRef<string | null>(null);
   const { push: pushView } = nav;
@@ -312,6 +320,7 @@ export function useUsersTabState({
     setSearchQuery,
     searchResults,
     isSearching,
+    resultsTruncated,
     selectUser: handleSelectUser,
     clearSearch,
     nav,

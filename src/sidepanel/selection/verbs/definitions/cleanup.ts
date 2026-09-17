@@ -36,7 +36,11 @@ export const removeInactiveMembers: BasketVerb = {
   needs: ['group'],
 
   cost(basket: SelectionBasket): VerbCost {
-    return { requests: 0, walks: pickedGroups(basket).length, writes: 0 };
+    return {
+      requests: 0,
+      walks: [{ count: pickedGroups(basket).length, kind: 'membership' }],
+      writes: 0,
+    };
   },
 
   async preflight(context: VerbContext): Promise<VerbPreflight> {
@@ -85,7 +89,11 @@ export const removeInactiveMembers: BasketVerb = {
       );
 
     return {
-      cost: { requests: ordered.length + removals, walks: ordered.length, writes: removals },
+      cost: {
+        requests: ordered.length + removals,
+        walks: [{ count: ordered.length, kind: 'membership' }],
+        writes: removals,
+      },
       items: removals,
       lines,
       payload: { findings: ordered } satisfies CleanupPayload,

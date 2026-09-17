@@ -31,7 +31,12 @@ const REMOVE_INACTIVE: BasketVerb = {
   needs: ['group'],
   cost: (basket) => ({
     requests: 0,
-    walks: basket.picked.filter((ref) => ref.kind === 'group').length,
+    walks: [
+      {
+        count: basket.picked.filter((ref) => ref.kind === 'group').length,
+        kind: 'membership' as const,
+      },
+    ],
     writes: 0,
   }),
   run: async () => ({ status: 'done', summary: 'Done.' }),

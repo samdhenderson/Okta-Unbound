@@ -16,7 +16,7 @@ export interface UserComparisonPanelProps {
   isActive: boolean;
   searchEnabled: boolean;
   contextUser: OktaUser;
-  contextGroups: GroupMembership[];
+  contextGroups: GroupMembership[] | undefined;
   oktaOrigin?: string | null;
   targetTabId: number;
   onGroupsChanged: () => void;

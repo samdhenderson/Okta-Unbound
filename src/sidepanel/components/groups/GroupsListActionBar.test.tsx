@@ -56,7 +56,7 @@ describe('the selection register shares its row rather than stacking a new one',
       within(register())
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Deselect all', 'Select all (42)', 'Compare (3)']);
+    ).toEqual(['Deselect all', 'Select all', 'Compare']);
   });
 });
 
@@ -65,7 +65,7 @@ describe('position one of the register is a selection control', () => {
     render(bar(selected));
 
     const first = within(register()).getAllByRole('button')[0];
-    expect(first.textContent).toBe(selected > 0 ? 'Deselect all' : 'Select all (42)');
+    expect(first.textContent).toBe(selected > 0 ? 'Deselect all' : 'Select all');
   });
 
   it('never moves a verb under the pointer as rows are ticked', () => {
@@ -83,7 +83,7 @@ describe('a disabled control says why', () => {
   it('explains a full selection rather than vanishing or swapping label', () => {
     render(bar(42));
 
-    const selectAll = screen.getByRole('button', { name: 'Select all (42)' });
+    const selectAll = screen.getByRole('button', { name: 'Select all' });
     expect(selectAll).toBeDisabled();
     expect(selectAll).toHaveAccessibleDescription(
       'All 42 groups matching the filter are already selected',
@@ -94,11 +94,32 @@ describe('a disabled control says why', () => {
   it('explains an empty filter differently from a full selection', () => {
     render(bar(0, 0));
 
-    expect(screen.getByRole('button', { name: 'Select all (0)' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('button', { name: 'Select all' })).toHaveAccessibleDescription(
       'No groups match the current filter',
     );
     expect(screen.getByRole('button', { name: 'Export list' })).toHaveAccessibleDescription(
       'No groups match the current filter, so there is nothing to export',
+    );
+  });
+});
+
+describe('the register states no counts', () => {
+  it.each([0, 1, 3, 42])('writes no digit in any register label at %i selected', (selected) => {
+    render(bar(selected));
+
+    for (const button of within(register()).getAllByRole('button')) {
+      expect({ selected, label: button.textContent }).toEqual({
+        selected,
+        label: expect.not.stringMatching(/\d/) as unknown as string,
+      });
+    }
+  });
+
+  it('keeps the count in the title, where it describes rather than labels', () => {
+    render(bar(3));
+
+    expect(screen.getByRole('button', { name: 'Compare' })).toHaveAccessibleDescription(
+      'Compare the 3 selected groups',
     );
   });
 });

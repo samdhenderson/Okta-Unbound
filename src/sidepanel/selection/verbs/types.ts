@@ -5,10 +5,16 @@ import type { AddOutcome, SelectionBasket, SelectionKind, SelectionRef } from '.
 
 export type VerbPath = 'convert' | 'write' | 'read';
 
+export type WalkKind = 'membership' | 'app-assignment' | 'group-rule';
+
+export interface VerbWalk {
+  readonly count: number;
+  readonly kind: WalkKind;
+}
+
 export interface VerbCost {
   requests: number;
-  walks?: number;
-  walkKind?: 'membership' | 'app-assignment';
+  walks?: readonly VerbWalk[];
   writes: number;
 }
 

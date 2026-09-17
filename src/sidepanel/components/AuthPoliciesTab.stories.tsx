@@ -88,7 +88,7 @@ const meta = {
     resetEntityCache();
     useOktaApi.mockReturnValue(
       makeUseOktaApiValue({
-        listPolicies: fn(async () => samplePolicies),
+        listPolicies: fn(async () => ({ outcome: 'listed', policies: samplePolicies })),
         getPolicyRules: fn(async () => sampleRules),
       }),
     );
@@ -105,7 +105,7 @@ export const Loading: Story = {
     resetEntityCache();
     useOktaApi.mockReturnValue(
       makeUseOktaApiValue({
-        listPolicies: fn(() => new Promise<OktaPolicyListItem[]>(() => {})),
+        listPolicies: fn(() => new Promise<never>(() => {})),
       }),
     );
   },
@@ -115,8 +115,32 @@ export const Empty: Story = {
   beforeEach: () => {
     resetEntityCache();
     useOktaApi.mockReturnValue(
-      makeUseOktaApiValue({ listPolicies: fn(async () => [] as OktaPolicyListItem[]) }),
+      makeUseOktaApiValue({
+        listPolicies: fn(async () => ({ outcome: 'listed', policies: [] })),
+      }),
     );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText('Okta reports this org has no app authentication policies.'),
+    ).toBeInTheDocument();
+  },
+};
+
+export const ReadForbidden: Story = {
+  beforeEach: () => {
+    resetEntityCache();
+    useOktaApi.mockReturnValue(
+      makeUseOktaApiValue({ listPolicies: fn(async () => ({ outcome: 'forbidden' })) }),
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(
+      await canvas.findByText('Policies are not readable by this admin role'),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument();
   },
 };
 
@@ -125,9 +149,10 @@ export const ErrorState: Story = {
     resetEntityCache();
     useOktaApi.mockReturnValue(
       makeUseOktaApiValue({
-        listPolicies: fn(async () => {
-          throw new Error('Failed to fetch auth policies');
-        }),
+        listPolicies: fn(async () => ({
+          outcome: 'failed' as const,
+          message: 'Failed to fetch auth policies',
+        })),
       }),
     );
   },
@@ -153,7 +178,7 @@ export const RulesLoadFailure: Story = {
     resetEntityCache();
     useOktaApi.mockReturnValue(
       makeUseOktaApiValue({
-        listPolicies: fn(async () => samplePolicies),
+        listPolicies: fn(async () => ({ outcome: 'listed', policies: samplePolicies })),
         getPolicyRules: fn(async () => {
           throw new Error('Policy rules unavailable');
         }),

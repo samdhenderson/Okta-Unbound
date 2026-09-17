@@ -45,7 +45,9 @@ async function load(): Promise<GroupMembership[]> {
   await act(async () => {
     await result.current.loadMemberships(user);
   });
-  return result.current.memberships;
+  const { memberships } = result.current;
+  if (!memberships) throw new Error('expected the membership load to succeed');
+  return memberships;
 }
 
 describe('useUserMemberships when the rule inventory is unavailable', () => {

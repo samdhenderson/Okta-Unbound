@@ -4,6 +4,18 @@ import type { RequestResult } from '../../shared/scheduler/types';
 
 const ok = (data: unknown): RequestResult => ({ success: true, data });
 
+const okWithNext = (data: unknown): RequestResult => ({
+  success: true,
+  data,
+  headers: { link: '<https://example.okta.com/api/v1/users?after=00uFAKE0002>; rel="next"' },
+});
+
+const okSelfOnly = (data: unknown): RequestResult => ({
+  success: true,
+  data,
+  headers: { link: '<https://example.okta.com/api/v1/users?q=ada>; rel="self"' },
+});
+
 function user(id: string) {
   return { id, status: 'ACTIVE', profile: { email: `${id}@x.com`, login: `${id}@x.com` } };
 }
@@ -14,7 +26,7 @@ describe('searchUsersRequest', () => {
 
     const result = await searchUsersRequest(makeApiRequest, 'ada');
 
-    expect(result).toEqual({ success: true, data: [user('u1')], count: 1 });
+    expect(result).toEqual({ success: true, data: [user('u1')], truncated: false });
     expect(makeApiRequest).toHaveBeenCalledTimes(1);
     expect(makeApiRequest).toHaveBeenCalledWith('/api/v1/users?q=ada&limit=20', {
       method: 'GET',
@@ -117,7 +129,7 @@ describe('searchUsersRequest', () => {
 
     const result = await searchUsersRequest(makeApiRequest, 'ada');
 
-    expect(result).toEqual({ success: true, data: [], count: 0 });
+    expect(result).toEqual({ success: true, data: [], truncated: false });
     expect(makeApiRequest).toHaveBeenCalledTimes(2); // q= then search=, no filter
   });
 
@@ -138,6 +150,71 @@ describe('searchUsersRequest', () => {
 
     const result = await searchUsersRequest(makeApiRequest, 'ada');
 
-    expect(result).toEqual({ success: false, error: 'scheduler down' });
+    expect(result).toEqual({ success: false, truncated: false, error: 'scheduler down' });
+  });
+
+  describe('truncated (D-C)', () => {
+    it('is true when the winning page carries a rel="next" link', async () => {
+      const makeApiRequest = vi.fn().mockResolvedValue(okWithNext([user('u1')]));
+
+      const result = await searchUsersRequest(makeApiRequest, 'ada');
+
+      expect(result.truncated).toBe(true);
+    });
+
+    it('is false when the only link is rel="self"', async () => {
+      const makeApiRequest = vi.fn().mockResolvedValue(okSelfOnly([user('u1')]));
+
+      expect((await searchUsersRequest(makeApiRequest, 'ada')).truncated).toBe(false);
+    });
+
+    it('is false when the response carries no headers at all', async () => {
+      const makeApiRequest = vi.fn().mockResolvedValue(ok([user('u1')]));
+
+      expect((await searchUsersRequest(makeApiRequest, 'ada')).truncated).toBe(false);
+    });
+
+    it('reads the headers of the strategy that returned the rows, not an earlier one', async () => {
+      const makeApiRequest = vi
+        .fn()
+        .mockResolvedValueOnce(okWithNext([])) // q= — no rows, so not the winner
+        .mockResolvedValueOnce(ok([user('u2')])); // search= — the winner, complete
+
+      const result = await searchUsersRequest(makeApiRequest, 'ada');
+
+      expect(result.data).toEqual([user('u2')]);
+      expect(result.truncated).toBe(false);
+    });
+
+    it('does not inherit a losing strategy\u2019s next link when no later one supplies headers', async () => {
+      const makeApiRequest = vi
+        .fn()
+        .mockResolvedValueOnce(okWithNext([])) // q= — a truncated *empty* page
+        .mockResolvedValueOnce({ success: false, error: 'boom' } as RequestResult); // search= fails
+
+      const result = await searchUsersRequest(makeApiRequest, 'ada');
+
+      expect(result.data).toEqual([]);
+      expect(result.truncated).toBe(false);
+    });
+
+    it('carries a later strategy\u2019s truncation forward', async () => {
+      const makeApiRequest = vi
+        .fn()
+        .mockResolvedValueOnce(ok([])) // q=
+        .mockResolvedValueOnce(okWithNext([user('u2')])); // search= wins, truncated
+
+      expect((await searchUsersRequest(makeApiRequest, 'ada')).truncated).toBe(true);
+    });
+
+    it('reads the email filter\u2019s headers when strategy 3 wins', async () => {
+      const makeApiRequest = vi
+        .fn()
+        .mockResolvedValueOnce(ok([])) // q=
+        .mockResolvedValueOnce(ok([])) // search=
+        .mockResolvedValueOnce(okWithNext([user('ada')])); // filter=
+
+      expect((await searchUsersRequest(makeApiRequest, 'ada@x.com')).truncated).toBe(true);
+    });
   });
 });

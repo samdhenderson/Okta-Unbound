@@ -13,12 +13,12 @@ const meta = {
         component:
           "The groups-list rung's action bar: a page-scoped action row and a selection-scoped " +
           'register, which `ActionBar` renders as a recessed well one tonal step below the row. ' +
-          '*Export list* acts on the filter and is present in every state; *Export (N)* acts on ' +
+          '*Export list* acts on the filter and is present in every state; *Export* acts on ' +
           'the ticked rows and is gone the moment they are unticked.\n\n' +
           'The register is passed unconditionally, so ticking a row adds controls to a row that ' +
           'already exists and nothing below the band moves. Its first control is always the ' +
           'selection toggle, never a verb that writes. Selection-scoped verbs are omitted below ' +
-          'their threshold rather than shipped disabled; *Export list* and *Select all (M)* are ' +
+          'their threshold rather than shipped disabled; *Export list* and *Select all* are ' +
           'the two that stay disabled instead, each carrying its reason in its accessible ' +
           'description.',
       },
@@ -53,11 +53,11 @@ export const Default: Story = {
     const register = canvas.getByRole('group', { name: 'Selection actions for the groups list' });
 
     await expect(within(register).getAllByRole('button')).toHaveLength(1);
-    await expect(within(register).getByRole('button', { name: 'Select all (42)' })).toBeEnabled();
+    await expect(within(register).getByRole('button', { name: 'Select all' })).toBeEnabled();
     await expect(canvas.queryByRole('button', { name: 'Deselect all' })).not.toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: /^Compare/ })).not.toBeInTheDocument();
 
-    await userEvent.click(within(register).getByRole('button', { name: 'Select all (42)' }));
+    await userEvent.click(within(register).getByRole('button', { name: 'Select all' }));
     await expect(args.onSelectAll).toHaveBeenCalledTimes(1);
   },
 };
@@ -70,9 +70,9 @@ export const FirstRegisterControlIsAlwaysSelection: Story = {
 
     const first = within(register).getAllByRole('button')[0];
     await expect(first).toHaveAccessibleName('Deselect all');
-    await expect(canvas.getByRole('button', { name: 'Export (3)' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Export' })).toBeInTheDocument();
     await expect(
-      within(register).queryByRole('button', { name: 'Export (3)' }),
+      within(register).queryByRole('button', { name: 'Export' }),
     ).not.toBeInTheDocument();
   },
 };
@@ -85,9 +85,9 @@ export const WithSelection: Story = {
 
     const first = within(register).getAllByRole('button')[0];
     await expect(first).toHaveAccessibleName('Deselect all');
-    await expect(within(register).getByRole('button', { name: 'Select all (42)' })).toBeEnabled();
-    await expect(within(register).getByRole('button', { name: 'Compare (3)' })).toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Export (3)' })).toBeInTheDocument();
+    await expect(within(register).getByRole('button', { name: 'Select all' })).toBeEnabled();
+    await expect(within(register).getByRole('button', { name: 'Compare' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Export' })).toBeInTheDocument();
   },
 };
 
@@ -96,7 +96,7 @@ export const LargeSelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole('button', { name: /^Compare/ })).not.toBeInTheDocument();
-    await expect(canvas.getByRole('button', { name: 'Export (12)' })).toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Export' })).toBeInTheDocument();
   },
 };
 
@@ -121,7 +121,7 @@ export const AllSelected: Story = {
     const register = canvas.getByRole('group', { name: 'Selection actions for the groups list' });
     await expect(within(register).getAllByRole('button')[0]).toHaveAccessibleName('Deselect all');
 
-    const selectAll = canvas.getByRole('button', { name: 'Select all (42)' });
+    const selectAll = canvas.getByRole('button', { name: 'Select all' });
     await expect(selectAll).toBeDisabled();
     await expect(selectAll).toHaveAccessibleDescription(
       'All 42 groups matching the filter are already selected',
@@ -141,7 +141,7 @@ export const NoFilteredGroups: Story = {
       'No groups match the current filter, so there is nothing to export',
     );
 
-    const selectAll = canvas.getByRole('button', { name: 'Select all (0)' });
+    const selectAll = canvas.getByRole('button', { name: 'Select all' });
     await expect(selectAll).toBeDisabled();
     await expect(selectAll).toHaveAccessibleDescription('No groups match the current filter');
   },

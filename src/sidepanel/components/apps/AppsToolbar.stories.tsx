@@ -35,8 +35,6 @@ const meta = {
     onToggleSort: {
       description: 'Select a sort field, or flip the direction when it is already active.',
     },
-    resultCount: { description: 'Number of apps after filtering.' },
-    totalCount: { description: 'Number of apps loaded in total.' },
   },
   args: {
     searchQuery: '',
@@ -48,8 +46,6 @@ const meta = {
     sortBy: 'label',
     sortDesc: false,
     onToggleSort: fn(),
-    resultCount: 42,
-    totalCount: 42,
   },
 } satisfies Meta<typeof AppsToolbar>;
 
@@ -59,19 +55,19 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 
 export const Searching: Story = {
-  args: { searchQuery: 'sales', resultCount: 3 },
+  args: { searchQuery: 'sales' },
 };
 
 export const RegexQuery: Story = {
-  args: { searchQuery: '/^okta_/i', resultCount: 7 },
+  args: { searchQuery: '/^okta_/i' },
 };
 
 export const InactiveFilter: Story = {
-  args: { statusFilter: 'INACTIVE', resultCount: 5 },
+  args: { statusFilter: 'INACTIVE' },
 };
 
 export const PushesNothingFilter: Story = {
-  args: { groupsFilter: 'no-groups', resultCount: 2 },
+  args: { groupsFilter: 'no-groups' },
 };
 
 export const SortedByCreatedDesc: Story = {
@@ -125,8 +121,6 @@ export const Interactive: Story = {
                 setSortDesc(false);
               }
             }}
-            resultCount={visible.length}
-            totalCount={harnessApps.length}
           />
           <ul aria-label="Applications" className="space-y-1 text-sm text-neutral-700">
             {visible.map((app) => (

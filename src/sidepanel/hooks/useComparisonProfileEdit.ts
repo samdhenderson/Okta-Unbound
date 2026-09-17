@@ -42,7 +42,7 @@ export interface ComparisonPendingSave {
   readonly isAnalyzing: boolean;
   readonly resolveGroupName: (groupId: string) => string | undefined;
   readonly drafted?: OktaUser;
-  readonly groupContext: RuleGroupContext;
+  readonly groupContext?: RuleGroupContext;
   readonly error?: string;
   readonly analyze: () => void;
   readonly cancel: () => void;
@@ -54,13 +54,13 @@ export interface UseComparisonProfileEditOptions {
   readonly contextName: string;
   readonly contextAttributes: readonly AttributeDescriptor[];
   readonly contextMastering: ProfileMastering;
-  readonly contextMemberships: readonly GroupMembership[];
+  readonly contextMemberships: readonly GroupMembership[] | undefined;
   readonly onContextUserUpdated?: (user: OktaUser) => void;
   readonly comparedUser: OktaUser | null;
   readonly comparedName: string;
   readonly comparedAttributes: readonly AttributeDescriptor[];
   readonly comparedMastering: ProfileMastering;
-  readonly comparedMemberships: readonly GroupMembership[];
+  readonly comparedMemberships: readonly GroupMembership[] | undefined;
   readonly onComparedUserUpdated: (user: OktaUser) => void;
   readonly rules: RuleInventoryState;
   readonly oktaOrigin?: string | null;
@@ -80,7 +80,7 @@ interface SideOptions {
   readonly userName: string;
   readonly attributes: readonly AttributeDescriptor[];
   readonly mastering: ProfileMastering;
-  readonly memberships: readonly GroupMembership[];
+  readonly memberships: readonly GroupMembership[] | undefined;
   readonly onUserUpdated?: (user: OktaUser) => void;
   readonly rules: RuleInventoryState;
   readonly oktaOrigin?: string | null;

@@ -20,6 +20,7 @@ export interface UseDebouncedUserSearchReturn {
   searchResults: OktaUser[];
   setSearchResults: (users: OktaUser[]) => void;
   isSearching: boolean;
+  resultsTruncated: boolean;
 }
 
 export function useDebouncedUserSearch({
@@ -32,8 +33,14 @@ export function useDebouncedUserSearch({
   enabled = true,
 }: UseDebouncedUserSearchOptions): UseDebouncedUserSearchReturn {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<OktaUser[]>([]);
+  const [searchResults, setSearchResultsState] = useState<OktaUser[]>([]);
+  const [resultsTruncated, setResultsTruncated] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+
+  const setSearchResults = useCallback((users: OktaUser[]) => {
+    setSearchResultsState(users);
+    setResultsTruncated(false);
+  }, []);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const { makeApiRequest } = useOktaApi({ targetTabId: targetTabId ?? null });
@@ -60,7 +67,8 @@ export function useDebouncedUserSearch({
         const response = await searchUsersRequest(makeApiRequest, query.trim());
 
         if (response.success) {
-          setSearchResults(response.data || []);
+          setSearchResultsState(response.data || []);
+          setResultsTruncated(response.truncated);
           log.debug('Found users:', response.data?.length);
         } else {
           onError(response.error || 'Failed to search users');
@@ -75,7 +83,7 @@ export function useDebouncedUserSearch({
         setIsSearching(false);
       }
     },
-    [targetTabId, onError, onSearchStart, makeApiRequest, log],
+    [targetTabId, onError, onSearchStart, makeApiRequest, log, setSearchResults],
   );
 
   useEffect(() => {
@@ -104,7 +112,7 @@ export function useDebouncedUserSearch({
         clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [enabled, searchQuery, debounceMs, minQueryLength, performSearch, onError]);
+  }, [enabled, searchQuery, debounceMs, minQueryLength, performSearch, onError, setSearchResults]);
 
   return {
     searchQuery,
@@ -112,5 +120,6 @@ export function useDebouncedUserSearch({
     searchResults,
     setSearchResults,
     isSearching,
+    resultsTruncated,
   };
 }

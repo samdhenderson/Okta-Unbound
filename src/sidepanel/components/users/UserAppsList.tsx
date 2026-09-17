@@ -21,7 +21,7 @@ const FILTER_ORDER: readonly AppFilter[] = ['all', 'direct', 'viaGroup', 'unknow
 
 export interface UserAppsListProps {
   apps: UserAppAssignment[];
-  memberships: GroupMembership[];
+  memberships: GroupMembership[] | undefined;
   isLoading: boolean;
   complete: boolean;
   oktaOrigin?: string | null;
@@ -39,7 +39,7 @@ const UserAppsList: React.FC<UserAppsListProps> = ({
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
 
   const { rows, counts, summary } = useMemo(
-    () => summarizeAppSources(apps, memberships),
+    () => summarizeAppSources(apps, memberships ?? []),
     [apps, memberships],
   );
 

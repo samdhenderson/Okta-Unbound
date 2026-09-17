@@ -6,7 +6,7 @@ import {
   type OktaPolicyListItem,
   type OktaPolicyRule,
 } from '@/shared/schemas/okta';
-import { fetchAllPages, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
+import { fetchAllPages, PaginatedFetchError, OKTA_PAGE_SIZE } from '@/shared/utils/oktaPagination';
 import { createLogger } from '@/shared/utils/logger';
 
 const log = createLogger('policyOperations');
@@ -19,6 +19,17 @@ export const OKTA_POLICY_TYPES = [
 ] as const;
 
 export type OktaPolicyType = (typeof OKTA_POLICY_TYPES)[number];
+
+export type PolicyListResult =
+  | { readonly outcome: 'listed'; readonly policies: OktaPolicyListItem[] }
+  | { readonly outcome: 'forbidden' }
+  | { readonly outcome: 'failed'; readonly message: string };
+
+const FORBIDDEN_STATUS = 403;
+
+export function policiesOrNone(result: PolicyListResult): OktaPolicyListItem[] {
+  return result.outcome === 'listed' ? result.policies : [];
+}
 
 const POLICY_ID_PATTERN = /^(?:rst|00p)[A-Za-z0-9]{15,}$/;
 
@@ -49,9 +60,9 @@ export function extractAccessPolicyId(links: unknown): string | null {
 export function createPolicyOperations(coreApi: CoreApi) {
   const listPolicies = async (
     type: OktaPolicyType = 'ACCESS_POLICY',
-  ): Promise<OktaPolicyListItem[]> => {
+  ): Promise<PolicyListResult> => {
     try {
-      return await fetchAllPages<OktaPolicyListItem>(
+      const policies = await fetchAllPages<OktaPolicyListItem>(
         (url) =>
           coreApi.makeApiRequest(url, {
             method: 'GET',
@@ -64,9 +75,18 @@ export function createPolicyOperations(coreApi: CoreApi) {
           context: 'GET /api/v1/policies',
         },
       );
-    } catch {
-      log.error('listPolicies failed', { code: 'list_policies_failed', type });
-      return [];
+      return { outcome: 'listed', policies };
+    } catch (error) {
+      const forbidden = error instanceof PaginatedFetchError && error.status === FORBIDDEN_STATUS;
+      log.error('listPolicies failed', {
+        code: forbidden ? 'list_policies_forbidden' : 'list_policies_failed',
+        type,
+      });
+      if (forbidden) return { outcome: 'forbidden' };
+      return {
+        outcome: 'failed',
+        message: error instanceof Error ? error.message : 'Failed to list policies',
+      };
     }
   };
 
