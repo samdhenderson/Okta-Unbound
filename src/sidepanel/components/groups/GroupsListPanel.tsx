@@ -4,7 +4,7 @@ import EmptyState from '../shared/EmptyState';
 import ScrollableList from '../shared/ScrollableList';
 import Skeleton from '../shared/Skeleton';
 import Button from '../shared/Button';
-import ListCountLine from '../shared/ListCountLine';
+import ListCountRow from '../shared/ListCountRow';
 import GroupListItem from './GroupListItem';
 import type { GroupSummary } from '../../../shared/types';
 
@@ -19,6 +19,8 @@ interface GroupsListPanelProps {
   selectedGroupIds: Set<string>;
   selectedCount: number;
   onToggleSelect: (groupId: string) => void;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
   oktaOrigin?: string;
   onLoadAllGroups: () => void;
   onClearFilters: () => void;
@@ -41,6 +43,8 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
   selectedGroupIds,
   selectedCount,
   onToggleSelect,
+  onSelectAll,
+  onDeselectAll,
   oktaOrigin,
   onLoadAllGroups,
   onClearFilters,
@@ -67,6 +71,8 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
     }
   }
 
+  const allFilteredSelected = filteredGroups.every((group) => selectedGroupIds.has(group.id));
+
   const hasMore = visibleCount < filteredGroups.length;
   const visibleGroups = hasMore ? filteredGroups.slice(0, visibleCount) : filteredGroups;
 
@@ -89,13 +95,27 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
   }, [hasMore, loadMore]);
 
   return (
-    <>
+    <div>
       {visibleGroups.length > 0 && (
-        <ListCountLine
+        <ListCountRow
           shown={visibleGroups.length}
           of={filteredGroups.length}
           selected={selectedCount}
-          className="shrink-0 pt-(--sp-rung)"
+          selection={
+            searchMode === 'cached'
+              ? {
+                  boundary: allFilteredSelected ? 'all-taken' : 'available',
+                  onSelectAll,
+                  onDeselectAll,
+                  selectAllTitle: allFilteredSelected
+                    ? `All ${filteredGroups.length} groups matching the filter are already selected`
+                    : 'Select every group the current filter matches',
+                  deselectAllTitle:
+                    'Clear every selected group, including any picked on another screen',
+                }
+              : undefined
+          }
+          className="shrink-0"
           testId="groups-count-line"
         />
       )}
@@ -105,7 +125,6 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
         skeleton={
           <Skeleton variant="row" size="sm" count={6} label="Loading groups from Okta..." />
         }
-        className="mt-(--sp-rung)"
         scrolls={false}
         fillAvailable={false}
         scrollRef={scrollRef}
@@ -157,7 +176,7 @@ const GroupsListPanel: React.FC<GroupsListPanelProps> = ({
           </Button>
         </div>
       )}
-    </>
+    </div>
   );
 };
 

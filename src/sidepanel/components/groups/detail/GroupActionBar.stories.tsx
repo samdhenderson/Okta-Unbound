@@ -28,7 +28,10 @@ const meta = {
           'Every verb whose object is the whole group. `Add` is the `primary` and sits in ' +
           'the row beside `Compare`: one writes but is undone by a remove, the other only ' +
           'reads. `Export members` forwards to the Export tab rather than producing a file in ' +
-          'place, so like every export descriptor in the app it starts behind **More**.\n\n' +
+          'place, so like every export descriptor in the app it starts behind **More**. ' +
+          '`Check membership` is read-only too — it fetches one user whole and assesses every ' +
+          'feeding rule against them — so it sits in the row, never `primary`, names its cost ' +
+          'in its tooltip, and is omitted without a tab (ADR-0010).\n\n' +
           'The tier holds two verbs, one of each shape `ActionBar` offers: **Remove ' +
           'deprovisioned** as a descriptor behind a confirm `Modal`, and **Create feeding ' +
           'rule** in the `expansion` slot, where it can carry the line of prose stating what ' +
@@ -49,6 +52,7 @@ const meta = {
     onExportGroup: fn(),
     onAddMember: fn(),
     onCompare: fn(),
+    onWhyNotMember: fn(),
     onRemoveDeprovisioned: fn(),
     deprovisionedCount: 3,
     filteredMemberCount: 47,
@@ -64,6 +68,9 @@ const meta = {
     },
     onAddMember: { description: 'Opens the Add-member modal.' },
     onCompare: { description: 'Opens the picker for the second group in a comparison.' },
+    onWhyNotMember: {
+      description: 'Opens the user picker for a qualification check. Omitted with no tab.',
+    },
     deprovisionedCount: {
       description: 'How many loaded members are `DEPROVISIONED`. `undefined` and `0` both omit it.',
     },
@@ -123,12 +130,25 @@ export const ExportOmitted: Story = {
 };
 
 export const NoConnectedTab: Story = {
-  args: { targetTabId: null },
+  args: { targetTabId: null, onWhyNotMember: undefined },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole('button', { name: 'Add' })).toBeDisabled();
     await expect(canvas.getByRole('button', { name: 'Compare' })).toBeDisabled();
+    await expect(
+      canvas.queryByRole('button', { name: 'Check membership' }),
+    ).not.toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: /Export members/ })).toBeEnabled();
+  },
+};
+
+export const WhyNotAMemberInTheRow: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const check = canvas.getByRole('button', { name: 'Check membership' });
+    await expect(check).toHaveAttribute('title', expect.stringMatching(/two requests/));
+    await userEvent.click(check);
+    await expect(args.onWhyNotMember).toHaveBeenCalledTimes(1);
   },
 };
 

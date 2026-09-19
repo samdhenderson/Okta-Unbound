@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react';
-import {
-  CopyableId,
-  DetailSection,
-  EntityLink,
-  RawExpressionWell,
-  type GroupNameResolver,
-} from '../shared';
+import { DetailSection, EntityLink, RawExpressionWell, type GroupNameResolver } from '../shared';
 import Icon from '../shared/Icon';
 import RuleActionBar from './RuleActionBar';
+import MissingGroupChip from './MissingGroupChip';
+import RuleUserCheckSection from './RuleUserCheckSection';
+import UserPickerModal from '../qualification/UserPickerModal';
+import { useRuleUserCheck } from '../../hooks/useRuleUserCheck';
 import type { FormattedRule } from '../../../shared/types';
 
 export interface RuleDetailViewProps {
@@ -15,6 +13,8 @@ export interface RuleDetailViewProps {
   oktaOrigin?: string | null;
   resolveGroupName?: GroupNameResolver;
   onPreviewImpact?: () => void;
+  targetTabId?: number | null;
+  isActive?: boolean;
   tierOpen: boolean;
   onTierOpenChange: (open: boolean) => void;
   isLifecycleLoading?: boolean;
@@ -27,22 +27,13 @@ export interface RuleDetailViewProps {
   sticky?: boolean;
 }
 
-const MissingGroupChip: React.FC<{ groupId: string }> = ({ groupId }) => (
-  <span
-    className="inline-flex max-w-full items-center gap-1 rounded-md border border-warning bg-warning-light px-2 py-0.5 text-xs"
-    title="No group in this org has this id. The rule still lists it, and adds nobody to it."
-  >
-    <Icon type="alert" size="xs" className="shrink-0 text-warning-text" />
-    <span className="shrink-0 text-warning-text">Group no longer exists</span>
-    <CopyableId value={groupId} label={`Copy group id ${groupId}`} />
-  </span>
-);
-
 const RuleDetailView: React.FC<RuleDetailViewProps> = ({
   rule,
   oktaOrigin,
   resolveGroupName: resolveFromHost,
   onPreviewImpact,
+  targetTabId = null,
+  isActive = true,
   tierOpen,
   onTierOpenChange,
   isLifecycleLoading,
@@ -63,11 +54,14 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
     [names, resolveFromHost],
   );
 
+  const check = useRuleUserCheck({ rule, targetTabId, enabled: isActive });
+
   return (
     <div className="space-y-(--sp-rung)">
       <RuleActionBar
         rule={rule}
         onPreviewImpact={onPreviewImpact}
+        onCheckUser={check.openPicker}
         tierOpen={tierOpen}
         onTierOpenChange={onTierOpenChange}
         isLifecycleLoading={isLifecycleLoading}
@@ -86,6 +80,7 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
       >
         <RawExpressionWell
           expression={rule.conditionExpression || rule.condition}
+          result={check.verdict?.condition}
           resolveGroupName={resolveGroupName}
         />
 
@@ -105,6 +100,15 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
           </div>
         )}
       </DetailSection>
+
+      {check.subject.status !== 'idle' && (
+        <RuleUserCheckSection
+          subject={check.subject}
+          verdict={check.verdict}
+          resolveGroupName={resolveGroupName}
+          onClear={check.clear}
+        />
+      )}
 
       <DetailSection
         title="Then add to groups"
@@ -203,6 +207,12 @@ const RuleDetailView: React.FC<RuleDetailViewProps> = ({
           </p>
         </DetailSection>
       )}
+
+      <UserPickerModal
+        picker={check.picker}
+        title="Evaluate user"
+        hint="Reads the user and their groups — two requests, writes nothing."
+      />
     </div>
   );
 };

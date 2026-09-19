@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, within } from 'storybook/test';
 import RulesMetaRow from './RulesMetaRow';
 
 const meta = {
@@ -10,42 +11,27 @@ const meta = {
     docs: {
       description: {
         component:
-          'Small metadata chips above the Rules list: what the last load cost in API requests, ' +
-          'and when the cached data was fetched. Each chip is gated independently — the cache ' +
-          'chip needs both a time and loaded rules — and the row renders nothing when neither ' +
-          'has anything to say.',
+          'What the last load cost in API requests. There is no cached-at chip: a stale list ' +
+          'is refetched by hand, so the timestamp only spent a row. Renders nothing when the ' +
+          'cost is unknown — a load served from cache cost nothing this session.',
       },
     },
   },
   argTypes: {
     apiCost: { description: 'API requests the last load cost, or null when unknown.' },
-    lastFetchTime: { description: 'ISO timestamp of the last successful load, or null.' },
-    hasRules: { description: 'Whether any rules are loaded (gates the cache chip).' },
   },
-  args: {
-    apiCost: 12,
-    lastFetchTime: '2026-07-16T14:30:00.000Z',
-    hasRules: true,
-  },
+  args: { apiCost: 12 },
 } satisfies Meta<typeof RulesMetaRow>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
-
-export const ApiCostOnly: Story = {
-  args: { lastFetchTime: null, hasRules: false },
-};
-
-export const CachedOnly: Story = {
-  args: { apiCost: null },
-};
-
-export const NoRulesLoaded: Story = {
-  args: { apiCost: null, hasRules: false },
+export const Default: Story = {
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText('12')).toBeInTheDocument();
+  },
 };
 
 export const Empty: Story = {
-  args: { apiCost: null, lastFetchTime: null, hasRules: false },
+  args: { apiCost: null },
 };

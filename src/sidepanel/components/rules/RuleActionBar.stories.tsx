@@ -35,13 +35,17 @@ const meta = {
           'back, and deactivating strands memberships reactivating will not re-attribute. ' +
           'Both start behind **More**, with the consequence stated beside the control, as ' +
           'does *Add target group* — a wizard in front of a verb does not move it into the ' +
-          'row. There is no Delete and no Edit condition because neither has a live handler.',
+          'row. There is no Delete and no Edit condition because neither has a live handler.\n\n' +
+          '*Evaluate user* is read-only too, so it sits in the row — but it fetches a subject ' +
+          '(two requests), so it is never `primary` and names its cost in its tooltip. With no ' +
+          'Okta tab it is omitted, never disabled (ADR-0010).',
       },
     },
   },
   args: {
     rule: rule(),
     onPreviewImpact: fn(),
+    onCheckUser: fn(),
     tierOpen: false,
     onTierOpenChange: fn(),
     isLifecycleLoading: false,
@@ -56,6 +60,9 @@ const meta = {
   argTypes: {
     rule: { description: 'The rule every verb in the strip acts on.' },
     onPreviewImpact: { description: 'Opens the read-only impact preview.' },
+    onCheckUser: {
+      description: 'Opens the user picker for a qualification check. Omitted with no tab.',
+    },
     tierOpen: { description: 'Whether the disclosure tier is showing. Owned by the tab.' },
     onTierOpenChange: { description: 'Called with the tier’s next open state.' },
     isLifecycleLoading: { description: 'True while a confirmed lifecycle write is in flight.' },
@@ -101,6 +108,25 @@ export const WithoutConsolidation: Story = {
       canvas.queryByRole('button', { name: 'Add target group' }),
     ).not.toBeInTheDocument();
     await expect(canvas.getByRole('button', { name: /Deactivate rule/ })).toBeInTheDocument();
+  },
+};
+
+export const CheckAUserInTheRow: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const check = canvas.getByRole('button', { name: 'Evaluate user' });
+    await expect(check).toHaveAttribute('title', expect.stringMatching(/two requests/));
+    await userEvent.click(check);
+    await expect(args.onCheckUser).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const NoTabToCheckFrom: Story = {
+  args: { onCheckUser: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: 'Evaluate user' })).not.toBeInTheDocument();
+    await expect(canvas.getByRole('button', { name: 'Preview impact' })).toBeInTheDocument();
   },
 };
 

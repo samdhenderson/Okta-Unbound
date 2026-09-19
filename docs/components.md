@@ -35,7 +35,8 @@ const sizeClasses: Record<FooSize, string> = { sm: '…', md: '…', lg: '…' }
 
 - Size scale is `sm | md | lg` by default. Three primitives extend it where a call site needed a
   step the three-name scale could not express: `Button` adds `xs` (24px, the recessed step —
-  `ActionBar`'s selection register and the docked `ActivityBar`, never a page verb), `Icon` is `xs | sm | md | lg | xl`
+  `ActionBar`'s selection register, the count row's selection controls and the docked `ActivityBar`,
+  never a page verb), `Icon` is `xs | sm | md | lg | xl`
   (12/16/20/24/32px), `LoadingSpinner` is `sm | md | lg | xl | 2xl` (16/20/24/32/48px). The scales
   are **name-for-name aligned** over the sizes they share, so a spinner standing in for a glyph is
   requested by the glyph's own size name. Extend a scale only when a real call site needs the step,
@@ -50,8 +51,8 @@ const sizeClasses: Record<FooSize, string> = { sm: '…', md: '…', lg: '…' }
   and underlines on hover, so its first glyph lands on the same vertical line as the box edges
   above and below it. It keeps the _vertical_ half of the size scale, so a row of links is exactly
   as tall as the row of buttons it replaced. Use it where the control is a phrase in the layout
-  rather than an object in a row of objects — `ActionBar`'s selection register (`Select all (M)`,
-  `Deselect all`) is the reference case. It stays a real `<button>`; the look is a link, the
+  rather than an object in a row of objects — the count row's `Select all` / `Deselect all`
+  (`ListCountRow`) is the reference case. It stays a real `<button>`; the look is a link, the
   semantics are not. Never reach for `link` to make a _verb_ quieter — a verb that acts gets
   `secondary`, and the size scale is what makes it quiet.
 
@@ -61,7 +62,8 @@ const sizeClasses: Record<FooSize, string> = { sm: '…', md: '…', lg: '…' }
 `CopyableId`, `CopyIconButton`, `OpenInOktaLink`, `Modal`, `Input`, `Checkbox`, `Select`,
 `Textarea`, `PageHeader`, `EntityIdentity`, `EntityLink`, `Badge`, `Breadcrumbs`, `Tabs`, `Tooltip`,
 `CollapsibleSection`, `DetailSection`, `ActionBar`, `AlertMessage`, `EmptyState`, `Eyebrow`,
-`StableWidth`, `LoadingSpinner`, `Skeleton`, `ListRow`, `ListCountLine`, `ScrollableList`,
+`StableWidth`, `LoadingSpinner`, `Skeleton`, `ListRow`, `ListCountLine`, `ListCountRow`,
+`FilterToggle`, `ScrollableList`,
 `SearchDropdown`,
 `SelectionChips`, `RuleExpressionText`, `ClauseLedger`, `ClauseLedgerBranch`, `ClauseLedgerClause`,
 `GroupReferenceChip`, `RawExpressionWell`.
@@ -72,7 +74,9 @@ const sizeClasses: Record<FooSize, string> = { sm: '…', md: '…', lg: '…' }
 
 Renders {@link module:shared/rules/explainExpression.explainRuleExpression}'s
 **tree** — `&&`/`||` structure intact, and the explainer's only projection.
-`users/MembershipRuleEvidence` is the production adopter. `ClauseLedger` composes
+`users/MembershipRuleEvidence`, the comparison surfaces and
+`qualification/RuleUserReport` (the rule, group and user rungs' _check_ verbs,
+ADR-0010) are the adopters. `ClauseLedger` composes
 `ClauseLedgerBranch` (a connective group, indented under a rail, with the
 Kleene-shortcut sentence when the structured fields say one applies) and
 `ClauseLedgerClause` (one leaf, including the plain-language label for a
@@ -93,9 +97,13 @@ These carry a written contract; read it before using one:
 - [`Breadcrumbs` / `PageHeader`](./component-primitives.md#breadcrumbs-and-pageheader) — the in-tab
   trail, and the rung's header
 - [`ListRow`](./surfaces.md) — the row chrome primitive; props and interior contract in surfaces.md
-- `ListCountLine` — the line above a selectable list saying how much is on screen and how much is
+- [`ListCountRow` / `FilterToggle`](./list-controls.md) — the two lines of furniture around a list:
+  the count row (the numbers plus `Select all` / `Deselect all`) and the filter row (search plus the
+  funnel that discloses the filter panel). Contracts and the reasons in list-controls.md.
+- `ListCountLine` — the line a `ListCountRow` wraps, saying how much is on screen and how much is
   ticked: `Showing 50 of 128 · 3 selected`. It is the rung's **only** statement of either number,
-  which is why no register label carries a count ([action-bars.md](./action-bars.md)). Omit `of`
+  which is why no label on the count row or in the selection register carries a count
+  ([action-bars.md](./action-bars.md)). Omit `of`
   when no honest total exists — a server-side search holding one page knows what it fetched and
   nothing about what matched, and a page size rendered as a total is the confidently-wrong number
   [claims.md](./claims.md) forbids. A zero selection renders no clause at all, never `0 selected`.
@@ -151,10 +159,17 @@ an inline `§3 exception` (or `CHARACTERIZED:`) comment at the call site:
 - **`ClauseLedger`'s raw-expression toggle** — an `aria-pressed` view toggle styled like
   `FilterToggle`, hand-rolled because `FilterToggle` hardcodes its funnel icon and count badge.
 
+- **`shared/FilterToggle`** — the icon-only funnel that discloses a rung's filter panel. Raw
+  because its primary-light active wash maps onto no `Button` variant, and because `Button` emits
+  `aria-expanded`/`aria-controls` but no `aria-pressed`, which this control needs when its panel has
+  no stable id. Its `label` is an accessible name only (nothing is rendered beside the glyph) and
+  its `title` carries the state — `Show filters` / `Hide filters`. Full contract:
+  [list-controls.md](./list-controls.md).
+
 - **Composites** where a shared primitive is not pixel-neutral: the Add-to-Group type-ahead
   (`AddToGroupModal`) and `UserComparisonModal`'s search field in `ComparisonSearchPhase` —
-  leading-glyph search inputs with an absolutely positioned spinner/dropdown — plus
-  `shared/FilterToggle`. `SearchDropdown`, `UserSearchBar` and `GroupSearchBar` are not exceptions:
+  leading-glyph search inputs with an absolutely positioned spinner/dropdown.
+  `SearchDropdown`, `UserSearchBar` and `GroupSearchBar` are not exceptions:
   they compose `Input` + `Icon` + `LoadingSpinner` like `MemberSearchBar`, and a new search field
   does the same. The two that remain have a larger delta and need a design call, not a mechanical
   swap.

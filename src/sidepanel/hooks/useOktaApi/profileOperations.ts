@@ -59,10 +59,14 @@ export function createProfileOperations(coreApi: CoreApi) {
     }
   };
 
-  const getUserRaw = async (userId: string): Promise<OktaUser | null> => {
+  const getUserRaw = async (
+    userId: string,
+    options: { planId?: string; reason?: string } = {},
+  ): Promise<OktaUser | null> => {
     try {
       const response = await coreApi.makeApiRequest(`/api/v1/users/${userId}`, {
-        reason: 'Fetch user profile for editing',
+        reason: options.reason ?? 'Fetch user profile for editing',
+        planId: options.planId,
       });
       if (!response.success || !response.data) {
         log.error('Failed to fetch user', { userId, success: response.success });

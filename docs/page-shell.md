@@ -240,3 +240,11 @@ descriptor function living beside its entity (`groupIdentity`, `userIdentity`,
 `ruleIdentity`). There is never a second identity card at the top of the body — it
 opens on its first real section. `PageHeader` owns chrome only and never learns what a
 group or a user is, so adding an entity kind is one new builder plus a unit test.
+
+**A rung may hold one subject it did not navigate to.** The rule and group rungs
+browse an entity and fetch nothing about people until asked; _Evaluate user_ /
+_Check membership_ loads one user whole — the validated user plus their complete
+group list — as a subject owned by that rung's identity and retracted the moment
+it changes. The answer is a `DetailSection` under the strip, never a pushed rung:
+the admin is still looking at the rule or the group (ADR-0010,
+[action-bars.md](./action-bars.md)).

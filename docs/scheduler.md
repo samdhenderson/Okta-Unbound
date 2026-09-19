@@ -160,7 +160,9 @@ drops only that plan's queued requests, and tombstones the id in a bounded FIFO
 `clearQueue()` resets the ledger and tombstones the plans it forgets.
 
 Plans are threaded explicitly: `runOperation({ plan })` for a fan-out,
-`withPlan(name, legs, run)` for a walk, over one `updateOperationPlan` message
+`withPlan(name, legs, run)` for a walk — `loadQualificationSubject` is the
+reference two-leg plan: one `exact` leg for the user, one `atLeast` leg for the
+group walk that `refine`s as each page lands — over one `updateOperationPlan` message
 with a discriminated `op` (`declare | refine | complete | cancel`), carrying
 `scheduleApiRequest`'s sender posture: `rejectIfFromTab`, length caps, and each
 leg endpoint held to the same-origin single-`/` shape a real request must

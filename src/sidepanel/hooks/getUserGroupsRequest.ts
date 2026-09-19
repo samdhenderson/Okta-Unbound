@@ -20,18 +20,28 @@ export interface GetUserGroupsResult {
   error?: string;
 }
 
+export interface GetUserGroupsOptions {
+  planId?: string;
+  onPage?: (pagesFetched: number, hasMore: boolean) => void;
+}
+
 export async function getUserGroupsRequest(
   makeApiRequest: MakeApiRequest,
   userId: string,
+  options: GetUserGroupsOptions = {},
 ): Promise<GetUserGroupsResult> {
   log.debug('Fetching user groups', { userId });
 
   try {
     let allGroups: OktaGroup[] = [];
     let nextUrl: string | null = `/api/v1/users/${userId}/groups?limit=200`;
+    let pagesFetched = 0;
 
     while (nextUrl) {
-      const response = await makeApiRequest(nextUrl, { reason: "Load user's groups" });
+      const response = await makeApiRequest(nextUrl, {
+        reason: "Load user's groups",
+        planId: options.planId,
+      });
 
       if (!response.success) {
         return response;
@@ -40,6 +50,8 @@ export async function getUserGroupsRequest(
       const page: OktaGroup[] = response.data || [];
       allGroups = allGroups.concat(page);
       nextUrl = nextPageUrl(nextUrl, response.headers?.link, page.length);
+      pagesFetched += 1;
+      options.onPage?.(pagesFetched, nextUrl !== null);
     }
 
     const memberships: UserGroupMembership[] = allGroups.map((group) => ({

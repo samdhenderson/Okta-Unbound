@@ -9,6 +9,8 @@ export interface UserActionBarProps {
   user: OktaUser;
   onCompare: () => void;
   onAddToGroup: () => void;
+  onCheckRule?: () => void;
+  onWhyNotMember?: () => void;
   isLoadingMemberships: boolean;
   tierOpen: boolean;
   onTierOpenChange: (open: boolean) => void;
@@ -26,6 +28,8 @@ const UserActionBar: React.FC<UserActionBarProps> = ({
   user,
   onCompare,
   onAddToGroup,
+  onCheckRule,
+  onWhyNotMember,
   isLoadingMemberships,
   tierOpen,
   onTierOpenChange,
@@ -55,6 +59,33 @@ const UserActionBar: React.FC<UserActionBarProps> = ({
       disabled: isLoadingMemberships,
       title: 'Compare group & app access with another user',
     },
+    ...(onCheckRule
+      ? [
+          {
+            id: 'check-rule',
+            label: 'Check rule',
+            icon: 'search',
+            priority: 'flex',
+            onClick: onCheckRule,
+            disabled: isLoadingMemberships,
+            title: 'Pick a rule and see whether it qualifies this user. Nothing is fetched.',
+          } satisfies ActionDescriptor,
+        ]
+      : []),
+    ...(onWhyNotMember
+      ? [
+          {
+            id: 'why-not-member',
+            label: 'Check membership',
+            icon: 'users',
+            priority: 'flex',
+            onClick: onWhyNotMember,
+            disabled: isLoadingMemberships,
+            title:
+              'Pick a group and see which rules feed it and whether they qualify this user. Only the group search is fetched.',
+          } satisfies ActionDescriptor,
+        ]
+      : []),
   ];
 
   return (

@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import PoliciesListActionBar from './PoliciesListActionBar';
 import Input from '../shared/Input';
 import Icon from '../shared/Icon';
@@ -15,109 +15,51 @@ const meta = {
         component:
           'The auth-policies rung is read-only by design, so it declares no page verbs — the ' +
           '`actions` array is empty and `ActionBar` draws no row for it. The search is the ' +
-          'sub-row; the selection furniture is the register, ranged right.\n\n' +
-          'No control here states a count: `PoliciesListPanel`’s `ListCountLine` above the rows ' +
-          'is the rung’s one statement of both numbers.',
+          'sub-row, and it is the only thing this band carries.\n\n' +
+          'There is **no selection register**: `Select all` and `Deselect all` are furniture ' +
+          'rather than verbs, and they stand on `PoliciesListPanel`’s count row beside the ' +
+          'numbers they act on. The register is a measured row that exists to stop a ' +
+          'selection verb popping into the band on the first tick; this rung has no such verb, ' +
+          'so an empty register would be reserved space for nothing.\n\n' +
+          'No control here states a count: `PoliciesListPanel`’s count row is the rung’s one ' +
+          'statement of both numbers.',
       },
     },
   },
-  args: {
-    selectedCount: 0,
-    filteredCount: 11,
-    allFilteredSelected: false,
-    onSelectAll: fn(),
-    onDeselectAll: fn(),
-  },
   argTypes: {
     search: { description: 'The rung’s search field, rendered as the band’s sub-row.' },
-    selectedCount: {
-      description: 'How many policies are in the basket, including picks made elsewhere.',
-    },
-    filteredCount: { description: 'How many policies the current search matches.' },
-    allFilteredSelected: {
-      description: 'Whether every searched policy is already picked — passed, never derived.',
-    },
-    onSelectAll: { description: 'Replaces the policy selection with every searched policy.' },
-    onDeselectAll: { description: 'Empties the policy partition.' },
   },
+  args: {},
 } satisfies Meta<typeof PoliciesListActionBar>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    const register = canvas.getByRole('group', {
-      name: 'Selection actions for the auth policies list',
-    });
-
-    await expect(within(register).getAllByRole('button')).toHaveLength(1);
-    await expect(canvas.queryByRole('button', { name: 'Deselect all' })).not.toBeInTheDocument();
-
-    await userEvent.click(within(register).getByRole('button', { name: 'Select all' }));
-    await expect(args.onSelectAll).toHaveBeenCalledTimes(1);
-  },
-};
-
-export const NoActionRowIsDrawn: Story = {
-  args: { selectedCount: 2 },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const band = canvas.getByTestId('policies-list-action-bar');
-    const register = canvas.getByTestId('action-bar-register');
 
-    await expect(band.children[0]).toBe(register);
-    await expect(within(register).getAllByRole('button').length).toBeGreaterThan(0);
-    await expect(canvas.getAllByRole('button')).toHaveLength(
-      within(register).getAllByRole('button').length,
-    );
+    await expect(canvas.getByTestId('policies-list-action-bar')).toBeInTheDocument();
+    await expect(canvas.queryAllByRole('button')).toHaveLength(0);
   },
 };
 
-export const WithSelection: Story = {
-  args: { selectedCount: 2 },
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    const register = canvas.getByRole('group', {
-      name: 'Selection actions for the auth policies list',
-    });
-
-    await expect(within(register).getAllByRole('button')[0]).toHaveAccessibleName('Deselect all');
-
-    await userEvent.click(within(register).getByRole('button', { name: 'Deselect all' }));
-    await expect(args.onDeselectAll).toHaveBeenCalledTimes(1);
-  },
-};
-
-export const AllSelected: Story = {
-  args: { selectedCount: 11, allFilteredSelected: true },
+export const NoSelectionRegister: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const selectAll = canvas.getByRole('button', { name: 'Select all' });
 
-    await expect(selectAll).toBeDisabled();
-    await expect(selectAll).toHaveAccessibleDescription(
-      'All 11 policies matching the current search are already selected',
-    );
-    await expect(canvas.getByRole('button', { name: 'Deselect all' })).toBeEnabled();
-  },
-};
-
-export const NoFilteredPolicies: Story = {
-  args: { filteredCount: 0 },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const selectAll = canvas.getByRole('button', { name: 'Select all' });
-
-    await expect(selectAll).toBeDisabled();
-    await expect(selectAll).toHaveAccessibleDescription('No policies match the current search');
+    await expect(canvas.queryByTestId('action-bar-register')).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('group', { name: 'Selection actions for the auth policies list' }),
+    ).not.toBeInTheDocument();
+    for (const name of ['Select all', 'Deselect all']) {
+      await expect(canvas.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
   },
 };
 
 export const WithSearch: Story = {
   args: {
-    selectedCount: 1,
     search: (
       <Input
         value=""
@@ -132,6 +74,10 @@ export const WithSearch: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const band = canvas.getByTestId('policies-list-action-bar');
-    await expect(within(band).getByLabelText('Search auth policies')).toBeInTheDocument();
+    const search = within(band).getByLabelText('Search auth policies');
+
+    await expect(search).toBeInTheDocument();
+    await expect(band).toContainElement(search);
+    await expect(canvas.queryAllByRole('button')).toHaveLength(0);
   },
 };

@@ -16,6 +16,7 @@ export interface GroupActionBarProps {
   onExportGroup?: (groupId: string, groupName: string) => void;
   onAddMember: () => void;
   onCompare: () => void;
+  onWhyNotMember?: () => void;
   deprovisionedCount?: number;
   onRemoveDeprovisioned?: () => void;
   isRemoving?: boolean;
@@ -32,6 +33,7 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
   onExportGroup,
   onAddMember,
   onCompare,
+  onWhyNotMember,
   deprovisionedCount,
   onRemoveDeprovisioned,
   isRemoving = false,
@@ -72,6 +74,19 @@ const GroupActionBar: React.FC<GroupActionBarProps> = ({
       disabled: targetTabId === null,
       title: 'Compare this group’s membership with another group',
     },
+    ...(onWhyNotMember
+      ? [
+          {
+            id: 'why-not-member',
+            label: 'Check membership',
+            icon: 'search',
+            priority: 'flex',
+            onClick: onWhyNotMember,
+            title:
+              'Pick a user and see which rules feed this group and whether they qualify them. Reads the user and their groups — two requests, writes nothing.',
+          } satisfies ActionDescriptor,
+        ]
+      : []),
     ...(onExportGroup
       ? [
           {

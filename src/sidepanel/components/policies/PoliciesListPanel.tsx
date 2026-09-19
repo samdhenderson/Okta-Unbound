@@ -4,7 +4,7 @@ import PolicyCard from './PolicyCard';
 import ScrollableList from '../shared/ScrollableList';
 import EmptyState from '../shared/EmptyState';
 import Skeleton from '../shared/Skeleton';
-import ListCountLine from '../shared/ListCountLine';
+import ListCountRow from '../shared/ListCountRow';
 import type { OktaPolicyListItem, OktaPolicyRule } from '../../../shared/schemas/okta';
 import type { PolicyReadState } from '../../hooks/usePoliciesData';
 
@@ -18,6 +18,9 @@ interface PoliciesListPanelProps {
   loadRules: (policyId: string) => Promise<OktaPolicyRule[]>;
   selectedIds: Set<string>;
   onToggleSelect: (policyId: string) => void;
+  allFilteredSelected: boolean;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
 }
 
 const noPoliciesState = (readState: PolicyReadState, onLoad: () => void) => {
@@ -63,6 +66,9 @@ const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function Polici
   loadRules,
   selectedIds,
   onToggleSelect,
+  allFilteredSelected,
+  onSelectAll,
+  onDeselectAll,
 }) {
   const setStaggerRef = useStaggerReveal();
   const selectedHere = selectedIds.size;
@@ -70,11 +76,19 @@ const PoliciesListPanel: React.FC<PoliciesListPanelProps> = memo(function Polici
   return (
     <div className="min-h-[400px]">
       {policies.length > 0 && (
-        <ListCountLine
+        <ListCountRow
           shown={policies.length}
           of={totalCount}
           selected={selectedHere}
-          className="mb-(--sp-toolbar)"
+          selection={{
+            boundary: allFilteredSelected ? 'all-taken' : 'available',
+            onSelectAll,
+            onDeselectAll,
+            selectAllTitle: allFilteredSelected
+              ? `All ${policies.length.toLocaleString()} policies matching the current search are already selected`
+              : `Replace the policy selection with the ${policies.length.toLocaleString()} policies matching the current search`,
+            deselectAllTitle: 'Clear every selected policy, including any picked on another screen',
+          }}
           testId="policies-count-line"
         />
       )}

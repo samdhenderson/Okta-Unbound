@@ -14,38 +14,31 @@ const meta = {
     docs: {
       description: {
         component:
-          'Fully controlled: the tab shell owns the filter state, so the same values drive ' +
-          'both this row and the filtered list. The search box accepts a `/pattern/flags` ' +
-          'regex query as well as a plain substring.\n\n' +
-          '`Pushes nothing` means Group Push is enabled on the app and the org snapshot holds ' +
-          'no group assignment for it — the snapshot only walks the groups endpoint for ' +
-          '`GROUP_PUSH` apps, so a wider reading would report the whole inventory as unassigned.',
+          "The Applications rung's search field beside its filter disclosure — the node the " +
+          'action strip renders in its `subRow`, so the field docks with the verbs and stays ' +
+          'reachable at any scroll offset. The status, group-push and sort pills live in ' +
+          '`AppsFilterPanel`, disclosed below the band by this row’s toggle.\n\n' +
+          'Fully controlled: the query and the panel state belong to the rung, and the count ' +
+          'on the toggle is the only trace of an applied filter once the panel is closed. The ' +
+          'search box accepts a `/pattern/flags` regex query as well as a plain substring.',
       },
     },
   },
   argTypes: {
     searchQuery: { description: 'Current search text (`/pattern/flags` is treated as a regex).' },
     onSearchQueryChange: { description: 'Called with the new search text.' },
-    statusFilter: { description: "Selected status bucket (`''` = all)." },
-    onStatusFilterChange: { description: 'Called with the newly selected status bucket.' },
-    groupsFilter: { description: "Selected group-push bucket (`''` = all)." },
-    onGroupsFilterChange: { description: 'Called with the newly selected group-push bucket.' },
-    sortBy: { description: 'The active sort field.' },
-    sortDesc: { description: 'Whether the active sort is descending.' },
-    onToggleSort: {
-      description: 'Select a sort field, or flip the direction when it is already active.',
+    filtersOpen: { description: 'Whether the filter panel below the band is open.' },
+    onToggleFilters: { description: 'Toggles that panel.' },
+    activeFilterCount: {
+      description: 'Number of axes away from their default; the toggle badge is hidden at 0.',
     },
   },
   args: {
     searchQuery: '',
     onSearchQueryChange: fn(),
-    statusFilter: '',
-    onStatusFilterChange: fn(),
-    groupsFilter: '',
-    onGroupsFilterChange: fn(),
-    sortBy: 'label',
-    sortDesc: false,
-    onToggleSort: fn(),
+    filtersOpen: false,
+    onToggleFilters: fn(),
+    activeFilterCount: 0,
   },
 } satisfies Meta<typeof AppsToolbar>;
 
@@ -62,16 +55,16 @@ export const RegexQuery: Story = {
   args: { searchQuery: '/^okta_/i' },
 };
 
-export const InactiveFilter: Story = {
-  args: { statusFilter: 'INACTIVE' },
+export const FiltersOpen: Story = {
+  args: { filtersOpen: true },
 };
 
-export const PushesNothingFilter: Story = {
-  args: { groupsFilter: 'no-groups' },
-};
-
-export const SortedByCreatedDesc: Story = {
-  args: { sortBy: 'created', sortDesc: true },
+export const FiltersApplied: Story = {
+  args: { activeFilterCount: 2 },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'Filters, 2 applied' })).toBeInTheDocument();
+  },
 };
 
 const harnessApps = [
@@ -89,17 +82,14 @@ export const Interactive: Story = {
   render: (args) => {
     const Harness = () => {
       const [searchQuery, setSearchQuery] = useState('');
-      const [statusFilter, setStatusFilter] = useState<'' | 'ACTIVE' | 'INACTIVE'>('');
-      const [groupsFilter, setGroupsFilter] = useState<'' | 'no-groups'>('');
-      const [sortBy, setSortBy] = useState<'label' | 'status' | 'created'>('label');
-      const [sortDesc, setSortDesc] = useState(false);
+      const [filtersOpen, setFiltersOpen] = useState(false);
 
       const visible = filterAndSortApps(harnessApps, {
         searchQuery,
-        statusFilter,
-        groupsFilter,
-        sortBy,
-        sortDesc,
+        statusFilter: '',
+        groupsFilter: '',
+        sortBy: 'label',
+        sortDesc: false,
       });
 
       return (
@@ -108,19 +98,8 @@ export const Interactive: Story = {
             {...args}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
-            statusFilter={statusFilter}
-            onStatusFilterChange={setStatusFilter}
-            groupsFilter={groupsFilter}
-            onGroupsFilterChange={setGroupsFilter}
-            sortBy={sortBy}
-            sortDesc={sortDesc}
-            onToggleSort={(field) => {
-              if (field === sortBy) setSortDesc((previous) => !previous);
-              else {
-                setSortBy(field);
-                setSortDesc(false);
-              }
-            }}
+            filtersOpen={filtersOpen}
+            onToggleFilters={() => setFiltersOpen((previous) => !previous)}
           />
           <ul aria-label="Applications" className="space-y-1 text-sm text-neutral-700">
             {visible.map((app) => (
@@ -135,18 +114,17 @@ export const Interactive: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const list = canvas.getByRole('list', { name: 'Applications' });
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(3);
 
     await userEvent.type(canvas.getByLabelText('Search applications'), 'sl');
     await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
     await expect(within(list).getByText('Slack')).toBeInTheDocument();
 
     await userEvent.clear(canvas.getByLabelText('Search applications'));
-    await userEvent.click(
-      within(canvas.getByRole('group', { name: 'Filter by status' })).getByRole('button', {
-        name: 'Inactive',
-      }),
-    );
-    await expect(within(list).getAllByRole('listitem')).toHaveLength(1);
-    await expect(within(list).getByText('Workday HR')).toBeInTheDocument();
+    await expect(within(list).getAllByRole('listitem')).toHaveLength(3);
+
+    const toggle = canvas.getByRole('button', { name: 'Filters' });
+    await userEvent.click(toggle);
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   },
 };

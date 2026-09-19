@@ -2,7 +2,9 @@
 
 Per-primitive contracts: the props, modes and capabilities of the primitives whose shape is not
 obvious from their name. Read the one you are about to use. Which primitive to reach for, the hard
-rules, the catalog and the raw-control exceptions are in [components.md](./components.md).
+rules, the catalog and the raw-control exceptions are in [components.md](./components.md). Two
+primitives keep their contracts elsewhere because a rung's list owns them together: `ListCountRow`
+and `FilterToggle`, in [list-controls.md](./list-controls.md).
 
 ## `EntityLink`
 

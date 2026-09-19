@@ -65,6 +65,35 @@ describe('getUserGroupsRequest', () => {
     expect(makeApiRequest).toHaveBeenCalledTimes(1);
   });
 
+  it('forwards the planId to every page and reports each page to onPage', async () => {
+    const makeApiRequest = vi
+      .fn()
+      .mockResolvedValueOnce(
+        ok([group('g1')], {
+          link: '<https://acme.okta.com/api/v1/users/u1/groups?after=CURSOR&limit=200>; rel="next"',
+        }),
+      )
+      .mockResolvedValueOnce(ok([group('g2')]));
+    const onPage = vi.fn();
+
+    await getUserGroupsRequest(makeApiRequest, 'u1', { planId: 'plan-1', onPage });
+
+    expect(makeApiRequest).toHaveBeenNthCalledWith(
+      1,
+      expect.any(String),
+      expect.objectContaining({ planId: 'plan-1' }),
+    );
+    expect(makeApiRequest).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      expect.objectContaining({ planId: 'plan-1' }),
+    );
+    expect(onPage.mock.calls).toEqual([
+      [1, true],
+      [2, false],
+    ]);
+  });
+
   it('reports a failure (does not throw) when a request rejects', async () => {
     const makeApiRequest = vi.fn().mockRejectedValue(new Error('scheduler down'));
 

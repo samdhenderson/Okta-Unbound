@@ -5,8 +5,6 @@ interface GroupsListActionBarProps {
   search?: React.ReactNode;
   selectedCount: number;
   filteredCount: number;
-  onSelectAll: () => void;
-  onDeselectAll: () => void;
   onCompare: () => void;
   onExportSelection: () => void;
   onExportGroupsList: () => void;
@@ -16,8 +14,6 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
   search,
   selectedCount,
   filteredCount,
-  onSelectAll,
-  onDeselectAll,
   onCompare,
   onExportSelection,
   onExportGroupsList,
@@ -38,31 +34,6 @@ const GroupsListActionBar: React.FC<GroupsListActionBarProps> = ({
   ];
 
   const registerActions: ActionDescriptor[] = [
-    ...(selectedCount > 0
-      ? [
-          {
-            id: 'deselect-all',
-            label: 'Deselect all',
-            variant: 'link' as const,
-            onClick: onDeselectAll,
-            priority: 'pinned' as const,
-          },
-        ]
-      : []),
-    {
-      id: 'select-all',
-      label: 'Select all',
-      variant: 'link',
-      onClick: onSelectAll,
-      disabled: filteredCount === 0 || selectedCount === filteredCount,
-      title:
-        filteredCount === 0
-          ? 'No groups match the current filter'
-          : selectedCount === filteredCount
-            ? `All ${filteredCount} groups matching the filter are already selected`
-            : 'Select every group the current filter matches',
-      priority: 'pinned' as const,
-    },
     ...(selectedCount >= 2 && selectedCount <= 5
       ? [
           {

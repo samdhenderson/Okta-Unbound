@@ -36,7 +36,7 @@ const meta = {
     },
     register: {
       description:
-        'The selection register: a second measured row of selection-scoped verbs, whose leading control must be a selection control.',
+        'The selection register: a second measured row of selection-scoped verbs, whose leading control must be one whose worst outcome is another click. Selection furniture lives on the rung’s `ListCountRow`, not here.',
     },
     sticky: {
       description:
@@ -247,7 +247,13 @@ export const WithSubRow: Story = {
   args: {
     ariaLabel: 'Actions for the groups list',
     actions: [
-      { id: 'select-all', label: 'Select all (34)', onClick: fn(), priority: 'pinned' },
+      {
+        id: 'export-list',
+        label: 'Export list',
+        icon: 'download',
+        variant: 'primary',
+        onClick: fn(),
+      },
       { id: 'cross-search', label: 'Cross-search', icon: 'search', onClick: fn() },
       { id: 'cleanup', label: 'Cleanup', icon: 'sparkles', onClick: fn(), priority: 'tier' },
     ],
@@ -442,21 +448,28 @@ export const WithSelectionRegister: Story = {
       ariaLabel: 'Actions for the selected groups',
       actions: [
         {
-          id: 'deselect-all',
-          label: 'Deselect all',
-          variant: 'link',
+          id: 'compare',
+          label: 'Compare',
+          icon: 'chart',
           onClick: fn(),
+          title: 'Compare the 3 selected groups',
           priority: 'pinned',
         },
         {
-          id: 'select-all',
-          label: 'Select all (34)',
-          variant: 'link',
+          id: 'export-selection',
+          label: 'Export',
+          icon: 'download',
           onClick: fn(),
-          priority: 'pinned',
+          title: 'Export the 3 selected groups',
         },
-        { id: 'compare', label: 'Compare (3)', icon: 'chart', onClick: fn() },
-        { id: 'merge', label: 'Merge (3)', icon: 'link', onClick: fn(), priority: 'tier' },
+        {
+          id: 'merge',
+          label: 'Merge',
+          icon: 'link',
+          onClick: fn(),
+          title: 'Copy the 3 selected groups’ members into one survivor',
+          priority: 'tier',
+        },
       ],
     },
   },
@@ -464,15 +477,26 @@ export const WithSelectionRegister: Story = {
     const canvas = within(canvasElement);
     const register = canvas.getByRole('group', { name: 'Actions for the selected groups' });
     const first = within(register).getAllByRole('button')[0];
-    await expect(first).toHaveAccessibleName('Deselect all');
+    await expect(first).toHaveAccessibleName('Compare');
 
     await expect(
       within(register).queryByRole('button', { name: 'Export list' }),
     ).not.toBeInTheDocument();
 
+    for (const name of ['Select all', 'Deselect all']) {
+      await expect(canvas.queryByRole('button', { name })).not.toBeInTheDocument();
+    }
+
+    for (const button of within(register).getAllByRole('button')) {
+      await expect(button.textContent ?? '').not.toMatch(/\d/);
+    }
+    await expect(
+      within(register).getByRole('button', { name: 'Compare' }),
+    ).toHaveAccessibleDescription('Compare the 3 selected groups');
+
     await expect(canvas.getAllByRole('button', { name: 'More' })).toHaveLength(1);
     await userEvent.click(canvas.getByRole('button', { name: 'More' }));
-    await expect(canvas.getByRole('button', { name: 'Merge (3)' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Merge' })).toBeVisible();
   },
 };
 
@@ -488,24 +512,16 @@ export const TheRegisterHoldsItsRowWhenEmpty: Story = {
         onClick: fn(),
       },
     ],
-    register: {
-      ariaLabel: 'Actions for the selected groups',
-      actions: [
-        {
-          id: 'select-all',
-          label: 'Select all (34)',
-          variant: 'link',
-          onClick: fn(),
-          priority: 'pinned',
-        },
-      ],
-    },
+    register: { ariaLabel: 'Actions for the selected groups', actions: [] },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const register = canvas.getByRole('group', { name: 'Actions for the selected groups' });
+
     await expect(register).toBeInTheDocument();
-    await expect(within(register).getAllByRole('button')).toHaveLength(1);
+    await expect(within(register).queryAllByRole('button')).toHaveLength(0);
+
+    await expect(canvas.getByRole('button', { name: 'Export list' })).toBeVisible();
   },
 };
 

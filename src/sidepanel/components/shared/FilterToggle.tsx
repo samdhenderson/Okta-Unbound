@@ -1,6 +1,5 @@
 import React from 'react';
 import Icon from './Icon';
-import StableWidth from './StableWidth';
 
 export interface FilterToggleProps {
   open: boolean;
@@ -12,9 +11,14 @@ export interface FilterToggleProps {
   controls?: string;
 }
 
-const PADDING: Record<'md' | 'lg', string> = {
-  md: 'px-4 py-2',
-  lg: 'px-4 py-3',
+const BOX: Record<'md' | 'lg', string> = {
+  md: 'size-[38px]',
+  lg: 'size-[46px]',
+};
+
+const GLYPH: Record<'md' | 'lg', 'sm' | 'md'> = {
+  md: 'sm',
+  lg: 'md',
 };
 
 const FilterToggle: React.FC<FilterToggleProps> = ({
@@ -23,7 +27,7 @@ const FilterToggle: React.FC<FilterToggleProps> = ({
   onToggle,
   size = 'md',
   label = 'Filters',
-  title = 'Toggle filters',
+  title,
   controls,
 }) => (
   <button
@@ -33,34 +37,24 @@ const FilterToggle: React.FC<FilterToggleProps> = ({
     aria-expanded={controls ? open : undefined}
     aria-controls={controls}
     aria-label={activeCount > 0 ? `${label}, ${activeCount} applied` : label}
-    className={`press flex shrink-0 items-center gap-(--sp-inline) rounded-md border text-sm font-medium ${
-      PADDING[size]
+    className={`press relative flex shrink-0 items-center justify-center rounded-md border text-sm font-medium ${
+      BOX[size]
     } ${
       open || activeCount > 0
         ? 'bg-primary-light border-primary text-primary-text'
         : 'bg-white border-neutral-200 text-neutral-700 hover:border-neutral-400'
     }`}
-    title={title}
+    title={title ?? (open ? 'Hide filters' : 'Show filters')}
   >
-    <Icon type="filter" size="sm" />
-    {label}
-    <StableWidth
-      reserve={
-        <span className="min-w-[20px] px-1.5 py-0.5 text-xs font-bold">
-          {Math.max(activeCount, 1)}
-        </span>
-      }
-      align="center"
-    >
-      {activeCount > 0 && (
-        <span
-          aria-hidden="true"
-          className="min-w-[20px] rounded-full bg-primary px-1.5 py-0.5 text-center text-xs font-bold tabular-nums text-white"
-        >
-          {activeCount}
-        </span>
-      )}
-    </StableWidth>
+    <Icon type="filter" size={GLYPH[size]} />
+    {activeCount > 0 && (
+      <span
+        aria-hidden="true"
+        className="absolute -right-1 -top-1 min-w-[18px] rounded-full bg-primary px-1 text-center text-xs font-bold leading-[18px] tabular-nums text-white ring-1 ring-white"
+      >
+        {activeCount}
+      </span>
+    )}
   </button>
 );
 

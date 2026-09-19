@@ -1,14 +1,11 @@
-import {
-  explainRuleExpression,
-  type ClauseGroupReference,
-  type ClauseGroupRequirement,
-  type ClauseTreeNode,
-  type LeafClauseNode,
+import type {
+  ClauseGroupReference,
+  LeafClauseNode,
 } from '../../../../shared/rules/explainExpression';
+import { assessRule, type UndeterminedReason } from '../../../../shared/membership/ruleAssessment';
 import type { RuleGroupContext } from '../../../../shared/ruleEvaluator';
 import { groupContextOf } from '../../../../shared/membership/groupContext';
-import { conditionExpressionOf } from '../../../../shared/membership/ruleExpression';
-import { isDeducedAttribution, isUserExcluded } from '../../../../shared/utils/membershipAnalysis';
+import { isDeducedAttribution } from '../../../../shared/utils/membershipAnalysis';
 import type { GroupMembership, MembershipRule, OktaUser } from '../../../../shared/types';
 
 export type AccessRemedy =
@@ -20,12 +17,7 @@ export type AccessRemedy =
   | 'app-managed'
   | 'cannot-determine';
 
-export type UndeterminedReason =
-  | 'unevaluable-clause'
-  | 'needs-group-context'
-  | 'ambiguous-attribution'
-  | 'no-rule-inventory'
-  | 'no-condition';
+export type { UndeterminedReason };
 
 export interface AccessCause {
   readonly groupId: string;
@@ -60,83 +52,6 @@ function rulesTargeting(rules: readonly MembershipRule[], groupId: string): Memb
     const groupIds = rule.groupIds || rule.actions?.assignUserToGroups?.groupIds || [];
     return groupIds.includes(groupId);
   });
-}
-
-type RuleAssessment =
-  | { readonly kind: 'excluded'; readonly rule: MembershipRule }
-  | {
-      readonly kind: 'blocked';
-      readonly rule: MembershipRule;
-      readonly failingClauses: readonly LeafClauseNode[];
-      readonly onlyGroupClausesFailed: boolean;
-      readonly requiredGroups: readonly ClauseGroupReference[];
-      readonly blockingGroups: readonly ClauseGroupReference[];
-    }
-  | { readonly kind: 'grants'; readonly rule: MembershipRule }
-  | {
-      readonly kind: 'unknown';
-      readonly rule: MembershipRule;
-      readonly reason: UndeterminedReason;
-    };
-
-function assessRule(
-  rule: MembershipRule,
-  contextUser: OktaUser,
-  groupContext: RuleGroupContext | undefined,
-): RuleAssessment {
-  if (isUserExcluded(rule, contextUser.id, groupContext)) return { kind: 'excluded', rule };
-
-  const expression = conditionExpressionOf(rule);
-  if (expression.trim() === '') return { kind: 'unknown', rule, reason: 'no-condition' };
-
-  const { tree, summary } = explainRuleExpression(expression, contextUser, {
-    groups: groupContext,
-  });
-  if (summary.result.outcome === 'match') return { kind: 'grants', rule };
-
-  const failingClauses = collectFailingLeaves(tree);
-  if (summary.result.outcome === 'no-match' && failingClauses.length > 0) {
-    return {
-      kind: 'blocked',
-      rule,
-      failingClauses,
-      onlyGroupClausesFailed: failingClauses.every(
-        (clause) => (clause.groupReferences?.length ?? 0) > 0,
-      ),
-      requiredGroups: groupsFromClauses(failingClauses, 'member', () => true),
-      blockingGroups: groupsFromClauses(
-        failingClauses,
-        'non-member',
-        (reference) => reference.satisfied,
-      ),
-    };
-  }
-
-  return {
-    kind: 'unknown',
-    rule,
-    reason:
-      groupContext === undefined && summary.needsGroupContext > 0
-        ? 'needs-group-context'
-        : 'unevaluable-clause',
-  };
-}
-
-function collectFailingLeaves(node: ClauseTreeNode): readonly LeafClauseNode[] {
-  if (node.node === 'leaf') return node.status === 'fail' ? [node] : [];
-  if (node.verdict !== 'fail') return [];
-  return node.children.flatMap(collectFailingLeaves);
-}
-
-function groupsFromClauses(
-  clauses: readonly LeafClauseNode[],
-  requirement: ClauseGroupRequirement,
-  keep: (reference: ClauseGroupReference) => boolean,
-): readonly ClauseGroupReference[] {
-  return clauses
-    .filter((clause) => clause.groupRequirement === requirement)
-    .flatMap((clause) => clause.groupReferences ?? [])
-    .filter(keep);
 }
 
 function causeFor(membership: GroupMembership): Pick<AccessCause, 'groupId' | 'groupName'> {

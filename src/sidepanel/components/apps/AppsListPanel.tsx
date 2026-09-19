@@ -1,9 +1,15 @@
 import React, { memo } from 'react';
 import { useStaggerReveal } from '../../hooks/useStaggerReveal';
-import { EmptyState, ListCountLine, ScrollableList, Skeleton } from '../shared';
+import { EmptyState, ListCountRow, ScrollableList, Skeleton } from '../shared';
 import AppListItem from './AppListItem';
 import type { AppAssignmentCounts } from '../../hooks/useOktaApi/appOperations';
 import type { OktaAppListItem } from '../../../shared/schemas/okta';
+
+export interface AppsListSelectionControls {
+  allFilteredSelected: boolean;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
+}
 
 export interface AppsListPanelProps {
   loading: boolean;
@@ -18,6 +24,7 @@ export interface AppsListPanelProps {
   fetchAssignmentCounts?: (appId: string) => Promise<AppAssignmentCounts | null>;
   selectedIds: Set<string>;
   onToggleSelect: (appId: string) => void;
+  selection?: AppsListSelectionControls;
 }
 
 const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel({
@@ -33,27 +40,40 @@ const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel(
   fetchAssignmentCounts,
   selectedIds,
   onToggleSelect,
+  selection,
 }) {
   const setStaggerRef = useStaggerReveal();
   const selectedHere = selectedIds.size;
 
   return (
-    <>
+    <div className="flex flex-col">
       {apps.length > 0 && (
-        <ListCountLine
+        <ListCountRow
           shown={apps.length}
           of={totalCount}
           selected={selectedHere}
           testId="apps-count-line"
+          selection={
+            selection && {
+              boundary: selection.allFilteredSelected ? 'all-taken' : 'available',
+              onSelectAll: selection.onSelectAll,
+              onDeselectAll: selection.onDeselectAll,
+              selectAllTitle: selection.allFilteredSelected
+                ? `All ${apps.length.toLocaleString()} apps matching the current search and filters are already selected`
+                : `Replace the app selection with the ${apps.length.toLocaleString()} apps matching the current search and filters`,
+              deselectAllTitle: 'Clear every selected app, including any picked on another screen',
+            }
+          }
         />
       )}
       <ScrollableList
         loading={loading}
         loadingMessage="Loading applications from Okta..."
+        scrolls={false}
+        fillAvailable={false}
         skeleton={
           <Skeleton variant="row" size="lg" count={6} label="Loading applications from Okta..." />
         }
-        className="mt-4"
         testId="apps-list"
         emptyState={
           hasApps ? (
@@ -92,7 +112,7 @@ const AppsListPanel: React.FC<AppsListPanelProps> = memo(function AppsListPanel(
           </div>
         )}
       </ScrollableList>
-    </>
+    </div>
   );
 });
 

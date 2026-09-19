@@ -157,6 +157,7 @@ describe('AppsTab', () => {
 
     expect(await screen.findByText('Salesforce')).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
     const statusGroup = screen.getByRole('group', { name: 'Filter by status' });
     await user.click(within(statusGroup).getByRole('button', { name: 'Inactive' }));
 

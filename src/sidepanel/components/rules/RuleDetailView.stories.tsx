@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, userEvent, within } from 'storybook/test';
 import RuleDetailView from './RuleDetailView';
 import { NavigationProvider } from '../../contexts/NavigationContext';
 import type { FormattedRule } from '../../../shared/types';
+import { useOktaApi, makeUseOktaApiValue } from '../../../../.storybook/mocks/useOktaApi.mock';
 
 const GROUP_A = '00g1a2b3c4d5e6f7g8h9';
 const GROUP_B = '00g9z8y7x6w5v4u3t2s1';
@@ -170,6 +171,46 @@ export const WithoutOktaOrigin: Story = {
     await expect(
       within(canvasElement).queryByRole('link', { name: /Open the rules page/ }),
     ).not.toBeInTheDocument();
+  },
+};
+
+const subjectUser = {
+  id: '00uFAKESUBJECT01',
+  status: 'ACTIVE',
+  profile: {
+    login: 'ada@example.com',
+    email: 'ada@example.com',
+    firstName: 'Ada',
+    lastName: 'Lovelace',
+    department: 'Engineering',
+  },
+};
+
+export const CheckedUser: Story = {
+  args: { targetTabId: 1 },
+  beforeEach: () => {
+    useOktaApi.mockReturnValue(
+      makeUseOktaApiValue({
+        makeApiRequest: fn(async () => ({ success: true, data: [subjectUser], headers: {} })),
+        loadQualificationSubject: fn(async () => ({
+          ok: true,
+          user: subjectUser,
+          groups: [{ id: GROUP_A, type: 'OKTA_GROUP', profile: { name: 'Engineering – All' } }],
+        })),
+      }),
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole('button', { name: 'Evaluate user' }));
+    await userEvent.type(body.getByPlaceholderText('Search users...'), 'ada');
+    await userEvent.click(await body.findByText('Ada Lovelace'));
+
+    await expect(await canvas.findByText('Qualifies')).toBeInTheDocument();
+    await expect(canvas.getByText('For one user')).toBeInTheDocument();
+    await expect(canvas.getByText('Member')).toBeInTheDocument();
+    await expect(canvas.getByText('Not a member')).toBeInTheDocument();
   },
 };
 

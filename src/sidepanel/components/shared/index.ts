@@ -34,6 +34,7 @@ export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as Skeleton } from './Skeleton';
 export { default as ListRow } from './ListRow';
 export { default as ListCountLine } from './ListCountLine';
+export { default as ListCountRow } from './ListCountRow';
 export { default as ScrollableList } from './ScrollableList';
 export { default as SearchDropdown } from './SearchDropdown';
 export { default as SelectionChips } from './SelectionChips';
@@ -63,6 +64,7 @@ export type { EntityLinkProps } from './EntityLink';
 export type { FilterToggleProps } from './FilterToggle';
 export type { EyebrowProps } from './Eyebrow';
 export type { ListCountLineProps } from './ListCountLine';
+export type { ListCountRowProps, ListCountRowSelection, SelectAllBoundary } from './ListCountRow';
 export type {
   RuleExpressionTextProps,
   RuleExpressionTone,

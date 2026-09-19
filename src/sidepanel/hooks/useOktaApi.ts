@@ -18,6 +18,7 @@ import { createPolicyOperations } from './useOktaApi/policyOperations';
 import { createExportEngineOperations } from './useOktaApi/exportEngine';
 import { createGroupAnalysisOperations } from './useOktaApi/groupAnalysis';
 import { createRuleImpactOperations } from './useOktaApi/ruleImpact';
+import { createQualificationSubjectOperations } from './useOktaApi/qualificationSubject';
 import { createRuleWriteOperations } from './useOktaApi/ruleWrites';
 
 export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: UseOktaApiOptions) {
@@ -128,6 +129,10 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
     [coreApi, groupMemberOps, oktaOrigin],
   );
   const ruleWriteOps = useMemo(() => createRuleWriteOperations(coreApi), [coreApi]);
+  const qualificationSubjectOps = useMemo(
+    () => createQualificationSubjectOperations(coreApi, profileOps.getUserRaw),
+    [coreApi, profileOps],
+  );
 
   const wrapOperation = useCallback(<A extends unknown[]>(fn: (...args: A) => Promise<void>) => {
     return async (...args: A) => {
@@ -178,6 +183,7 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
       getUserById: userOps.getUserById,
       getUserProfileSchema: profileOps.getUserProfileSchema,
       getUserRaw: profileOps.getUserRaw,
+      loadQualificationSubject: qualificationSubjectOps.loadQualificationSubject,
       updateUserProfile: profileOps.updateUserProfile,
       searchApps: appOps.searchApps,
       suspendUser: userOps.suspendUser,
@@ -231,6 +237,7 @@ export function useOktaApi({ targetTabId, oktaOrigin, onResult, onProgress }: Us
       groupAnalysisOps,
       ruleImpactOps,
       ruleWriteOps,
+      qualificationSubjectOps,
       removeDeprovisioned,
     ],
   );

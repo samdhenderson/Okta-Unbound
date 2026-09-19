@@ -43,6 +43,20 @@ describe('assertNoExcludedKeys', () => {
 });
 
 describe('getUserRaw', () => {
+  it('forwards a planId and reason override to the request', async () => {
+    const core = makeCore({
+      makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: validUser() }),
+    });
+    const { getUserRaw } = createProfileOperations(core);
+
+    await getUserRaw('00uFAKE1', { planId: 'plan-1', reason: 'Load user for rule check' });
+
+    expect(core.makeApiRequest).toHaveBeenCalledWith('/api/v1/users/00uFAKE1', {
+      reason: 'Load user for rule check',
+      planId: 'plan-1',
+    });
+  });
+
   it('returns the validated user for a well-formed payload', async () => {
     const core = makeCore({
       makeApiRequest: vi.fn().mockResolvedValue({ success: true, data: validUser() }),

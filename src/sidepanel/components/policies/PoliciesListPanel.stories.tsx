@@ -67,6 +67,12 @@ const meta = {
       description: "Every basket id of kind 'policy', including ones ticked elsewhere.",
     },
     onToggleSelect: { description: "Tick or untick one card's policy." },
+    allFilteredSelected: {
+      description:
+        'Whether every searched policy is already picked — passed as a fact, never derived from the two counts.',
+    },
+    onSelectAll: { description: 'Replaces the policy selection with every searched policy.' },
+    onDeselectAll: { description: 'Empties the policy partition.' },
   },
   args: {
     isLoading: false,
@@ -78,6 +84,9 @@ const meta = {
     totalCount: 3,
     selectedIds: new Set<string>(),
     onToggleSelect: fn(),
+    allFilteredSelected: false,
+    onSelectAll: fn(),
+    onDeselectAll: fn(),
   },
   beforeEach: () => {
     resetEntityCache();
@@ -141,4 +150,48 @@ export const NoSearchMatches: Story = {
 
 export const WithSelection: Story = {
   args: { selectedIds: new Set([samplePolicies[0].id]) },
+};
+
+export const AllSearchedPoliciesSelected: Story = {
+  args: {
+    selectedIds: new Set(samplePolicies.map((policy) => policy.id)),
+    allFilteredSelected: true,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const selectAll = canvas.getByRole('button', { name: 'Select all' });
+
+    await expect(selectAll).toBeDisabled();
+    await expect(selectAll).toHaveAccessibleDescription(
+      'All 3 policies matching the current search are already selected',
+    );
+    await expect(canvas.getByRole('button', { name: 'Deselect all' })).toBeEnabled();
+  },
+};
+
+export const SameSizeDifferentPolicies: Story = {
+  args: {
+    policies: [samplePolicies[0], samplePolicies[2]],
+    selectedIds: new Set([samplePolicies[1].id, samplePolicies[2].id]),
+    allFilteredSelected: false,
+  },
+  play: async ({ args, canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByTestId('policies-count-line')).toHaveTextContent(
+      'Showing 2 of 3 · 2 selected',
+    );
+
+    const selectAll = canvas.getByRole('button', { name: 'Select all' });
+    await expect(selectAll).toBeEnabled();
+    await expect(selectAll).toHaveAccessibleDescription(
+      'Replace the policy selection with the 2 policies matching the current search',
+    );
+
+    await userEvent.click(selectAll);
+    await expect(args.onSelectAll).toHaveBeenCalledTimes(1);
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Deselect all' }));
+    await expect(args.onDeselectAll).toHaveBeenCalledTimes(1);
+  },
 };

@@ -74,6 +74,13 @@ const meta = {
         'How many groups are selected — the `· N selected` half of the count line above the list, omitted entirely when zero.',
     },
     onToggleSelect: { description: 'Toggles selection for a group id.' },
+    onSelectAll: {
+      description:
+        'Ticks every group the current filter matches — wired to `Select all` on the count row.',
+    },
+    onDeselectAll: {
+      description: 'Clears the whole selection, including groups picked on another screen.',
+    },
     oktaOrigin: { description: 'Okta origin passed to each row for deep-linking.' },
     onLoadAllGroups: {
       description: 'Switches to cached mode by loading all groups (live empty-state action).',
@@ -98,6 +105,8 @@ const meta = {
     selectedGroupIds: new Set<string>(),
     selectedCount: 0,
     onToggleSelect: fn(),
+    onSelectAll: fn(),
+    onDeselectAll: fn(),
     oktaOrigin: 'https://example.okta.com',
     onLoadAllGroups: fn(),
     onClearFilters: fn(),
@@ -112,11 +121,53 @@ export const Default: Story = {};
 
 export const WithSelection: Story = {
   args: { selectedGroupIds: new Set([sampleGroups[0].id]), selectedCount: 1 },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByTestId('groups-count-line')).toHaveTextContent(
       'Showing 3 of 3 · 1 selected',
     );
+
+    const selectAll = canvas.getByRole('button', { name: 'Select all' });
+    await expect(selectAll).toBeEnabled();
+    await expect(selectAll).toHaveAccessibleDescription(
+      'Select every group the current filter matches',
+    );
+    await expect(canvas.getByRole('button', { name: 'Deselect all' })).toHaveAccessibleDescription(
+      'Clear every selected group, including any picked on another screen',
+    );
+
+    await userEvent.click(selectAll);
+    await expect(args.onSelectAll).toHaveBeenCalledTimes(1);
+    await userEvent.click(canvas.getByRole('button', { name: 'Deselect all' }));
+    await expect(args.onDeselectAll).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const AllSelected: Story = {
+  args: {
+    selectedGroupIds: new Set(sampleGroups.map((g) => g.id)),
+    selectedCount: sampleGroups.length,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    const selectAll = canvas.getByRole('button', { name: 'Select all' });
+    await expect(selectAll).toBeDisabled();
+    await expect(selectAll).toHaveAccessibleDescription(
+      'All 3 groups matching the filter are already selected',
+    );
+    await expect(canvas.getByRole('button', { name: 'Deselect all' })).toBeEnabled();
+  },
+};
+
+export const LiveResultsHaveNoSelectionControls: Story = {
+  args: { searchMode: 'live', liveSearchQuery: 'team', hasGroups: false },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByTestId('groups-count-line')).toHaveTextContent('Showing 3 of 3');
+    await expect(canvas.queryByRole('button', { name: 'Select all' })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Deselect all' })).not.toBeInTheDocument();
   },
 };
 

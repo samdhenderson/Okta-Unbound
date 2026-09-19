@@ -92,6 +92,7 @@ export function makeUseOktaApiValue(overrides: UseOktaApiValue = {}): UseOktaApi
     resetPassword: asyncFn(),
     getUserProfileSchema: asyncFn(null),
     getUserRaw: asyncFn(null),
+    loadQualificationSubject: asyncFn({ ok: false, reason: 'user-not-found' }),
     updateUserProfile: asyncFn({ outcome: 'saved' }),
 
     getAppById: asyncFn({ kind: 'missing' }),

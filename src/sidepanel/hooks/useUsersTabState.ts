@@ -15,6 +15,7 @@ import { useUserLifecycleActions } from './useUserLifecycleActions';
 import { useAddToGroup } from './useAddToGroup';
 import { useViewStack, type ViewStack } from './useViewStack';
 import { useUserDetailPanes, type UseUserDetailPanesReturn } from './useUserDetailPanes';
+import { useUserQualification, type UseUserQualificationReturn } from './useUserQualification';
 import { useUsersTabProfileEdit, type UserProfileEditing } from './useUsersTabProfileEdit';
 
 export interface UseUsersTabStateOptions {
@@ -65,6 +66,7 @@ export interface UseUsersTabStateReturn {
   lifecycle: ReturnType<typeof useUserLifecycleActions>;
   addToGroup: ReturnType<typeof useAddToGroup>;
   panes: UseUserDetailPanesReturn;
+  qualification: UseUserQualificationReturn;
   profileEdit: UserProfileEditing;
   applySelectedUserUpdate: (user: OktaUser) => void;
   confirmAddToGroup: () => Promise<void>;
@@ -285,6 +287,14 @@ export function useUsersTabState({
     enabled: isActive,
   });
 
+  const qualification = useUserQualification({
+    user: selectedUser,
+    memberships,
+    rules,
+    targetTabId: targetTabId ?? null,
+    enabled: isActive,
+  });
+
   const profileEdit = useUsersTabProfileEdit({
     user: selectedUser,
     attributes: panes.attributes,
@@ -333,6 +343,7 @@ export function useUsersTabState({
     lifecycle,
     addToGroup,
     panes,
+    qualification,
     profileEdit,
     applySelectedUserUpdate: setSelectedUser,
     confirmAddToGroup,

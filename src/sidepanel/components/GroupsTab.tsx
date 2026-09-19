@@ -315,15 +315,6 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
               search={searchRow}
               selectedCount={selectedGroupIds.size}
               filteredCount={filteredGroups.length}
-              onSelectAll={() => {
-                const outcome = selection.replaceSelection(filteredGroups.map((g) => g.id));
-                if (outcome.refused > 0) {
-                  setError(
-                    `Selecting ${outcome.refused} groups would take the selection past its limit, so nothing changed. Narrow the filter and try again.`,
-                  );
-                }
-              }}
-              onDeselectAll={selection.deselectAll}
               onCompare={() => setShowComparisonModal(true)}
               onExportSelection={handleExportSelection}
               onExportGroupsList={handleExportGroupsList}
@@ -382,6 +373,15 @@ const GroupsTab: React.FC<GroupsTabProps> = ({
             selectedGroupIds={selectedGroupIds}
             selectedCount={selectedGroupIds.size}
             onToggleSelect={selection.toggleSelect}
+            onSelectAll={() => {
+              const outcome = selection.replaceSelection(filteredGroups.map((g) => g.id));
+              if (outcome.refused > 0) {
+                setError(
+                  `Selecting ${outcome.refused} groups would take the selection past its limit, so nothing changed. Narrow the filter and try again.`,
+                );
+              }
+            }}
+            onDeselectAll={selection.deselectAll}
             oktaOrigin={oktaOrigin}
             onLoadAllGroups={() => void loadAllGroups()}
             onClearFilters={filters.clearFilters}

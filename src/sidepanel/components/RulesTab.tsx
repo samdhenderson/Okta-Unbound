@@ -440,11 +440,7 @@ const RulesTab: React.FC<RulesTabProps> = ({
           />
         )}
 
-        <RulesMetaRow
-          apiCost={data.apiCost}
-          lastFetchTime={data.lastFetchTime}
-          hasRules={rules.length > 0}
-        />
+        <RulesMetaRow apiCost={data.apiCost} />
 
         {error && (
           <AlertMessage
@@ -490,6 +486,8 @@ const RulesTab: React.FC<RulesTabProps> = ({
             onRequestDeactivate={() => handleRequestDeactivate(openRule.id)}
             onAddTargetGroup={() => consolidation.openAddTarget(openRule)}
             resolveGroupName={resolveRuleGroupName}
+            targetTabId={targetTabId ?? null}
+            isActive={isActive}
             sticky={isActive}
           />
         </div>

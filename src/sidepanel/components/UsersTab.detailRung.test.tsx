@@ -572,3 +572,40 @@ describe('detail rung: profile attributes are reachable and filterable', () => {
     expect(detail().queryByText('Title')).not.toBeInTheDocument();
   });
 });
+
+describe('detail rung: qualification checks', () => {
+  it('offers Check rule only once the inventory is available, then answers without a request', async () => {
+    const uev = userEvent.setup();
+    render(<UsersTab targetTabId={1} selectedUserId={ADA_ID} />);
+    await loadDetectedUser();
+
+    const checkRule = await detail().findByRole('button', { name: 'Check rule' });
+    const before = schedulerEndpoints().length;
+    await uev.click(checkRule);
+    await uev.click(await screen.findByRole('button', { name: /Engineering auto-assign/ }));
+
+    expect(await detail().findByText('Qualifies')).toBeInTheDocument();
+    expect(detail().getByText('Rule matches this user')).toBeInTheDocument();
+    expect(schedulerEndpoints().length).toBe(before);
+
+    await uev.click(detail().getByRole('button', { name: 'Clear' }));
+    expect(detail().queryByText('Qualifies')).not.toBeInTheDocument();
+  });
+
+  it('Check membership fetches only the group search and reports the feeding rule', async () => {
+    const uev = userEvent.setup();
+    route(/^\/api\/v1\/groups\?q=/, () => ({ success: true, data: [gRuleFed] }));
+    render(<UsersTab targetTabId={1} selectedUserId={ADA_ID} />);
+    await loadDetectedUser();
+
+    await uev.click(await detail().findByRole('button', { name: 'Check membership' }));
+    const before = schedulerEndpoints().length;
+    await uev.type(screen.getByPlaceholderText('Search groups...'), 'eng');
+    await uev.click(await screen.findByText('Engineering Staff', { selector: 'div' }));
+
+    expect(await detail().findByText(/An active rule qualifies this user/)).toBeInTheDocument();
+    const fetched = schedulerEndpoints().slice(before);
+    expect(fetched.every((e) => e.startsWith('/api/v1/groups?q='))).toBe(true);
+    expect(fetched.length).toBeGreaterThan(0);
+  });
+});

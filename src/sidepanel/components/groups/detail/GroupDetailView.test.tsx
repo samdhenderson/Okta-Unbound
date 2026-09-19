@@ -117,6 +117,37 @@ vi.mock('../../../hooks/useCreateFeedingRule', () => ({
   useCreateFeedingRule: () => createFeedingRule,
 }));
 
+const userCheck = vi.hoisted(() => ({
+  picker: {
+    isOpen: false,
+    open: vi.fn(),
+    close: vi.fn(),
+    query: '',
+    setQuery: vi.fn(),
+    results: [],
+    isSearching: false,
+    searchError: null,
+    pick: vi.fn(),
+  },
+  subject: { status: 'idle' } as { status: string; userId?: string },
+  check: { kind: 'none' },
+  openPicker: undefined as (() => void) | undefined,
+  clear: vi.fn(),
+}));
+
+vi.mock('../../../hooks/useGroupUserCheck', () => ({
+  useGroupUserCheck: (options: { targetTabId: number | null }) => ({
+    ...userCheck,
+    openPicker: options.targetTabId === null ? undefined : userCheck.picker.open,
+  }),
+}));
+vi.mock('./GroupUserCheckSection', () => ({
+  default: () => <div data-testid="stub-user-check" />,
+}));
+vi.mock('../../qualification/UserPickerModal', () => ({
+  default: () => null,
+}));
+
 vi.mock('./GroupOverviewPane', () => ({
   default: () => <div data-testid="stub-overview" />,
 }));
@@ -351,6 +382,37 @@ describe('GroupDetailView', () => {
 
     await user.click(screen.getByRole('button', { name: 'Create feeding rule' }));
     expect(createFeedingRule.open).toHaveBeenCalledTimes(1);
+  });
+
+  it("wires the action bar's Check membership to the user picker, and omits it without a tab", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+
+    await user.click(screen.getByRole('button', { name: 'Check membership' }));
+    expect(userCheck.picker.open).toHaveBeenCalledTimes(1);
+    unmount();
+
+    render(<GroupDetailView group={makeGroup()} targetTabId={null} />);
+    expect(screen.queryByRole('button', { name: 'Check membership' })).not.toBeInTheDocument();
+  });
+
+  it('mounts the user-check section above the tabs only while a subject is in scope, and keeps it across a tab switch', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+    expect(screen.queryByTestId('stub-user-check')).not.toBeInTheDocument();
+    unmount();
+
+    userCheck.subject = { status: 'loading', userId: '00uFAKEsubject' };
+    render(<GroupDetailView group={makeGroup()} targetTabId={1} />);
+    const section = screen.getByTestId('stub-user-check');
+    const tablist = screen.getByRole('tablist');
+    expect(
+      section.compareDocumentPosition(tablist) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole('tab', { name: 'Rules' }));
+    expect(screen.getByTestId('stub-user-check')).toBeInTheDocument();
+    userCheck.subject = { status: 'idle' };
   });
 
   it("wires the action bar's Compare button to the group picker", async () => {

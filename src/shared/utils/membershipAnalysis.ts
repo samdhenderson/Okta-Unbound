@@ -64,7 +64,19 @@ export function isUserExcluded(
   userId: string,
   groups: RuleGroupContext | undefined,
 ): boolean {
-  return isUserExcludedFromRule(rule, userId) || isUserExcludedByGroup(rule, groups);
+  return exclusionRouteOf(rule, userId, groups) !== 'none';
+}
+
+export type ExclusionRoute = 'none' | 'user' | 'group';
+
+export function exclusionRouteOf(
+  rule: MembershipRule,
+  userId: string,
+  groups: RuleGroupContext | undefined,
+): ExclusionRoute {
+  if (isUserExcludedFromRule(rule, userId)) return 'user';
+  if (isUserExcludedByGroup(rule, groups)) return 'group';
+  return 'none';
 }
 
 function scoreCandidateRules(rules: MembershipRule[], user: OktaUser): MembershipRule[] {

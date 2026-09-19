@@ -138,6 +138,13 @@ a modal that writes, and adding a member is reversible, so it stays in the row.
 **A fetch is never `primary`, on any rung, in any state.** So is a toggle that opens
 a read-only panel: revealing something to read is not acting.
 
+**A read-only _check_ that fetches a subject sits in the row and is never
+`primary`** — `RuleActionBar`'s _Evaluate user_, `GroupActionBar`'s _Check
+membership_. It reads and writes nothing, so it belongs beside the other read-only
+verbs; it costs requests, so its `title` names them; and with no Okta tab to serve
+them it is **omitted, never disabled**. Its answer is a `DetailSection` under the
+strip with its own Clear, not a modal and not a new rung (ADR-0010).
+
 Where that leaves an export is a **ranking**, not a ban:
 
 1. **An acting verb wins.** On a rung that has one, every export takes
@@ -154,9 +161,9 @@ Where that leaves an export is a **ranking**, not a ban:
 4. **A read-only rung may have no page verbs at all.** `actions` is then `[]`, and
    `ActionBar` draws **no action row** rather than a band of padding above nothing
    — an empty row is not a row. `AppsListActionBar` and `PoliciesListActionBar` are
-   both this shape: search as the `subRow`, selection furniture in the `register`,
-   nothing above either. The enumeration below is still owed, and is the only thing
-   separating "this rung has no page verb" from "nobody wired one".
+   both this shape, and they pass **no `register`** either: the band is the search
+   `subRow` and nothing else. The enumeration below is still owed, and is the only
+   thing separating "this rung has no page verb" from "nobody wired one".
 
 Rule 2 needs policing, because "this rung has no acting verb" is the easy thing to
 claim. **It is an enumeration, written as a comment above the descriptor array**:
@@ -177,20 +184,26 @@ open state.
 `primary` is emphasis. Position is ordering. Promoting a verb changes its fill and
 nothing about where it sits.
 
-**Where a strip's set of verbs varies with state, the leading position must hold a
+**Where a set of controls varies with state, the leading position must hold a
 control whose worst outcome is another click.** Ordering by weight alone puts a
 destructive verb (_Merge_ copies members into a survivor and empties the sources)
-under the pixel that a moment earlier was _Select all_. On a rung with a selection,
-position one is always a selection control: `Deselect all` leads the moment anything
-is ticked, `Select all` follows, and both are `pinned`. This holds on a register
-whose verbs are all harmless today — `AppsListActionBar` declares it with nothing
-in the register but the two controls — so that a verb added later has to be placed
-rather than appended.
+under the pixel that a moment earlier was _Select all_. The rule binds both
+surfaces a selection touches, and each keeps its own half of it:
 
-This is also why `Select all` is **disabled rather than omitted** once everything is
-taken. It is furniture, not a verb, and it holds position one whenever nothing is
-ticked; a control that vanished at its boundary would hand that position to whatever
-came next. The `title` names which boundary it is sitting on.
+- **On the rung's count row** — where the two selection controls now live — it is
+  what makes `Deselect all` the first control declared. It appears the moment
+  anything is ticked, and because the cluster is trailing it grows leftward, so
+  `Select all` does not move under the pointer that just ticked a row. See
+  `ListCountRow` in [list-controls.md](./list-controls.md).
+- **In the register** it is why a verb that changes state with no symmetric undo
+  starts in the tier rather than being appended to the row. Groups' leading
+  selection verb is _Compare_, which opens a modal; a verb added later has to be
+  placed rather than appended.
+
+`Select all` is **disabled rather than omitted** once everything is taken, for the
+same reason. It is furniture, not a verb, and it holds a position of its own; a
+control that vanished at its boundary would hand that position to whatever came
+next. The `title` names which boundary it is sitting on.
 
 ## The open panel says so in words
 
@@ -205,45 +218,66 @@ An open toggle takes `priority: 'pinned'`, set explicitly rather than as a side
 effect of `variant`: the control that **closes** a panel can never be the thing
 hiding behind **More** while the panel it toggles sits open below.
 
+A rung's **filter** panel is not one of these toggles and is not in the tier: its
+control is the `FilterToggle` in the search row the strip renders as its `subRow`,
+and the panel is a sibling rendered below the band. The contract is
+`FilterToggle`'s, in [list-controls.md](./list-controls.md).
+
 ## The selection register
 
-`register` is the strip's second measured row, for verbs whose object is what the
-reader has ticked. It renders on the band's own white surface, at the band's own
-`px-2`, one button size down (`xs` against the action row's `sm`) — no border, no
-rule, no divider, no wash.
+`register` is the strip's second measured row, for **verbs** whose object is what
+the reader has ticked — and for nothing else. It renders on the band's own white
+surface, at the band's own `px-2`, one button size down (`xs` against the action
+row's `sm`) — no border, no rule, no divider, no wash.
 
-**What separates the two families is the controls, not the surface.** Selection
-furniture — `Select all`, `Deselect all`: the things that say how to start and stop
-ticking — takes `variant: 'link'`. A verb that acts on the ticked rows (`Compare`)
-keeps `secondary`, however small. Never give the register a wash: a wash says _different_ but never _subordinate_, says nothing to
-a reader who cannot see it, and its inset stacks on the band's own. The band's left
-edge is one line, top to bottom, and a `link` keeps the vertical half of its size
-scale, so row height is unchanged.
+**Selection furniture is not a selection verb, and does not live here.** `Select
+all` and `Deselect all` say how to start and stop ticking rather than doing anything
+to what was ticked, and they stand on the rung's own count row — shared
+`ListCountRow`, directly above the rows, beside the figures they act on
+([list-controls.md](./list-controls.md)). That puts the control next
+to the number it changes and leaves the strip to the things that act on the
+selection. A verb in the register keeps `secondary`, however small; the furniture on
+the count row takes `variant: 'link'`, which keeps the vertical half of its size
+scale so the row's height is unchanged. Never give the register a wash: a wash says
+_different_ but never _subordinate_, says nothing to a reader who cannot see it, and
+its inset stacks on the band's own. The band's left edge is one line, top to bottom.
 
-**No label in the register carries a count.** How many rows the filter matched and
-how many are ticked are one fact each, stated once, by the rung's `ListCountLine`
-above the list — `Showing 50 of 128 · 3 selected`. A count in a label is a second
-copy of a number the reader can already see, free to disagree with it, and a label
-that grows a digit re-measures the row it sits in every time a checkbox is ticked.
-What a verb would act on goes in its `title`, which is also its accessible
-description. The rule is the rung's, not just the register's: the Applications
-toolbar used to carry its own _Showing X of Y_ two inches from the count line, and
-lost it for the same reason.
+**No label in the register carries a count** — and none on the count row does
+either. How many rows the filter matched and how many are ticked are one fact each,
+stated once, by the rung's `ListCountLine` inside that row — `Showing 50 of 128 · 3
+selected`. A count in a label is a second copy of a number the reader can already
+see, free to disagree with it, and a label that grows a digit re-measures the row it
+sits in every time a checkbox is ticked. What a control would act on goes in its
+`title`, which on an element with text content is its accessible _description_, not
+its name. The rule is the rung's, not the register's: the Applications toolbar used
+to carry its own _Showing X of Y_ two inches from the count line, and lost it for
+the same reason.
 
 The register is **ranged right**, against the action row's leading edge. With the
 counts gone it is a row of short controls with nothing anchoring it left, and two
-ragged-left rows read as one broken column.
+ragged-left rows read as one broken column. The count row's cluster is trailing for
+the same reason, and `ListCountLine` anchors that row's left edge.
 
 This does not touch the tier carve-out above, whose second condition **requires** the
 measured count in the label (`Set attribute on 47 members`). That verb writes to a
 cohort the reader cannot otherwise see the extent of, and the count is a safety
-property rather than a readout. A register control takes what is on screen, beside a
+property rather than a readout. A register verb takes what is on screen, beside a
 line that already says how much that is.
 
-**Pass it whenever the rung has a selection at all, not only once something is
-ticked.** The row holds its space in both states, so the first tick adds controls to
-a row that already exists instead of pushing the list down under the pointer that
-ticked it. It overflows independently against its own width, into the action row's
+**Pass it whenever the rung has a selection verb — then in every state, not only
+once something is ticked.** Groups is the shape: `Compare` appears at 2–5 ticked and
+`Export` in the tier, so the register is passed empty too, the row holds its space
+in both states, and the first tick adds controls to a row that already exists
+instead of pushing the list down under the pointer that ticked it.
+
+**A rung with a selection but no selection verb passes no `register` at all.**
+Applications and Auth Policies tick rows for the panel-wide basket and offer no verb
+of their own; with the furniture on the count row, a register there would be a
+reserved row holding space for nothing, which is padding, not protection. The row
+comes back in the same change that declares the first verb — both rungs' strips
+enumerate which verb that would be and what it is waiting on.
+
+The register overflows independently against its own width, into the action row's
 **one** tier behind the **one** More control. Its leading descriptor is the caller's
 to keep correct — `ActionBar` pins what it is given and never reorders.
 

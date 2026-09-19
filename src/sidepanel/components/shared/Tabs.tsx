@@ -115,7 +115,7 @@ const Tabs: React.FC<TabsProps> = ({
       {tabs.map((tab, index) => {
         const active = tab.key === activeKey;
 
-        const railClasses = `${TAB_BASE} shrink-0 rounded-md px-3 py-2.5 transition-colors duration-(--dur-instant) focus-visible:inset-ring-2 focus-visible:inset-ring-primary ${
+        const railClasses = `${TAB_BASE} shrink-0 rounded-md p-2.5 transition-colors duration-(--dur-instant) focus-visible:inset-ring-2 focus-visible:inset-ring-primary ${
           active
             ? 'text-primary-text font-semibold'
             : 'font-medium text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
@@ -174,8 +174,8 @@ const Tabs: React.FC<TabsProps> = ({
                     reducedMotion ? '' : 'delay-(--dur-move)'
                   } ${active ? 'grid-cols-[1fr]' : 'grid-cols-[0fr]'}`}
                 >
-                  <span className="min-w-0 overflow-hidden whitespace-nowrap ps-1.5">
-                    {tab.label}
+                  <span className="min-w-0 overflow-hidden whitespace-nowrap">
+                    <span className="ps-1.5">{tab.label}</span>
                   </span>
                 </span>
               </>

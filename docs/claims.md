@@ -205,6 +205,17 @@ does not hold" are different answers and an admin acts on them differently.
 **A membership states its source.** `membershipVerdict()` returns `Rule`,
 `Rule · N`, `Direct`, `App`, or `Unresolved`, each with `deduced` set truthfully.
 
+**A qualification verdict is never rendered from `RuleMatchResult` alone.**
+`RuleUserHeadline` is `'grants' | 'inactive-would-match' | 'does-not-match' |
+'excluded' | 'undetermined'`, with precedence excluded → undetermined →
+does-not-match → (active ? grants : inactive-would-match): the rule's status, its
+exclusion list and the user's existing memberships are facts the expression
+cannot carry, so they ride beside the condition verdict on `RuleUserVerdict`
+rather than being folded into it. `GroupUserVerdict` puts provenance first —
+`already-member`, `app-managed`, `inventory-unavailable`, `no-feeding-rule` —
+before `would-be-added`, `not-qualified`, `undetermined`. Both live in
+`shared/membership/qualificationTypes.ts` (ADR-0010).
+
 ## What may be asserted
 
 - **A membership's source**, when Okta's own provenance names it or the

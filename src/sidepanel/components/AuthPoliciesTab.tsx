@@ -127,11 +127,6 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
                   placeholder="Search policies by name or description…"
                 />
               }
-              selectedCount={selection.selectedIds.size}
-              filteredCount={filteredPolicies.length}
-              allFilteredSelected={allFilteredSelected}
-              onSelectAll={handleSelectAll}
-              onDeselectAll={selection.deselectAll}
             />
             {lastUpdatedLabel && (
               <p className="text-xs text-neutral-600">Last updated {lastUpdatedLabel}</p>
@@ -149,6 +144,9 @@ const AuthPoliciesTab: React.FC<AuthPoliciesTabProps> = ({
           loadRules={api.getPolicyRules}
           selectedIds={selection.selectedIds}
           onToggleSelect={selection.toggleSelect}
+          allFilteredSelected={allFilteredSelected}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={selection.deselectAll}
         />
       </div>
     </div>

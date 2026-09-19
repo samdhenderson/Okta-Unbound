@@ -4,6 +4,7 @@ export { default as UserSearchPanel } from './UserSearchPanel';
 export { default as UserDetailPanel } from './UserDetailPanel';
 export { default as UserRungHeader } from './UserRungHeader';
 export { default as UserActionBar } from './UserActionBar';
+export { default as UserQualificationSurface } from './UserQualificationSurface';
 export { default as UserAppsList } from './UserAppsList';
 export { default as UserProfilePane } from './UserProfilePane';
 export { default as ProfileDisplayEditor } from './ProfileDisplayEditor';

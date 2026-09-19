@@ -5,9 +5,12 @@ import {
   UserActionBar,
   UserComparisonPanel,
   UserDetailPanel,
+  UserQualificationSurface,
   UserRungHeader,
   UserSearchPanel,
 } from './users';
+import GroupPickerModal from './qualification/GroupPickerModal';
+import RulePickerModal from './qualification/RulePickerModal';
 import { useUsersTabState } from '../hooks/useUsersTabState';
 
 interface UsersTabProps {
@@ -41,6 +44,7 @@ const UsersTab: React.FC<UsersTabProps> = ({
     addToGroup,
     nav,
     panes,
+    qualification,
     isDetailOpen,
     isCompareOpen,
   } = state;
@@ -111,6 +115,8 @@ const UsersTab: React.FC<UsersTabProps> = ({
                 user={selectedUser}
                 onCompare={state.openCompare}
                 onAddToGroup={addToGroup.openModal}
+                onCheckRule={qualification.openRulePicker}
+                onWhyNotMember={qualification.openGroupPicker}
                 isLoadingMemberships={state.isLoadingMemberships}
                 tierOpen={manageOpen}
                 onTierOpenChange={setManageOpen}
@@ -122,6 +128,15 @@ const UsersTab: React.FC<UsersTabProps> = ({
                 tempPassword={lifecycle.tempPassword}
                 onDismissTempPassword={lifecycle.clearTempPassword}
               />
+
+              {qualification.check.kind !== 'none' && (
+                <UserQualificationSurface
+                  check={qualification.check}
+                  user={selectedUser}
+                  memberships={memberships}
+                  onClear={qualification.clear}
+                />
+              )}
 
               <UserDetailPanel
                 user={selectedUser}
@@ -170,6 +185,18 @@ const UsersTab: React.FC<UsersTabProps> = ({
           </>
         )}
       </div>
+
+      <RulePickerModal
+        isOpen={qualification.rulePicker.isOpen}
+        onClose={qualification.rulePicker.close}
+        rules={qualification.rulePicker.rules}
+        onPick={qualification.pickRule}
+      />
+      <GroupPickerModal
+        picker={qualification.groupPicker}
+        title="Check membership"
+        hint="Pick a group; every rule feeding it is assessed against this user."
+      />
 
       <AddToGroupModal
         isOpen={addToGroup.isOpen}

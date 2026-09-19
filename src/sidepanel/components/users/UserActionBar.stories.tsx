@@ -28,7 +28,10 @@ const meta = {
           'region and owns that region’s `aria-controls` target, which is why there is no ' +
           'disclosure button in this component’s source. Gating follows status — Suspend for ' +
           '`ACTIVE`, Unsuspend for `SUSPENDED`, and a notice instead of the band for ' +
-          '`DEPROVISIONED`.',
+          '`DEPROVISIONED`.\n\n' +
+          '*Check rule* and *Check membership* are zero-request checks over the user the rung ' +
+          'already holds; each is offered only when wired (the inventory, a tab) and omitted ' +
+          'otherwise (ADR-0010).',
       },
     },
   },
@@ -36,6 +39,8 @@ const meta = {
     user: user(),
     onCompare: fn(),
     onAddToGroup: fn(),
+    onCheckRule: fn(),
+    onWhyNotMember: fn(),
     isLoadingMemberships: false,
     tierOpen: false,
     onTierOpenChange: fn(),
@@ -50,6 +55,10 @@ const meta = {
     user: { description: 'The user every verb in the strip acts on.' },
     onCompare: { description: 'Opens the comparison rung.' },
     onAddToGroup: { description: 'Opens the Add-to-Group modal.' },
+    onCheckRule: {
+      description: 'Opens the rule picker. Omitted until the inventory is available.',
+    },
+    onWhyNotMember: { description: 'Opens the group picker. Omitted with no tab.' },
     isLoadingMemberships: {
       description: 'True while memberships load — both row verbs need them, so both disable.',
     },
@@ -72,6 +81,27 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
+
+export const QualificationChecks: Story = {
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole('button', { name: 'Check rule' }));
+    await expect(args.onCheckRule).toHaveBeenCalledTimes(1);
+    await userEvent.click(canvas.getByRole('button', { name: 'Check membership' }));
+    await expect(args.onWhyNotMember).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const ChecksNotWired: Story = {
+  args: { onCheckRule: undefined, onWhyNotMember: undefined },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.queryByRole('button', { name: 'Check rule' })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole('button', { name: 'Check membership' }),
+    ).not.toBeInTheDocument();
+  },
+};
 
 export const LoadingMemberships: Story = {
   args: { isLoadingMemberships: true },

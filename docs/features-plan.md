@@ -77,6 +77,7 @@ The two primitives worth building **once** and reusing across C/D:
 | F. OEL Sandbox (full)                  | H      | Med      | Parked (interpreter now exists)  |
 | G. Policy Migrator                     | XL     | Med      | Rejected (single-tenant block)   |
 | H. Clause-level rule explainer         | S–M    | High     | `[x]` **Shipped**                |
+| I. Qualification check                 | M      | High     | `[x]` **Shipped**                |
 
 ---
 
@@ -120,11 +121,21 @@ rule targets + exclusions and labeled as such inline.
 not a flat clause list — an `&&`/`||` group is a node with its own Kleene verdict and
 `decidedByChildIndices`, not a leaf carrying "alternatives". The shared `ClauseLedger`
 family (`docs/components.md`) renders it; `MembershipRuleEvidence` and the comparison
-surfaces are the adopters. `rules/RuleDetailView.tsx` is **not** one — it still renders
-its condition as flat text, which is the open half of this item. Group-membership functions, including
+surfaces are the adopters, and so is `rules/RuleDetailView.tsx` once a subject is in
+scope (item I). Group-membership functions, including
 `isMemberOfGroupNameRegex`, resolve once a caller supplies the user's complete group
 list (ADR-0001, ADR-0002); a clause the evaluator still cannot resolve renders
 `not-evaluated` with a reason code, never a fail.
+
+**I. Qualification check** `[x]` — _"would this user qualify?"_ One engine
+(`shared/membership/qualification.ts` over the lifted `ruleAssessment.ts`), one
+subject path (`loadQualificationSubject`: the validated user plus their complete
+group list as one two-leg plan), two reports (`qualification/RuleUserReport`,
+`GroupUserReport`), four entry points: the rule rung's _Evaluate user_ (2 requests),
+the user rung's _Check rule_ (0) and _Check membership_ (0 beyond the group
+search), the group rung's _Check membership_ (2). The verdict is a full
+qualification — condition, exclusion list, rule status, already-member per target —
+never the condition alone (ADR-0010, `docs/claims.md`).
 
 ---
 

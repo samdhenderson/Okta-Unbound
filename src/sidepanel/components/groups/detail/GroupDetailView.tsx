@@ -11,6 +11,9 @@ import { toMemberSourceContext } from '../../members/memberSourceContext';
 import VerbRunner from '../../selection/run/VerbRunner';
 import { useGroupCohortVerb } from './useGroupCohortVerb';
 import GroupActionBar from './GroupActionBar';
+import GroupUserCheckSection from './GroupUserCheckSection';
+import UserPickerModal from '../../qualification/UserPickerModal';
+import { useGroupUserCheck } from '../../../hooks/useGroupUserCheck';
 import AddGroupMemberModal from './AddGroupMemberModal';
 import CompareGroupModal from './CompareGroupModal';
 import CreateFeedingRuleModal from './CreateFeedingRuleModal';
@@ -222,6 +225,14 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
     analyzeMembers();
   });
 
+  const userCheck = useGroupUserCheck({
+    group,
+    feedingRules: source.feedingRules,
+    rulesStatus: source.rulesStatus,
+    targetTabId,
+    enabled: isActive,
+  });
+
   return (
     <>
       <div className="space-y-(--sp-rung)" data-testid="group-detail-view">
@@ -231,6 +242,7 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
           onExportGroup={onExportGroup}
           onAddMember={openAddMemberModal}
           onCompare={comparison.openPicker}
+          onWhyNotMember={userCheck.openPicker}
           deprovisionedCount={deprovisionedCount}
           onRemoveDeprovisioned={removeDeprovisioned.run}
           isRemoving={removeDeprovisioned.isRemoving}
@@ -239,6 +251,16 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
           onSetProfileAttribute={cohortVerb.start}
           onCreateFeedingRule={createFeedingRule.open}
         />
+
+        {userCheck.subject.status !== 'idle' && (
+          <GroupUserCheckSection
+            subject={userCheck.subject}
+            check={userCheck.check}
+            groupName={group.name}
+            resolveGroupName={resolveRuleGroupName}
+            onClear={userCheck.clear}
+          />
+        )}
 
         <div>
           <Tabs
@@ -412,6 +434,12 @@ const GroupDetailView: React.FC<GroupDetailViewProps> = ({
       />
 
       <VerbRunner run={cohortVerb.run} basket={cohortVerb.basket} />
+
+      <UserPickerModal
+        picker={userCheck.picker}
+        title="Check membership"
+        hint="Reads the user and their groups — two requests, writes nothing."
+      />
 
       <GroupComparisonModal
         isOpen={comparison.comparedWith !== null}
