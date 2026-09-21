@@ -8,6 +8,7 @@ import TabPanel from './components/TabPanel';
 import CommandPalette from './components/CommandPalette';
 import { useCommandPalette } from './hooks/useCommandPalette';
 import { migrateLegacyTabId, type TabType } from './tabs';
+import { FEATURE_FLAGS } from './featureFlags';
 import HomeTab from './components/HomeTab';
 import type { ExportRequest } from './components/export';
 import type { GroupDetailTab } from './components/groups/detail/GroupDetailView';
@@ -367,14 +368,15 @@ const App: React.FC = () => {
                   onExportRequestConsumed={() => setExportRequest(null)}
                 />
               ))}
-              {renderTabPanel('explorer', (isActive) => (
-                <ApiExplorerTab
-                  isActive={isActive}
-                  targetTabId={tabContext.targetTabId ?? null}
-                  oktaOrigin={tabContext.oktaOrigin ?? undefined}
-                  tabEntity={tabEntity}
-                />
-              ))}
+              {FEATURE_FLAGS.explorer &&
+                renderTabPanel('explorer', (isActive) => (
+                  <ApiExplorerTab
+                    isActive={isActive}
+                    targetTabId={tabContext.targetTabId ?? null}
+                    oktaOrigin={tabContext.oktaOrigin ?? undefined}
+                    tabEntity={tabEntity}
+                  />
+                ))}
               {renderTabPanel('history', (isActive) => (
                 <div
                   className="tab-content active"

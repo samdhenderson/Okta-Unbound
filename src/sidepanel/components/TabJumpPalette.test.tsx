@@ -70,9 +70,8 @@ describe('TabJumpPalette', () => {
       await userEvent.type(field(), 'OR');
 
       expect(row('Export')).toBeInTheDocument();
-      expect(row('Explorer')).toBeInTheDocument();
       expect(row('History')).toBeInTheDocument();
-      expect(rows()).toHaveLength(3);
+      expect(rows()).toHaveLength(2);
       expect(screen.queryByRole('button', { name: /^Overview/ })).toBeNull();
     });
 

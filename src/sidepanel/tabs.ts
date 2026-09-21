@@ -1,4 +1,5 @@
 import type { IconType } from './components/shared/Icon';
+import { FEATURE_FLAGS } from './featureFlags';
 
 export type TabType =
   | 'home'
@@ -19,7 +20,7 @@ export interface TabDef {
   railHidden?: true;
 }
 
-export const TAB_DEFS: ReadonlyArray<TabDef> = [
+const ALL_TAB_DEFS: ReadonlyArray<TabDef> = [
   { id: 'home', label: 'Home', icon: 'home' },
   { id: 'users', label: 'Users', icon: 'user' },
   { id: 'groups', label: 'Groups', icon: 'users' },
@@ -31,6 +32,12 @@ export const TAB_DEFS: ReadonlyArray<TabDef> = [
   { id: 'history', label: 'History', icon: 'clipboard', railHidden: true },
   { id: 'selection', label: 'Selection', icon: 'clipboard-check', railHidden: true },
 ];
+
+const FLAGGED_OFF: ReadonlySet<TabType> = new Set(FEATURE_FLAGS.explorer ? [] : ['explorer']);
+
+export const TAB_DEFS: ReadonlyArray<TabDef> = ALL_TAB_DEFS.filter(
+  (def) => !FLAGGED_OFF.has(def.id),
+);
 
 export const RAIL_TAB_DEFS: ReadonlyArray<TabDef> = TAB_DEFS.filter((def) => !def.railHidden);
 

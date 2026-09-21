@@ -46,10 +46,10 @@ describe('TabNavigation ⌘K affordance', () => {
   it('reaches a section the rail has no seat for', async () => {
     render(<Shell />);
 
-    expect(screen.queryByRole('tab', { name: 'Explorer' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'History' })).toBeNull();
 
     await userEvent.click(shortcutButton());
-    await userEvent.click(await screen.findByRole('button', { name: /^Explorer/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /^History/ }));
 
     expect(screen.queryByRole('dialog')).toBeNull();
     for (const tab of screen.getAllByRole('tab')) {

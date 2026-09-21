@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertMessage, Badge, Button, EmptyState, JsonViewer, PageHeader, Tabs } from './shared';
+import { FEATURE_FLAGS } from '../featureFlags';
 import { useApiExplorer } from '../hooks/useApiExplorer';
 import PathCombobox from './explorer/PathCombobox';
 import SamlTracer from './explorer/SamlTracer';
@@ -56,17 +57,19 @@ const ApiExplorerTab: React.FC<ApiExplorerTabProps> = ({
       />
 
       <div className="max-w-7xl mx-auto px-(--sp-gutter) py-(--sp-gutter) space-y-(--sp-rung)">
-        <Tabs
-          ariaLabel="Explorer panes"
-          activeKey={pane}
-          onChange={(key) => setPane(key as 'request' | 'saml')}
-          tabs={[
-            { key: 'request', label: 'Request' },
-            { key: 'saml', label: 'SAML' },
-          ]}
-        />
+        {FEATURE_FLAGS.samlTracer && (
+          <Tabs
+            ariaLabel="Explorer panes"
+            activeKey={pane}
+            onChange={(key) => setPane(key as 'request' | 'saml')}
+            tabs={[
+              { key: 'request', label: 'Request' },
+              { key: 'saml', label: 'SAML' },
+            ]}
+          />
+        )}
 
-        {pane === 'saml' && (
+        {FEATURE_FLAGS.samlTracer && pane === 'saml' && (
           <SamlTracer isActive={isActive} targetTabId={targetTabId} oktaOrigin={oktaOrigin} />
         )}
 

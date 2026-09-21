@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { FEATURE_FLAGS } from './featureFlags';
 import { RAIL_TAB_DEFS, TAB_DEFS, migrateLegacyTabId, type TabType } from './tabs';
+
+const EXPLORER: TabType[] = FEATURE_FLAGS.explorer ? ['explorer'] : [];
 
 describe('migrateLegacyTabId', () => {
   it.each<[string, TabType]>([
@@ -45,17 +48,23 @@ describe('RAIL_TAB_DEFS', () => {
     const railIds = RAIL_TAB_DEFS.map((def) => def.id);
     const hidden = TAB_DEFS.filter((def) => def.railHidden).map((def) => def.id);
 
-    expect(hidden).toEqual(['explorer', 'history', 'selection']);
+    expect(hidden).toEqual([...EXPLORER, 'history', 'selection']);
     for (const id of hidden) {
       expect(railIds).not.toContain(id);
     }
   });
 
   it('leaves a rail-hidden section a real, restorable tab', () => {
-    for (const id of ['explorer', 'history'] as TabType[]) {
+    for (const id of [...EXPLORER, 'history'] as TabType[]) {
       expect(TAB_DEFS.some((def) => def.id === id)).toBe(true);
       expect(migrateLegacyTabId(id)).toBe(id);
     }
     expect(migrateLegacyTabId('undo')).toBe('history');
+  });
+
+  it('withholds a flagged-off section from the registry and the restore path', () => {
+    if (FEATURE_FLAGS.explorer) return;
+    expect(TAB_DEFS.some((def) => def.id === 'explorer')).toBe(false);
+    expect(migrateLegacyTabId('explorer')).toBe('home');
   });
 });
