@@ -23,7 +23,7 @@ vi.mock('@/shared/storage/auditStore', () => ({
 const mockedDownloadCSV = vi.mocked(downloadCSV);
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const WALK_AT = Date.parse('2026-08-20T00:00:00.000Z');
+const WALK_AT = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
 function collection(
   rows: unknown[],
