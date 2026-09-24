@@ -36,6 +36,7 @@ the same routing `CLAUDE.md` enforces, to keep context lean.
 | [ux-guidelines.md](./ux-guidelines.md)               | Working on modals, a11y, or loading/empty/error states                    |
 | [motion.md](./motion.md)                             | Touching durations, easings, primitives, or reduced motion                |
 | [motion-recipes.md](./motion-recipes.md)             | Building a scroll-driven or multi-band choreography                       |
+| [guide.md](./guide.md)                               | Adding or changing a user-guide chapter, or the first-run welcome         |
 
 ## Working on the repo
 

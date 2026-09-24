@@ -150,8 +150,10 @@ describe('useTabRail', () => {
     expect(result.current.indicator).toEqual({ left: 128, width: 96 });
   });
 
+  const CLIPPED = { clientWidth: 200, scrollLeft: 0, activeLeft: 300, activeWidth: 96 };
+
   it('scrolls the active tab into view without disturbing the vertical scroller', () => {
-    const { list, active } = makeStrip();
+    const { list, active } = makeStrip(CLIPPED);
     renderRail(list);
     expect(active.scrollIntoView).toHaveBeenCalledWith({
       inline: 'nearest',
@@ -160,8 +162,14 @@ describe('useTabRail', () => {
     });
   });
 
+  it('leaves the page alone when the active tab is already in view', () => {
+    const { list, active } = makeStrip({ clientWidth: 200, activeLeft: 40, activeWidth: 96 });
+    renderRail(list);
+    expect(active.scrollIntoView).not.toHaveBeenCalled();
+  });
+
   it('jumps instead of animating when reduced motion is requested', () => {
-    const { list, active } = makeStrip();
+    const { list, active } = makeStrip(CLIPPED);
     renderRail(list, { reducedMotion: true });
     expect(active.scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ behavior: 'auto' }),
@@ -169,7 +177,7 @@ describe('useTabRail', () => {
   });
 
   it('re-scrolls when the active tab changes', () => {
-    const { list, active } = makeStrip();
+    const { list, active } = makeStrip(CLIPPED);
     const { rerender } = renderRail(list);
     expect(active.scrollIntoView).toHaveBeenCalledTimes(1);
     act(() => rerender({ activeKey: 'export' }));

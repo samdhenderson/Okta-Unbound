@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from './App';
 import { ProgressProvider } from './contexts/ProgressContext';
+import { WELCOME_SEEN_STORAGE_KEY } from '../shared/storage/welcomeStore';
 
 const ORIGIN = 'https://example.okta.com';
 
@@ -56,7 +57,11 @@ const OKTA_TAB = {
 
 const runtimeSendMessage = vi.fn();
 const tabsSendMessage = vi.fn();
-const storageGet = vi.fn();
+const storageGet = vi.fn((keys: unknown) =>
+  keys === WELCOME_SEEN_STORAGE_KEY
+    ? Promise.resolve({ [WELCOME_SEEN_STORAGE_KEY]: true })
+    : undefined,
+);
 const storageSet = vi.fn();
 const storageRemove = vi.fn();
 
@@ -159,7 +164,7 @@ const renderApp = () =>
 
 async function openTab(uev: ReturnType<typeof userEvent.setup>, label: string) {
   await uev.click(
-    within(screen.getByRole('tablist', { name: 'Main sections' })).getByRole('tab', {
+    within(await screen.findByRole('tablist', { name: 'Main sections' })).getByRole('tab', {
       name: label,
     }),
   );
@@ -290,17 +295,25 @@ describe('App tab lifetime', () => {
     expect(screen.getByLabelText('Select Engineering')).toBeChecked();
   });
 
+  const BOOT_READS = { groups: 2, rules: 1, apps: 1 };
+
+  const readsOf = (name: string) => collectionReads.filter((read) => read === name).length;
+
+  const bootReadsLanded = async () => {
+    await waitFor(() => {
+      for (const [name, count] of Object.entries(BOOT_READS)) {
+        expect(readsOf(name)).toBe(count);
+      }
+    });
+  };
+
   it('leaves the first tab mounted and does not re-run the Groups cache read on return', async () => {
     const uev = userEvent.setup();
     renderApp();
 
-    const groupReads = () => collectionReads.filter((name) => name === 'groups').length;
+    const groupReads = () => readsOf('groups');
 
-    await waitFor(() => {
-      expect(collectionReads).toContain('rules');
-      expect(collectionReads).toContain('apps');
-      expect(collectionReads).toContain('groups');
-    });
+    await bootReadsLanded();
     const beforeGroups = groupReads();
 
     await openTab(uev, 'Groups');

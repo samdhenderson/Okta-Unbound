@@ -10,8 +10,16 @@ import { reinjectContentScripts } from './reinjectContentScripts';
 import { syncSnapshot } from './snapshotBridge';
 import { ensureRateLimitThreshold } from './rateLimitThreshold';
 import { startSnapshotScheduler } from './snapshotScheduler';
+import { crossesMinorVersion } from './guideOnUpdate';
+import { openGuide, type GuideEntryChapter } from '../shared/guide';
 
 const log = createLogger('Background');
+
+function openGuideInBackground(chapter: GuideEntryChapter): void {
+  openGuide(chapter).catch((error) => {
+    log.error(`Opening the guide at ${chapter} failed`, error);
+  });
+}
 
 log.info('Service worker started');
 
@@ -394,10 +402,10 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.sync.set({
       version,
       operationDelay: 100,
-      defaultView: 'home',
     });
 
     setupAuditRetentionAlarm();
+    openGuideInBackground('welcome');
   }
 
   if (details.reason === 'update') {
@@ -405,6 +413,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     log.info(`Extension updated from ${previousVersion} to ${version}`);
 
     setupAuditRetentionAlarm();
+    if (crossesMinorVersion(previousVersion, version)) {
+      openGuideInBackground('roadmap');
+    }
   }
 
   if (details.reason === 'install' || details.reason === 'update') {

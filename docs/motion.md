@@ -160,6 +160,18 @@ shimmer surface behind loading placeholders — categorically different from the
 nine above (a continuous loop, not a one-shot transition), so it isn't counted
 among them.
 
+The user guide has the one **clock-driven** piece in the codebase: the overture's
+title card ([`src/guide/show/KeysTitle.tsx`](../src/guide/show/KeysTitle.tsx)), a
+rolling logo sampled every frame. It does not break the rule above. Its clock's
+unit is `--dur-tell`, read from computed style, and its scene lengths are whole
+multiples of one, so it is timed by this scale like everything else. Its five
+easing curves come from the design handoff and are **not** the `--ease-*` tokens:
+they are numeric analogues named for the role each stands in for, the same
+licence `useCountUp`'s `easeOut` takes, and the reason is that a roll has to read
+as one physical object, which needs curves that pair. The frame loop runs only
+while the card is in view, and every no-motion path lands on the settled logo at
+once. See [guide.md](./guide.md#the-title-card).
+
 `.dock-band` is the panel's only **progress-driven** animation — it advances with
 scroll position rather than a clock, so no duration token applies to it and the
 reduced-motion block below cannot reach it. It has its own page,

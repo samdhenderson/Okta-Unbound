@@ -14,4 +14,9 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  build: {
+    rollupOptions: {
+      input: { guide: 'src/guide/index.html' },
+    },
+  },
 });

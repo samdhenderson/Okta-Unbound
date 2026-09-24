@@ -3,6 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'node:url';
 import type { PluginOption } from 'vite';
 
+const toList = (entries: string | string[] | undefined): string[] | undefined =>
+  entries === undefined ? undefined : Array.isArray(entries) ? entries : [entries];
+
 const configDir =
   typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
@@ -61,6 +64,11 @@ const config: StorybookConfig = {
     };
 
     viteConfig.optimizeDeps = viteConfig.optimizeDeps ?? {};
+    viteConfig.optimizeDeps.entries = [
+      ...(toList(viteConfig.optimizeDeps.entries) ?? []),
+      path.resolve(configDir, 'preview.tsx'),
+      path.resolve(configDir, '../src/**/*.stories.@(ts|tsx)'),
+    ];
     viteConfig.optimizeDeps.include = [
       ...(viteConfig.optimizeDeps.include ?? []),
       'zod',

@@ -4,6 +4,7 @@
     "src/background/index.ts!",
     "src/content/index.ts!",
     "src/sidepanel/main.tsx!",
+    "src/guide/main.tsx!",
     "src/sidepanel/export/descriptors/*.ts!"
   ],
   "project": ["src/**/*.{ts,tsx}"],

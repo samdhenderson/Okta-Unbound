@@ -32,8 +32,16 @@ interface TabJumpPaletteProps {
   onEntitySelect?: (result: JumpResult) => void;
   canReach?: (kind: JumpKind) => boolean;
   sectionMeta?: Partial<Record<JumpKind, SectionMeta>>;
+  commands?: ReadonlyArray<CommandRow>;
   oktaOrigin?: string | null;
   entityMinChars?: number;
+}
+
+export interface CommandRow {
+  id: string;
+  label: string;
+  icon: IconType;
+  run: () => void;
 }
 
 interface SectionRow {
@@ -44,7 +52,10 @@ interface SectionRow {
 
 type FlatRow =
   | { type: 'section'; row: SectionRow }
-  | { type: 'entity'; row: JumpResult; heading: string | null };
+  | { type: 'entity'; row: JumpResult; heading: string | null }
+  | { type: 'command'; row: CommandRow; heading: string | null };
+
+const COMMANDS_HEADING = 'Commands';
 
 function provenanceMark(meta: SectionMeta | undefined): string | null {
   if (!meta) return null;
@@ -64,6 +75,7 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
   onEntitySelect,
   canReach,
   sectionMeta,
+  commands,
   oktaOrigin,
   entityMinChars = 3,
 }) => {
@@ -76,27 +88,38 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
   const searchesEntities = onEntityQueryChange !== undefined;
   const isSearching = entityMode === 'searching' || entityMode === 'resolving';
 
+  const needle = query.trim().toLowerCase();
+
   const sectionRows = useMemo<SectionRow[]>(() => {
-    const needle = query.trim().toLowerCase();
     const all = TAB_DEFS.map(({ id, label, icon }) => ({ id, label, icon }));
     if (!needle) return all;
     return all.filter((result) => result.label.toLowerCase().includes(needle));
-  }, [query]);
+  }, [needle]);
+
+  const commandRows = useMemo<ReadonlyArray<CommandRow>>(() => {
+    if (!commands) return [];
+    if (!needle) return commands;
+    return commands.filter((command) => command.label.toLowerCase().includes(needle));
+  }, [commands, needle]);
 
   const showEntities =
     (entityResults?.length ?? 0) > 0 && (entityMode === 'results' || isSearching);
 
   const flatRows = useMemo<FlatRow[]>(() => {
     const rows: FlatRow[] = sectionRows.map((row) => ({ type: 'section' as const, row }));
-    if (!showEntities || !entityResults) return rows;
-    for (const { kind, heading } of SECTION_ORDER) {
-      const forKind = entityResults.filter((result) => result.kind === kind);
-      forKind.forEach((row, index) => {
-        rows.push({ type: 'entity', row, heading: index === 0 ? heading : null });
-      });
+    if (showEntities && entityResults) {
+      for (const { kind, heading } of SECTION_ORDER) {
+        const forKind = entityResults.filter((result) => result.kind === kind);
+        forKind.forEach((row, index) => {
+          rows.push({ type: 'entity', row, heading: index === 0 ? heading : null });
+        });
+      }
     }
+    commandRows.forEach((row, index) => {
+      rows.push({ type: 'command', row, heading: index === 0 ? COMMANDS_HEADING : null });
+    });
     return rows;
-  }, [sectionRows, entityResults, showEntities]);
+  }, [sectionRows, entityResults, showEntities, commandRows]);
 
   if (prevOpen !== isOpen) {
     setPrevOpen(isOpen);
@@ -128,12 +151,21 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
     [onEntitySelect, onClose],
   );
 
+  const handleCommand = useCallback(
+    (command: CommandRow) => {
+      command.run();
+      onClose();
+    },
+    [onClose],
+  );
+
   const activateRow = useCallback(
     (entry: FlatRow) => {
       if (entry.type === 'section') handleSelect(entry.row.id);
+      else if (entry.type === 'command') handleCommand(entry.row);
       else handleEntitySelect(entry.row);
     },
-    [handleSelect, handleEntitySelect],
+    [handleSelect, handleEntitySelect, handleCommand],
   );
 
   const focusRow = useCallback(
@@ -185,7 +217,7 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
     }
   };
 
-  const entityCount = showEntities ? flatRows.length - sectionRows.length : 0;
+  const entityCount = showEntities ? flatRows.length - sectionRows.length - commandRows.length : 0;
   const trimmedLength = query.trim().length;
   const belowFloor = searchesEntities && trimmedLength > 0 && trimmedLength < entityMinChars;
   const foundNothing =
@@ -210,6 +242,8 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
       <p role="status" className="sr-only">
         {sectionRows.length} {sectionRows.length === 1 ? 'section' : 'sections'} available
         {entityCount > 0 && `, ${entityCount} ${entityCount === 1 ? 'result' : 'results'}`}
+        {commandRows.length > 0 &&
+          `, ${commandRows.length} ${commandRows.length === 1 ? 'command' : 'commands'}`}
         {isSearching && ', searching'}
         {entityError && ', search failed'}
       </p>
@@ -252,6 +286,28 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
               );
             }
 
+            if (entry.type === 'command') {
+              return (
+                <React.Fragment key={`command:${entry.row.id}`}>
+                  {entry.heading && (
+                    <li className="mt-3 mb-1 px-(--sp-row-x) text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                      {entry.heading}
+                    </li>
+                  )}
+                  <li>
+                    <PaletteRow
+                      icon={entry.row.icon}
+                      label={entry.row.label}
+                      tabIndex={tabIndex}
+                      rowRef={rowRef}
+                      onClick={() => handleCommand(entry.row)}
+                      onKeyDown={(event) => handleRowKeyDown(event, index)}
+                    />
+                  </li>
+                </React.Fragment>
+              );
+            }
+
             const { row, heading } = entry;
             const reachable = canReach?.(row.kind) ?? false;
             const oktaTarget = oktaAdminTargetFor(row);
@@ -283,9 +339,9 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
                     onKeyDown={(event) => handleRowKeyDown(event, index)}
                     ariaLabel={
                       reachable
-                        ? `${row.name} — open in ${destinationLabel(row.kind)}`
+                        ? `${row.name}, open in ${destinationLabel(row.kind)}`
                         : href
-                          ? `${row.name} — open in Okta`
+                          ? `${row.name}, open in Okta`
                           : undefined
                     }
                   />
@@ -298,7 +354,8 @@ const TabJumpPalette: React.FC<TabJumpPaletteProps> = ({
 
       {belowFloor && (
         <p className="mt-3 text-xs text-neutral-500">
-          Type {entityMinChars} characters to search the org.
+          Type {entityMinChars} {entityMinChars === 1 ? 'character' : 'characters'} to search the
+          org.
         </p>
       )}
       {foundNothing && (

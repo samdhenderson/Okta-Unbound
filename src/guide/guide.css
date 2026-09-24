@@ -1,0 +1,623 @@
+/*
+ * Page layout and choreography for the user guide. Tokens only: colours come
+ * from the shared theme in `sidepanel/tailwind.css`, which this file sits
+ * alongside in the page's `<head>`; every duration and easing below is a motion
+ * token or a fraction of one. Nothing here writes a raw millisecond.
+ *
+ * The frame width is a deliberate 440px: the panel's floor is 360px, but most
+ * readers run it wider, and a frame at the floor would show the product at its
+ * most cramped.
+ *
+ * Two kinds of motion live here. The page's own arrival (dock, headline, stage,
+ * scenes) is one orchestrated sequence per chapter. A show's beats are the
+ * other: pieces landing, a frame tilting in, a value wiping across. Both fill
+ * `backwards`, never `forwards`: a forwards fill keeps a settled element a
+ * stacking context and a containing block, which would trap a `Modal` opened
+ * inside a stage (`docs/motion-recipes.md`, the sticky stack).
+ */
+:root {
+  --guide-frame-w: 440px;
+  --guide-prose-w: 34rem;
+
+  /*
+   * One switch for every lead-in below. `1` plays the sequence; `0` collapses
+   * every delay to zero, so a reduced-motion reader never waits on a row that is
+   * still holding for its turn. The blanket freeze in `tailwind.css` shortens the
+   * animations themselves; this handles the part it cannot see, the delays.
+   */
+  --guide-motion: 1;
+
+  /* The step between one cascading piece and the next, near the list stagger's own. */
+  --guide-cascade-step: calc(var(--dur-quick) / 6 * var(--guide-motion));
+
+  /* The step between one headline word and the next: slower, it is being read. */
+  --guide-word-step: calc(var(--dur-quick) / 2 * var(--guide-motion));
+
+  /*
+   * The first-paint sequence: dock, then headline, then its stage, then the
+   * body, then each scene as it is reached. Each lead is measured from the
+   * moment the chapter mounts; `--guide-t0` is the chapter's own lead, a beat on
+   * first paint (the dock goes first) and nothing on a hash change.
+   */
+  --guide-t0: 0s;
+  --guide-lead-stage: calc(var(--dur-move) * var(--guide-motion));
+  --guide-lead-body: calc(var(--dur-quick) * var(--guide-motion));
+  --guide-lead-legend: calc(var(--dur-tell) * var(--guide-motion));
+  /* A show's stage waits for the headline's words. */
+  --guide-lead-lit: calc(var(--dur-tell) * var(--guide-motion));
+
+  /* How long the overture's assembly takes before the dock is allowed in. */
+  --guide-overture: calc(var(--dur-tell) * 7 * var(--guide-motion));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --guide-motion: 0;
+  }
+}
+
+/* Storybook's motion-off default, the same switch. */
+[data-motion='off'] {
+  --guide-motion: 0;
+}
+
+/*
+ * On first paint the chapter waits a beat for the dock to cascade in; on a
+ * hash change the dock stays put and the chapter arrives at once. The welcome
+ * chapter's first paint is the other way round: the page opens on the
+ * headline, and the dock waits for the overture.
+ */
+[data-guide-arrival='first'] {
+  --guide-t0: calc(var(--dur-move) * var(--guide-motion));
+}
+
+[data-guide-overture] {
+  --guide-t0: 0s;
+}
+
+[data-guide-overture] .guide-dock {
+  --guide-t0: var(--guide-overture);
+}
+
+/* ------------------------------------------------------------------------ */
+/* The show                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/* One screen, the headline and the stage centred in it. */
+.guide-show {
+  min-height: calc(100svh - 6rem);
+  padding-block: 2rem;
+}
+
+/* ------------------------------------------------------------------------ */
+/* The title card                                                            */
+/* ------------------------------------------------------------------------ */
+
+/*
+ * The overture's title card draws its own sentence and its own mark
+ * (`show/KeysTitle.tsx`), so the screen it stands on gives it the room and
+ * adds nothing: no prose column, no frame, nothing to read but the title.
+ */
+.guide-show-card {
+  align-items: stretch;
+}
+
+/*
+ * The card is a wide screen treatment. Its composition is a logo with the
+ * sentence beside it in a landscape frame, which a phone cannot hold at a
+ * legible size, so it appears from the breakpoint where the guide starts giving
+ * each band a screen of its own. Narrow, the heading it would have drawn is
+ * plain display type instead, which is what the overture showed before the card
+ * existed.
+ */
+.guide-keys-title {
+  display: none;
+}
+
+@media (width >= 64rem) {
+  /*
+   * Centred on the window, not on the reading column. Every other band is
+   * measured from the contents sidebar, because the sidebar is there while they
+   * are read; the card plays before it arrives, so a card centred in the column
+   * reads as pushed to the right of an empty screen. The shift is half the
+   * sidebar's own width (`lg:w-72` in `GuideShell`), taken off one side and
+   * added to the other so the box moves rather than widens. No ink crosses into
+   * the sidebar's place: the mark's rim still lands clear of it.
+   */
+  .guide-show-card {
+    position: relative;
+    margin-inline: -9rem 9rem;
+  }
+
+  /*
+   * The card is the window, not the column. The keys descend from above the top
+   * edge and the track runs out through the left one, and a frame inset in a
+   * reading column would have neither. The section is already centred on the
+   * window (above), so `left: 50%` is the window's centre; the block insets are
+   * half the band gap each, which is exactly the height the band gives up to it.
+   * It never takes a pointer: the contents sidebar is underneath.
+   */
+  .guide-keys-title {
+    display: block;
+    position: absolute;
+    top: calc(-1 * var(--guide-band-gap) / 2);
+    bottom: calc(-1 * var(--guide-band-gap) / 2);
+    left: 50%;
+    translate: -50%;
+    width: 100vw;
+    pointer-events: none;
+    color: var(--color-neutral-900);
+  }
+
+  /* The sentence is set in the page's own face, not one the card brings along. */
+  .guide-keys-title text {
+    font-family: inherit;
+  }
+
+  /* The half of the sentence that stays, a step back from the half that leaves. */
+  .guide-keys-title-rest {
+    fill: var(--color-neutral-600);
+    transition: fill var(--dur-tell) var(--ease-standard);
+  }
+
+  [data-word='alone'] .guide-keys-title-rest {
+    fill: var(--color-neutral-900);
+  }
+
+  /*
+   * The passage the card resolves into: centred under the word that stayed, on
+   * the card's own centre line rather than the reading column's, because by the
+   * time it arrives the card is the screen. It waits, held on the card's
+   * `data-passage`, until the track has run out and the word has moved.
+   */
+  .guide-card-passage {
+    position: absolute;
+    top: calc(50% + 6rem);
+    left: 50%;
+    width: min(var(--guide-prose-w), 100vw - 4rem);
+    transform: translateX(-50%);
+    text-align: center;
+    transition:
+      opacity var(--dur-tell) var(--ease-entrance),
+      transform var(--dur-tell) var(--ease-entrance);
+  }
+
+  [data-passage='waiting'] .guide-card-passage {
+    opacity: 0;
+    transform: translate(-50%, 0.75rem);
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* The stage                                                                 */
+/* ------------------------------------------------------------------------ */
+
+/*
+ * The box a frame is fitted into (`FitBox`). It takes the height its band
+ * gives it and `useFitToView` writes the scale that makes the frame whole
+ * there. A transform, so the measurement it is derived from never moves: the
+ * frame's `offsetHeight` is its natural height however small it is drawn.
+ */
+.guide-fit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guide-fit-inner {
+  transform: scale(var(--guide-fit, 1));
+  transform-origin: center center;
+}
+
+/*
+ * The `start` variant (`FitBox align="start"`). The overture's contents share
+ * the left edge of the headline on the screen above them, and a column that
+ * shrinks toward its own centre would walk off that axis exactly when the
+ * window is too short to hold it, the case where the axis matters most.
+ */
+.guide-fit-start {
+  justify-content: flex-start;
+}
+
+.guide-fit-start .guide-fit-inner {
+  transform-origin: left center;
+}
+
+/* The frame's width; its containment is with the modal rules at the end. */
+.guide-stage {
+  width: var(--guide-frame-w);
+  max-width: 100%;
+}
+
+.guide-stage {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--guide-t0) + var(--guide-lead-stage));
+}
+
+/*
+ * A show's stage is lit: a longer, softer shadow than any card in the panel,
+ * and an entrance that tilts the frame back a few degrees and settles it flat
+ * as it rises. The lens above it supplies the perspective. Its own delay
+ * replaces the reader stage's, so the lit frame does not wait twice.
+ */
+.guide-stage-lens {
+  perspective: 1400px;
+}
+
+.guide-stage[data-lit] {
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--color-neutral-900) 6%, transparent),
+    0 24px 48px -16px color-mix(in oklab, var(--color-neutral-900) 22%, transparent),
+    0 48px 96px -32px color-mix(in oklab, var(--color-neutral-900) 14%, transparent);
+  animation: stage-arrive var(--dur-tell) var(--ease-entrance) backwards;
+  animation-delay: calc(var(--guide-t0) + var(--guide-lead-lit));
+  transform-origin: 50% 100%;
+}
+
+@keyframes stage-arrive {
+  from {
+    opacity: 0;
+    transform: rotateX(8deg) translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* Type                                                                      */
+/* ------------------------------------------------------------------------ */
+
+/* Each word rises on its own, a half-quick apart; the subline follows the last. */
+.guide-headline > span {
+  animation: var(--animate-rise-in);
+  animation-duration: var(--dur-travel);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--guide-t0) + var(--guide-word-step) * var(--guide-i, 0));
+}
+
+.guide-subline {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+  animation-delay: calc(
+    var(--guide-t0) + var(--guide-word-step) * var(--guide-i, 0) + var(--dur-quick)
+  );
+}
+
+.guide-eyebrow {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+  animation-delay: var(--guide-t0);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Beats                                                                     */
+/* ------------------------------------------------------------------------ */
+
+/* Pieces landing one at a time. `--guide-i` is set per piece by `Assemble`. */
+.guide-assemble[data-live] [data-guide-piece] {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--guide-cascade-step) * var(--guide-i, 0));
+}
+
+/*
+ * A frameless show's pieces stand on a screen of their own, one below the
+ * title, so on first paint they are a screen away from the reader. Held here
+ * until `useShowPlayer` sees them: the state it publishes is the one signal,
+ * and every no-motion path skips straight to `done`, so nothing can be
+ * stranded invisible. Removing the hold is what starts the cascade: an
+ * animation begins when the rule that declares it first applies.
+ */
+[data-show-state='waiting'] .guide-assemble [data-guide-piece] {
+  opacity: 0;
+  animation: none;
+}
+
+/*
+ * A row that has moved to the dock. It keeps its box, so the band it left
+ * does not reflow under a reader who scrolls back up; it is simply no longer
+ * there, because the thing it showed is now in the rail.
+ */
+[data-guide-tile][data-flown] {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/*
+ * A value that snaps in the component (a meter's inline widths) wipes in
+ * here instead: the wrapper reveals left to right over a tell.
+ */
+.guide-wipe {
+  animation: wipe-in var(--dur-tell) var(--ease-standard) backwards;
+}
+
+@keyframes wipe-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* The article and its scenes                                                */
+/* ------------------------------------------------------------------------ */
+
+.guide-article-body {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--guide-t0) + var(--guide-lead-body));
+}
+
+/*
+ * A scene below the fold holds its entrances until `useRevealOnView` clears
+ * `data-held`; then heading, stage and legend play from that moment. Nothing
+ * is held unless the hook set the attribute, so a scene with no observer
+ * simply plays on mount.
+ */
+.guide-scene[data-held] > *,
+.guide-scene[data-held] .guide-stage,
+.guide-scene[data-held] .guide-legend > * {
+  opacity: 0;
+  animation: none;
+}
+
+.guide-scene > :first-child {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+}
+
+/*
+ * The legend cascades after its stage has settled. `--guide-i` is the row's
+ * index, set inline by `Legend`. Two class selectors, to outrank the shared
+ * `.rise-in-stagger > *:nth-child(n)` steps this replaces.
+ */
+.guide-legend.rise-in-stagger > * {
+  animation-fill-mode: backwards;
+  animation-delay: calc(
+    var(--guide-t0) + var(--guide-lead-legend) + var(--guide-cascade-step) * var(--guide-i, 0)
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* The dock                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/*
+ * The dock's rows arrive through `useStaggerReveal`, which writes each row's
+ * `--reveal-delay`; the shared rule ignores `--guide-t0`, so this one adds it.
+ * Two class selectors outrank the shared `[data-stagger-reveal='on']` rule.
+ */
+.guide-dock .rise-in-stagger[data-stagger-reveal='on'] > [data-revealed] {
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--guide-t0) + var(--reveal-delay, 0s));
+}
+
+.guide-dock .rise-in-stagger > * {
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--guide-t0) + var(--guide-cascade-step) * var(--guide-i, 0));
+}
+
+/*
+ * Forming out of the overture. While held the dock is not there at all; when
+ * the hold lifts every row travels in from its overture pose
+ * (`Dock.formFromRail`) and nothing fades, or the flight would be invisible
+ * exactly where the reader is looking.
+ *
+ * What the flight cannot carry arrives after it: the title block, the source
+ * link and the current chapter's features were never on the canvas, so they
+ * rise once the last row is down (`--dur-tell`, the flight, plus its stagger)
+ * and the nav assembles around the rows rather than being there to receive
+ * them.
+ */
+.guide-dock[data-held] {
+  visibility: hidden;
+}
+
+.guide-dock[data-formed] .rise-in-stagger > * {
+  animation: none;
+}
+
+.guide-dock[data-formed] .guide-dock-chrome,
+.guide-dock[data-formed] .guide-dock-features {
+  animation: var(--animate-rise-in);
+  animation-fill-mode: backwards;
+  animation-delay: calc(var(--dur-tell) + var(--dur-move));
+}
+
+/* The narrow strip along the bottom edge frosts over the content it covers. */
+@media (width < 64rem) {
+  .guide-dock {
+    background-color: color-mix(in oklab, var(--color-white) 72%, transparent);
+    backdrop-filter: blur(12px);
+    transition:
+      background-color var(--dur-move) var(--ease-standard),
+      box-shadow var(--dur-move) var(--ease-standard);
+  }
+
+  .guide-dock[data-scrolled] {
+    background-color: color-mix(in oklab, var(--color-white) 88%, transparent);
+    box-shadow: 0 8px 24px -12px color-mix(in oklab, var(--color-neutral-900) 18%, transparent);
+  }
+
+  /*
+   * Twelve chapters do not fit a phone, so the strip scrolls rather than
+   * hiding the last five behind its own edge. The scrollbar is suppressed
+   * because the strip is 40px tall and a bar across it would be most of the
+   * chrome; the mask is what says there is more, fading the glyphs at each
+   * end rather than cutting them.
+   */
+  .guide-dock-list {
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black 1.5rem,
+      black calc(100% - 1.5rem),
+      transparent
+    );
+  }
+
+  .guide-dock-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * The names are the casualty of a strip that scrolls: a tooltip standing
+   * above its row cannot survive a scroll container's clip. The row keeps its
+   * `aria-label`, so the name is still there for anyone who is read to, and
+   * the glyphs are the panel's own, which the reader has met on the rail.
+   */
+  .guide-dock-label {
+    display: none;
+  }
+}
+
+/* The glyph's tint answers hover the way a rail seat does. */
+.guide-dock-glyph {
+  transition:
+    background-color var(--dur-instant) var(--ease-standard),
+    color var(--dur-instant) var(--ease-standard);
+}
+
+.guide-dock-row:hover .guide-dock-glyph {
+  color: var(--color-neutral-900);
+}
+
+/* ------------------------------------------------------------------------ */
+/* One feature at a time                                                     */
+/* ------------------------------------------------------------------------ */
+
+/*
+ * Scrolling settles on a feature, always: the snap is `mandatory`, so the
+ * page never comes to rest between two of them and never waits until it is close
+ * enough before it moves.
+ *
+ * That is only safe because the whole chapter is snap points: the show, every
+ * band of the body, and the continue footer. A band is a feature with the
+ * prose that introduces it (`ChapterPage.bands`), so there is nothing between
+ * two snap points to be stranded in, and a reader never lands on a lone
+ * connective sentence with the feature it introduces off screen. A block taller than the
+ * viewport is reachable by the same rule the spec gives: a snap area larger
+ * than the snapport can be rested at any position that keeps it covering the
+ * snapport, so a long list is still scrolled through a line at a time.
+ *
+ * `start`, with half the gap as the scroll margin: a band sized to the
+ * viewport less that gap then comes to rest centred, and an oversized block
+ * comes to rest at its top, where reading starts.
+ */
+html {
+  scroll-snap-type: y mandatory;
+}
+
+/*
+ * The title card is a full width element inside a column, and `100vw` counts a
+ * classic scrollbar where the platform draws one. Clip rather than scroll: there
+ * is nothing out there to reach.
+ */
+body {
+  overflow-x: clip;
+}
+
+.guide-show,
+.guide-band,
+.guide-article > footer {
+  scroll-snap-align: start;
+  scroll-margin-top: calc(var(--guide-band-gap, 2rem) / 2);
+}
+
+/*
+ * Wide, a band is one screen and settles on one: the show, each scene and the
+ * continue footer are sized to the viewport less the gap between them, so a
+ * feature is whole on arrival and gone before the next one lands. Frames that
+ * are taller than that are fitted to it, not cropped (`useFitToView`), so a
+ * reader never scrolls through a frame to reach the rest of the product.
+ *
+ * `scroll-snap-stop: always` keeps a fast flick from carrying past a feature.
+ * It is wide only: narrow, the bands flow and forcing a stop at each would
+ * make the page crawl. Measured in Chrome at 1440x900, with or without it one
+ * gesture moves exactly one band; what it adds is the guarantee for the
+ * gesture that would otherwise cross two.
+ */
+@media (width >= 64rem) {
+  :root {
+    --guide-band-gap: 5rem;
+  }
+
+  .guide-article,
+  .guide-article-body {
+    gap: var(--guide-band-gap);
+  }
+
+  .guide-show {
+    height: calc(100svh - var(--guide-band-gap));
+    min-height: 0;
+  }
+
+  .guide-band,
+  .guide-article > footer {
+    min-height: calc(100svh - var(--guide-band-gap));
+    justify-content: center;
+  }
+
+  /* The scene takes what the band's lead-in leaves, so its frame is fitted to
+     the room that is actually left rather than to the whole screen. */
+  .guide-band > .guide-scene {
+    flex: 1 1 auto;
+    min-height: 0;
+    justify-content: center;
+  }
+
+  .guide-show,
+  .guide-scene {
+    padding-block: 0;
+  }
+
+  /* Except the screen the contents stand on: a column that runs edge to edge
+     of the viewport reads as cropped, so it keeps a margin to be whole in. */
+  .guide-show-pieces {
+    padding-block: 2.5rem;
+  }
+
+  .guide-show,
+  .guide-band,
+  .guide-article > footer {
+    scroll-snap-stop: always;
+  }
+}
+
+/* ------------------------------------------------------------------------ */
+/* A modal inside a stage                                                    */
+/* ------------------------------------------------------------------------ */
+
+/*
+ * The shared `Modal` renders in place when there is no modal layer, so a
+ * modal opened on a stage is a descendant of it. Layout containment on the
+ * stage makes it the containing block for the dialog's fixed overlay, so
+ * the dialog is centred on the frame, not the page, and nothing clips it.
+ * The backdrop goes: a modal in the guide is a box with a shadow, over the
+ * frame it belongs to. The overlay keeps its click-to-close, on the frame.
+ */
+.guide-stage {
+  contain: layout;
+}
+
+.guide-stage [role='dialog'] {
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--color-neutral-900) 8%, transparent),
+    0 16px 40px -8px color-mix(in oklab, var(--color-neutral-900) 28%, transparent),
+    0 40px 80px -24px color-mix(in oklab, var(--color-neutral-900) 18%, transparent);
+  max-height: none;
+}
+
+.guide-stage div:has(> [role='dialog'][aria-modal='true']) {
+  background-color: transparent;
+  backdrop-filter: none;
+  align-items: flex-start;
+  padding-top: 2.5rem;
+}

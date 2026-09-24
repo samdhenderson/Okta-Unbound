@@ -337,9 +337,7 @@ describe('TabJumpPalette entity search', () => {
   it('names an entity row\u2019s destination in its accessible name', () => {
     renderWithEntities();
 
-    expect(
-      screen.getByRole('button', { name: 'Engineering \u2014 open in Groups' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Engineering, open in Groups' })).toBeInTheDocument();
   });
 
   it('walks Down out of the last section row into the first entity row', async () => {
@@ -430,9 +428,7 @@ describe('TabJumpPalette entity search', () => {
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
       expect(link.getAttribute('href')).toMatch(/^https:\/\/example\.okta\.com\//);
     }
-    expect(rows().some((el) => /\u2014 open in /.test(el.getAttribute('aria-label') ?? ''))).toBe(
-      false,
-    );
+    expect(rows().some((el) => /, open in /.test(el.getAttribute('aria-label') ?? ''))).toBe(false);
   });
 
   it('pushes the query to the resolver while filtering sections synchronously', async () => {
@@ -444,5 +440,67 @@ describe('TabJumpPalette entity search', () => {
     expect(onEntityQueryChange).toHaveBeenLastCalledWith('rul');
     expect(row('Rules')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Groups$/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('TabJumpPalette commands', () => {
+  const run = vi.fn();
+  const COMMANDS = [
+    { id: 'guide', label: 'Open the user guide', icon: 'book' as const, run },
+    { id: 'feedback', label: 'Send feedback', icon: 'external-link' as const, run: vi.fn() },
+  ];
+
+  it('lists command rows after the sections, under a Commands heading', () => {
+    renderWithEntities({ commands: COMMANDS });
+
+    const all = rows();
+    expect(all[0]).toHaveTextContent('Home');
+    expect(screen.getByText('Commands', { selector: 'li' })).toBeInTheDocument();
+    expect(all[all.length - 2]).toHaveTextContent('Open the user guide');
+    expect(all[all.length - 1]).toHaveTextContent('Send feedback');
+    expect(announcement()).toHaveTextContent(', 2 results, 2 commands');
+  });
+
+  it('renders no heading and no command rows when commands is omitted', () => {
+    renderPalette();
+
+    expect(screen.queryByText('Commands', { selector: 'li' })).toBeNull();
+    expect(rows()).toHaveLength(TAB_DEFS.length);
+  });
+
+  it('filters commands on the same needle as the sections', async () => {
+    renderPalette({ commands: COMMANDS });
+
+    await userEvent.type(field(), 'feedb');
+
+    expect(rows()).toHaveLength(1);
+    expect(row('Send feedback')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Open the user guide/ })).toBeNull();
+    expect(screen.queryByText('No sections match')).toBeNull();
+  });
+
+  it('runs a command on Enter and closes', async () => {
+    renderPalette({ commands: COMMANDS });
+    await waitFor(() => expect(field()).toHaveFocus());
+
+    await userEvent.keyboard('{ArrowUp}');
+    expect(row('Send feedback')).toHaveFocus();
+    await userEvent.keyboard('{ArrowUp}');
+    expect(row('Open the user guide')).toHaveFocus();
+
+    await userEvent.keyboard('{Enter}');
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalled();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('runs the top command from the field when the query leaves only commands', async () => {
+    renderPalette({ commands: COMMANDS });
+
+    await userEvent.type(field(), 'guide{Enter}');
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalled();
   });
 });

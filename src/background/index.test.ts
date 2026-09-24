@@ -86,11 +86,16 @@ beforeEach(async () => {
       sendMessage: vi.fn(() => ({ catch: vi.fn() })),
       onInstalled: { addListener: vi.fn() },
       getManifest: vi.fn(() => ({ version: '0.0.0-test' })),
+      getURL: vi.fn((path: string) => `chrome-extension://${EXTENSION_ID}/${path}`),
     },
     action: { onClicked: { addListener: vi.fn() } },
     contextMenus: { create: vi.fn(), onClicked: { addListener: vi.fn() } },
     alarms: { create: vi.fn(), onAlarm: { addListener: vi.fn() } },
-    tabs: { onUpdated: { addListener: vi.fn() }, query: vi.fn(async () => []) },
+    tabs: {
+      onUpdated: { addListener: vi.fn() },
+      query: vi.fn(async () => []),
+      create: vi.fn(async () => ({})),
+    },
     storage: { sync: { set: vi.fn() } },
     notifications: { create: vi.fn() },
     sidePanel: { open: vi.fn() },
@@ -167,6 +172,82 @@ describe('tab state cleanup alarm', () => {
     await onAlarm({ name: 'tabStateCleanup' });
 
     expect(tabStateMethods.cleanupExpiredStates).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('onInstalled opens the user guide', () => {
+  type InstalledListener = (details: chrome.runtime.InstalledDetails) => void;
+
+  function installed(details: { reason: string; previousVersion?: string }): void {
+    const onInstalled = (chrome.runtime.onInstalled.addListener as unknown as Mock).mock
+      .calls[0][0] as InstalledListener;
+    onInstalled(details as chrome.runtime.InstalledDetails);
+  }
+
+  function guideUrlFor(chapter: string): string {
+    return `${chrome.runtime.getURL('src/guide/index.html')}#/${chapter}`;
+  }
+
+  it('opens the welcome chapter once on a fresh install', () => {
+    installed({ reason: 'install' });
+
+    expect(chrome.tabs.create).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: guideUrlFor('welcome') });
+    expect(chrome.tabs.create).toHaveBeenCalledWith({
+      url: `chrome-extension://${EXTENSION_ID}/src/guide/index.html#/welcome`,
+    });
+  });
+
+  it('no longer writes the unread defaultView key on install', () => {
+    installed({ reason: 'install' });
+
+    expect(chrome.storage.sync.set).toHaveBeenCalledTimes(1);
+    const written = (chrome.storage.sync.set as unknown as Mock).mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(written).not.toHaveProperty('defaultView');
+  });
+
+  it('opens the roadmap chapter once when an update crosses a minor version', () => {
+    (chrome.runtime.getManifest as unknown as Mock).mockReturnValue({ version: '1.3.0' });
+    installed({ reason: 'update', previousVersion: '1.2.0' });
+
+    expect(chrome.tabs.create).toHaveBeenCalledTimes(1);
+    expect(chrome.tabs.create).toHaveBeenCalledWith({ url: guideUrlFor('roadmap') });
+    expect(chrome.tabs.create).toHaveBeenCalledWith({
+      url: `chrome-extension://${EXTENSION_ID}/src/guide/index.html#/roadmap`,
+    });
+  });
+
+  it('opens nothing on a patch update', () => {
+    (chrome.runtime.getManifest as unknown as Mock).mockReturnValue({ version: '1.2.1' });
+    installed({ reason: 'update', previousVersion: '1.2.0' });
+
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
+
+  it('opens nothing on an update with no previous version', () => {
+    (chrome.runtime.getManifest as unknown as Mock).mockReturnValue({ version: '1.3.0' });
+    installed({ reason: 'update' });
+
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
+
+  it('opens nothing on a chrome_update', () => {
+    installed({ reason: 'chrome_update' });
+
+    expect(chrome.tabs.create).not.toHaveBeenCalled();
+  });
+
+  it('logs and keeps going when the tab cannot be created', async () => {
+    (chrome.tabs.create as unknown as Mock).mockRejectedValueOnce(new Error('no window'));
+
+    expect(() => installed({ reason: 'install' })).not.toThrow();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(chrome.contextMenus.create).toHaveBeenCalledTimes(1);
   });
 });
 

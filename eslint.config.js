@@ -72,6 +72,14 @@ export default [
         ParentNode: 'readonly',
         atob: 'readonly',
         TextDecoder: 'readonly',
+        // The guide's title card draws and measures SVG directly
+        // (`guide/show/KeysTitle.tsx`), and sizes its frame to its own box.
+        SVGSVGElement: 'readonly',
+        SVGGElement: 'readonly',
+        SVGTextElement: 'readonly',
+        SVGTSpanElement: 'readonly',
+        SVGPathElement: 'readonly',
+        ResizeObserver: 'readonly',
       },
     },
     plugins: {
@@ -148,6 +156,19 @@ export default [
   },
   // Tests may spy on / stub console (e.g. suppressing expected warnings) and use
   // `any` in mocks/fixtures where modelling the full Okta shape adds no value.
+  {
+    // The user guide is a second extension page that must stay deployable as a
+    // plain static site (`docs/guide.md`), so it may not touch the extension
+    // runtime at all. Opening the guide, and everything else chrome-bound, lives
+    // in `src/shared/guide.ts`, which the guide never imports.
+    files: ['src/guide/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        { name: 'chrome', message: 'The guide is chrome-free; see docs/guide.md.' },
+      ],
+    },
+  },
   {
     files: ['**/*.test.{ts,tsx}', 'src/test/**/*.{ts,tsx}'],
     rules: {

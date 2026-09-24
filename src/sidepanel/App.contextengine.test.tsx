@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { ProgressProvider } from './contexts/ProgressContext';
+import { WELCOME_SEEN_STORAGE_KEY } from '../shared/storage/welcomeStore';
 
 const ORIGIN = 'https://example.okta.com';
 
@@ -71,7 +72,15 @@ beforeEach(() => {
     },
     windows: { getCurrent: vi.fn(async () => ({ id: 1 })) },
     storage: {
-      local: { get: vi.fn(), set: vi.fn(), remove: vi.fn() },
+      local: {
+        get: vi.fn((keys: unknown) =>
+          keys === WELCOME_SEEN_STORAGE_KEY
+            ? Promise.resolve({ [WELCOME_SEEN_STORAGE_KEY]: true })
+            : undefined,
+        ),
+        set: vi.fn(),
+        remove: vi.fn(),
+      },
       sync: { get: vi.fn(), set: vi.fn(), remove: vi.fn() },
       onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
     },

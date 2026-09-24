@@ -60,6 +60,8 @@ async function renderShell({ enabled = true }: { enabled?: boolean } = {}) {
         <CommandPalette
           isOpen={false}
           onClose={vi.fn()}
+          onOpenGuide={vi.fn()}
+          onShowWelcome={vi.fn()}
           activeTab="home"
           onSelect={vi.fn()}
           targetTabId={1}

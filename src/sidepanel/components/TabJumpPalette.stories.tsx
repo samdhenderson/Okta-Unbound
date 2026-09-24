@@ -14,12 +14,12 @@ const meta = {
         component:
           "⌘K jump-to palette for the side panel's nine top-level sections, and the " +
           'keyboard route to the same destinations the icon rail offers. Sections filter synchronously ' +
-          'on a case-insensitive substring of the label; org entities — groups, apps, rules, ' +
-          'policies, users — are handed in by the `CommandPalette` container on their own ' +
+          'on a case-insensitive substring of the label; org entities (groups, apps, rules, ' +
+          'policies, users) are handed in by the `CommandPalette` container on their own ' +
           'debounced schedule, so a section jump never waits on an org search.\n\n' +
           'Navigation is roving focus, not a combobox: Down leaves the field for the first ' +
           'result, Up/Down move within one flat row list (Up off the top returns to the ' +
-          'field), Enter or Space activates, Escape closes. Every entity prop is optional — ' +
+          'field), Enter or Space activates, Escape closes. Every entity prop is optional: ' +
           'omit them and this is the sections-only palette, which is why these stories mock ' +
           'nothing.',
       },
@@ -28,8 +28,8 @@ const meta = {
   argTypes: {
     isOpen: { description: 'When false the palette closes and leaves the accessible tree.' },
     onClose: { description: 'Invoked on Escape, overlay click, close button, and after a pick.' },
-    activeTab: { description: 'The section on screen — marked `aria-current="page"`.' },
-    onSelect: { description: "Called with the chosen section id — the icon rail's own handler." },
+    activeTab: { description: 'The section on screen, marked `aria-current="page"`.' },
+    onSelect: { description: "Called with the chosen section id: the icon rail's own handler." },
   },
   args: {
     isOpen: true,
@@ -61,9 +61,8 @@ export const Filtered: Story = {
     const field = await canvas.findByRole('searchbox', { name: 'Search sections' });
     await userEvent.type(field, 'or');
 
-    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('3 sections'));
+    await waitFor(() => expect(canvas.getByRole('status')).toHaveTextContent('2 sections'));
     await expect(canvas.getByRole('button', { name: /Export/ })).toBeVisible();
-    await expect(canvas.getByRole('button', { name: /Explorer/ })).toBeVisible();
     await expect(canvas.getByRole('button', { name: /History/ })).toBeVisible();
     await expect(canvas.queryByRole('button', { name: /Groups/ })).not.toBeInTheDocument();
   },
@@ -96,13 +95,9 @@ export const WithEntityResults: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.getByRole('button', { name: /^Home/ })).toBeVisible();
-    await expect(
-      canvas.getByRole('button', { name: 'Engineering — open in Groups' }),
-    ).toBeVisible();
-    await expect(canvas.getByRole('button', { name: 'Salesforce — open in Apps' })).toBeVisible();
-    await expect(
-      canvas.getByRole('button', { name: 'Ada Lovelace — open in Users' }),
-    ).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Engineering, open in Groups' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Salesforce, open in Apps' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Ada Lovelace, open in Users' })).toBeVisible();
 
     const heading = (name: string) =>
       canvas
@@ -125,9 +120,7 @@ export const EntitySearching: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByRole('button', { name: 'Engineering — open in Groups' }),
-    ).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Engineering, open in Groups' })).toBeVisible();
   },
 };
 
@@ -175,7 +168,6 @@ export const BelowMinChars: Story = {
     await userEvent.type(field, 'ex');
 
     await expect(canvas.getByRole('button', { name: /^Export/ })).toBeVisible();
-    await expect(canvas.getByRole('button', { name: /^Explorer/ })).toBeVisible();
     await expect(canvas.queryByRole('button', { name: /^Home/ })).not.toBeInTheDocument();
     await expect(canvas.getByText('Type 3 characters to search the org.')).toBeVisible();
   },
@@ -193,7 +185,7 @@ export const UnreachableKind: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    const link = canvas.getByRole('link', { name: 'Engineering — open in Okta' });
+    const link = canvas.getByRole('link', { name: 'Engineering, open in Okta' });
     await expect(link).toHaveAttribute(
       'href',
       'https://example.okta.com/admin/group/00gFAKE0000000000001',
@@ -216,6 +208,28 @@ export const KeyboardNavigation: Story = {
     await userEvent.keyboard('{Enter}');
     await expect(args.onSelect).toHaveBeenCalledTimes(1);
     await expect(args.onClose).toHaveBeenCalled();
+  },
+};
+
+export const WithCommands: Story = {
+  args: {
+    commands: [
+      { id: 'guide', label: 'Open the user guide', icon: 'book', run: fn() },
+      { id: 'feedback', label: 'Send feedback', icon: 'external-link', run: fn() },
+    ],
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const field = await canvas.findByRole('searchbox', { name: 'Search sections' });
+
+    await expect(canvas.getByText('Commands')).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Open the user guide' })).toBeVisible();
+
+    await userEvent.type(field, 'guide{Enter}');
+
+    await expect(args.commands?.[0].run).toHaveBeenCalledTimes(1);
+    await expect(args.onClose).toHaveBeenCalled();
+    await expect(args.onSelect).not.toHaveBeenCalled();
   },
 };
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import TabJumpPalette, { type SectionMeta } from './TabJumpPalette';
+import TabJumpPalette, { type CommandRow, type SectionMeta } from './TabJumpPalette';
 import { useOktaApi } from '../hooks/useOktaApi';
 import { useEntitySearchSources } from '../hooks/useEntitySearchSources';
 import { useJumpResolver, JUMP_SEARCH_MIN_CHARS, type JumpKind } from '../hooks/useJumpResolver';
@@ -14,6 +14,8 @@ const PALETTE_JUMP_KINDS = ['group', 'app', 'rule', 'policy', 'user'] as const;
 export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenGuide: () => void;
+  onShowWelcome: () => void;
   activeTab: TabType;
   onSelect: (tab: TabType) => void;
   targetTabId: number | null;
@@ -23,6 +25,8 @@ export interface CommandPaletteProps {
 const CommandPalette: React.FC<CommandPaletteProps> = ({
   isOpen,
   onClose,
+  onOpenGuide,
+  onShowWelcome,
   activeTab,
   onSelect,
   targetTabId,
@@ -72,6 +76,19 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     [index],
   );
 
+  const commands = useMemo<ReadonlyArray<CommandRow>>(
+    () => [
+      { id: 'open-guide', label: 'Open the user guide', icon: 'book', run: onOpenGuide },
+      {
+        id: 'show-welcome',
+        label: 'Show the welcome screen again',
+        icon: 'sparkles',
+        run: onShowWelcome,
+      },
+    ],
+    [onOpenGuide, onShowWelcome],
+  );
+
   return (
     <TabJumpPalette
       isOpen={isOpen}
@@ -85,6 +102,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
       onEntitySelect={handleEntitySelect}
       canReach={canReach}
       sectionMeta={sectionMeta}
+      commands={commands}
       oktaOrigin={oktaOrigin}
       entityMinChars={JUMP_SEARCH_MIN_CHARS}
     />

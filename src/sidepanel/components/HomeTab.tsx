@@ -3,6 +3,7 @@ import JumpBar from './home/JumpBar';
 import WorkingSet from './home/WorkingSet';
 import OrgSnapshotCard from './home/OrgSnapshotCard';
 import ReportsCard from './home/ReportsCard';
+import GuideLinkRow from './home/GuideLinkRow';
 import { useOktaApi } from '../hooks/useOktaApi';
 import { useWorkingSet } from '../hooks/useWorkingSet';
 import { useOrgFigures } from '../hooks/useOrgFigures';
@@ -15,6 +16,7 @@ import { useOrgEntityIndex } from '../contexts/OrgEntityIndexContext';
 import { navigationTarget } from './home/jumpDestinations';
 import type { WorkingSetRef } from '../../shared/storage/workingSetStore';
 import type { ListViewRequest, ListViewTab } from '../listViewRequest';
+import { openGuide } from '../../shared/guide';
 
 export interface HomeTabProps {
   isActive: boolean;
@@ -103,6 +105,8 @@ const HomeTab: React.FC<HomeTabProps> = ({
           groupChoicesStatus={groupChoicesStatus}
           onScanGroupMfa={onScanGroupMfa}
         />
+
+        <GuideLinkRow onOpenGuide={() => void openGuide('welcome')} />
       </div>
     </div>
   );

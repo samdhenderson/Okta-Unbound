@@ -114,7 +114,13 @@ export function useTabRail({
     const list = listRef.current;
     if (!list || scrolledKeyRef.current === activeKey) return;
     scrolledKeyRef.current = activeKey;
-    findActive(list)?.scrollIntoView?.({
+    const active = findActive(list);
+    if (!active) return;
+    const start = active.offsetLeft;
+    const end = start + active.offsetWidth;
+    const clipped = start < list.scrollLeft || end > list.scrollLeft + list.clientWidth;
+    if (!clipped) return;
+    active.scrollIntoView?.({
       inline: 'nearest',
       block: 'nearest',
       behavior: reducedMotion ? 'auto' : 'smooth',
