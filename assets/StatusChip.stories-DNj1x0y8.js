@@ -1,0 +1,5 @@
+import{j as r}from"./iframe-mmN7AxbW.js";import{S as a,a as o}from"./StatusChip-CSLqKHGq.js";import"./preload-helper-PPVm8Dsz.js";const d={title:"Guide/Shell/StatusChip",component:a,tags:["autodocs"],parameters:{layout:"centered",docs:{description:{component:"How settled a chapter is, from the `guide/status` registry. Colour comes from the status value; the word comes from `STATUS_LABEL`, so copy can change without moving a branch."}}},args:{status:"shipped"}},s={},e={render:()=>r.jsx("div",{className:"flex gap-2",children:Object.keys(o).map(t=>r.jsx(a,{status:t},t))})};s.parameters={...s.parameters,docs:{...s.parameters?.docs,source:{originalSource:"{}",...s.parameters?.docs?.source}}};e.parameters={...e.parameters,docs:{...e.parameters?.docs,source:{originalSource:`{
+  render: () => <div className="flex gap-2">
+      {(Object.keys(STATUS_LABEL) as ChapterStatus[]).map(status => <StatusChip key={status} status={status} />)}
+    </div>
+}`,...e.parameters?.docs?.source},description:{story:"All four, side by side.",...e.parameters?.docs?.description}}};const m=["Shipped","Every"];export{e as Every,s as Shipped,m as __namedExportsOrder,d as default};

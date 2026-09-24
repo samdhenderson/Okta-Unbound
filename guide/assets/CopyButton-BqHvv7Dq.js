@@ -1,0 +1,1 @@
+import{q as l,j as C,B as u}from"./index-DmGUg6zR.js";const m=({getText:s,label:c,copiedLabel:n="Copied",disabled:t=!1,title:a,variant:e="secondary",size:p="sm",className:r})=>{const{copied:o,copy:i}=l(),d=()=>{i(s())};return C.jsx(u,{variant:o?"success":e,size:p,icon:o?"clipboard-check":"clipboard",onClick:d,disabled:t,title:a,className:r,children:o?n:c})};export{m as C};

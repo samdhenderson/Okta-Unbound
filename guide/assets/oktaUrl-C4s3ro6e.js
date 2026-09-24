@@ -1,0 +1,1 @@
+function e(u,n){if(!u||!n.id)return null;switch(n.type){case"group":return`${u}/admin/group/${n.id}`;case"user":return`${u}/admin/user/profile/view/${n.id}`;case"app":return n.name?`${u}/admin/app/${n.name}/instance/${n.id}`:null}}export{e as o};

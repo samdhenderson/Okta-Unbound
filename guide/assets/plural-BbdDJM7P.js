@@ -1,0 +1,1 @@
+function i(e){return typeof e=="string"?{one:e,other:`${e}s`}:e}function r(e,t){const{one:s,other:n}=i(t);return e===1?s:n}function f(e,t){return`${e.toLocaleString()} ${r(e,t)}`}function o(e){return e.endsWith("s")?e.length>3&&e.endsWith("ies")?`${e.slice(0,-3)}y`:/(sse|she|che|xe|ze)s$/.test(e)?e.slice(0,-2):e.endsWith("ss")?e:e.slice(0,-1):e}export{r as a,f as p,o as s};

@@ -1,0 +1,329 @@
+import{j as e}from"./iframe-mmN7AxbW.js";import{u as s,M as a,c as r}from"./blocks-6hb-cuWT.js";import"./preload-helper-PPVm8Dsz.js";const i=`# Action bars
+
+A rung's verbs live in one place: the \`ActionBar\` strip beneath the header — who may
+render it, what a descriptor may carry, where a new verb goes, and which verb wears
+the fill. The primitive is
+[\`components/shared/ActionBar.tsx\`](../src/sidepanel/components/shared/ActionBar.tsx);
+its arithmetic is \`actionBarFit.ts\` and its measuring \`useActionOverflow.ts\`, both
+beside it.
+
+## A page-level verb lives on the strip
+
+A verb whose object is **the whole page** belongs in the \`ActionBar\`. A verb scoped
+to one section's data belongs in that section's \`DetailSection.actions\` slot. There
+is no third home: \`PageHeader.actions\` holds badges and the working-set pin, not
+verbs.
+
+## Every page wraps the strip
+
+**No page renders \`<ActionBar>\` directly.** It renders its own \`<Entity>ActionBar\`,
+which computes the \`ActionDescriptor[]\`, owns whatever local state a tier needs, and
+hands both to the shared strip. \`UserActionBar\` is the reference shape: entity plus
+one callback per verb in, descriptors and tier contents out, and no disclosure
+button of its own. \`GroupActionBar\`, \`RuleActionBar\`, \`GroupsListActionBar\` and
+\`RulesListActionBar\` follow it.
+
+This holds at one action exactly as it holds at five. A one-action page is the one
+most likely to grow a second verb, and the wrapper is where that verb goes — an
+inline call site does not get upgraded when the second arrives; someone has to
+notice it was skipped.
+
+## Verbs are data, never children
+
+\`ActionBar\` takes \`actions={ActionDescriptor[]}\` — \`id\`, \`label\`, \`icon\`, \`variant\`,
+\`priority\`, \`onClick\`, \`disabled\`, \`loading\`, \`title\`, \`testId\`. A strip that cannot
+see what it holds cannot decide what fits, so it measures each action once in a
+hidden probe and re-splits the row as the panel is dragged: everything on a wide
+panel, every icon dropped at once when it tightens, then the tail moved behind
+**More**.
+
+**A descriptor carries no JSX, no \`className\`, no \`aria-pressed\` and no badge slot.**
+An arbitrary node cannot be measured from a cached width nor re-rendered into the
+tier with different chrome. Arbitrary UI goes in \`expansion\` (the tier) or \`subRow\`
+(always visible, inside the band) — neither is measured, which is why they may carry
+JSX.
+
+Declaration order is reading order **and** overflow order. Put the verb an admin
+came to press first; expect the last one declared to disappear first. \`priority\` is
+\`flex\` by default and \`pinned\` for a \`primary\` action; \`pinned\` never overflows (the
+row wraps first) and \`tier\` never reaches the row at all.
+
+**Never render your own More button.** The strip owns the control, the region it
+opens and that region's \`aria-controls\` target, and renders it only when the tier
+has content. Leave the tier uncontrolled unless the page must collapse it on a rung
+change.
+
+## Where a new verb goes
+
+Ask these in order.
+
+1. **Is its object the whole page?** No — it belongs to a section, a selection or a
+   filter, not this row. A selection-scoped verb goes in the \`register\` (below); a
+   section-scoped one goes in that section. One carve-out, below.
+2. **Is the handler wired, and does the verb have an object right now?** No — the
+   descriptor **does not exist yet**. Omit it. Never ship a control with no path to
+   firing and a tooltip that reads like a permission message.
+3. **Can a second press undo it?** No — the verb starts in the tier
+   (\`priority: 'tier'\`), behind a confirm \`Modal\` whose text states the consequence
+   in plain language beside the control: _"Blocks sign-in until reversed"_,
+   _"Copies members into one survivor and empties the others"_. The sentence names
+   what changes, not what the button is called. **A wizard in front of a verb does
+   not move it into the row** — the test asks what the verb does, not what stands
+   between the press and the doing.
+
+   **One question, one verb — the fork goes inside the confirm.** Where Okta
+   offers several operations that answer the same admin question, they are modes
+   in one confirm rather than sibling verbs in the strip. _Reset password_ is the
+   reference shape: four operations (a reset email, a direct set, a one-time set,
+   a generated temporary value) behind one button, each carrying the sentence that
+   distinguishes it. Four buttons would make the reader choose before any of the
+   consequences are in front of them.
+   3b. **Is there prior state to capture at all?** Usually yes, and the verb records
+   it so undo can restore. Where there is none — a password change, where Okta
+   returns no previous value at any cost — the verb may still ship, on three
+   conditions: the audit entry is written anyway (the history answers _who changed
+   this, and when_ without the value); the refusal is **declared** in
+   \`useUndoAction\`'s \`NOT_UNDOABLE\` table rather than inferred; and the confirm
+   says the change cannot be undone, beside the control, before it is pressed.
+   Never capture a stand-in — a hash, a length — so the row resembles a
+   restorable one. See \`docs/adr/0009-a-write-with-no-prior-state.md\`.
+
+4. **Yes to both?** It starts in the row, \`priority: 'flex'\`.
+5. **Is it rare enough that the row is not its to spend?** Frequency may move a
+   row verb down to the tier — a panel toggle an admin reaches for once a quarter
+   has not earned a permanent seat beside the verbs they came for. Frequency may
+   **only** move a verb down, never up, and never brings a confirm \`Modal\` with
+   it. (The two verbs that used to illustrate this, \`Collections\` and \`Cleanup\`,
+   were retired from the Groups rung; the rule outlived them.)
+
+### The one carve-out: a verb scoped to a pane's filter
+
+A verb whose object is what a pane's filter selected **may** sit in the tier. It is a
+tier carve-out, never a row one, and all four conditions are required:
+
+1. The filter is owned by a pane **of this rung** — not another screen's, not the
+   panel-wide selection.
+2. The label carries the **measured** surviving count: \`Set attribute on 47 members\`.
+   Measured from a loaded list, never projected from an entity's own count.
+3. The descriptor is **absent** unless that pane is the one on screen. A strip is
+   visible across every pane, and a count quoting a filter the reader cannot see is a
+   claim they cannot check (\`docs/claims.md\`).
+4. \`expansion\` carries one sentence naming the scope. A descriptor carries no JSX, and
+   "members" alone reads as all of them — so the sentence says whose it is not, too.
+
+The reference is \`set-profile-attribute\` in \`GroupActionBar\`, whose object is the
+Members pane's filtered roster. It runs the same basket verb the Selection tab's
+Actions pane runs, over an ad-hoc basket (\`selection/cohortBasket\`); the reasoning is
+in \`docs/adr/0008\`.
+
+Note what it does **not** do: it is absent rather than disabled with no tab connected,
+unlike its neighbour _Remove deprovisioned_. "N members are deprovisioned" stays true
+about a loaded roster whatever the connection, so that row may grey; a verb naming a
+live filter _and_ a write path that does not exist without a tab fails question 2
+instead.
+
+Then decide the fill separately, below.
+
+## \`primary\` is a verb that acts
+
+At most one \`primary\` per strip. Two questions, both of which must answer **yes**:
+
+1. **Is its object the whole page?** Not a selection, not a filter, not a section.
+2. **Does pressing it act?** It opens a modal, or it performs the operation.
+
+"Acts" is satisfied by _opening the modal_, not by _committing the write_.
+\`GroupActionBar\`'s **Add** is the reference: its object is the whole group, it opens
+a modal that writes, and adding a member is reversible, so it stays in the row.
+
+**A fetch is never \`primary\`, on any rung, in any state.** So is a toggle that opens
+a read-only panel: revealing something to read is not acting.
+
+**A read-only _check_ that fetches a subject sits in the row and is never
+\`primary\`** — \`RuleActionBar\`'s _Evaluate user_, \`GroupActionBar\`'s _Check
+membership_. It reads and writes nothing, so it belongs beside the other read-only
+verbs; it costs requests, so its \`title\` names them; and with no Okta tab to serve
+them it is **omitted, never disabled**. Its answer is a \`DetailSection\` under the
+strip with its own Clear, not a modal and not a new rung (ADR-0010).
+
+Where that leaves an export is a **ranking**, not a ban:
+
+1. **An acting verb wins.** On a rung that has one, every export takes
+   \`priority: 'tier'\` — \`GroupActionBar\`'s _Export members_ sits behind **More**,
+   under **Add**. Shipping an export in the row there is a defect, not a local call.
+2. **On a rung with no acting verb, the one whole-rung export may hold \`primary\`**
+   and stay in the row. \`GroupsListActionBar\` keeps \`export-list\`;
+   \`RulesListActionBar\` keeps \`export-rules\`. Any _other_ export on those rungs is
+   selection- or section-scoped and still goes to the tier.
+3. **Otherwise the rung has no \`primary\`.** That is a real answer, not a gap to
+   fill — a row of evenly-weighted \`secondary\` peers, or \`RuleActionBar\`'s empty
+   row when a rule targets no groups and _Preview impact_ is dropped. Nothing is
+   promoted to take the slot.
+4. **A read-only rung may have no page verbs at all.** \`actions\` is then \`[]\`, and
+   \`ActionBar\` draws **no action row** rather than a band of padding above nothing
+   — an empty row is not a row. \`AppsListActionBar\` and \`PoliciesListActionBar\` are
+   both this shape, and they pass **no \`register\`** either: the band is the search
+   \`subRow\` and nothing else. The enumeration below is still owed, and is the only
+   thing separating "this rung has no page verb" from "nobody wired one".
+
+Rule 2 needs policing, because "this rung has no acting verb" is the easy thing to
+claim. **It is an enumeration, written as a comment above the descriptor array**:
+every verb the rung offers in any state — every branch of every conditional spread,
+plus any page-scoped verb rendered outside the strip — and which question each one
+fails. \`RulesListActionBar\` carries the model table. Four ways the claim goes wrong:
+a selection-scoped verb is not a counter-example (it fails Q1); a read-only panel
+toggle is not an acting verb (it fails Q2); a verb declared off the strip still
+counts (move it onto the strip rather than promoting an export past it); and an
+unwired descriptor is not a verb at all. A rung that later grows an acting verb
+loses the fallback in the same change that adds it.
+
+The \`primary\` is **constant** — it does not move with a selection size or a panel's
+open state.
+
+## Emphasis is not ordering, and position one is a safety property
+
+\`primary\` is emphasis. Position is ordering. Promoting a verb changes its fill and
+nothing about where it sits.
+
+**Where a set of controls varies with state, the leading position must hold a
+control whose worst outcome is another click.** Ordering by weight alone puts a
+destructive verb (_Merge_ copies members into a survivor and empties the sources)
+under the pixel that a moment earlier was _Select all_. The rule binds both
+surfaces a selection touches, and each keeps its own half of it:
+
+- **On the rung's count row** — where the two selection controls now live — it is
+  what makes \`Deselect all\` the first control declared. It appears the moment
+  anything is ticked, and because the cluster is trailing it grows leftward, so
+  \`Select all\` does not move under the pointer that just ticked a row. See
+  \`ListCountRow\` in [list-controls.md](./list-controls.md).
+- **In the register** it is why a verb that changes state with no symmetric undo
+  starts in the tier rather than being appended to the row. Groups' leading
+  selection verb is _Compare_, which opens a modal; a verb added later has to be
+  placed rather than appended.
+
+\`Select all\` is **disabled rather than omitted** once everything is taken, for the
+same reason. It is furniture, not a verb, and it holds a position of its own; a
+control that vanished at its boundary would hand that position to whatever came
+next. The \`title\` names which boundary it is sitting on.
+
+## The open panel says so in words
+
+A panel toggle states its own state in its **label** — \`Duplicates (3)\` →
+\`Hide duplicates\`, \`Stats\` → \`Hide stats\` — and never in colour
+alone. A descriptor carries no \`aria-pressed\`, so a fill would be state no screen
+reader could read. Panel toggles take \`variant: 'ghost'\`: showing a panel is not an
+operation on the rung, and a chromeless control says so where a bordered one claims
+otherwise.
+
+An open toggle takes \`priority: 'pinned'\`, set explicitly rather than as a side
+effect of \`variant\`: the control that **closes** a panel can never be the thing
+hiding behind **More** while the panel it toggles sits open below.
+
+A rung's **filter** panel is not one of these toggles and is not in the tier: its
+control is the \`FilterToggle\` in the search row the strip renders as its \`subRow\`,
+and the panel is a sibling rendered below the band. The contract is
+\`FilterToggle\`'s, in [list-controls.md](./list-controls.md).
+
+## The selection register
+
+\`register\` is the strip's second measured row, for **verbs** whose object is what
+the reader has ticked — and for nothing else. It renders on the band's own white
+surface, at the band's own \`px-2\`, one button size down (\`xs\` against the action
+row's \`sm\`) — no border, no rule, no divider, no wash.
+
+**Selection furniture is not a selection verb, and does not live here.** \`Select
+all\` and \`Deselect all\` say how to start and stop ticking rather than doing anything
+to what was ticked, and they stand on the rung's own count row — shared
+\`ListCountRow\`, directly above the rows, beside the figures they act on
+([list-controls.md](./list-controls.md)). That puts the control next
+to the number it changes and leaves the strip to the things that act on the
+selection. A verb in the register keeps \`secondary\`, however small; the furniture on
+the count row takes \`variant: 'link'\`, which keeps the vertical half of its size
+scale so the row's height is unchanged. Never give the register a wash: a wash says
+_different_ but never _subordinate_, says nothing to a reader who cannot see it, and
+its inset stacks on the band's own. The band's left edge is one line, top to bottom.
+
+**No label in the register carries a count** — and none on the count row does
+either. How many rows the filter matched and how many are ticked are one fact each,
+stated once, by the rung's \`ListCountLine\` inside that row — \`Showing 50 of 128 · 3
+selected\`. A count in a label is a second copy of a number the reader can already
+see, free to disagree with it, and a label that grows a digit re-measures the row it
+sits in every time a checkbox is ticked. What a control would act on goes in its
+\`title\`, which on an element with text content is its accessible _description_, not
+its name. The rule is the rung's, not the register's: the Applications toolbar used
+to carry its own _Showing X of Y_ two inches from the count line, and lost it for
+the same reason.
+
+The register is **ranged right**, against the action row's leading edge. With the
+counts gone it is a row of short controls with nothing anchoring it left, and two
+ragged-left rows read as one broken column. The count row's cluster is trailing for
+the same reason, and \`ListCountLine\` anchors that row's left edge.
+
+This does not touch the tier carve-out above, whose second condition **requires** the
+measured count in the label (\`Set attribute on 47 members\`). That verb writes to a
+cohort the reader cannot otherwise see the extent of, and the count is a safety
+property rather than a readout. A register verb takes what is on screen, beside a
+line that already says how much that is.
+
+**Pass it whenever the rung has a selection verb — then in every state, not only
+once something is ticked.** Groups is the shape: \`Compare\` appears at 2–5 ticked and
+\`Export\` in the tier, so the register is passed empty too, the row holds its space
+in both states, and the first tick adds controls to a row that already exists
+instead of pushing the list down under the pointer that ticked it.
+
+**A rung with a selection but no selection verb passes no \`register\` at all.**
+Applications and Auth Policies tick rows for the panel-wide basket and offer no verb
+of their own; with the furniture on the count row, a register there would be a
+reserved row holding space for nothing, which is padding, not protection. The row
+comes back in the same change that declares the first verb — both rungs' strips
+enumerate which verb that would be and what it is waiting on.
+
+The register overflows independently against its own width, into the action row's
+**one** tier behind the **one** More control. Its leading descriptor is the caller's
+to keep correct — \`ActionBar\` pins what it is given and never reorders.
+
+**The tier region holds its space the same way, and for the same reason.** It is
+rendered whether or not there is anything to disclose: closed it is \`0fr\`, so an
+empty one costs no height, and a region that appeared only once it had content
+would pop into the band the moment a tier verb did. On a rung whose tier fills
+with the selection — every rung with a selection-scoped export, since rule 1
+above sends those to the tier — that is a row materialising under the pointer
+that just ticked a checkbox. The register alone cannot prevent it, because the
+register overflows _into_ that region. **More** is still absent while the tier is
+empty: a control that opens onto nothing is worse than no control.
+
+## Refresh is app chrome
+
+There is exactly one refresh, in the top bar, on every rung of every tab. No strip
+declares its own, and neither does \`PageHeader.actions\`. Its subject is
+whatever the panel is showing, and its \`title\` — which is also its accessible name —
+**names that subject**: _Refresh the groups list_, _Refresh Payments Team_. Never
+_Refresh this group_.
+
+It carries **no visible label, no badge and no count** — the name never appears as
+rendered chrome. An initial load belongs in the rung's own empty state, not in a
+control whose label swaps between _Load_ and _Refresh_.
+
+Refresh is one of exactly two **session chrome** controls in \`ContextBar\` — the
+other is Selection, the basket's count. The category and its closure at two are
+[ADR-0005](adr/0005-session-chrome.md) / \`docs/page-shell.md\`.
+
+## The band
+
+The strip rests as a card the width of the rung and grows past the rung's margins as
+it docks, so header and strip end up one continuous pinned surface. **Only the
+painted chrome moves** — the merge animates the band's \`::before\`, never the row, so
+no verb shifts and the overflow observer watches a width that never churns. **Never
+put a layout property on that timeline**; the row keeps the column's padding whether
+the chrome is inside the margins or past them.
+
+**Never pass a \`style\` prop to the band.** \`useActionOverflow\` publishes
+\`--bar-bleed\` on the band and \`--dock-offset\` on the band's **parent** imperatively
+through refs; a \`style\` prop clears them on the next render, and publishing
+\`--dock-offset\` on the band instead silently mistimes the merge.
+
+The tier is a **region**, not a menu — \`role="menu"\` would forbid the arbitrary UI
+\`expansion\` exists to hold. Its children stay mounted while closed, held out of the
+tab order with \`inert\`, so closing it resets nothing.
+`;function o(t){return e.jsxs(e.Fragment,{children:[`
+`,e.jsx(a,{title:"Documentation/Action Bars"}),`
+`,e.jsx(r,{children:i})]})}function l(t={}){const{wrapper:n}={...s(),...t.components};return n?e.jsx(n,{...t,children:e.jsx(o,{...t})}):o()}export{l as default};
