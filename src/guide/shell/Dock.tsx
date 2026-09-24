@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import pkg from '../../../package.json' with { type: 'json' };
 import { CHAPTERS, type ChapterId, hashFor } from '../chapters';
 import { EXTERNAL_LINK_PROPS, GITHUB_HOME_URL } from '../links';
+import { IS_HOSTED_GUIDE } from '../host';
+import InstallCta from './InstallCta';
 import { motionAvailable, readDurToken } from '../show/motion';
 import Icon from '../../sidepanel/components/shared/Icon';
 import { useReducedMotion } from '../../sidepanel/hooks/useReducedMotion';
@@ -12,6 +14,7 @@ import { useScrolled } from './useScrolled';
 export interface DockProps {
   chapter: ChapterId;
   formsOnScroll?: boolean;
+  install?: boolean;
 }
 
 const ROW =
@@ -91,7 +94,11 @@ function formFromRail(list: HTMLElement): boolean {
   return flew;
 }
 
-const Dock: React.FC<DockProps> = ({ chapter, formsOnScroll = false }) => {
+const Dock: React.FC<DockProps> = ({
+  chapter,
+  formsOnScroll = false,
+  install = IS_HOSTED_GUIDE,
+}) => {
   const setRailRef = useStaggerReveal(!formsOnScroll);
   const listRef = useRef<HTMLOListElement | null>(null);
   const reduced = useReducedMotion();
@@ -206,15 +213,18 @@ const Dock: React.FC<DockProps> = ({ chapter, formsOnScroll = false }) => {
           );
         })}
       </ol>
-      <p className="guide-dock-chrome hidden px-2 text-[11px] text-neutral-500 lg:mt-auto lg:block lg:border-t lg:border-neutral-200 lg:pt-4">
-        <a
-          href={GITHUB_HOME_URL}
-          {...EXTERNAL_LINK_PROPS}
-          className="rounded-sm underline-offset-2 hover:text-neutral-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          Source and issues on GitHub
-        </a>
-      </p>
+      <div className="guide-dock-chrome hidden lg:mt-auto lg:block lg:border-t lg:border-neutral-200 lg:pt-4">
+        {install ? <InstallCta variant="rail" /> : null}
+        <p className="px-2 text-[11px] text-neutral-500">
+          <a
+            href={GITHUB_HOME_URL}
+            {...EXTERNAL_LINK_PROPS}
+            className="rounded-sm underline-offset-2 hover:text-neutral-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          >
+            Source and issues on GitHub
+          </a>
+        </p>
+      </div>
     </nav>
   );
 };

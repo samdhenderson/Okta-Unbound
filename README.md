@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/pjgofecdjgljhpokbpjjbnbelcpkgibn?label=chrome%20web%20store&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/okta-unbound/pjgofecdjgljhpokbpjjbnbelcpkgibn)
 [![Docs](https://img.shields.io/badge/docs-storybook-FF4785?logo=storybook&logoColor=white)](https://samdhenderson.github.io/Okta-Unbound/)
+[![User guide](https://img.shields.io/badge/user%20guide-read-0F9D58)](https://samdhenderson.github.io/Okta-Unbound/guide/)
 [![Version](https://img.shields.io/github/package-json/v/samdhenderson/Okta-Unbound?label=version)](package.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](package.json)
@@ -267,6 +268,7 @@ npm run test:coverage  # unit tests with the enforced coverage gate
 npm run test:storybook # run every story as a headless-browser test
 npm run storybook      # component + docs explorer dev server (:6006)
 npm run build-storybook # static docs site (components + Internals + Documentation)
+npm run build-guide     # the user guide as a static site (deployed to /guide/)
 npm run docs           # TypeDoc → Markdown for the Storybook Internals section
 ```
 
@@ -306,6 +308,11 @@ GitHub Pages ([`deploy-pages.yml`](.github/workflows/deploy-pages.yml)).
   every shared component as a live story, the generated API reference for the hooks,
   scheduler and cache, and the `docs/` specs rendered alongside them. Build it locally
   with `npm run build-storybook`.
+- **User guide:**
+  [samdhenderson.github.io/Okta-Unbound/guide](https://samdhenderson.github.io/Okta-Unbound/guide/) —
+  the same page the extension ships, chapter by chapter, deployed beside the explorer
+  from the same commit. Build it locally with `npm run build-guide`; its spec is
+  [`docs/guide.md`](docs/guide.md).
 
 ---
 

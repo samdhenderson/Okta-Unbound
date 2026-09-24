@@ -63,6 +63,9 @@ manifest.v2.json
 
 *storybook.log
 storybook-static
+# The guide's static site, built by `npm run build-guide` and copied into
+# storybook-static/guide/ at deploy time.
+guide-static/
 .storybook/generated
 shots/
 clips/

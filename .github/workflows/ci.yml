@@ -99,6 +99,12 @@ jobs:
       - name: Build Storybook
         run: npm run build-storybook -- --quiet
 
+      # The guide's own static build (`vite.guide.config.ts`). It ships to
+      # `/guide/` on the docs site, so a build that breaks should fail the PR
+      # rather than the deploy. Cheap: no TypeDoc, no story rendering.
+      - name: Build the user guide
+        run: npm run build-guide
+
       # Run every story as a headless-browser render test (9 have play/assert fns).
       # VITEST_BROWSER_EXECUTABLE is intentionally unset here so Playwright uses the
       # browser installed below (the pinned-sandbox path only exists locally).

@@ -136,11 +136,32 @@ them first. Hook-coupled components carry a **"Related internals"** cross-link b
 (`parameters.docs.description.component`) to the API pages they use — add one when
 you build a new hook-coupled component.
 
-`.github/workflows/deploy-pages.yml` builds the site here and pushes it to the
-public mirror's `gh-pages` branch, where it is served. It publishes across
+## Deploying: one push, two sites
+
+This file is the rig, and the rig now deploys two sites. The component explorer
+is the published root; the user guide is `/guide/`, built from the same commit
+by `npm run build-guide` (`vite.guide.config.ts`) and copied under
+`storybook-static/` before the push. They go together because they are one
+artifact: a guide showing a component the explorer no longer documents would be
+a lie a reader has no way to detect. The guide's own rules, and the one way the
+hosted copy differs from the extension page, are in
+[guide.md](./guide.md#the-hosted-guide); the deploy also runs
+`src/guide/frameRule.test.ts` as its gate, because that rule pays off exactly
+when the page is served from a host with no extension runtime.
+
+The single `.nojekyll` at the published root covers `/guide/` too.
+
+`.github/workflows/deploy-pages.yml` builds both here and pushes them to the
+public mirror's `gh-pages` branch, where they are served. It publishes across
 repositories for two reasons: this repo is private, and public Pages from a
 private repo needs a paid plan; and the mirror cannot build the site itself,
 because its source is comment-free and TypeDoc there would emit an empty
 Internals section. The comments only exist here, so the build only happens here.
 Setup is a `PUBLIC_REPO_TOKEN` secret on this repo and Pages pointed at
 `gh-pages` on the mirror; the workflow header states both.
+
+Pages serves with a ten-minute cache. Assets are content-hashed and safe, but
+`index.html` (the explorer's, `iframe.html`, and now the guide's) can be briefly
+stale after a deploy and reference a chunk the force-push has already replaced,
+which reads as a blank page and is fixed by a hard reload. Known property, not a
+new one.

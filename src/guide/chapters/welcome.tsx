@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import ChapterPage, { type ShowSpec } from '../shell/ChapterPage';
 import Band from '../shell/Band';
+import InstallCta from '../shell/InstallCta';
 import Scene from '../shell/Scene';
 import { Marker } from '../shell/Callout';
 import Assemble from '../show/Assemble';
 import Headline from '../show/Headline';
 import KeysTitle from '../show/KeysTitle';
 import { CHAPTERS, chapterById, hashFor } from '../chapters';
+import { IS_HOSTED_GUIDE } from '../host';
 import TabNavigation, { type TabType } from '../../sidepanel/components/TabNavigation';
 import Icon from '../../sidepanel/components/shared/Icon';
 import { RAIL_TAB_DEFS, TAB_DEFS } from '../../sidepanel/tabs';
@@ -209,6 +211,7 @@ const WelcomeChapter: React.FC = () => (
         in that window. It works through the session you are already signed in with, so there is no
         token to paste and nothing of yours is stored.
       </p>
+      {IS_HOSTED_GUIDE ? <InstallCta variant="band" /> : null}
     </Band>
 
     <HotScope>

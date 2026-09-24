@@ -36,18 +36,18 @@ the same routing `CLAUDE.md` enforces, to keep context lean.
 | [ux-guidelines.md](./ux-guidelines.md)               | Working on modals, a11y, or loading/empty/error states                    |
 | [motion.md](./motion.md)                             | Touching durations, easings, primitives, or reduced motion                |
 | [motion-recipes.md](./motion-recipes.md)             | Building a scroll-driven or multi-band choreography                       |
-| [guide.md](./guide.md)                               | Adding or changing a user-guide chapter, or the first-run welcome         |
+| [guide.md](./guide.md)                               | Adding or changing a user-guide chapter, the hosted build, or first-run   |
 
 ## Working on the repo
 
-| Doc                                              | Read it when you are…                                       |
-| ------------------------------------------------ | ----------------------------------------------------------- |
-| [development.md](./development.md)               | Dealing with logging, secrets, `any`, build, lint, or CI    |
-| [testing.md](./testing.md)                       | Writing, fixing, or removing tests                          |
-| [component-explorer.md](./component-explorer.md) | Running Storybook or writing a `.stories.tsx`               |
-| [storybook-infra.md](./storybook-infra.md)       | Touching viewports, framing, or stories-as-browser-tests    |
-| [dead-code.md](./dead-code.md)                   | Hunting unused files/exports/deps, or reading a knip report |
-| [reel.md](./reel.md)                             | Working on the demo reel or the store-page ad               |
+| Doc                                              | Read it when you are…                                        |
+| ------------------------------------------------ | ------------------------------------------------------------ |
+| [development.md](./development.md)               | Dealing with logging, secrets, `any`, build, lint, or CI     |
+| [testing.md](./testing.md)                       | Writing, fixing, or removing tests                           |
+| [component-explorer.md](./component-explorer.md) | Running Storybook or writing a `.stories.tsx`                |
+| [storybook-infra.md](./storybook-infra.md)       | Touching viewports, framing, stories-as-tests, or the deploy |
+| [dead-code.md](./dead-code.md)                   | Hunting unused files/exports/deps, or reading a knip report  |
+| [reel.md](./reel.md)                             | Working on the demo reel or the store-page ad                |
 
 ## Backlogs and records
 

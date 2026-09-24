@@ -1,6 +1,6 @@
 {
   "name": "okta-unbound",
-  "version": "0.7.0-beta.4",
+  "version": "0.8.1-beta.4",
   "description": "Advanced Okta group and user management extension for administrators",
   "type": "module",
   "types": "src/sidepanel/components/shared/index.ts",
@@ -27,7 +27,9 @@
     "prepare": "husky",
     "shoot": "node .storybook/scripts/shoot-stories.mjs",
     "storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook dev -p 6006",
-    "build-storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook build"
+    "build-storybook": "node .storybook/scripts/gen-doc-pages.mjs && storybook build",
+    "guide": "vite --config vite.guide.config.ts",
+    "build-guide": "vite build --config vite.guide.config.ts"
   },
   "keywords": [
     "okta",
@@ -92,6 +94,7 @@
     "url": "https://github.com/samdhenderson/okta-unbound/issues"
   },
   "homepage": "https://github.com/samdhenderson/okta-unbound#readme",
+  "chromeWebStoreId": "pjgofecdjgljhpokbpjjbnbelcpkgibn",
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "idb": "^8.0.3",

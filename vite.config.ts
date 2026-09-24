@@ -14,6 +14,7 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  define: { 'import.meta.env.VITE_GUIDE_HOST': JSON.stringify('extension') },
   build: {
     rollupOptions: {
       input: { guide: 'src/guide/index.html' },

@@ -2,6 +2,7 @@ import { newIssueUrl } from '../shared/githubLinks';
 import type { ChapterDef } from './chapters';
 
 export { GITHUB_HOME_URL, GITHUB_ISSUES_URL, newIssueUrl } from '../shared/githubLinks';
+export { CHROME_WEB_STORE_URL } from '../shared/storeLinks';
 
 export function chapterIssueUrl(chapter: ChapterDef): string {
   return newIssueUrl(`${chapter.title}: `);

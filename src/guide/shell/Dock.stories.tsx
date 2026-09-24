@@ -37,6 +37,19 @@ export const Default: Story = {
   },
 };
 
+export const Hosted: Story = {
+  args: { install: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const nav = canvas.getByRole('navigation', { name: 'Contents' });
+    await expect(within(nav).getAllByRole('link')).toHaveLength(CHAPTERS.length + 2);
+    const store = within(nav).getByRole('link', { name: /Chrome Web Store/ });
+    await expect(new URL(store.getAttribute('href') ?? '').hostname).toBe(
+      'chromewebstore.google.com',
+    );
+  },
+};
+
 export const Focused: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

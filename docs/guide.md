@@ -37,6 +37,50 @@ Storybook proves nothing here: its alias swaps the facade for a spy, so a
 component that fetches renders fine in a story and fetches for real inside the
 installed page. Trust the test only.
 
+## The hosted guide
+
+The same source ships twice. `vite.config.ts` builds it into the extension
+package; `vite.guide.config.ts` builds it as a plain static site, which
+`.github/workflows/deploy-pages.yml` copies to `/guide/` on the docs site beside
+the component explorer. `npm run build-guide` writes `guide-static/`;
+`npm run guide` serves it with HMR.
+
+Three things make the web build different, and only three:
+
+- **No `crx()`.** There is no manifest and no extension. The config is written
+  out rather than subtracted from `vite.config.ts`, which is the opposite of
+  what `.storybook/main.ts` does, because Storybook auto-merges the app config
+  and cannot opt out.
+- **`base: './'`.** The bundle is agnostic about the path it is served from, so
+  the workflow is the only thing that decides it is `/guide/`. Relative URLs are
+  safe here because the hash router never moves the document.
+- **`root: src/guide`, and the cost of it.** Tailwind v4 detects sources by
+  scanning Vite's `root`, so this build would scan only the guide and drop every
+  utility that lives in the leaf components the frames render. `@source '../'`
+  in `src/sidepanel/tailwind.css` is what prevents that. Measured with the line
+  removed, the stylesheet falls from 90 KB to 59 KB and the page comes out half
+  styled, with every gate still green.
+
+### What may differ between the two copies
+
+**The install link, and nothing else.** `src/guide/host.ts` is the only module
+that reads the flag, and exactly two components read `IS_HOSTED_GUIDE`:
+`shell/Dock` (through its `install` prop, so `Dock.stories.tsx` can render the
+hosted foot and axe can review it) and the Open the Panel band in
+`chapters/welcome.tsx`, which is the one place the shared copy is actively wrong
+for a reader who may not have the extension.
+
+Nothing else may branch on it: not copy, not a fixture, not a frame, not a
+status, not a motion decision, not another link. A chapter that reads
+differently on the web reads differently in the panel too, and the fix for that
+is to rewrite the sentence for both.
+
+An unset flag means `extension`, so a build that forgets it ships the copy that
+claims less; `src/guide/host.test.ts` pins that default. The flag decides what
+is _rendered_, not what is bundled: `InstallCta` is still present in the
+extension's guide chunk, it is simply never reached. Nothing about the address
+is secret, so that costs a kilobyte rather than a claim.
+
 ## The frame rule
 
 A scene shows the real product: a **leaf component** from
@@ -316,9 +360,13 @@ stands in for the whole shell until it is dismissed. Its gate is
 
 ## Links
 
-The guide links to one destination, GitHub. Every address comes from
-`package.json` (`homepage`, `bugs.url`) through `src/shared/githubLinks.ts`, so
-the guide has no address of its own to go stale. `src/guide/links.ts` adds the
+The guide links to two destinations, GitHub and the Chrome Web Store listing.
+Every address comes from `package.json` (`homepage`, `bugs.url`,
+`chromeWebStoreId`) through `src/shared/githubLinks.ts` and
+`src/shared/storeLinks.ts`, so the guide has no address of its own to go stale.
+The store link is shown only by the hosted build, above the source link at the
+dock's foot. (`README.md` states the store URL three times in prose, which
+Markdown cannot read from `package.json`; those are the known duplicates.) `src/guide/links.ts` adds the
 per-chapter new-issue link (title prefilled with the chapter) and the
 `EXTERNAL_LINK_PROPS` every outbound anchor spreads (`target="_blank"`,
 `rel="noopener noreferrer"`). `src/guide/links.test.ts` pins all three.

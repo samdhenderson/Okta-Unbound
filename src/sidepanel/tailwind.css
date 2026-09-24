@@ -1,6 +1,22 @@
 @import 'tailwindcss';
 
 /*
+ * Tailwind v4 detects sources by scanning Vite's `root`. The extension build
+ * and Storybook both run from the repository root, so they see every component;
+ * the guide's web build runs with `root: src/guide` (`vite.guide.config.ts`),
+ * and would otherwise scan only the guide, dropping every utility that lives in
+ * the leaf components the guide's frames render. The page would come out half
+ * styled, and no gate would notice.
+ *
+ * This line is additive, not a replacement: `@source` entries are concatenated
+ * with the automatic root, so the builds that already scan everything lose
+ * nothing. Writing it as `@import 'tailwindcss' source('../')` would REPLACE the
+ * root instead, and drop `.storybook/decorators.tsx`, the one classname site
+ * outside `src/`.
+ */
+@source '../';
+
+/*
  * Self-hosted webfonts. The type tokens below name Inter and Roboto Mono, but
  * nothing ever loaded them — the panel silently fell back to `-apple-system`
  * (SF Pro on macOS, Segoe UI on Windows), so the shipped UI did not render the

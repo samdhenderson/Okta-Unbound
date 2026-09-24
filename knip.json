@@ -15,7 +15,7 @@
   "ignoreExportsUsedInFile": true,
   "ignoreDependencies": ["tailwindcss"],
   "vite": {
-    "config": ["vite.config.ts"]
+    "config": ["vite.config.ts", "vite.guide.config.ts"]
   },
   "vitest": {
     "config": ["vitest.config.ts"],

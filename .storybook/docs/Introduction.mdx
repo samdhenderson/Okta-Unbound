@@ -21,11 +21,20 @@ reference, and the project's written specs.
 - **Documentation** — the project specs (architecture, design system, testing,
   …) and the Architecture Decision Records (ADRs), rendered from `docs/`.
 
+Beside this site, not inside it, is the **user guide**: the same page the
+extension ships, built from `src/guide` by `vite.guide.config.ts` and deployed
+from this commit to <a href="https://samdhenderson.github.io/Okta-Unbound/guide/" target="_blank" rel="noopener noreferrer">/guide/</a>.
+The link is absolute because this page renders in Storybook's preview iframe,
+where a relative one would not resolve to the site root; it is dead under
+`npm run storybook` and correct where it is meant to be followed. See
+**Documentation → Guide**.
+
 ## Running & testing
 
 ```
 npm run storybook        # this explorer, on http://localhost:6006
 npm run build-storybook  # static build (deployed to GitHub Pages)
+npm run build-guide      # the user guide as a static site (deployed to /guide/)
 npm run test:storybook   # run every story as a headless-browser render test
 ```
 
