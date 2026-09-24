@@ -61,6 +61,7 @@ const KeysTitle: React.FC<KeysTitleProps> = ({ text, passage }) => {
   const measure = useCallback(() => {
     const restEl = refRestRef.current;
     if (!restEl || !rest) return;
+    if (!restEl.getClientRects().length) return;
     const width = restEl.getSubStringLength(1, rest.length);
     if (!width) return;
     places.current = {
