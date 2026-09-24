@@ -12,15 +12,19 @@ export function useFitToView(): (node: HTMLElement | null) => void {
     if (!(inner instanceof HTMLElement)) return;
 
     const fit = () => {
-      const natural = inner.offsetHeight;
+      const tall = inner.offsetHeight;
+      const wide = inner.offsetWidth;
       const room = box.clientHeight;
-      if (!natural || !room) {
+      const across = box.clientWidth;
+      if (!tall || !room) {
         inner.style.setProperty('--guide-fit', '1');
         return;
       }
+      const ratios = [room / tall];
+      if (wide && across) ratios.push(across / wide);
       inner.style.setProperty(
         '--guide-fit',
-        Math.min(1, Math.max(FLOOR, room / natural)).toFixed(3),
+        Math.min(1, Math.max(FLOOR, Math.min(...ratios))).toFixed(3),
       );
     };
 
