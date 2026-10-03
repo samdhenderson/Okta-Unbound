@@ -1,0 +1,1 @@
+function i(u){const t=new Map;for(const n of u){const s=new Set;for(const e of n.userAttributes??[]){if(s.has(e))continue;s.add(e);const r=t.get(e),o={ruleId:n.id,ruleName:n.name};r?r.push(o):t.set(e,[o])}}return t}export{i};

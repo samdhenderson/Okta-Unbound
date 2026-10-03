@@ -1,0 +1,5 @@
+import{A as s}from"./AnswerHeadline-1rdFjlxA.js";import"./iframe-Pee757m_.js";import"./preload-helper-PPVm8Dsz.js";const t={title:"Home/Ask/AnswerHeadline",component:s,tags:["autodocs"],parameters:{docs:{description:{component:"An answer’s headline, painted in word by word, then its sub-lines. The words are one paragraph of real text, so a screen reader hears the sentence whole."}}},args:{headline:"Joe Park is in 2 groups Jon Ruiz isn’t; Jon Ruiz is in none Joe Park isn’t.",lines:["They share 3 groups."]}},e={},r={args:{lines:[]}};e.parameters={...e.parameters,docs:{...e.parameters?.docs,source:{originalSource:"{}",...e.parameters?.docs?.source},description:{story:"A headline and one line.",...e.parameters?.docs?.description}}};r.parameters={...r.parameters,docs:{...r.parameters?.docs,source:{originalSource:`{
+  args: {
+    lines: []
+  }
+}`,...r.parameters?.docs?.source},description:{story:"A headline alone.",...r.parameters?.docs?.description}}};const i=["Default","HeadlineOnly"];export{e as Default,r as HeadlineOnly,i as __namedExportsOrder,t as default};

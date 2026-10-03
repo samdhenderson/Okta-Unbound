@@ -1,0 +1,1 @@
+const t=new Map([["00g","group"],["00u","user"],["0oa","app"],["0pr","rule"]]),o=3,r=17,s=new RegExp(`^(${[...t.keys()].join("|")})[A-Za-z0-9]{${r}}$`);function _(e){const n=e.trim();return s.test(n)?t.get(n.slice(0,o))??null:null}export{_ as o};

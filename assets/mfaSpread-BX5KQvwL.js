@@ -1,0 +1,1 @@
+import{M as r}from"./chartPalette-Byit8206.js";const e="var(--color-neutral-300)";function a(t){const n=[];for(const o of t)o.count<=0||n.push({row:o,background:r[o.value]??e,isTail:!1});return n}export{a as m};
